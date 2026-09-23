@@ -1,0 +1,7 @@
+[
+  {"wait":1800},
+  {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":250},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":4800},
+  {"eval":"(()=>{window.__b=new Array(40).fill(0);window.__t=new Array(40).fill(0);window.__iv=setInterval(()=>{const L=n=>Entry.variableContainer.lists_.find(x=>x.name_===n).array_;const su=L('caSurf'),sg=L('caSeg'),of=L('caOff');for(let i=1;i<8;i++){const b=Math.floor(Number(sg[i].data)/10);if(b>=0&&b<40){window.__t[b]++;if(Number(su[i].data)>=2)window.__b[b]++;}}},100);return 1;})()"},
+  {"wait":50000},
+  {"eval":"(()=>{clearInterval(window.__iv);const r=[];for(let i=0;i<40;i++){if(window.__t[i]>6)r.push([i*10,Math.round(100*window.__b[i]/window.__t[i])]);}return r.filter(x=>x[1]>15);})()"}
+]

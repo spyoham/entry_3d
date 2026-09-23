@@ -1,0 +1,4 @@
+[
+  {"wait": 2000,
+   "eval": "(()=>{const o=Entry.container.objects_.map(o=>({n:o.name,t:o.objectType,v:o.entity.visible,x:Math.round(o.entity.x),y:Math.round(o.entity.y),txt:(o.entity.getText?String(o.entity.getText()):null)}));const m=(Entry.variableContainer.variables_.concat(Entry.variableContainer.lists_)).filter(v=>v.isVisible&&v.isVisible()).map(v=>v.name_);return {objs:o,visibleMonitors:m};})()"}
+]

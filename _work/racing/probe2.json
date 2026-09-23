@@ -1,0 +1,4 @@
+[
+  {"wait": 2000,
+   "eval": "(()=>{const v=Entry.variableContainer.variables_.find(v=>v.name_==='hSpd');const o=Entry.container.objects_.find(o=>o.name==='tSpd');const before=v.getValue();v.setValue('');const after=v.getValue();return {hSpdValue:JSON.stringify(before),typeofBefore:typeof before,afterSetEmpty:JSON.stringify(after),typeofAfter:typeof after,tSpdText:JSON.stringify(o.entity.getText())};})()"}
+]

@@ -1,0 +1,37 @@
+이 작품("TinyStories LLM 14M (2.67비트).ent")에 들어 있는 가중치의 출처와 라이선스
+=====================================================================
+
+1) 모델: delphi-suite/v0-llama2-12.8m  (MIT License)
+   https://huggingface.co/delphi-suite/v0-llama2-12.8m
+   Llama-2 구조, 8층, hidden 384, FF 1024, 16 attention heads / 8 KV heads,
+   어휘 4096(sentencepiece, byte fallback), 임베딩 공유. 파라미터 1,456만 개.
+
+   MIT License
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in all
+   copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+2) 양자화 인지 학습(QAT)에 쓴 말뭉치: roneneldan/TinyStories  (CDLA-Sharing-1.0)
+   https://huggingface.co/datasets/roneneldan/TinyStories
+   원 모델도 이 데이터로 학습되었습니다. 이 작품에 담긴 것은 학습 결과 가중치이며
+   말뭉치 자체는 포함되어 있지 않습니다.
+
+3) 이 작품의 엔트리 블록(커널·토크나이저·UI)은 직접 작성한 것입니다.
+
+가중치는 2.67비트로 양자화된 뒤 8,000만 토큰 QAT로 보정되었습니다
+(검증 perplexity 4.78 / 원본 4.375).

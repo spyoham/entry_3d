@@ -1,0 +1,5 @@
+[
+  {"wait": 6000, "vars": true},
+  {"eval": "(Entry.stage.inputField.value('Once upon a time'), Entry.dispatchEvent('canvasInputComplete'), 'answered')"},
+  {"wait": 1000, "vars": true}
+]

@@ -1,0 +1,21 @@
+import { createSim } from './sim.mjs';
+const S = createSim({}); const { R } = S; const f = (n) => R.peek(n);
+const P = (n, a) => console.log(n, a.slice(0, 5).map(v => +(+v).toFixed(5)));
+f('initLists')(); R.poke('curPos', 0); f('embed')(6403); f('ropeTable')(0);
+// replicate layerStep(0) with probes
+R.poke('cacheBase', 0);
+R.poke('LVMS', R.peek('LVMALL')[0]); f('prep_X')(1); R.poke('LVS', R.peek('LVALL')[0]); f('tablesD')();
+R.poke('M', R.peek('WALL')[0]); R.poke('MP', 2); f('rowsChunked')(960, 9); f('sparseFix')(1);
+f('rope')(); f('cacheStore')(1); R.poke('npos', 1);
+for (let h = 0; h < 9; h++) f('attnHead' + h)();
+P('ao', R.peek('AO'));
+R.poke('LVMS', R.peek('LVMALL')[1]); f('prep_AO')(0); R.poke('LVS', R.peek('LVALL')[1]); f('tablesD')();
+R.poke('M', R.peek('WALL')[1]); R.poke('MP', 2); f('rowsChunked')(576, 9); f('sparseFix')(2);
+P('o', R.peek('Y')); f('addY')(); P('x1', R.peek('X'));
+R.poke('LVMS', R.peek('LVMALL')[2]); f('prep_X')(1); R.poke('LVS', R.peek('LVALL')[2]); f('tablesD')();
+R.poke('M', R.peek('WALL')[2]); R.poke('MP', 2); f('rowsChunked')(3072, 9); f('sparseFix')(3);
+P('gate', R.peek('Y')); P('up', R.peek('Y').slice(1536));
+f('siluMul')(); P('act', R.peek('AF'));
+R.poke('LVMS', R.peek('LVMALL')[3]); f('prep_AF')(0); R.poke('LVS', R.peek('LVALL')[3]); f('tablesF')();
+R.poke('M', R.peek('WALL')[3]); R.poke('MP', 2); f('rowsChunked')(576, 24); f('sparseFix')(4);
+P('down', R.peek('Y')); f('addY')(); P('x2', R.peek('X'));

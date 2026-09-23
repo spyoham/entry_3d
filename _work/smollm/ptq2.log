@@ -1,0 +1,13 @@
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/75 [00:00<?, ?it/s]Loading weights: 100%|██████████| 75/75 [00:00<00:00, 37449.14it/s]
+fp ppl=12.046  (400194 test tokens, 796079 calib tokens)
+layer 0 done 21s
+layer 1 done 41s
+layer 2 done 60s
+layer 3 done 80s
+layer 4 done 100s
+layer 5 done 121s
+layer 6 done 132s
+layer 7 done 153s
+bits=2.0 gs=64 map={} rtn=False ppl=51.475  (157s)
+'Once upon a time, there, and so,,,,, it did when when when when when when when when when when when when it was when it was when'

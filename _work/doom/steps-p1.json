@@ -1,0 +1,1 @@
+[{"wait":3000},{"eval":"(()=>{const v=Entry.variableContainer.variables_.find(v=>v.name_===\"dbgMode\"); v.setValue(1); return 1})()"},{"wait":1000}]

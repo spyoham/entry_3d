@@ -1,0 +1,9 @@
+loaded in 23239 ms
+eval "answered"
+t=7000 {}
+poll layerNo=1 at 5 ms
+poll layerNo=2 at 14745 ms
+poll layerNo=3 at 22988 ms
+{}
+loadComplete at []
+errors: none

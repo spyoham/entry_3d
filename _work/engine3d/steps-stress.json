@@ -1,0 +1,2 @@
+[{"wait":6000,"eval":"(()=>{const V=n=>Entry.variableContainer.variables_.find(x=>x.name_===n).value_;const L=n=>{const l=Entry.variableContainer.lists_.find(x=>x.name_===n);return l?l.array_.length:-1};return {obj:V('오브젝트수'),drawn:V('그린면수'),seen:V('보인물체수'),fps:Math.round(Number(V('FPS'))),listX:L('오브젝트X'),listFlag:L('오브젝트플래그'),warn:V('엔진알림')}})()"},
+ {"wait":4000,"shot":"st1.png","eval":"(()=>{const V=n=>Entry.variableContainer.variables_.find(x=>x.name_===n).value_;return {fps:Math.round(Number(V('FPS'))),drawn:V('그린면수'),seen:V('보인물체수')}})()"}]

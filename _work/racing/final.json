@@ -1,0 +1,16 @@
+[
+  {"wait":1800,"shot":"z1_menu.png"},
+  {"down":{"code":"ArrowDown","key":"ArrowDown","keyCode":40}},{"wait":220},{"up":{"code":"ArrowDown","key":"ArrowDown","keyCode":40}},{"wait":300},
+  {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":250},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":1200,"shot":"z2_carsel.png"},
+  {"down":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":250},{"up":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":900,"shot":"z3_carsel2.png"},
+  {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":250},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":600},
+  {"down":{"code":"ArrowDown","key":"ArrowDown","keyCode":40}},{"wait":220},{"up":{"code":"ArrowDown","key":"ArrowDown","keyCode":40}},{"wait":300},
+  {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":250},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":1200,"shot":"z4_trksel.png"},
+  {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":250},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":600},
+  {"down":{"code":"ArrowUp","key":"ArrowUp","keyCode":38}},{"wait":220},{"up":{"code":"ArrowUp","key":"ArrowUp","keyCode":38}},{"wait":220},
+  {"down":{"code":"ArrowUp","key":"ArrowUp","keyCode":38}},{"wait":220},{"up":{"code":"ArrowUp","key":"ArrowUp","keyCode":38}},{"wait":300},
+  {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":250},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":2500,"shot":"z5_count.png"},
+  {"wait":2600},{"down":{"code":"KeyW","key":"w","keyCode":87}},{"wait":2500,"shot":"z6_race.png"},
+  {"down":{"code":"KeyC","key":"c","keyCode":67}},{"wait":250},{"up":{"code":"KeyC","key":"c","keyCode":67}},{"wait":1500,"shot":"z7_cockpit.png"},
+  {"down":{"code":"KeyC","key":"c","keyCode":67}},{"wait":250},{"up":{"code":"KeyC","key":"c","keyCode":67}},{"wait":1500,"shot":"z8_far.png"}
+]

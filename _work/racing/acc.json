@@ -1,0 +1,7 @@
+[
+  {"wait": 1500},
+  {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":250},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":4800},
+  {"eval":"(()=>{const V=n=>Entry.variableContainer.variables_.find(x=>x.name_===n);window.__t0=Number(V('gt').value_);window.__log=[];window.__iv=setInterval(()=>{const L=Entry.variableContainer.lists_.find(x=>x.name_==='caSpd');window.__log.push([+(Number(V('gt').value_)-window.__t0).toFixed(2),+(Number(L.array_[0].data)*3.6).toFixed(1)])},100);return 1;})()"},
+  {"down":{"code":"KeyW","key":"w","keyCode":87}},{"wait":14000},
+  {"eval":"(()=>{clearInterval(window.__iv);const l=window.__log;const at=v=>{const r=l.find(e=>e[1]>=v);return r?r[0]:null};return {to50:at(50),to100:at(100),to150:at(150),to200:at(200),maxKmh:Math.max(...l.map(e=>e[1])),gameSec:l[l.length-1][0]};})()"}
+]

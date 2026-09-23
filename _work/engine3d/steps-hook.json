@@ -1,0 +1,2 @@
+[{"eval":"(()=>{const B=Entry.block.value_of_index_from_list;const orig=B.func;window.__bad=null;B.func=function(sprite,script){try{return orig.call(this,sprite,script)}catch(e){if(!window.__bad){const listId=script.getField('LIST',script);const list=Entry.variableContainer.getList(listId,sprite);window.__bad={name:list?list.name_:'?',idx:String(script.getValue('INDEX',script)),len:list?list.array_.length:-1,blk:script.block?script.block.id:'?'};}throw e;}};return 'hooked'})()"},
+ {"wait":4000,"eval":"window.__bad"}]

@@ -1,0 +1,8 @@
+[
+  {"wait":1800},
+  {"eval":"(()=>{Entry.variableContainer.variables_.find(x=>x.name_==='aiDiff').setValue(DIFFLEVEL);return 1;})()"},
+  {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":250},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":5200},
+  {"eval":"(()=>{const L=n=>Entry.variableContainer.lists_.find(x=>x.name_===n).array_;window.__s=Number(L('caSeg')[1].data);window.__t=Number(Entry.variableContainer.variables_.find(x=>x.name_==='raceT').value_);window.__mx=0;window.__iv=setInterval(()=>{const a=L('caSpd');for(let i=1;i<8;i++){const v=Number(a[i].data)*3.6;if(v>window.__mx)window.__mx=v;}},80);return {diff:Number(Entry.variableContainer.variables_.find(x=>x.name_==='aiDiff').value_)};})()"},
+  {"wait":45000},
+  {"eval":"(()=>{clearInterval(window.__iv);const L=n=>Entry.variableContainer.lists_.find(x=>x.name_===n).array_;const ds=Number(L('caSeg')[1].data)-window.__s;const dt=Number(Entry.variableContainer.variables_.find(x=>x.name_==='raceT').value_)-window.__t;const step=Number(Entry.variableContainer.variables_.find(x=>x.name_==='segStep').value_);return {avgKmh:Math.round(ds*step/dt*3.6),maxKmh:Math.round(window.__mx),lapSec:Math.round(400*step/(ds*step/dt))};})()"}
+]

@@ -1,0 +1,5 @@
+[{"wait":4000},
+ {"eval":"(()=>{const V=n=>Entry.variableContainer.variables_.find(x=>x.name_===n);V('debugOn').value_=1;V('drawMode').value_=0;return 'debug on'})()"},
+ {"wait":2000,"shot":"a7.png"},
+ {"eval":"(()=>{const V=n=>Entry.variableContainer.variables_.find(x=>x.name_===n);V('drawMode').value_=2;return 'wire on'})()"},
+ {"wait":2000,"shot":"a8.png"}]

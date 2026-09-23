@@ -1,0 +1,1 @@
+[{"wait":2500,"eval":"(async()=>{const t=Entry.engine.projectTimer;const out=[];for(let i=0;i<8;i++){out.push(Number(t.getValue?t.getValue():t.value_));await new Promise(r=>setTimeout(r,120));}return out})()"}]

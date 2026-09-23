@@ -1,0 +1,1119 @@
+// Build "ENTRY RACING 3D" -> .ent
+//   - track control points (3 built-in circuits) generated from smooth harmonics
+//   - a material palette with baked directional lighting, expanded into a
+//     per-track fog colour table (material x 16 fog levels) so the renderer
+//     only pays one list read per polygon instead of an rgb() blend
+//   - EJS sources (src/*.js) compiled to Entry blocks
+import fs from 'node:fs';
+import path from 'node:path';
+import url from 'node:url';
+import { compileProgram } from './ejs.mjs';
+import { buildF1 } from './f1tracks.mjs';
+import { f1Car } from './f1car.mjs';
+
+const HERE = path.dirname(url.fileURLToPath(import.meta.url));
+export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'editor.js', 'hud.js', 'main.js'];
+
+// ============================================================
+// constants shared with the EJS sources
+// ============================================================
+export const C = {
+    // Entry refuses a list longer than 5000 items and the vertex buffer is
+    // (NSEG + 1) * PPR + NCARV + NSCNV + 8 long, so with PPR 10 NSEG must stay
+    // under about 485 (the build checks it).
+    // v5: 460, to leave room for the 272-vertex open-wheel car model.
+    NSEG: 460,          // centreline rings per circuit (ring NSEG+1 == ring 1)
+    PPR: 10,            // points per ring in the vertex buffer
+    NCAR: 8,            // cars on track (1 player + 7 AI)
+    NMAT: 240,          // materials in the palette
+    NFOG: 16,           // fog levels baked per material
+    NTRK: 8,            // built-in circuits
+    EDTRK: 9,           // slot of the editor's own circuit
+    NCP: 4,             // default checkpoints per lap
+    NCPMAX: 10,         // upper bound the editor may place
+    LAPS: 3,
+    MAXCTL: 48,         // control points per circuit (editor limit)
+    NSMOKE: 96,         // tyre-smoke / rain-spray particles
+    MKS: 3,             // tyre-mark slots per segment
+    NCARV: 272,         // vertices in the car model (both LOD tiers)
+    NCARF: 140,         // faces in the car model
+    NSCENE: 1500,       // scenery instances placed around a circuit
+    GHOST: 9,           // car slot of the time-trial ghost (NCAR + 1)
+    NGH: 3000,          // ghost samples per lap (every GHDT s -> 5 minutes)
+    GHDT: 0.1,          // ghost sample interval, seconds
+    RLPASS: 90,         // relaxation passes for the racing line
+    NSCNV: 48,          // vertices in the largest scenery model
+    NHILLT: 64,         // azimuth buckets in the distant skyline profile
+    NHILLS: 26,         // slices drawn across the field of view
+    NMM: 52,            // samples in the minimap outline
+    MMX: 184, MMY: -74, // minimap centre on the stage
+    MMR: 42,            // half the size of the box it is fitted into
+    MMW: 1.9,           // half the width of the drawn ribbon, in pixels
+    SCRW: 240, SCRH: 135,
+};
+// point slots inside a ring
+// ordered so a ring's LOD levels are contiguous prefixes: road edges alone for
+// the far field, + grass and wall tops for the middle, + curbs up close.
+// + run-off outer edges for the middle band.
+export const P = { L: 1, R: 2, GL: 3, GR: 4, OL: 5, OR: 6, WL: 7, WR: 8, CL: 9, CR: 10 };
+
+// ============================================================
+// material palette
+// ============================================================
+// families that get 8 shade levels (index = family base + shade 0..7)
+const SHADED = ['road', 'grass', 'curbA', 'curbB', 'wall', 'tunnel', 'dirt', 'dark',
+    'roadS', 'pave', 'grav', 'runT', 'sand'];
+const BASE = {
+    road: [80, 82, 88], grass: [70, 138, 64], curbA: [212, 50, 46], curbB: [236, 236, 240],
+    wall: [170, 172, 180], tunnel: [96, 94, 104],
+    dirt: [156, 138, 92], dark: [40, 46, 56],
+    roadS: [62, 62, 68], pave: [150, 146, 138], grav: [196, 176, 132], runT: [104, 108, 124], sand: [196, 170, 124],
+};
+const CARCOL = [
+    [222, 54, 48], [46, 122, 226], [246, 190, 40], [54, 196, 120], [232, 120, 40], [178, 86, 226], [232, 232, 238], [70, 78, 92],
+];
+
+export function buildPalette() {
+    const mats = [];           // 1-based list of [r,g,b]
+    const idx = {};
+    const push = (name, rgb) => { mats.push(rgb.map(v => Math.max(0, Math.min(255, Math.round(v))))); idx[name] = mats.length; return mats.length; };
+    // shade level s in 0..7 -> brightness factor
+    const shadeF = (s) => 0.52 + s * (1.06 - 0.52) / 7;
+    for (const f of SHADED) {
+        const b = BASE[f];
+        for (let s = 0; s < 8; s++) { const k = shadeF(s); push(`${f}${s}`, [b[0] * k, b[1] * k, b[2] * k]); }
+        idx[f] = idx[`${f}0`];
+    }
+    // unshaded extras
+    idx.mark = push('mark0', [40, 40, 44]); push('mark1', [54, 54, 58]); push('mark2', [66, 66, 70]); push('mark3', [80, 80, 84]);
+    idx.shadow = push('shadow0', [34, 40, 34]); push('shadow1', [46, 54, 46]);
+    // cars: 8 colours x 4 shades (roof, side, nose, dark)
+    idx.car = mats.length + 1;
+    for (const c of CARCOL) for (const k of [1.0, 0.76, 0.88, 0.52]) push('', [c[0] * k, c[1] * k, c[2] * k]);
+    idx.brakeOff = push('brakeOff', [92, 28, 28]);
+    idx.brakeOn = push('brakeOn', [255, 74, 54]);
+    idx.glass = push('glass', [46, 58, 76]);
+    idx.smoke = push('smoke', [214, 214, 218]);
+    idx.smokeD = push('smokeD', [168, 170, 176]);
+    idx.gate = push('gate', [250, 208, 40]);
+    idx.startA = push('startA', [242, 242, 246]);
+    idx.startB = push('startB', [28, 28, 32]);
+    idx.post = push('post', [190, 62, 52]);
+
+    // ---- scenery ----
+    // Each model reads its materials as small offsets from one base, so the
+    // groups below are laid out in exactly the order the models want them.
+    idx.tree = push('bark', [82, 62, 46]);      // +0 bark  +1 barkD
+    push('barkD', [58, 44, 34]);
+    push('leafA', [44, 104, 52]);               // +2 +3 +4 foliage, dark to light
+    push('leafB', [58, 126, 62]);
+    push('leafC', [76, 150, 76]);
+    // buildings: 4 colourways x (sunlit wall, shaded wall, roof, glass)
+    idx.bld = mats.length + 1;
+    for (const c of [[196, 188, 172], [170, 150, 134], [148, 160, 176], [124, 128, 142]]) {
+        push('', [c[0], c[1], c[2]]);
+        push('', [c[0] * 0.70, c[1] * 0.70, c[2] * 0.70]);
+        push('', [c[0] * 0.52 + 22, c[1] * 0.50 + 18, c[2] * 0.48 + 16]);
+        push('', [44, 60, 82]);
+    }
+    idx.conc = push('conc', [188, 188, 192]);   // +0 +1 concrete
+    push('concD', [138, 138, 146]);
+    push('roofA', [176, 68, 58]);               // +2 +3 stand roof
+    push('roofD', [120, 46, 40]);
+    push('crowd', [132, 116, 142]);             // +4 +5 packed crowd
+    push('crowdD', [96, 84, 106]);
+    idx.steel = push('steel', [158, 162, 170]); push('steelD', [110, 114, 122]);
+    idx.rock = push('rock', [138, 126, 112]); push('rockD', [102, 92, 82]); push('rockL', [166, 154, 138]);
+    idx.tent = push('tent', [228, 228, 232]); push('tentD', [178, 178, 186]);
+    idx.water = push('water', [44, 92, 146]); push('waterL', [78, 138, 194]);
+    idx.hedge = push('hedge', [46, 92, 48]); push('hedgeD', [34, 70, 38]);
+    idx.sandX = push('sandX', [198, 180, 134]);
+    // ---- F1 circuit furniture ----
+    idx.tyre = push('tyre', [34, 34, 38]); push('tyreD', [22, 22, 26]);      // tyre wall
+    push('bandR', [214, 40, 40]); push('bandW', [236, 236, 236]);
+    idx.palm = push('trunk', [120, 96, 70]); push('trunkD', [88, 70, 52]);   // palm
+    push('frond', [52, 124, 58]); push('frondD', [36, 94, 44]);
+    idx.yacht = push('hull', [244, 244, 246]); push('hullD', [190, 192, 200]); // yacht
+    push('stripe', [30, 46, 92]); push('ydeck', [66, 90, 120]);
+    idx.wheel = push('fw', [236, 236, 242]); push('fwD', [170, 172, 184]);    // Ferris wheel
+    push('fwR', [220, 60, 70]); push('fwB', [70, 120, 220]);
+    idx.mbs = push('mbs', [226, 226, 222]); push('mbsD', [170, 170, 170]);    // Marina Bay Sands
+    push('mbsG', [82, 128, 160]); push('mbsT', [60, 150, 90]);
+    idx.flame = push('flameG', [58, 100, 178]); push('flameD', [36, 66, 128]); // Flame Towers
+    push('flameL', [98, 150, 220]); push('flameT', [150, 190, 240]);
+    idx.casino = push('cream', [232, 214, 170]); push('creamD', [182, 164, 124]); // Casino
+    push('slate', [84, 92, 104]); push('dome', [92, 150, 122]); push('domeD', [62, 110, 90]);
+    idx.stone = push('stone', [206, 176, 128]); push('stoneD', [156, 128, 90]); // old city stone
+    push('stoneT', [178, 148, 104]);
+    idx.ad = push('adR', [200, 32, 40]); push('adY', [246, 196, 30]);          // advertising
+    push('adG', [22, 110, 70]); push('adB', [30, 70, 170]); push('adW', [240, 240, 244]);
+    idx.tyreC = push('tyreC', [26, 26, 28]); push('rim', [120, 122, 130]);    // car wheels
+    while (mats.length < C.NMAT) push('', [255, 0, 255]);
+    if (mats.length > C.NMAT) throw new Error('palette overflow: ' + mats.length);
+    return { mats, idx };
+}
+
+const hex2 = (v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
+// One table per sky. Entry refuses a list of more than 5000 items, and all
+// three skies together would be 8448, so they stay separate: buildTrack copies
+// the one this circuit needs into the runtime colTab. That also drops the
+// per-track base out of the index the renderer computes for every polygon.
+export function buildColourTable(mats, sky) {
+    const out = [];
+    for (let m = 0; m < C.NMAT; m++) {
+        const c = mats[m];
+        for (let f = 0; f < C.NFOG; f++) {
+            const t = f / (C.NFOG - 1);
+            out.push('#' + hex2(c[0] + (sky[0] - c[0]) * t) + hex2(c[1] + (sky[1] - c[1]) * t) + hex2(c[2] + (sky[2] - c[2]) * t));
+        }
+    }
+    return out;
+}
+
+// ============================================================
+// circuits
+// ============================================================
+// A circuit is written the way you would describe a real one - a run of
+// straight, then a corner of so many degrees at so many metres of radius -
+// and the closure error is least-squares'd out of the straight lengths so
+// the lap joins up exactly. Corner radius is given in metres, so the speed
+// a corner can be taken at is chosen rather than discovered.
+// flags: 1 tunnel, 2 jump ramp, 4 barrier walls, 8 curbs forced
+const D2R = Math.PI / 180;
+
+// segs: [straightLength, turnDegrees(+ = left in x/z), cornerRadius]
+function circuit({ segs, hill, width, flag, step = 12 }) {
+    const n = segs.length;
+    const len = segs.map((s) => s[0]);
+    const rad = segs.map((s) => s[2]);
+    // scale the turn budget to a whole lap, keeping the relative severities
+    const raw = segs.map((s) => s[1]);
+    const sum = raw.reduce((a, b) => a + b, 0);
+    if (Math.abs(sum) < 60) throw new Error('turns sum to ' + sum + '; the lap does not go round');
+    const turn = raw.map((t) => t * 360 / sum);
+
+    // headings: straight i is driven on heading h[i], then the corner turns
+    const h = []; let a = 0;
+    for (let i = 0; i < n; i++) { h.push(a); a += turn[i]; }
+    const cs = h.map((x) => Math.cos(x * D2R)), sn = h.map((x) => Math.sin(x * D2R));
+
+    // close the loop: nudge straight lengths so the displacements cancel
+    for (let it = 0; it < 80; it++) {
+        let dx = 0, dz = 0;
+        for (let i = 0; i < n; i++) { dx += len[i] * cs[i]; dz += len[i] * sn[i]; }
+        // the corners contribute too, so measure the real walk instead
+        const w = walk(len, h, turn, rad);
+        dx = w.x; dz = w.z;
+        if (Math.hypot(dx, dz) < 0.05) break;
+        let acc = 0, abs = 0, bbs = 0;
+        for (let i = 0; i < n; i++) { acc += cs[i] * cs[i]; abs += cs[i] * sn[i]; bbs += sn[i] * sn[i]; }
+        const det = acc * bbs - abs * abs;
+        if (Math.abs(det) < 1e-9) break;
+        const alpha = (-dx * bbs + dz * abs) / det;
+        const beta = (-dz * acc + dx * abs) / det;
+        for (let i = 0; i < n; i++) len[i] = Math.max(30, len[i] + alpha * cs[i] + beta * sn[i]);
+    }
+
+    const pts = emit(len, h, turn, rad, step);
+    let tot = 0; const arc = [0];
+    for (let i = 1; i < pts.length; i++) { tot += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); arc.push(tot); }
+    tot += Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]);
+    return pts.map((p, i) => {
+        const u = arc[i] / tot;
+        return {
+            x: +p[0].toFixed(2), z: +p[1].toFixed(2),
+            y: +hill(u).toFixed(2),
+            w: +(typeof width === 'function' ? width(u) : width).toFixed(2),
+            f: flag ? flag(u) : 0,
+        };
+    });
+}
+
+// end position of one lap of the description (should be the origin)
+function walk(len, h, turn, rad) {
+    let px = 0, pz = 0;
+    for (let i = 0; i < len.length; i++) {
+        const c = Math.cos(h[i] * D2R), s = Math.sin(h[i] * D2R);
+        px += c * len[i]; pz += s * len[i];
+        const t = turn[i] * D2R, sg = t >= 0 ? 1 : -1;
+        const cx = px - s * rad[i] * sg, cz = pz + c * rad[i] * sg;
+        const a0 = Math.atan2(pz - cz, px - cx) + t;
+        px = cx + Math.cos(a0) * rad[i]; pz = cz + Math.sin(a0) * rad[i];
+    }
+    return { x: px, z: pz };
+}
+
+function emit(len, h, turn, rad, step) {
+    const pts = [];
+    let px = 0, pz = 0;
+    for (let i = 0; i < len.length; i++) {
+        const c = Math.cos(h[i] * D2R), s = Math.sin(h[i] * D2R);
+        const m = Math.max(1, Math.round(len[i] / step));
+        for (let k = 0; k < m; k++) pts.push([px + c * len[i] * (k / m), pz + s * len[i] * (k / m)]);
+        px += c * len[i]; pz += s * len[i];
+        const t = turn[i] * D2R, sg = t >= 0 ? 1 : -1;
+        const cx = px - s * rad[i] * sg, cz = pz + c * rad[i] * sg;
+        const a0 = Math.atan2(pz - cz, px - cx);
+        const steps = Math.max(2, Math.ceil(Math.abs(t) * rad[i] / step));
+        for (let k = 0; k < steps; k++) {
+            const aa = a0 + t * (k / steps);
+            pts.push([cx + Math.cos(aa) * rad[i], cz + Math.sin(aa) * rad[i]]);
+        }
+        const ae = a0 + t;
+        px = cx + Math.cos(ae) * rad[i]; pz = cz + Math.sin(ae) * rad[i];
+    }
+    return pts;
+}
+
+// the eight Formula 1 circuits, see f1tracks.mjs
+export const TRACKS = buildF1();
+
+// ============================================================
+// scenery models (local space: +x right, +y up, +z along the track)
+// ============================================================
+// Every model is a handful of boxes and pyramids. Faces are listed clockwise
+// seen from outside and reversed at the end, exactly like the car model, so
+// the renderer's back-face test keeps the insides hidden. Materials are small
+// offsets from the model's own base, which lets one model serve several
+// colourways by adding a per-instance offset at draw time.
+export function sceneryModels() {
+    const V = [], F = [], T = [];
+    let v0 = 0, f0 = 0;
+    const vert = (x, y, z) => { V.push([+x.toFixed(2), +y.toFixed(2), +z.toFixed(2)]); return V.length - v0; };
+    const face = (a, b, c, d, m) => F.push([a, b, c, d, m]);
+    const tri = (a, b, c, m) => F.push([a, b, c, a, m]);
+    // Each model is built in two tiers: a cheap silhouette first, then the
+    // full thing. Both live in the same pools, low tier first, so the renderer
+    // can transform just the first vLo vertices and draw just the first fLo
+    // faces for anything in the distance.
+    let vLo = 0, fLo = 0;
+    const begin = () => { v0 = V.length; f0 = F.length; };
+    const mark = () => { vLo = V.length - v0; fLo = F.length - f0; };
+    const end = (name, lod) => T.push({
+        name, v0, vn: V.length - v0, f0, fn: F.length - f0, vLo, fLo, lod,
+    });
+
+    // an upright box, optionally tapered and optionally jittered into a lump
+    const drum = (hw, hd, y0, y1, taper, mA, mB, mTop, jit) => {
+        let seed = 7;
+        const j = () => { if (!jit) return 0; seed = (seed * 1103515 + 12345) % 8388608; return (seed / 8388608 - 0.5) * jit; };
+        const b1 = vert(-hw + j(), y0, hd + j()), b2 = vert(hw + j(), y0, hd + j());
+        const b3 = vert(hw + j(), y0, -hd + j()), b4 = vert(-hw + j(), y0, -hd + j());
+        const tw = hw * taper, td = hd * taper;
+        const t1 = vert(-tw + j(), y1, td + j()), t2 = vert(tw + j(), y1, td + j());
+        const t3 = vert(tw + j(), y1, -td + j()), t4 = vert(-tw + j(), y1, -td + j());
+        face(b1, b2, t2, t1, mA);
+        face(b2, b3, t3, t2, mB);
+        face(b3, b4, t4, t3, mA);
+        face(b4, b1, t1, t4, mB);
+        if (mTop !== null) face(t1, t2, t3, t4, mTop);
+        return [t1, t2, t3, t4];
+    };
+    const spire = (top, y, m) => {
+        const a = vert(0, y, 0);
+        tri(top[0], top[1], a, m); tri(top[1], top[2], a, m);
+        tri(top[2], top[3], a, m); tri(top[3], top[0], a, m);
+    };
+
+    // 0 conifer - base idx.tree: 0 bark, 1 barkD, 2..4 foliage
+    begin();
+    spire(drum(2.4, 2.4, 0.6, 5.0, 0.72, 2, 3, null), 14.4, 3);
+    mark();
+    drum(0.45, 0.45, 0, 3.6, 0.8, 0, 1, null);
+    let r = drum(3.0, 3.0, 2.8, 6.6, 0.64, 2, 3, null);
+    r = drum(2.1, 2.1, 6.2, 10.0, 0.6, 3, 4, null);
+    spire(r, 14.4, 3);
+    end('pine', 1);
+
+    // 1 broadleaf
+    begin();
+    spire(drum(2.9, 2.9, 1.2, 7.0, 0.72, 2, 3, null), 9.6, 3);
+    mark();
+    drum(0.55, 0.55, 0, 3.0, 0.9, 0, 1, null);
+    r = drum(3.4, 3.4, 2.4, 6.2, 1.05, 2, 3, null);
+    r = drum(3.6, 3.6, 6.2, 8.8, 0.5, 3, 4, null);
+    spire(r, 10.8, 2);
+    end('oak', 1);
+
+    // 2 low building - base idx.bld + variant*4: 0 wall, 1 wallD, 2 roof, 3 glass
+    begin();
+    drum(9, 7, 0, 9.5, 1, 0, 1, null);
+    mark();
+    drum(9, 7, 0, 9.5, 1, 0, 1, 2);
+    end('shed', 0);
+
+    // 3 tower: a glazed band and a set-back crown
+    begin();
+    drum(7.5, 7.5, 0, 30, 1, 0, 1, 2);
+    mark();
+    drum(7.5, 7.5, 0, 25, 1, 0, 1, null);
+    drum(7.9, 7.9, 25, 27.5, 1, 3, 3, 2);
+    drum(3.2, 3.2, 27.5, 34, 1, 1, 0, 2);
+    end('tower', 0);
+
+    // 4 grandstand - base idx.conc: 0 conc, 1 concD, 2 roofA, 3 roofD, 4 crowd, 5 crowdD
+    begin();
+    {
+        const l1 = vert(-19, 0.5, 7), l2 = vert(19, 0.5, 7);
+        const l3 = vert(19, 9.5, -7), l4 = vert(-19, 9.5, -7);
+        face(l1, l2, l3, l4, 4);
+        const l5 = vert(-19.5, 15.5, 8.5), l6 = vert(19.5, 15.5, 8.5);
+        const l7 = vert(19.5, 14, -8), l8 = vert(-19.5, 14, -8);
+        face(l5, l6, l7, l8, 2);
+        face(l1, l4, l8, l5, 1);
+    }
+    mark();
+    {
+        const s1 = vert(-19, 0.5, 7), s2 = vert(19, 0.5, 7);
+        const s3 = vert(19, 9.5, -7), s4 = vert(-19, 9.5, -7);
+        face(s1, s2, s3, s4, 4);                       // raked seating, full of people
+        const f1 = vert(-19, 0, 7), f2 = vert(19, 0, 7);
+        face(f1, f2, s2, s1, 0);                       // wall under the front row
+        const b1 = vert(-19, 0, -7), b2 = vert(19, 0, -7);
+        face(b2, b1, s4, s3, 1);                       // back wall
+        face(s1, s4, b1, f1, 1);                       // left side
+        face(f2, b2, s3, s2, 0);                       // right side
+        const r1 = vert(-19.5, 15.5, 8.5), r2 = vert(19.5, 15.5, 8.5);
+        const r3 = vert(19.5, 14, -8), r4 = vert(-19.5, 14, -8);
+        face(r1, r2, r3, r4, 2);                       // roof
+        face(r4, r3, r2, r1, 3);                       // roof seen from underneath
+        const p1 = vert(-18.6, 0, 7.6), p2 = vert(-17.4, 0, 7.6);
+        const p3 = vert(-17.4, 15.5, 7.6), p4 = vert(-18.6, 15.5, 7.6);
+        face(p1, p2, p3, p4, 1);
+        const q1 = vert(17.4, 0, 7.6), q2 = vert(18.6, 0, 7.6);
+        const q3 = vert(18.6, 15.5, 7.6), q4 = vert(17.4, 15.5, 7.6);
+        face(q1, q2, q3, q4, 1);
+    }
+    end('stand', 0);
+
+    // 5 floodlight - base idx.steel: 0 steel, 1 steelD
+    begin();
+    drum(0.6, 0.6, 0, 23.6, 0.9, 0, 1, 0);
+    mark();
+    r = drum(0.6, 0.6, 0, 21, 0.55, 0, 1, null);
+    drum(2.8, 0.9, 21, 23.6, 1, 0, 1, 0);
+    end('mast', 0);
+
+    // 6 rock - base idx.rock: 0 rock, 1 rockD, 2 rockL
+    begin();
+    drum(5.2, 4.2, 0, 6.0, 0.45, 0, 1, 2);
+    mark();
+    drum(5.5, 4.4, 0, 6.5, 0.45, 0, 1, 2, 2.2);
+    end('rock', 1);
+
+    // 7 marquee - base idx.tent: 0 tent, 1 tentD
+    begin();
+    drum(6, 4.5, 0, 5.2, 0.7, 0, 1, 0);
+    mark();
+    {
+        const t = drum(6, 4.5, 0, 3.2, 1, 0, 1, null);
+        const a = vert(0, 5.8, 4.5), b = vert(0, 5.8, -4.5);
+        face(t[0], t[1], b, a, 0);
+        tri(t[1], t[2], b, 1);
+        face(t[2], t[3], a, b, 1);
+        tri(t[3], t[0], a, 0);
+    }
+    end('tent', 1);
+
+    // 8 water - base idx.water: one big flat sheet
+    begin();
+    {
+        const l1 = vert(-52, 0, 48), l2 = vert(52, 0, 48);
+        const l3 = vert(52, 0, -48), l4 = vert(-52, 0, -48);
+        face(l4, l3, l2, l1, 0);
+    }
+    mark();
+    {
+        const w1 = vert(-52, 0, 48), w2 = vert(52, 0, 48);
+        const w3 = vert(52, 0, -48), w4 = vert(-52, 0, -48);
+        face(w4, w3, w2, w1, 0);
+    }
+    end('water', 0);
+
+    // 9 hoarding - base idx.conc: 0 conc, 1 concD
+    begin();
+    {
+        const l1 = vert(-7, 1.8, 0), l2 = vert(7, 1.8, 0);
+        const l3 = vert(7, 5.2, 0), l4 = vert(-7, 5.2, 0);
+        face(l1, l2, l3, l4, 0);
+        face(l4, l3, l2, l1, 1);
+    }
+    mark();
+    {
+        const b1 = vert(-7, 1.8, 0), b2 = vert(7, 1.8, 0);
+        const b3 = vert(7, 5.2, 0), b4 = vert(-7, 5.2, 0);
+        face(b1, b2, b3, b4, 0);
+        face(b4, b3, b2, b1, 1);
+        const p1 = vert(-6, 0, 0), p2 = vert(-5.4, 0, 0), p3 = vert(-5.4, 2, 0), p4 = vert(-6, 2, 0);
+        face(p1, p2, p3, p4, 1);
+        const q1 = vert(5.4, 0, 0), q2 = vert(6, 0, 0), q3 = vert(6, 2, 0), q4 = vert(5.4, 2, 0);
+        face(q1, q2, q3, q4, 1);
+    }
+    end('board', 1);
+
+    // 10 hedge run - base idx.hedge: 0 hedge, 1 hedgeD
+    begin();
+    drum(10, 1.3, 0, 2.6, 0.9, 0, 1, null);
+    mark();
+    drum(10, 1.3, 0, 2.6, 0.9, 0, 1, 0);
+    end('hedge', 1);
+
+    // 11 race control tower - base idx.bld: 0 wall, 1 wallD, 2 roof, 3 glass
+    begin();
+    drum(4.6, 4.6, 0, 27, 0.8, 0, 1, 2);
+    mark();
+    drum(3.4, 3.4, 0, 20, 0.86, 0, 1, null);
+    drum(6.4, 5.4, 20, 26, 1, 3, 3, 2);          // glazed control room
+    drum(0.45, 0.45, 26, 32.5, 1, 1, 1, 1);      // aerial
+    end('ctrl', 0);
+
+    // 12 pit building: garages with a roof terrace over them
+    begin();
+    drum(26, 7, 0, 9, 1, 0, 1, 2);
+    mark();
+    drum(26, 7, 0, 5.4, 1, 0, 1, null);
+    drum(26.3, 7.3, 1.3, 4.1, 1, 3, 3, null);    // the garage door band
+    drum(26, 7, 5.4, 8.6, 0.94, 0, 1, 2);
+    end('pits', 0);
+
+    // 13 two-tier grandstand - base idx.conc, as model 4
+    begin();
+    {
+        const l1 = vert(-23, 0.5, 8), l2 = vert(23, 0.5, 8);
+        const l3 = vert(23, 17, -9), l4 = vert(-23, 17, -9);
+        face(l1, l2, l3, l4, 4);
+        const r1 = vert(-23.5, 24, 10), r2 = vert(23.5, 24, 10);
+        const r3 = vert(23.5, 21.5, -9.5), r4 = vert(-23.5, 21.5, -9.5);
+        face(r1, r2, r3, r4, 2);
+        face(l1, l4, r4, r1, 1);
+    }
+    mark();
+    {
+        const a1 = vert(-23, 0.6, 8), a2 = vert(23, 0.6, 8);
+        const a3 = vert(23, 8, 0.5), a4 = vert(-23, 8, 0.5);
+        face(a1, a2, a3, a4, 4);                       // lower deck
+        const b3 = vert(23, 11.5, 0.5), b4 = vert(-23, 11.5, 0.5);
+        face(a4, a3, b3, b4, 1);                       // riser between decks
+        const c3 = vert(23, 18, -9), c4 = vert(-23, 18, -9);
+        face(b4, b3, c3, c4, 4);                       // upper deck
+        const d1 = vert(-23, 0, -9), d2 = vert(23, 0, -9);
+        face(d2, d1, c4, c3, 1);                       // back wall
+        const e1 = vert(-23, 0, 8), e2 = vert(23, 0, 8);
+        face(e1, e2, a2, a1, 0);                       // wall under the front row
+        face(e1, a1, c4, d1, 1);                       // left flank
+        face(d2, c3, a2, e2, 0);                       // right flank
+        const r1 = vert(-23.5, 24, 10), r2 = vert(23.5, 24, 10);
+        const r3 = vert(23.5, 21.5, -9.5), r4 = vert(-23.5, 21.5, -9.5);
+        face(r1, r2, r3, r4, 2);
+        face(r4, r3, r2, r1, 3);
+        const p1 = vert(-22.4, 0, 9.2), p2 = vert(-21, 0, 9.2);
+        const p3 = vert(-21, 24, 9.2), p4 = vert(-22.4, 24, 9.2);
+        face(p1, p2, p3, p4, 1);
+        const q1 = vert(21, 0, 9.2), q2 = vert(22.4, 0, 9.2);
+        const q3 = vert(22.4, 24, 9.2), q4 = vert(21, 24, 9.2);
+        face(q1, q2, q3, q4, 1);
+    }
+    end('stand2', 0);
+
+    // 14 open terrace: bleachers with no roof, for the far side of a circuit
+    begin();
+    {
+        const l1 = vert(-16, 0.5, 6), l2 = vert(16, 0.5, 6);
+        const l3 = vert(16, 7.5, -6), l4 = vert(-16, 7.5, -6);
+        face(l1, l2, l3, l4, 4);
+    }
+    mark();
+    {
+        const a1 = vert(-16, 0.6, 6), a2 = vert(16, 0.6, 6);
+        const a3 = vert(16, 7.5, -6), a4 = vert(-16, 7.5, -6);
+        face(a1, a2, a3, a4, 4);
+        const e1 = vert(-16, 0, 6), e2 = vert(16, 0, 6);
+        face(e1, e2, a2, a1, 0);
+        const d1 = vert(-16, 0, -6), d2 = vert(16, 0, -6);
+        face(d2, d1, a4, a3, 1);
+        face(e1, a1, a4, d1, 1);
+        face(d2, a3, a2, e2, 0);
+    }
+    end('terrace', 0);
+
+    // ---- F1 circuit furniture and landmarks ----
+    // an upright box like drum(), but standing off-centre
+    const drumAt = (cx, cz, hw, hd, y0, y1, taper, mA, mB, mTop) => {
+        const b1 = vert(cx - hw, y0, cz + hd), b2 = vert(cx + hw, y0, cz + hd);
+        const b3 = vert(cx + hw, y0, cz - hd), b4 = vert(cx - hw, y0, cz - hd);
+        const tw = hw * taper, td = hd * taper;
+        const t1 = vert(cx - tw, y1, cz + td), t2 = vert(cx + tw, y1, cz + td);
+        const t3 = vert(cx + tw, y1, cz - td), t4 = vert(cx - tw, y1, cz - td);
+        face(b1, b2, t2, t1, mA); face(b2, b3, t3, t2, mB);
+        face(b3, b4, t4, t3, mA); face(b4, b1, t1, t4, mB);
+        if (mTop !== null) face(t1, t2, t3, t4, mTop);
+        return [t1, t2, t3, t4];
+    };
+
+    // 15 tyre wall - base idx.tyre: 0 tyre, 1 tyreD, 2 red band, 3 white band
+    begin();
+    drum(6, 0.7, 0, 1.1, 1, 0, 1, 0);
+    mark();
+    drum(6, 0.7, 0, 0.72, 1, 0, 1, null);
+    drum(6.02, 0.72, 0.72, 0.9, 1, 2, 2, null);
+    drum(6, 0.7, 0.9, 1.15, 1, 0, 1, 0);
+    end('tyres', 1);
+
+    // 16 palm - base idx.palm: 0 trunk, 1 trunkD, 2 frond, 3 frondD
+    begin();
+    drum(0.35, 0.35, 0, 8.4, 0.7, 0, 1, null);
+    drum(3.6, 3.6, 7.4, 9.6, 0.15, 2, 3, null);
+    mark();
+    drum(0.38, 0.38, 0, 8.6, 0.65, 0, 1, null);
+    r = drum(4.2, 4.2, 7.2, 8.9, 0.35, 3, 2, null);
+    spire(r, 9.8, 2);
+    end('palm', 1);
+
+    // 17 yacht - base idx.yacht: 0 hull, 1 hullD, 2 stripe, 3 deck/glass
+    begin();
+    drum(2.8, 10, 0, 2.2, 1, 0, 1, 0);
+    mark();
+    drum(2.8, 10, 0, 1.2, 1, 2, 2, null);
+    drum(2.8, 10, 1.2, 2.3, 1, 0, 1, 0);
+    {
+        const a = vert(-2.8, 0, 10), b = vert(2.8, 0, 10), c = vert(2.8, 2.3, 10), d = vert(-2.8, 2.3, 10);
+        const tip = vert(0, 2.3, 14.5), tipL = vert(0, 0.4, 13.5);
+        face(a, tipL, tip, d, 1); face(tipL, b, c, tip, 0); tri(d, tip, c, 0);
+    }
+    drum(1.8, 4.5, 2.3, 4.6, 0.86, 3, 3, 0);
+    drumAt(0, -1, 0.12, 0.12, 4.6, 19, 1, 1, 1, null);
+    end('yacht', 0);
+
+    // 18 Ferris wheel - base idx.wheel: 0 white, 1 shaded, 2 red, 3 blue.
+    // A ring in the x-y plane, drawn from both sides, on an A-frame.
+    begin();
+    {
+        const ring = (nSeg, R, w, hub) => {
+            const o = [], n = [];
+            for (let k = 0; k < nSeg; k++) {
+                const a = k * 2 * Math.PI / nSeg;
+                o.push(vert(Math.cos(a) * R, hub + Math.sin(a) * R, 0));
+                n.push(vert(Math.cos(a) * (R - w), hub + Math.sin(a) * (R - w), 0));
+            }
+            for (let k = 0; k < nSeg; k++) {
+                const j = (k + 1) % nSeg;
+                const m = k % 3 === 0 ? 2 : (k % 3 === 1 ? 0 : 3);
+                face(o[k], o[j], n[j], n[k], m);
+                face(n[k], n[j], o[j], o[k], 1);
+            }
+        };
+        ring(6, 30, 2.4, 34);
+        mark();
+        ring(12, 30, 1.6, 34);
+        for (const s of [-1, 1]) {
+            const a = vert(s * 13 - 1, 0, 0), b = vert(s * 13 + 1, 0, 0), c = vert(s * 0.6 + 0.6, 34, 0), d = vert(s * 0.6 - 0.6, 34, 0);
+            face(a, b, c, d, 1); face(d, c, b, a, 1);
+        }
+    }
+    end('wheel', 0);
+
+    // 19 Marina Bay Sands - base idx.mbs: 0 white, 1 shaded, 2 glass, 3 sky park
+    begin();
+    drum(40, 6, 0, 100, 1, 2, 1, 0);
+    drumAt(0, 0, 50, 9, 100, 104, 1, 0, 1, 3);
+    mark();
+    drumAt(-30, 0, 7, 6, 0, 100, 1, 2, 1, 0);
+    drumAt(0, 0, 7, 6, 0, 100, 1, 2, 1, 0);
+    drumAt(30, 0, 7, 6, 0, 100, 1, 2, 1, 0);
+    drumAt(4, 0, 52, 9, 100, 104, 1, 0, 1, 3);
+    end('mbs', 0);
+
+    // 20 Flame Tower - base idx.flame: 0 glass, 1 shaded, 2 light, 3 tip
+    begin();
+    spire(drum(9, 7, 0, 60, 0.95, 0, 1, null), 110, 2);
+    mark();
+    r = drum(9, 7, 0, 58, 0.97, 0, 1, null);
+    r = drum(8.7, 6.8, 58, 88, 0.55, 2, 1, null);
+    spire(r, 118, 3);
+    end('flame', 0);
+
+    // 21 Casino de Monte-Carlo - base idx.casino: 0 cream, 1 creamD, 2 slate, 3 dome, 4 domeD
+    begin();
+    drum(22, 12, 0, 18, 1, 0, 1, 2);
+    mark();
+    drum(22, 12, 0, 15, 1, 0, 1, 2);
+    spire(drum(6, 6, 15, 20, 0.75, 3, 4, null), 25, 3);
+    spire(drumAt(-18, 9, 2.4, 2.4, 15, 24, 1, 0, 1, null), 28, 4);
+    spire(drumAt(18, 9, 2.4, 2.4, 15, 24, 1, 0, 1, null), 28, 4);
+    end('casino', 0);
+
+    // 22 Maiden Tower, Baku - base idx.stone: 0 stone, 1 stoneD, 2 top
+    begin();
+    drum(6, 6, 0, 29, 0.92, 0, 1, 2);
+    mark();
+    drum(6, 6, 0, 26, 0.94, 0, 1, null);
+    drum(6.2, 6.2, 26, 29.5, 1, 1, 0, 2);
+    drumAt(0, -6.5, 2.2, 1.6, 0, 22, 0.8, 0, 1, 2);        // the buttress
+    end('maiden', 0);
+
+    // 23 advertising gantry over the track - base idx.ad: 0 red, 1 yellow, 2 green, 3 blue, 4 white
+    begin();
+    drumAt(0, 0, 16, 0.8, 7.5, 10, 1, 0, 4, 0);
+    mark();
+    drumAt(-15, 0, 0.5, 0.5, 0, 7.5, 1, 4, 4, null);
+    drumAt(15, 0, 0.5, 0.5, 0, 7.5, 1, 4, 4, null);
+    drumAt(0, 0, 16, 0.8, 7.5, 10, 1, 2, 4, 4);
+    end('gantry', 0);
+
+    // 24 Monza's old banking - base idx.conc: 0 conc, 1 concD
+    begin();
+    {
+        const a = vert(-45, 0, 0), b = vert(45, 0, 0), c = vert(45, 10, -9), d = vert(-45, 10, -9);
+        face(a, b, c, d, 0);
+    }
+    mark();
+    {
+        const a = vert(-45, 0, 0), b = vert(45, 0, 0), c = vert(45, 10, -9), d = vert(-45, 10, -9);
+        face(a, b, c, d, 0);
+        const e = vert(-45, 0, -9), f = vert(45, 0, -9);
+        face(f, e, d, c, 1);
+        face(e, a, d, e, 1);
+        face(b, f, c, b, 1);
+        for (const x of [-30, -10, 10, 30]) drumAt(x, -8, 0.8, 0.8, 0, 10, 1, 1, 1, null);
+    }
+    end('banking', 0);
+
+    // 25 Suzuka crossover: girders and abutments under the upper road
+    //    (local z runs along the upper road) - base idx.conc
+    begin();
+    drumAt(0, 0, 8, 18, 9.2, 11, 1, 1, 0, null);
+    mark();
+    drumAt(0, 0, 8, 18, 9.2, 11, 1, 1, 0, null);
+    {
+        const a = vert(-8, 9.2, -18), b = vert(8, 9.2, -18), c = vert(8, 9.2, 18), d = vert(-8, 9.2, 18);
+        face(d, c, b, a, 1);                             // underside, seen from below
+    }
+    drumAt(0, 19, 8, 1.2, 0, 11, 1, 0, 1, null);
+    drumAt(0, -19, 8, 1.2, 0, 11, 1, 0, 1, null);
+    end('bridge', 0);
+
+    // 26 Silverstone Wing - base idx.mbs: 0 white, 1 shaded, 2 glass
+    begin();
+    drum(60, 10, 0, 12, 1, 2, 1, 0);
+    mark();
+    drum(60, 10, 0, 10, 1, 2, 1, null);
+    drum(63, 13, 10, 12.5, 0.96, 0, 1, 0);
+    end('wing', 0);
+
+    // 27 aircraft hangar - base idx.steel: 0 steel, 1 steelD
+    begin();
+    drum(22, 14, 0, 11, 1, 0, 1, 1);
+    mark();
+    {
+        const t = drum(22, 14, 0, 8, 1, 0, 1, null);
+        const a = vert(-22, 12.5, 0), b = vert(22, 12.5, 0);
+        face(t[0], t[1], b, a, 0);
+        tri(t[1], t[2], b, 1);
+        face(t[2], t[3], a, b, 1);
+        tri(t[3], t[0], a, 0);
+    }
+    end('hangar', 0);
+
+    // 28 old city wall with battlements - base idx.stone
+    begin();
+    drum(12, 1.6, 0, 8, 1, 0, 1, 2);
+    mark();
+    drum(12, 1.6, 0, 7, 1, 0, 1, 2);
+    for (const x of [-8, 0, 8]) drumAt(x, 0, 1.4, 1.6, 7, 8.6, 1, 0, 1, 2);
+    end('citywall', 0);
+
+    // listed clockwise from outside; the renderer wants counter-clockwise
+    return { V, F: F.map((f) => [f[3], f[2], f[1], f[0], f[4]]), T };
+}
+
+// base material of each model, in build order
+export function sceneryBases(idx) {
+    return [idx.tree, idx.tree, idx.bld, idx.bld, idx.conc, idx.steel,
+        idx.rock, idx.tent, idx.water, idx.conc, idx.hedge,
+        idx.bld, idx.bld, idx.conc, idx.conc,
+        idx.tyre, idx.palm, idx.yacht, idx.wheel, idx.mbs, idx.flame, idx.casino, idx.stone,
+        idx.ad, idx.conc, idx.conc, idx.mbs, idx.steel, idx.stone];
+}
+
+// ============================================================
+// low-poly car model (local space: +x right, +y up, +z forward)
+// ============================================================
+// shade slot per face: 0 roof, 1 side, 2 nose, 3 dark   (+ special materials)
+export function carModel() {
+    const V = [];
+    const v = (x, y, z) => { V.push([x, y, z]); return V.length; };
+    const W = 0.92, L = 2.15, H = 0.52;                 // body half sizes
+    // lower body ring (y = 0.22)
+    const b1 = v(-W, 0.22, L), b2 = v(W, 0.22, L), b3 = v(W, 0.22, -L), b4 = v(-W, 0.22, -L);
+    // upper body ring (y = 0.74), slightly tucked in
+    const u1 = v(-W * 0.86, 0.74, L * 0.94), u2 = v(W * 0.86, 0.74, L * 0.94), u3 = v(W * 0.86, 0.74, -L * 0.96), u4 = v(-W * 0.86, 0.74, -L * 0.96);
+    // cabin
+    const c1 = v(-W * 0.62, 1.18, 0.34), c2 = v(W * 0.62, 1.18, 0.34), c3 = v(W * 0.62, 1.18, -0.86), c4 = v(-W * 0.62, 1.18, -0.86);
+    const n1 = v(-W * 0.72, 0.74, 0.94), n2 = v(W * 0.72, 0.74, 0.94);   // windscreen base
+    const t1 = v(-W * 0.72, 0.74, -1.30), t2 = v(W * 0.72, 0.74, -1.30); // rear window base
+    // brake lights (rear face insets)
+    const r1 = v(-W * 0.74, 0.40, -L - 0.02), r2 = v(-W * 0.28, 0.40, -L - 0.02), r3 = v(-W * 0.28, 0.62, -L - 0.02), r4 = v(-W * 0.74, 0.62, -L - 0.02);
+    const q1 = v(W * 0.28, 0.40, -L - 0.02), q2 = v(W * 0.74, 0.40, -L - 0.02), q3 = v(W * 0.74, 0.62, -L - 0.02), q4 = v(W * 0.28, 0.62, -L - 0.02);
+    // faces: [a,b,c,d, kind] with vertices CCW seen from outside; kind:
+    //   0 roof 1 side 2 nose 3 dark  4 glass  5 brake-left  6 brake-right
+    const F = [
+        [b1, b2, u2, u1, 2],          // front
+        [b3, b4, u4, u3, 3],          // rear
+        [b2, b3, u3, u2, 1],          // right side
+        [b4, b1, u1, u4, 1],          // left side
+        [u1, u2, n2, n1, 0],          // bonnet
+        [t1, t2, u3, u4, 0],          // boot
+        [n1, n2, c2, c1, 4],          // windscreen
+        [c3, c4, t1, t2, 4],          // rear window
+        [c1, c2, c3, c4, 0],          // roof
+        [n2, u2, t2, c2, 4],          // right window band
+        [n1, c1, t1, u1, 4],          // left window band
+        [r1, r2, r3, r4, 5],
+        [q1, q2, q3, q4, 6],
+        [b4, b3, b2, b1, 3],          // underside
+    ];
+    // four exposed wheels: tread (kind 7) on top, front and back, the hub side
+    // (kind 8) facing out; the inner side is never seen
+    for (const [sx, z, hw] of [[-1, 1.42, 0.14], [1, 1.42, 0.14], [-1, -1.40, 0.19], [1, -1.40, 0.19]]) {
+        const xi = sx * (W - 0.02), xo = sx * (W + 2 * hw), R = 0.36, cy = 0.36;
+        const o1 = v(xo, cy - R, z + R), o2 = v(xo, cy - R, z - R), o3 = v(xo, cy + R, z - R), o4 = v(xo, cy + R, z + R);
+        const i1 = v(xi, cy - R, z + R), i2 = v(xi, cy - R, z - R), i3 = v(xi, cy + R, z - R), i4 = v(xi, cy + R, z + R);
+        if (sx > 0) {
+            F.push([o1, o2, o3, o4, 8]);                  // outer (hub) side
+            F.push([i4, o4, o3, i3, 7]);                  // top of the tread
+            F.push([i1, o1, o4, i4, 7]);                  // front
+            F.push([o2, i2, i3, o3, 7]);                  // back
+        } else {
+            F.push([o4, o3, o2, o1, 8]);
+            F.push([o4, i4, i3, o3, 7]);
+            F.push([o1, i1, i4, o4, 7]);
+            F.push([i2, o2, o3, i3, 7]);
+        }
+    }
+    // the table above lists each face clockwise from outside; the renderer
+    // wants counter-clockwise, so flip every face here.
+    return { V, F: F.map((f) => [f[3], f[2], f[1], f[0], f[4]]) };
+}
+
+// ============================================================
+// data lists
+// ============================================================
+const NSAMP_MAX = 1200;
+export function buildData() {
+    const lists = {};
+    const consts = {};
+    for (const [k, v] of Object.entries(C)) consts[k] = v;
+    for (const [k, v] of Object.entries(P)) consts['P_' + k] = v;
+    const { mats, idx } = buildPalette();
+    for (const [k, v] of Object.entries(idx)) consts['M_' + k.replace(/[^a-zA-Z0-9]/g, '')] = v;
+    consts.NCTLTOT = TRACKS.reduce((a, t) => a + t.pts.length, 0) + C.MAXCTL;
+
+    // control points of the built-in circuits, then MAXCTL slots for the editor track
+    const cx = [], cy = [], cz = [], cw = [], cf = [], off = [], cnt = [];
+    for (const t of TRACKS) {
+        off.push(cx.length); cnt.push(t.pts.length);
+        for (const p of t.pts) { cx.push(+p.x.toFixed(2)); cy.push(+p.y.toFixed(2)); cz.push(+p.z.toFixed(2)); cw.push(+p.w.toFixed(2)); cf.push(p.f); }
+    }
+    off.push(cx.length); cnt.push(0);                 // slot EDTRK = editor track
+    for (let i = 0; i < C.MAXCTL; i++) { cx.push(0); cy.push(0); cz.push(0); cw.push(9); cf.push(0); }
+    Object.assign(lists, { ctlX: cx, ctlY: cy, ctlZ: cz, ctlW: cw, ctlF: cf, ctlOff: off, ctlCnt: cnt });
+    // per-circuit look; the editor's circuit (slot EDTRK) borrows an English airfield
+    const ED = { name: 'MY CIRCUIT', info: 'TRACK EDITOR', sky: [182, 200, 222], fogFar: 440, ground: 'grass', road: 'road', runoff: 2, hill: [0.8, 0], theme: 4 };
+    const TT = [...TRACKS, ED];
+    const GROUND = { grass: idx.grass, dry: idx.dirt, pave: idx.pave, dark: idx.dark, sand: idx.sand };
+    lists.trkFar = TT.map(t => t.fogFar);
+    lists.trkName = TT.map(t => t.name);
+    lists.trkInfo = TT.map(t => t.info);
+    lists.trkSkyR = TT.map(t => t.sky[0]);
+    lists.trkSkyG = TT.map(t => t.sky[1]);
+    lists.trkSkyB = TT.map(t => t.sky[2]);
+    lists.trkGnd = TT.map(t => GROUND[t.ground]);
+    lists.trkRoad = TT.map(t => idx[t.road]);
+    lists.trkRun = TT.map(t => t.runoff);
+    lists.trkHillK = TT.map(t => t.hill[0]);
+    lists.trkHillT = TT.map(t => t.hill[1]);
+    lists.trkTheme = TT.map(t => t.theme);
+
+    // Palette. The fogged colour table is built at track load from these
+    // three lists (NMAT x NFOG rgb() calls, once), which keeps eight skies'
+    // worth of tables out of the file.
+    consts.NMF = C.NMAT * C.NFOG;
+    lists.matR = mats.map(m => m[0]); lists.matG = mats.map(m => m[1]); lists.matB = mats.map(m => m[2]);
+    lists.colTab = new Array(C.NMAT * C.NFOG).fill('#000000');
+
+    // ---- landmarks: the named buildings of each circuit, placed at track build ----
+    const SMT = sceneryModels().T.map(m => m.name.toUpperCase());
+    const lm = { lmU: [], lmSide: [], lmDist: [], lmType: [], lmK: [], lmMode: [], lmYaw: [], lmDY: [], lmMat: [] };
+    const lmOff = [], lmCnt = [];
+    const addLm = (u, side, dist, type, k, mode, yaw, dy, mat) => {
+        const ti = SMT.indexOf(type);
+        if (ti < 0) throw new Error('no scenery model ' + type);
+        lm.lmU.push(+u.toFixed(5)); lm.lmSide.push(side); lm.lmDist.push(dist); lm.lmType.push(ti + 1);
+        lm.lmK.push(k); lm.lmMode.push(mode); lm.lmYaw.push(+yaw.toFixed(2)); lm.lmDY.push(+dy.toFixed(2)); lm.lmMat.push(mat);
+    };
+    for (const T of TT) {
+        lmOff.push(lm.lmU.length);
+        for (const L of T.landmarks || []) {
+            if (L.type === 'HOTEL') addLm(L.u, L.side, L.dist, 'SHED', 3 * L.scale, L.face ? 1 : 0, 0, L.dist === 0 ? 7.4 : 0, 0);
+            else addLm(L.u, L.side, L.dist, L.type, L.scale, L.face ? 1 : 0, 0, 0, 0);
+        }
+        if (T.bridgeAt) {
+            const B = T.bridgeAt;
+            addLm(B.u, 1, 0, 'BRIDGE', 1, 2, B.yaw, B.dy, 0);
+        }
+        lmCnt.push(lm.lmU.length - lmOff[lmOff.length - 1]);
+    }
+    Object.assign(lists, lm, { lmOff, lmCnt });
+    for (const k of Object.keys(lm)) if (!lists[k].length) lists[k] = [0];
+    // a blocky city skyline for the street circuits, beside the ridge profile
+    lists.hillC = Array.from({ length: C.NHILLT }, (_, i) => {
+        const r = Math.sin(i * 12.9898 + 4.1) * 43758.5453;
+        const f = r - Math.floor(r);
+        return +(0.03 + f * f * 0.16 + (i % 7 === 3 ? 0.08 : 0)).toFixed(4);
+    });
+
+    // car model: the open-wheeler of f1car.mjs, two LOD tiers, per-face
+    // outward normals for runtime lighting, and back-to-front face orders for
+    // 8 viewing directions per tier
+    const CM = f1Car();
+    if (CM.V.length > C.NCARV) throw new Error('car verts ' + CM.V.length);
+    if (CM.F.length > C.NCARF) throw new Error('car faces ' + CM.F.length);
+    consts.NCV = CM.V.length; consts.NCF = CM.F.length;
+    consts.NCVLO = CM.vLo; consts.NCFLO = CM.fLo; consts.NCFHI = CM.F.length - CM.fLo;
+    lists.cvX = CM.V.map(p => p[0]); lists.cvY = CM.V.map(p => p[1]); lists.cvZ = CM.V.map(p => p[2]);
+    lists.cvP = CM.PIV.map(p => p[0]); lists.cvPX = CM.PIV.map(p => p[1]); lists.cvPZ = CM.PIV.map(p => p[2]);
+    lists.cfA = CM.F.map(f => f.q[0]); lists.cfB = CM.F.map(f => f.q[1]); lists.cfC = CM.F.map(f => f.q[2]); lists.cfD = CM.F.map(f => f.q[3]);
+    lists.cfK = CM.F.map(f => f.k);
+    lists.cnX = CM.N.map(n => n[0]); lists.cnY = CM.N.map(n => n[1]); lists.cnZ = CM.N.map(n => n[2]);
+    // plane offset of each face along its normal: the camera is in front of
+    // face f when n . camLocal > cfP[f]
+    lists.cfP = CM.F.map((f, i) => { const v = CM.V[f.q[0] - 1], n = CM.N[i]; return +(n[0] * v[0] + n[1] * v[1] + n[2] * v[2]).toFixed(4); });
+    lists.coLo = CM.ordLo; lists.coHi = CM.ordHi;
+    // liveries: primary, accent, helmet; slot 9 is the ghost
+    const LIV = [
+        { n: 'ROSSO', a: [214, 26, 32], b: [236, 236, 236], h: [250, 206, 40] },
+        { n: 'AZURE', a: [28, 64, 170], b: [250, 206, 36], h: [236, 60, 50] },
+        { n: 'SOLARE', a: [246, 196, 28], b: [30, 30, 36], h: [40, 120, 230] },
+        { n: 'VERDE', a: [18, 120, 84], b: [226, 232, 226], h: [240, 240, 240] },
+        { n: 'ARANCIA', a: [250, 128, 22], b: [34, 64, 140], h: [250, 250, 250] },
+        { n: 'VIOLA', a: [120, 56, 196], b: [206, 206, 216], h: [250, 214, 60] },
+        { n: 'ARGENTO', a: [196, 200, 210], b: [16, 176, 160], h: [30, 30, 36] },
+        { n: 'NERO', a: [42, 46, 56], b: [226, 176, 56], h: [226, 50, 50] },
+        { n: 'GHOST', a: [176, 214, 250], b: [226, 238, 255], h: [226, 238, 255] },
+    ];
+    for (const [k, f] of [['lvR', (l) => l.a[0]], ['lvG', (l) => l.a[1]], ['lvB', (l) => l.a[2]],
+        ['lvR2', (l) => l.b[0]], ['lvG2', (l) => l.b[1]], ['lvB2', (l) => l.b[2]],
+        ['lvHR', (l) => l.h[0]], ['lvHG', (l) => l.h[1]], ['lvHB', (l) => l.h[2]]]) lists[k] = LIV.map(f);
+    lists.lvName = LIV.map(l => l.n);
+    lists.lvHex = LIV.map(l => '#' + l.a.map(hex2).join(''));
+    // the field: the player is car 1, the rest have names
+    lists.drvName = ['YOU', 'M. ROSSI', 'K. TANAKA', 'L. BERG', 'A. SILVA', 'J. NOWAK', 'D. MORENO', 'S. PARK'];
+    lists.drvShort = ['YOU', 'ROSSI', 'TANAKA', 'BERG', 'SILVA', 'NOWAK', 'MORENO', 'PARK'];
+
+    // ---- scenery models: one flat vertex/face pool, indexed per type ----
+    const SM = sceneryModels();
+    if (Math.max(...SM.T.map(t => t.vn)) > C.NSCNV) throw new Error('scenery model too big');
+    consts.NSCNT = SM.T.length;
+    lists.gvX = SM.V.map(p => p[0]); lists.gvY = SM.V.map(p => p[1]); lists.gvZ = SM.V.map(p => p[2]);
+    lists.gfA = SM.F.map(f => f[0]); lists.gfB = SM.F.map(f => f[1]);
+    lists.gfC = SM.F.map(f => f[2]); lists.gfD = SM.F.map(f => f[3]); lists.gfM = SM.F.map(f => f[4]);
+    lists.gtV0 = SM.T.map(t => t.v0); lists.gtVN = SM.T.map(t => t.vn);
+    lists.gtF0 = SM.T.map(t => t.f0); lists.gtFN = SM.T.map(t => t.fn);
+    lists.gtLod = SM.T.map(t => t.lod);
+    lists.gtVLo = SM.T.map(t => t.vLo); lists.gtFLo = SM.T.map(t => t.fLo);
+    lists.gtMat = sceneryBases(idx);
+    SM.T.forEach((t, i) => { consts['SC_' + t.name.toUpperCase()] = i + 1; });
+
+    // ---- scenery instances: filled in at track build time ----
+    for (const k of ['scT', 'scX', 'scY', 'scZ', 'scC', 'scS', 'scK', 'scM', 'scLod', 'scNext'])
+        lists[k] = new Array(C.NSCENE + 1).fill(0);
+    lists.scHead = new Array(C.NSEG + 2).fill(0);
+    for (const k of ['mmLX', 'mmLY', 'mmRX', 'mmRY'])
+        lists[k] = new Array(C.NMM + 2).fill(0);
+
+    // ---- distant skyline: a ridge height per azimuth bucket, as a fraction
+    // of camScale so it keeps its angular size whatever the field of view ----
+    lists.hillH = Array.from({ length: C.NHILLT }, (_, i) => {
+        const a = i * 2 * Math.PI / C.NHILLT;
+        const h = 0.085 + 0.055 * Math.sin(a * 3 + 0.7) + 0.035 * Math.sin(a * 7 + 2.3)
+            + 0.022 * Math.sin(a * 13 + 1.1) + 0.014 * Math.sin(a * 23);
+        return +Math.max(0.012, h).toFixed(4);
+    });
+
+    // playable car types: accel, top speed, grip, mass, colour slot
+    // v5: four open-wheelers with different set-ups rather than road cars
+    const CARS = [
+        { n: 'ROSSO R5', acc: 17.4, top: 90, grip: 1.00, mass: 1.00, col: 1 },      // balanced
+        { n: 'ARGENTO W', acc: 16.4, top: 96, grip: 0.92, mass: 0.98, col: 7 },     // low drag
+        { n: 'AZURE RB', acc: 16.8, top: 86, grip: 1.12, mass: 1.02, col: 2 },      // high downforce
+        { n: 'ARANCIA MC', acc: 18.4, top: 88, grip: 0.97, mass: 0.96, col: 5 },    // traction
+    ];
+    lists.ctInfo = ['BALANCED ALL-ROUNDER', 'LOW DRAG - FAST ON THE STRAIGHTS', 'HIGH DOWNFORCE - FAST IN CORNERS', 'TRACTION - QUICK OUT OF SLOW CORNERS'];
+    consts.NCARTYPE = CARS.length;
+    lists.ctName = CARS.map(c => c.n); lists.ctAcc = CARS.map(c => c.acc); lists.ctTop = CARS.map(c => c.top);
+    lists.ctGrip = CARS.map(c => c.grip); lists.ctMass = CARS.map(c => c.mass); lists.ctCol = CARS.map(c => c.col);
+
+    // ---- AI difficulty: scales the whole opponent field ----
+    const DIFF = [
+        { n: 'ROOKIE', pow: 0.76, skl: 0.82 },
+        { n: 'AMATEUR', pow: 0.87, skl: 0.90 },
+        { n: 'PRO', pow: 0.96, skl: 0.97 },
+        { n: 'ACE', pow: 1.04, skl: 1.03 },
+        { n: 'INSANE', pow: 1.13, skl: 1.10 },
+    ];
+    consts.NDIFF = DIFF.length;
+    lists.aiName = DIFF.map(d => d.n); lists.aiPow = DIFF.map(d => d.pow); lists.aiSkl = DIFF.map(d => d.skl);
+
+    // ---- v5 menu options ----
+    lists.modeName = ['GRAND PRIX', 'CHAMPIONSHIP', 'TIME TRIAL'];
+    lists.lapOpt = [1, 3, 5, 10];
+    lists.wxName = ['DRY', 'RAIN'];
+    lists.gfxName = ['LOW', 'HIGH', 'ULTRA'];
+    // graphics levels: LOD band distances (m), scenery draw distance (m),
+    // scenery full-model radius (m), full car radius (m), mid car radius (m),
+    // fog distance scale, scenery density (1 = v4)
+    lists.gfLod2 = [62, 110, 170]; lists.gfLod3 = [155, 280, 420];
+    lists.gfScn = [270, 420, 600]; lists.gfScnHi = [60, 140, 260];
+    lists.gfCar = [40, 90, 150]; lists.gfCarM = [80, 260, 420];
+    lists.gfFog = [1.0, 1.15, 1.35]; lists.gfDen = [1, 1, 2];
+    lists.gfFull = [1, 4, 8];           // how many cars may use the full model at once
+    // points for P1..P8
+    lists.ptsTab = [25, 18, 15, 12, 10, 8, 6, 4];
+    consts.NMODE = 3; consts.NLAPO = 4; consts.NGFX = 3;
+
+    // ---- runtime scratch lists (pre-sized so the hot path never grows a list) ----
+    const N = C.NSEG, R = N + 1;
+    const zeros = (n) => new Array(n).fill(0);
+    const segL = ['sgX', 'sgY', 'sgZ', 'sgDX', 'sgDZ', 'sgNX', 'sgNZ', 'sgW', 'sgLen', 'sgArc', 'sgCurv', 'sgF', 'sgBank', 'sgMat', 'sgGMat', 'sgCurb', 'sgWMat', 'sgCM', 'sgHW', 'sgTun', 'sgJmp', 'sgGate',
+        'sgRWL', 'sgRWR', 'sgRTL', 'sgRTR', 'sgRML', 'sgRMR'];
+    for (const k of segL) lists[k] = zeros(R);
+    const NSLOT = R * C.PPR + C.NCARV + 8 + C.NSCNV;   // rings, car verts, scratch, scenery
+    if (NSLOT > 5000) throw new Error('vertex buffer ' + NSLOT + ' > 5000: lower NSEG');
+    for (const k of ['wvX', 'wvY', 'wvZ']) lists[k] = zeros(NSLOT);
+    for (const k of ['pvX', 'pvY', 'pvZ', 'psX', 'psY']) lists[k] = zeros(NSLOT);
+    lists.pvF = zeros(NSLOT);                    // frame stamp: this ring is projected
+    lists.pvE = zeros(N + 2);                    // ...and how many of its points are
+    lists.clipX = zeros(10); lists.clipY = zeros(10);
+    for (const k of ['tsX', 'tsY', 'tsZ', 'tsW', 'tsF', 'tsA']) lists[k] = zeros(NSAMP_MAX + 2);
+    lists.visI = zeros(N + 8); lists.visD = zeros(N + 8); lists.visS = zeros(N + 8);
+    // cars
+    const NC = C.NCAR;
+    for (const k of ['caX', 'caY', 'caZ', 'caYaw', 'caVX', 'caVZ', 'caVY', 'caYR', 'caSeg', 'caLap', 'caCP', 'caProg', 'caRank',
+        'aiVlim', 'aiWorst', 'aiWsign', 'aiNear',
+        'caCol', 'caAcc', 'caTop', 'caGrip', 'caMass', 'caSteer', 'caThr', 'caBrk', 'caHB', 'caHold', 'caSurf', 'caAir', 'caOff',
+        'caSkill', 'caLine', 'caDrift', 'caOffT', 'caLapT', 'caBest', 'caFin', 'caRoll', 'caPitch', 'caU', 'caStuck', 'caSpd',
+        'caTow', 'caDRS', 'caDOk', 'caFinT', 'caGear', 'caRpm', 'chPts', 'chOrd', 'caGap', 'caD2', 'caTr'])
+        lists[k] = zeros(NC + 2);
+    // ghost: the lap being driven, and the best one, one sample per GHDT
+    for (const k of ['grX', 'grY', 'grZ', 'grW', 'grS', 'gbX', 'gbY', 'gbZ', 'gbW', 'gbS']) lists[k] = zeros(C.NGH + 2);
+    // time into the lap at each ring: best lap and the current one (live delta)
+    lists.bsT = zeros(R + 1); lists.csT = zeros(R + 1);
+    lists.sgDRS = zeros(R); lists.sgGrid = zeros(R);
+    lists.rlO = zeros(R); lists.rlV = zeros(R); lists.rlK = zeros(R);
+    lists.secBest = zeros(4);
+    // particles
+    for (const k of ['smX', 'smY', 'smZ', 'smL', 'smS', 'smSeg']) lists[k] = zeros(C.NSMOKE + 1);
+    // tyre marks: MKS slots per segment
+    for (const k of ['mkX1', 'mkZ1', 'mkX2', 'mkZ2', 'mkY', 'mkA']) lists[k] = zeros(R * C.MKS + 1);
+    lists.mkN = zeros(R);
+    // records: 4 tracks x (best lap, best race)
+    lists.recLap = new Array(C.NTRK + 1).fill(0); lists.recRace = new Array(C.NTRK + 1).fill(0);
+    // sorting scratch
+    lists.srtI = zeros(NC + 1); lists.srtV = zeros(NC + 1);
+    // checkpoint segment indices
+    lists.cpSeg = zeros(C.NCPMAX + 1);
+
+    for (const [k, v] of Object.entries(lists)) if (v.length > 5000) throw new Error(`list ${k} has ${v.length} items; Entry caps a list at 5000`);
+    return { lists, consts, mats, idx };
+}
+
+export function declPrelude(D) { return Object.keys(D.lists).map(k => 'let ' + k + ' = [];').join('\n'); }
+export function sources() { return SRC_FILES.map(f => fs.readFileSync(path.join(HERE, 'src', f), 'utf8')); }
+
+export const FUNC_WEIGHTS = { projectRing: 40, quad: 60, drawSeg: 20, carPhys: 8, aiDrive: 8 };
+
+// ============================================================
+// .ent
+// ============================================================
+const TEXTS = [
+    // Entry.TEXT_ALIGNS = ['center','left','right'] -> 0 centre, 1 left, 2 right
+    // id,      x,    y,   size, colour,     align
+    ['tSpd', -196, -104, 22, '#ffffff', 1],
+    ['tSpdU', -196, -126, 11, '#a8b0c0', 1],
+    ['tLap', 196, 112, 18, '#ffffff', 2],
+    ['tPos', 196, 88, 18, '#ffd24a', 2],
+    ['tTime', -196, 112, 16, '#ffffff', 1],
+    ['tBest', -196, 92, 12, '#9fd8ff', 1],
+    ['tLast', -196, 76, 12, '#c8c8d2', 1],
+    ['tDrift', 0, 96, 20, '#ffe05a', 0],
+    ['tBig', 0, 14, 40, '#ffffff', 0],
+    ['tSub', 0, -26, 14, '#e0e6f2', 0],
+    ['tMsg', 0, -128, 12, '#cfd6e6', 0],
+    ['tM1', 0, 56, 13, '#ffffff', 0],
+    ['tM2', 0, 40, 13, '#ffffff', 0],
+    ['tM3', 0, 24, 13, '#ffffff', 0],
+    ['tM4', 0, 8, 13, '#ffffff', 0],
+    ['tM5', 0, -8, 13, '#ffffff', 0],
+    ['tM6', 0, -24, 13, '#ffffff', 0],
+    ['tM7', 0, -40, 13, '#ffffff', 0],
+    ['tM8', 0, -56, 13, '#ffffff', 0],
+    ['tM9', 0, -72, 13, '#ffffff', 0],
+    ['tHelp', 0, -100, 11, '#93a0bb', 0],
+    ['tGear', -150, -104, 22, '#ffe05a', 1],
+    ['tDRS', -150, -126, 11, '#5a6270', 1],
+    ['tDelta', 0, 74, 13, '#7dff8a', 0],
+    ['tT1', -232, 58, 10, '#ffffff', 1],
+    ['tT2', -232, 47, 10, '#e6e9f0', 1],
+    ['tT3', -232, 36, 10, '#e6e9f0', 1],
+    ['tT4', -232, 25, 10, '#e6e9f0', 1],
+    ['tT5', -232, 14, 10, '#e6e9f0', 1],
+    ['tT6', -232, 3, 10, '#e6e9f0', 1],
+    ['tT7', -232, -8, 10, '#e6e9f0', 1],
+    ['tT8', -232, -19, 10, '#e6e9f0', 1],
+];
+
+export async function buildEnt(outFile, opts = {}) {
+    const { packEnt } = await import('./pack.mjs');
+    const D = buildData();
+    const prog = compileProgram([declPrelude(D), ...sources()], { consts: D.consts, funcWeights: FUNC_WEIGHTS });
+    for (const v of prog.variables) {
+        if (v.variableType === 'list' && D.lists[v.name]) v.array = D.lists[v.name].map((d, i) => ({ id: `${v.id}_${i}`, data: d }));
+    }
+    const unused = Object.keys(D.lists).filter(k => !prog.variables.some(v => v.name === k));
+    if (unused.length) console.warn('data lists not used by the sources:', unused.join(' '));
+
+    // a 2x2 fully transparent png: the pen object needs a costume but must not show
+    const dot = Buffer.from('89504e470d0a1a0a0000000d49484452000000020000000208060000007265b6' +
+        '0d0000000f49444154789c636040020630c40000004900011ea9ec2c0000000049454e44ae426082', 'hex');
+    const O = (id, name, extra = {}) => ({ id, name, script: prog.objectScripts[name] || [[]], ...extra });
+    const objects = [];
+    for (const [id, x, y, size, colour, align] of TEXTS) {
+        objects.push(O(id, id, {
+            objectType: 'textBox', text: '',
+            entity: { x, y, colour, font: `${size}px Nanum Gothic Coding`, textAlign: align, lineBreak: false, bold: true, underLine: false, strike: false, italic: false, fontSize: size, width: 470, height: size + 6 },
+        }));
+    }
+    objects.push(O('pen3', 'pen3', { pictures: [{ id: '1', name: 'dot', buf: dot, w: 2, h: 2 }], entity: { x: 0, y: 0, visible: true } }));
+    const project = packEnt(outFile, {
+        name: 'ENTRY RACING 3D', tmpDir: path.join(HERE, '.pack'),
+        variables: orderVariables(prog.variables), functions: prog.functions, messages: prog.messages, objects, speed: 60,
+    });
+    fs.writeFileSync(outFile + '.lines.json', JSON.stringify({ blockLines: prog.blockLines, srcLines: prog.srcLines }));
+    if (!opts.quiet) console.log('wrote', outFile, fs.statSync(outFile).size, 'bytes;', JSON.stringify(prog.stats));
+    return { project, prog, D };
+}
+
+// Entry looks variables/lists up with a linear search - hottest first
+const HOT = ['colTab', 'pvX', 'pvY', 'pvZ', 'psX', 'psY', 'pvF', 'pvE', 'wvX', 'wvY', 'wvZ',
+    'cvX', 'cvY', 'cvZ', 'cvP', 'cfA', 'cfB', 'cfC', 'cfD', 'cfK', 'cnX', 'cnY', 'cnZ', 'cfP', 'coHi', 'coLo',
+    'sgX', 'sgY', 'sgZ', 'sgW', 'sgMat', 'sgGMat', 'sgCurb', 'sgF', 'sgNX', 'sgNZ', 'sgDX', 'sgDZ', 'sgLen', 'sgCM', 'sgWMat',
+    'visI', 'visD', 'visS', 'mkN', 'mkX1', 'mkZ1', 'mkX2', 'mkZ2', 'mkY', 'mkA',
+    'caX', 'caZ', 'caY', 'caYaw', 'caSeg', 'ccSX', 'ccSY', 'ccVZ', 'ccX', 'ccY', 'ccZ', 'cvX', 'cvY', 'cvZ', 'cfA', 'cfB', 'cfC', 'cfD', 'cfK'];
+function orderVariables(vars) {
+    const rank = (v) => { const i = HOT.indexOf(v.name); return i < 0 ? 1000 : i; };
+    return [...vars].sort((a, b) => rank(a) - rank(b));
+}
+
+if (process.argv[1] && import.meta.url === url.pathToFileURL(path.resolve(process.argv[1])).href) {
+    await buildEnt(process.argv[2] || path.join(HERE, 'racing.ent'));
+}

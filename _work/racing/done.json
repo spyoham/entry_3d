@@ -1,0 +1,13 @@
+[
+  {"wait": 1500},
+  {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":250},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":4800},
+  {"down":{"code":"KeyW","key":"w","keyCode":87}},{"wait":3000},{"up":{"code":"KeyW","key":"w","keyCode":87}},
+  {"eval":"(()=>{const V=n=>Entry.variableContainer.variables_.find(x=>x.name_===n);V('bestLap').setValue(83.4);V('lastLap').setValue(85.1);const R=Entry.variableContainer.lists_.find(x=>x.name_==='recLap');R.array_[0].data=82.7;V('finished').setValue(2);V('raceState').setValue(5);return 1;})()"},
+  {"wait":1200,"shot":"h1_done.png"},
+  {"down":{"code":"KeyR","key":"r","keyCode":82}},{"wait":250},{"up":{"code":"KeyR","key":"r","keyCode":82}},{"wait":1200,"shot":"h2_restart.png"},
+  {"eval":"(()=>({state:Number(Entry.variableContainer.variables_.find(x=>x.name_==='raceState').value_)}))()"},
+  {"wait":5000},
+  {"down":{"code":"KeyP","key":"p","keyCode":80}},{"wait":250},{"up":{"code":"KeyP","key":"p","keyCode":80}},{"wait":600},
+  {"down":{"code":"KeyM","key":"m","keyCode":77}},{"wait":250},{"up":{"code":"KeyM","key":"m","keyCode":77}},{"wait":1500,"shot":"h3_menu.png"},
+  {"eval":"(()=>({state:Number(Entry.variableContainer.variables_.find(x=>x.name_==='raceState').value_)}))()"}
+]

@@ -1,0 +1,41 @@
+DOOM (Freedoom E1M1).ent - 라이선스 / 출처
+
+1) 그래픽·사운드·맵(E1M1): Freedoom 0.13.0 (freedoom1.wad) - BSD 3-Clause
+   https://freedoom.github.io/  아래는 Freedoom 원문 라이선스입니다.
+
+﻿Copyright © 2001-2024
+Contributors to the Freedoom project.  All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+  * Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+  * Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+  * Neither the name of the Freedoom project nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS
+IS” AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+For a list of contributors to the Freedoom project, see the file
+CREDITS.
+
+2) 게임 로직: id Software의 DOOM 소스(linuxdoom-1.10, GPL v2)의 알고리즘을 엔트리 블록으로 옮김
+   (BSP 렌더링 순서, p_enemy/p_map/p_inter/p_pspr/p_doors/p_plats/p_lights, info.c 상태표 등).
+   GPL 파생물이므로 이 작품의 블록 코드도 GPL v2 조건으로 공유됩니다. https://github.com/id-Software/DOOM
+
+3) 원본 DOOM(id Software)의 WAD 데이터(그래픽, 사운드, 맵)는 사용하지 않았습니다.

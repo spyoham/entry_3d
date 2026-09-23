@@ -1,0 +1,4 @@
+[{"wait":2000},
+ {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":300},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":800},
+ {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":300},{"up":{"code":"Enter","key":"Enter","keyCode":13}},
+ {"wait":10000,"vars":1},{"wait":10000,"vars":1},{"wait":10000,"vars":1,"shot":"w4.png"},{"wait":8000,"vars":1,"shot":"w5.png"}]

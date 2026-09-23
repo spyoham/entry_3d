@@ -1,0 +1,5 @@
+[{"wait":3000},
+ {"down":{"code":"Space","key":" ","keyCode":32}},
+ {"wait":400,"eval":"(()=>{const V=n=>Entry.variableContainer.variables_.find(x=>x.name_===n).value_;const L=(n,i)=>Entry.variableContainer.lists_.find(x=>x.name_===n).array_[i-1].data;const p=Number(V('player'));return {jump:V('입력점프'), y:L('오브젝트Y',p), vy:L('오브젝트속도Y',p), g:L('오브젝트땅닿음',p)}})()"},
+ {"wait":250,"eval":"(()=>{const V=n=>Entry.variableContainer.variables_.find(x=>x.name_===n).value_;const L=(n,i)=>Entry.variableContainer.lists_.find(x=>x.name_===n).array_[i-1].data;const p=Number(V('player'));return {y:L('오브젝트Y',p), vy:L('오브젝트속도Y',p)}})()"},
+ {"up":{"code":"Space","key":" ","keyCode":32}}]

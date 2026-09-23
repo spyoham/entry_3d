@@ -1,0 +1,10 @@
+[
+  {"wait":2000},
+  {"eval":"(()=>{Entry.variableContainer.variables_.find(x=>x.name_==='attractT').setValue(2);return 1;})()"},
+  {"wait":700,"shot":"p1_pit.png"},
+  {"eval":"(()=>{Entry.variableContainer.variables_.find(x=>x.name_==='attractT').setValue(30);return 1;})()"},
+  {"wait":700,"shot":"p2_ctrl.png"},
+  {"eval":"(()=>{Entry.variableContainer.variables_.find(x=>x.name_==='attractT').setValue(355);return 1;})()"},
+  {"wait":700,"shot":"p3_stands.png"},
+  {"eval":"(()=>{const L=n=>Entry.variableContainer.lists_.find(x=>x.name_===n).array_.map(e=>Number(e.data));const T=L('scT');const c={};for(let i=1;i<=Number(Entry.variableContainer.variables_.find(x=>x.name_==='scN').value_);i++){c[T[i]]=(c[T[i]]||0)+1;}return c;})()"}
+]

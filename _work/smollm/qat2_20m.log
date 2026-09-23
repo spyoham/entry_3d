@@ -1,0 +1,56 @@
+Loading weights:   0%|          | 0/272 [00:00<?, ?it/s]Loading weights: 100%|##########| 272/272 [00:00<00:00, 2986.07it/s]
+Loading weights:   0%|          | 0/272 [00:00<?, ?it/s]Loading weights:  43%|####2     | 116/272 [00:00<00:00, 1137.29it/s]Loading weights:  91%|#########1| 248/272 [00:00<00:00, 1224.64it/s]Loading weights: 100%|##########| 272/272 [00:00<00:00, 1237.75it/s]
+student ppl at start 43247.818
+step 0/2441 kd 8.0727 6182 tok/s  0.0 min
+step 50/2441 kd 3.7990 6568 tok/s  1.1 min
+step 100/2441 kd 1.7931 6568 tok/s  2.1 min
+step 150/2441 kd 1.5014 6575 tok/s  3.1 min
+step 200/2441 kd 1.4195 6578 tok/s  4.2 min
+step 250/2441 kd 1.1875 6581 tok/s  5.2 min
+step 300/2441 kd 0.9894 6583 tok/s  6.2 min
+step 350/2441 kd 1.1707 6585 tok/s  7.3 min
+step 400/2441 kd 1.0306 6583 tok/s  8.3 min
+step 450/2441 kd 0.9415 6584 tok/s  9.4 min
+step 500/2441 kd 0.9042 6584 tok/s  10.4 min
+step 550/2441 kd 0.9769 6585 tok/s  11.4 min
+step 600/2441 kd 0.9264 6586 tok/s  12.5 min
+step 650/2441 kd 1.0891 6587 tok/s  13.5 min
+step 700/2441 kd 0.8009 6588 tok/s  14.5 min
+step 750/2441 kd 0.8938 6589 tok/s  15.6 min
+step 800/2441 kd 0.8572 6589 tok/s  16.6 min
+step 850/2441 kd 0.8715 6590 tok/s  17.6 min
+step 900/2441 kd 0.9938 6590 tok/s  18.7 min
+step 950/2441 kd 0.9333 6590 tok/s  19.7 min
+ppl 55.881
+step 1000/2441 kd 0.7617 6571 tok/s  20.8 min
+step 1050/2441 kd 0.7921 6572 tok/s  21.8 min
+step 1100/2441 kd 0.9037 6573 tok/s  22.9 min
+step 1150/2441 kd 0.7743 6575 tok/s  23.9 min
+step 1200/2441 kd 0.8388 6564 tok/s  25.0 min
+step 1250/2441 kd 0.9230 6549 tok/s  26.1 min
+step 1300/2441 kd 0.7802 6552 tok/s  27.1 min
+step 1350/2441 kd 0.7127 6554 tok/s  28.1 min
+step 1400/2441 kd 0.7389 6557 tok/s  29.2 min
+step 1450/2441 kd 0.6241 6559 tok/s  30.2 min
+step 1500/2441 kd 0.6797 6562 tok/s  31.2 min
+step 1550/2441 kd 0.8760 6564 tok/s  32.3 min
+step 1600/2441 kd 0.7271 6566 tok/s  33.3 min
+step 1650/2441 kd 0.7613 6567 tok/s  34.3 min
+step 1700/2441 kd 0.7905 6562 tok/s  35.4 min
+step 1750/2441 kd 0.6682 6564 tok/s  36.4 min
+step 1800/2441 kd 0.8094 6566 tok/s  37.4 min
+step 1850/2441 kd 0.6736 6568 tok/s  38.5 min
+step 1900/2441 kd 0.7020 6570 tok/s  39.5 min
+step 1950/2441 kd 0.6498 6571 tok/s  40.5 min
+ppl 50.985
+step 2000/2441 kd 0.7082 6563 tok/s  41.6 min
+step 2050/2441 kd 0.7113 6565 tok/s  42.7 min
+step 2100/2441 kd 0.6713 6566 tok/s  43.7 min
+step 2150/2441 kd 0.7557 6568 tok/s  44.7 min
+step 2200/2441 kd 0.7388 6569 tok/s  45.7 min
+step 2250/2441 kd 0.7415 6570 tok/s  46.8 min
+step 2300/2441 kd 0.7722 6572 tok/s  47.8 min
+step 2350/2441 kd 0.8226 6573 tok/s  48.8 min
+step 2400/2441 kd 0.6945 6574 tok/s  49.9 min
+ppl 50.311
+'Once upon a time, I was a little bit of a little bit of a little bit of a little bit of a little bit of a little bit of a little bit of a little bit of a little bit of a'

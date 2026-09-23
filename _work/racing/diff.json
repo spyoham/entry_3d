@@ -1,0 +1,17 @@
+[
+  {"wait":1800,"shot":"d0_menu.png"},
+  {"down":{"code":"ArrowDown","key":"ArrowDown","keyCode":40}},{"wait":220},{"up":{"code":"ArrowDown","key":"ArrowDown","keyCode":40}},{"wait":250},
+  {"down":{"code":"ArrowDown","key":"ArrowDown","keyCode":40}},{"wait":220},{"up":{"code":"ArrowDown","key":"ArrowDown","keyCode":40}},{"wait":250},
+  {"down":{"code":"ArrowDown","key":"ArrowDown","keyCode":40}},{"wait":220},{"up":{"code":"ArrowDown","key":"ArrowDown","keyCode":40}},{"wait":250},
+  {"down":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":250},{"up":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":250},
+  {"down":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":250},{"up":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":250},
+  {"down":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":250},{"up":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":800,"shot":"d1_diff.png"},
+  {"eval":"(()=>({aiDiff:Number(Entry.variableContainer.variables_.find(x=>x.name_==='aiDiff').value_),menuSel:Number(Entry.variableContainer.variables_.find(x=>x.name_==='menuSel').value_)}))()"},
+  {"down":{"code":"ArrowUp","key":"ArrowUp","keyCode":38}},{"wait":220},{"up":{"code":"ArrowUp","key":"ArrowUp","keyCode":38}},{"wait":220},
+  {"down":{"code":"ArrowUp","key":"ArrowUp","keyCode":38}},{"wait":220},{"up":{"code":"ArrowUp","key":"ArrowUp","keyCode":38}},{"wait":220},
+  {"down":{"code":"ArrowUp","key":"ArrowUp","keyCode":38}},{"wait":220},{"up":{"code":"ArrowUp","key":"ArrowUp","keyCode":38}},{"wait":250},
+  {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":250},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":4800},
+  {"eval":"(()=>{const V=n=>Entry.variableContainer.variables_.find(x=>x.name_===n);window.__t0=Number(V('gt').value_);window.__log=[];window.__iv=setInterval(()=>{const L=Entry.variableContainer.lists_.find(x=>x.name_==='caSpd');window.__log.push([+(Number(V('gt').value_)-window.__t0).toFixed(2),+(Number(L.array_[0].data)*3.6).toFixed(1)])},80);return 1;})()"},
+  {"down":{"code":"KeyW","key":"w","keyCode":87}},{"wait":16000},
+  {"eval":"(()=>{clearInterval(window.__iv);const l=window.__log;const at=v=>{const r=l.find(e=>e[1]>=v);return r?r[0]:null};const L=n=>Entry.variableContainer.lists_.find(x=>x.name_===n).array_.slice(0,8).map(e=>+Number(e.data).toFixed(1));return {to100:at(100),to200:at(200),to250:at(250),maxKmh:Math.max(...l.map(e=>e[1])),aiKmh:L('caSpd').map(v=>+(v*3.6).toFixed(0))};})()"}
+]

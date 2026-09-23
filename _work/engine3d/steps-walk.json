@@ -1,0 +1,4 @@
+[{"wait":2000},
+ {"down":{"code":"KeyW","key":"w","keyCode":87},"wait":3000},
+ {"up":{"code":"KeyW","key":"w","keyCode":87},"wait":200,"shot":"w1.png"},
+ {"eval":"(()=>{const V=n=>{const v=Entry.variableContainer.variables_.find(x=>x.name_===n);return v?Number(v.value_):null};const L=n=>{const l=Entry.variableContainer.lists_.find(x=>x.name_===n);return l?l.array_.map(o=>o.data):null};const p=V('player');return {score:V('score'),coins:V('coinsLeft'),pz:L('오브젝트Z')[p-1],py:L('오브젝트Y')[p-1],fps:V('FPS'),dt:V('프레임시간')}})()"}]

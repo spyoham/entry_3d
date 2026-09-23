@@ -1,0 +1,11 @@
+[
+  {"wait": 1500},
+  {"down":{"code":"ArrowDown","key":"ArrowDown","keyCode":40}},{"wait":220},{"up":{"code":"ArrowDown","key":"ArrowDown","keyCode":40}},{"wait":220},
+  {"down":{"code":"ArrowDown","key":"ArrowDown","keyCode":40}},{"wait":220},{"up":{"code":"ArrowDown","key":"ArrowDown","keyCode":40}},{"wait":220},
+  {"down":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":220},{"up":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":900},
+  {"eval":"(()=>{const L=n=>Entry.variableContainer.lists_.find(x=>x.name_===n).array_.map(e=>Number(e.data));const t=L('sgTun'),j=L('sgJmp');const f=a=>a.slice(0,201).findIndex(v=>v>0)+1;window.__tun=f(t);window.__jmp=f(j);const V=n=>Entry.variableContainer.variables_.find(x=>x.name_===n);V('attractT').setValue(window.__tun-6);return {tunSeg:window.__tun,jmpSeg:window.__jmp};})()"},
+  {"wait":600,"shot":"f_tunnel.png"},
+  {"eval":"(()=>{Entry.variableContainer.variables_.find(x=>x.name_==='attractT').setValue(window.__jmp-5);return 1;})()"},
+  {"wait":600,"shot":"f_jump.png"},
+  {"down":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":250},{"up":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":900,"shot":"f_trk3.png"}
+]

@@ -1,0 +1,13 @@
+import { readWad, readMap } from './wad.mjs';
+const w = readWad('freedoom-0.13.0/freedoom1.wad');
+const M=readMap(w,'E1M1');
+const cnt=(arr)=>{const c={};for(const a of arr)c[a]=(c[a]||0)+1;return Object.entries(c).sort((a,b)=>b[1]-a[1]).map(([k,v])=>k+':'+v).join(' ')};
+console.log('line specials',cnt(M.lines.filter(l=>l.special).map(l=>l.special)));
+console.log('sector specials',cnt(M.sectors.map(s=>s.special)));
+console.log('things (all skills)',cnt(M.things.map(t=>t.type)));
+console.log('things UV',cnt(M.things.filter(t=>t.flags&4).map(t=>t.type)));
+const tex=new Set();for(const s of M.sides){for(const t of [s.upper,s.lower,s.mid]) if(t!=='-')tex.add(t);} console.log('textures',tex.size,[...tex].join(' '));
+const fl=new Set();for(const s of M.sectors){fl.add(s.floorPic);fl.add(s.ceilPic);} console.log('flats',fl.size,[...fl].join(' '));
+const xs=M.verts.map(v=>v.x),ys=M.verts.map(v=>v.y);console.log('bounds',Math.min(...xs),Math.max(...xs),Math.min(...ys),Math.max(...ys));
+console.log('lights',cnt(M.sectors.map(s=>s.light)));
+console.log('player start',M.things.filter(t=>t.type===1));

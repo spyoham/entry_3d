@@ -1,0 +1,7 @@
+[
+  {"wait":2500,"shot":"sc1_menu.png"},
+  {"eval":"(()=>{const g=n=>Number(Entry.variableContainer.variables_.find(x=>x.name_===n).value_);return {scN:g('scN'),nVis:g('nVis'),quads:g('drawnQuads'),trkLen:Math.round(g('trkLen'))};})()"},
+  {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":250},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":4800},
+  {"down":{"code":"KeyW","key":"w","keyCode":87}},{"wait":4000,"shot":"sc2_race.png"},
+  {"eval":"(()=>{const g=n=>Number(Entry.variableContainer.variables_.find(x=>x.name_===n).value_);return {quads:g('drawnQuads'),nVis:g('nVis')};})()"}
+]

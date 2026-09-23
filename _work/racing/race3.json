@@ -1,0 +1,9 @@
+[
+  {"wait":1800},
+  {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":250},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":4800},
+  {"down":{"code":"KeyW","key":"w","keyCode":87}},{"wait":2500,"shot":"r1.png"},
+  {"wait":3000,"shot":"r2.png"},
+  {"down":{"code":"KeyC","key":"c","keyCode":67}},{"wait":250},{"up":{"code":"KeyC","key":"c","keyCode":67}},
+  {"down":{"code":"KeyC","key":"c","keyCode":67}},{"wait":250},{"up":{"code":"KeyC","key":"c","keyCode":67}},{"wait":2500,"shot":"r3_far.png"},
+  {"eval":"(()=>{const g=n=>Number(Entry.variableContainer.variables_.find(x=>x.name_===n).value_);return {quads:g('drawnQuads'),nVis:g('nVis'),kmh:Math.round(Number(Entry.variableContainer.lists_.find(x=>x.name_==='caSpd').array_[0].data)*3.6)};})()"}
+]

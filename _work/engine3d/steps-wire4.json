@@ -1,0 +1,4 @@
+[{"wait":3000},
+ {"eval":"(()=>{const v=Entry.variableContainer.variables_.find(x=>x.name_==='drawMode');v.value_=1;return {set:v.value_}})()"},
+ {"wait":1500,"eval":"(()=>{const v=Entry.variableContainer.variables_.find(x=>x.name_==='drawMode');const w=Entry.variableContainer.variables_.find(x=>x.name_==='wireHex');return {now:v.value_, wire:w?w.value_:'?'}})()"},
+ {"shot":"wi.png"}]

@@ -1,0 +1,5 @@
+[{"wait":2500},
+ {"down":{"code":"KeyW","key":"w","keyCode":87},"wait":1500},
+ {"eval":"(()=>{const V=n=>{const v=Entry.variableContainer.variables_.find(x=>x.name_===n);return v?v.value_:null};const L=n=>{const l=Entry.variableContainer.lists_.find(x=>x.name_===n);return l?l.array_.map(o=>o.data):null};const p=Number(V('player'));return {p, fwd:V('입력앞뒤'), vx:L('오브젝트속도X')[p-1], vz:L('오브젝트속도Z')[p-1], cz:L('오브젝트Z')[p-1], ground:L('오브젝트땅닿음')[p-1], hit:L('오브젝트닿은것')[p-1], dt:V('프레임시간')}})()"},
+ {"wait":1500,"eval":"(()=>{const V=n=>{const v=Entry.variableContainer.variables_.find(x=>x.name_===n);return v?v.value_:null};const L=n=>{const l=Entry.variableContainer.lists_.find(x=>x.name_===n);return l?l.array_.map(o=>o.data):null};const p=Number(V('player'));return {fwd:V('입력앞뒤'), vz:L('오브젝트속도Z')[p-1], cz:L('오브젝트Z')[p-1], hit:L('오브젝트닿은것')[p-1], yaw:V('카메라좌우각')}})()"},
+ {"up":{"code":"KeyW","key":"w","keyCode":87}}]

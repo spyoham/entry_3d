@@ -1,0 +1,1517 @@
+
+=== 3d_raymarching_optimized.ent — decompiled ===
+
+object [7y0y] main (sprite)
+  thread[0]:
+    ├─ when_run_button_click [id:rxog]
+    └─ func_c25s [id:txcg](∅)
+  thread[1]:
+    ├─ when_clone_start [id:zjco]
+    └─ func_r0qz [id:x0ez](<coordinate_object>, ∅)
+       └─ param[0] →
+          └─ coordinate_object [id:ce9j](∅, «self», ∅, «rotation»)
+
+function [juo7] type=normal local=[]
+  content[0]:
+    └─ function_create [id:2roe](<function_field_label>)
+       ├─ param[0] →
+       │  └─ function_field_label [id:wips](«init», ∅)
+       └─ stmt[0]:
+          ├─ set_variable [id:mbee](«q33i», text("480"))
+          ├─ set_variable [id:jmnk](«l4j2», text("270"))
+          ├─ set_variable [id:yprm](«6vza», text("30"))
+          ├─ set_variable [id:wox4](«zrdn», text("20"))
+          ├─ set_variable [id:1qv6](«4pav», text("60"))
+          ├─ set_variable [id:sxuc](«5q4p», text("0.1"))
+          ├─ set_variable [id:o9ar](«8ryj», <quotient_and_mod>)
+          │  └─ param[1] →
+          │     └─ quotient_and_mod [id:xyfy](∅, get_variable("q33i"), ∅, get_variable("6vza"), ∅, «QUOTIENT»)
+          ├─ set_variable [id:0w4v](«1u0q», <quotient_and_mod>)
+          │  └─ param[1] →
+          │     └─ quotient_and_mod [id:5a6a](∅, get_variable("l4j2"), ∅, get_variable("6vza"), ∅, «QUOTIENT»)
+          ├─ set_variable [id:91qh](«azq1», <calc_basic>)
+          │  └─ param[1] →
+          │     └─ calc_basic [id:xd83](get_variable("8ryj"), «DIVIDE», number("2"))
+          ├─ set_variable [id:6t55](«8cb1», <calc_basic>)
+          │  └─ param[1] →
+          │     └─ calc_basic [id:979y](get_variable("1u0q"), «DIVIDE», number("2"))
+          ├─ set_variable [id:d4rg](«ehtb», text("16"))
+          ├─ set_variable [id:0878](«f8vk», text("0"))
+          ├─ set_variable [id:o676](«7yp4», text("0"))
+          ├─ set_variable [id:j1ks](«khh1», text("0"))
+          ├─ set_variable [id:manv](«m809», text("-1"))
+          ├─ set_variable [id:6san](«kevq», text("1"))
+          ├─ set_variable [id:7n1q](«r55f», text("1"))
+          ├─ set_variable [id:4r0n](«5u4s», text("0.05"))
+          └─ set_variable [id:uz9i](«ai41», text("0"))
+
+function [o4mh] type=normal local=[{"name":"tmp","value":0,"id":"o4mh_wsn2"}]
+  content[0]:
+    └─ function_create [id:38us](<function_field_label>)
+       ├─ param[0] →
+       │  └─ function_field_label [id:wips](«add_sphere_plane type_val», <function_field_string>)
+       │     └─ param[1] →
+       │        └─ function_field_string [id:52nd](<stringParam_w3ye>, <function_field_label>)
+       │           ├─ param[0] →
+       │           │  └─ stringParam_w3ye [id:huge]
+       │           └─ param[1] →
+       │              └─ function_field_label [id:a168](«p1», <function_field_string>)
+       │                 └─ param[1] →
+       │                    └─ function_field_string [id:z7xs](<stringParam_m833>, <function_field_label>)
+       │                       ├─ param[0] →
+       │                       │  └─ stringParam_m833 [id:uz1r]
+       │                       └─ param[1] →
+       │                          └─ function_field_label [id:378w](«p2», <function_field_string>)
+       │                             └─ param[1] →
+       │                                └─ function_field_string [id:zxna](<stringParam_zuiz>, <function_field_label>)
+       │                                   ├─ param[0] →
+       │                                   │  └─ stringParam_zuiz [id:ruhq]
+       │                                   └─ param[1] →
+       │                                      └─ function_field_label [id:laj3](«p3», <function_field_string>)
+       │                                         └─ param[1] →
+       │                                            └─ function_field_string [id:rnnn](<stringParam_mssz>, <function_field_label>)
+       │                                               ├─ param[0] →
+       │                                               │  └─ stringParam_mssz [id:lz8b]
+       │                                               └─ param[1] →
+       │                                                  └─ function_field_label [id:zphg](«p4», <function_field_string>)
+       │                                                     └─ param[1] →
+       │                                                        └─ function_field_string [id:gwpr](<stringParam_5qyq>, <function_field_label>)
+       │                                                           ├─ param[0] →
+       │                                                           │  └─ stringParam_5qyq [id:hx5y]
+       │                                                           └─ param[1] →
+       │                                                              └─ function_field_label [id:dvym](«mat», <function_field_string>)
+       │                                                                 └─ param[1] →
+       │                                                                    └─ function_field_string [id:y2tu](<stringParam_c5ea>, ∅)
+       │                                                                       └─ param[0] →
+       │                                                                          └─ stringParam_c5ea [id:6hvf]
+       └─ stmt[0]:
+          ├─ add_value_to_list [id:9piq](<stringParam_w3ye>, «tbrn»)
+          │  └─ param[0] →
+          │     └─ stringParam_w3ye [id:iupu]
+          ├─ add_value_to_list [id:8l9x](<stringParam_m833>, «tbrn»)
+          │  └─ param[0] →
+          │     └─ stringParam_m833 [id:2jei]
+          ├─ add_value_to_list [id:65p6](<stringParam_zuiz>, «tbrn»)
+          │  └─ param[0] →
+          │     └─ stringParam_zuiz [id:p5fq]
+          ├─ add_value_to_list [id:szol](<stringParam_mssz>, «tbrn»)
+          │  └─ param[0] →
+          │     └─ stringParam_mssz [id:thyp]
+          ├─ add_value_to_list [id:otb1](<stringParam_5qyq>, «tbrn»)
+          │  └─ param[0] →
+          │     └─ stringParam_5qyq [id:0g1g]
+          ├─ add_value_to_list [id:0ojs](text("0"), «tbrn»)
+          ├─ add_value_to_list [id:zwig](text("0"), «tbrn»)
+          ├─ add_value_to_list [id:ihfx](text("0"), «tbrn»)
+          ├─ add_value_to_list [id:2el2](text("0"), «tbrn»)
+          ├─ add_value_to_list [id:wa51](text("0"), «tbrn»)
+          ├─ add_value_to_list [id:gwdv](<stringParam_c5ea>, «tbrn»)
+          │  └─ param[0] →
+          │     └─ stringParam_c5ea [id:dpo7]
+          ├─ add_value_to_list [id:hjv3](text("0"), «tbrn»)
+          ├─ add_value_to_list [id:n9cn](text("0"), «tbrn»)
+          ├─ add_value_to_list [id:1eis](text("0"), «tbrn»)
+          ├─ add_value_to_list [id:fvxh](text("0"), «tbrn»)
+          ├─ add_value_to_list [id:5a91](text("0"), «tbrn»)
+          └─ change_variable [id:qmd6](«f8vk», text("1"))
+
+function [osdc] type=normal local=[{"name":"tmp","value":0,"id":"osdc_sbfr"}]
+  content[0]:
+    └─ function_create [id:cota](<function_field_label>)
+       ├─ param[0] →
+       │  └─ function_field_label [id:wips](«add_triangle», <function_field_string>)
+       │     └─ param[1] →
+       │        └─ function_field_string [id:khkd](<stringParam_2rev>, <function_field_string>)
+       │           ├─ param[0] →
+       │           │  └─ stringParam_2rev [id:jnxe]
+       │           └─ param[1] →
+       │              └─ function_field_string [id:6ull](<stringParam_qbrq>, <function_field_string>)
+       │                 ├─ param[0] →
+       │                 │  └─ stringParam_qbrq [id:9qqp]
+       │                 └─ param[1] →
+       │                    └─ function_field_string [id:y8wi](<stringParam_2r36>, <function_field_string>)
+       │                       ├─ param[0] →
+       │                       │  └─ stringParam_2r36 [id:ly3x]
+       │                       └─ param[1] →
+       │                          └─ function_field_string [id:s5vl](<stringParam_z1y3>, <function_field_string>)
+       │                             ├─ param[0] →
+       │                             │  └─ stringParam_z1y3 [id:vnrl]
+       │                             └─ param[1] →
+       │                                └─ function_field_string [id:lvxg](<stringParam_2l8q>, <function_field_string>)
+       │                                   ├─ param[0] →
+       │                                   │  └─ stringParam_2l8q [id:b6ph]
+       │                                   └─ param[1] →
+       │                                      └─ function_field_string [id:zjnx](<stringParam_zc7y>, <function_field_string>)
+       │                                         ├─ param[0] →
+       │                                         │  └─ stringParam_zc7y [id:tcjl]
+       │                                         └─ param[1] →
+       │                                            └─ function_field_string [id:cdcv](<stringParam_jcj8>, <function_field_string>)
+       │                                               ├─ param[0] →
+       │                                               │  └─ stringParam_jcj8 [id:169f]
+       │                                               └─ param[1] →
+       │                                                  └─ function_field_string [id:ff1s](<stringParam_is65>, <function_field_string>)
+       │                                                     ├─ param[0] →
+       │                                                     │  └─ stringParam_is65 [id:51y0]
+       │                                                     └─ param[1] →
+       │                                                        └─ function_field_string [id:jrgu](<stringParam_74kw>, <function_field_label>)
+       │                                                           ├─ param[0] →
+       │                                                           │  └─ stringParam_74kw [id:dnne]
+       │                                                           └─ param[1] →
+       │                                                              └─ function_field_label [id:526v](«mat», <function_field_string>)
+       │                                                                 └─ param[1] →
+       │                                                                    └─ function_field_string [id:7kio](<stringParam_jvtj>, ∅)
+       │                                                                       └─ param[0] →
+       │                                                                          └─ stringParam_jvtj [id:dxzv]
+       └─ stmt[0]:
+          ├─ add_value_to_list [id:g1h8](text("3"), «tbrn»)
+          ├─ add_value_to_list [id:mlu6](<stringParam_2rev>, «tbrn»)
+          │  └─ param[0] →
+          │     └─ stringParam_2rev [id:qpje]
+          ├─ add_value_to_list [id:cics](<stringParam_qbrq>, «tbrn»)
+          │  └─ param[0] →
+          │     └─ stringParam_qbrq [id:7u5v]
+          ├─ add_value_to_list [id:ij5y](<stringParam_2r36>, «tbrn»)
+          │  └─ param[0] →
+          │     └─ stringParam_2r36 [id:0y2s]
+          ├─ add_value_to_list [id:adpv](<stringParam_z1y3>, «tbrn»)
+          │  └─ param[0] →
+          │     └─ stringParam_z1y3 [id:rgun]
+          ├─ add_value_to_list [id:3s33](<stringParam_2l8q>, «tbrn»)
+          │  └─ param[0] →
+          │     └─ stringParam_2l8q [id:qpvu]
+          ├─ add_value_to_list [id:shyc](<stringParam_zc7y>, «tbrn»)
+          │  └─ param[0] →
+          │     └─ stringParam_zc7y [id:r84i]
+          ├─ add_value_to_list [id:dabs](<stringParam_jcj8>, «tbrn»)
+          │  └─ param[0] →
+          │     └─ stringParam_jcj8 [id:i9uz]
+          ├─ add_value_to_list [id:yco4](<stringParam_is65>, «tbrn»)
+          │  └─ param[0] →
+          │     └─ stringParam_is65 [id:if7w]
+          ├─ add_value_to_list [id:y14p](<stringParam_74kw>, «tbrn»)
+          │  └─ param[0] →
+          │     └─ stringParam_74kw [id:fedk]
+          ├─ add_value_to_list [id:lqi2](<stringParam_jvtj>, «tbrn»)
+          │  └─ param[0] →
+          │     └─ stringParam_jvtj [id:6f1i]
+          ├─ add_value_to_list [id:ts09](text("0"), «tbrn»)
+          ├─ add_value_to_list [id:1cur](text("0"), «tbrn»)
+          ├─ add_value_to_list [id:kt56](text("0"), «tbrn»)
+          ├─ add_value_to_list [id:oybq](text("0"), «tbrn»)
+          ├─ add_value_to_list [id:zsxx](text("0"), «tbrn»)
+          └─ change_variable [id:ng5z](«f8vk», text("1"))
+
+function [3u80] type=normal local=[]
+  content[0]:
+    └─ function_create [id:8kex](<function_field_label>)
+       ├─ param[0] →
+       │  └─ function_field_label [id:wips](«init_scene», ∅)
+       └─ stmt[0]:
+          ├─ repeat_while_true [id:ayi9](<boolean_basic_operator>, «until»)
+          │  ├─ param[0] →
+          │  │  └─ boolean_basic_operator [id:jjx2](<length_of_list>, «LESS_OR_EQUAL», text("1"))
+          │  │     └─ param[0] →
+          │  │        └─ length_of_list [id:0oi7](∅, «tbrn», ∅)
+          │  └─ stmt[0]:
+          │     ├─ remove_value_from_list [id:aram](number("1"), «tbrn»)
+          │     └─ wait_until_true [id:wg70](<boolean_not>)
+          │        └─ param[0] →
+          │           └─ boolean_not [id:lp4m](∅, <continue_repeat>, ∅)
+          │              └─ param[1] →
+          │                 └─ continue_repeat [id:ahdt]
+          ├─ set_variable [id:juik](«f8vk», text("0"))
+          ├─ func_o4mh [id:zocw](text("2"), text("-2"), text("0"), text("0"), text("0"), text("1"), ∅)
+          ├─ func_o4mh [id:mrvx](text("1"), text("0"), text("0"), text("5"), text("0.8"), text("6"), ∅)
+          └─ func_o4mh [id:wrld](text("1"), text("0"), text("5"), text("20"), text("8"), text("3"), ∅)
+  content[1]:
+    ├─ func_osdc [id:y6qw](text("-3.5"), text("-2"), text("5"), text("-1.5"), text("-2"), text("5"), text("-2.5"), text("1"), text("5"), text("8"), ∅)
+    └─ func_osdc [id:so2s](text("1.5"), text("-2"), text("5"), text("3.5"), text("-2"), text("5"), text("2.5"), text("1"), text("5"), text("8"), ∅)
+
+function [1n7r] type=value local=[{"name":"min_d","value":0,"id":"1n7r_y4v6"},{"name":"out_mat","value":0,"id":"1n7r_azjj"},{"name":"current_d","value":0,"id":"1n7r_0tfi"},{"name":"i","value":0,"id":"1n7r_9591"},{"name":"base","value":0,"id":"1n7r_0nvi"},{"name":"1","value":0,"id":"1n7r_ur3s"},{"name":"2","value":0,"id":"1n7r_hgdn"},{"name":"3","value":0,"id":"1n7r_nj9a"},{"name":"4","value":0,"id":"1n7r_7zjm"},{"name":"5","value":0,"id":"1n7r_ig5t"}]
+  content[0]:
+    └─ function_create_value [id:6qq8](<function_field_label>, ∅, <get_func_variable>)
+       ├─ param[0] →
+       │  └─ function_field_label [id:wips](«get_dist px», <function_field_string>)
+       │     └─ param[1] →
+       │        └─ function_field_string [id:bffm](<stringParam_xr1y>, <function_field_label>)
+       │           ├─ param[0] →
+       │           │  └─ stringParam_xr1y [id:sn9x]
+       │           └─ param[1] →
+       │              └─ function_field_label [id:7v7v](«py», <function_field_string>)
+       │                 └─ param[1] →
+       │                    └─ function_field_string [id:jl9g](<stringParam_qqoy>, <function_field_label>)
+       │                       ├─ param[0] →
+       │                       │  └─ stringParam_qqoy [id:32ww]
+       │                       └─ param[1] →
+       │                          └─ function_field_label [id:1oyf](«pz», <function_field_string>)
+       │                             └─ param[1] →
+       │                                └─ function_field_string [id:qk93](<stringParam_lp4n>, ∅)
+       │                                   └─ param[0] →
+       │                                      └─ stringParam_lp4n [id:q73l]
+       ├─ param[3] →
+       │  └─ get_func_variable [id:lip2](«1n7r_y4v6», ∅)
+       └─ stmt[0]:
+          ├─ set_func_variable [id:ia36](«1n7r_y4v6», text("1000"))
+          ├─ set_func_variable [id:2qpv](«1n7r_9591», text("0"))
+          └─ repeat_basic [id:02ke](get_variable("f8vk"))
+             └─ stmt[0]:
+                ├─ set_func_variable [id:eda1](«1n7r_0nvi», <calc_basic>)
+                │  └─ param[1] →
+                │     └─ calc_basic [id:ghfx](<calc_basic>, «PLUS», number("1"))
+                │        └─ param[0] →
+                │           └─ calc_basic [id:o4p7](<get_func_variable>, «MULTI», get_variable("ehtb"))
+                │              └─ param[0] →
+                │                 └─ get_func_variable [id:wb12](«1n7r_9591», ∅)
+                ├─ set_func_variable [id:j7ey](«1n7r_0tfi», text("1000"))
+                ├─ if_else [id:5jwv](<boolean_basic_operator>, ∅)
+                │  ├─ param[0] →
+                │  │  └─ boolean_basic_operator [id:6gtl](<value_of_index_from_list>, «EQUAL», text("1"))
+                │  │     └─ param[0] →
+                │  │        └─ value_of_index_from_list [id:hmcl](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │  │           └─ param[3] →
+                │  │              └─ calc_basic [id:gs8x](<get_func_variable>, «PLUS», number("0"))
+                │  │                 └─ param[0] →
+                │  │                    └─ get_func_variable [id:adnq](«1n7r_0nvi», ∅)
+                │  ├─ stmt[0]:
+                │  │  └─ set_func_variable [id:r7v1](«1n7r_0tfi», <calc_basic>)
+                │  │     └─ param[1] →
+                │  │        └─ calc_basic [id:mmz2](<calc_operation>, «MINUS», <value_of_index_from_list>)
+                │  │           ├─ param[0] →
+                │  │           │  └─ calc_operation [id:ftg4](∅, <calc_basic>, ∅, «root»)
+                │  │           │     └─ param[1] →
+                │  │           │        └─ calc_basic [id:4i7q](<calc_operation>, «PLUS», <calc_basic>)
+                │  │           │           ├─ param[0] →
+                │  │           │           │  └─ calc_operation [id:ttnq](∅, <calc_basic>, ∅, «square»)
+                │  │           │           │     └─ param[1] →
+                │  │           │           │        └─ calc_basic [id:5dbe](<stringParam_xr1y>, «MINUS», <value_of_index_from_list>)
+                │  │           │           │           ├─ param[0] →
+                │  │           │           │           │  └─ stringParam_xr1y [id:9do8]
+                │  │           │           │           └─ param[2] →
+                │  │           │           │              └─ value_of_index_from_list [id:i77r](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │  │           │           │                 └─ param[3] →
+                │  │           │           │                    └─ calc_basic [id:yo9k](<get_func_variable>, «PLUS», number("1"))
+                │  │           │           │                       └─ param[0] →
+                │  │           │           │                          └─ get_func_variable [id:0n6m](«1n7r_0nvi», ∅)
+                │  │           │           └─ param[2] →
+                │  │           │              └─ calc_basic [id:hltj](<calc_operation>, «PLUS», <calc_operation>)
+                │  │           │                 ├─ param[0] →
+                │  │           │                 │  └─ calc_operation [id:yryk](∅, <calc_basic>, ∅, «square»)
+                │  │           │                 │     └─ param[1] →
+                │  │           │                 │        └─ calc_basic [id:6xpw](<stringParam_qqoy>, «MINUS», <value_of_index_from_list>)
+                │  │           │                 │           ├─ param[0] →
+                │  │           │                 │           │  └─ stringParam_qqoy [id:okma]
+                │  │           │                 │           └─ param[2] →
+                │  │           │                 │              └─ value_of_index_from_list [id:bhtb](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │  │           │                 │                 └─ param[3] →
+                │  │           │                 │                    └─ calc_basic [id:qj9n](<get_func_variable>, «PLUS», number("2"))
+                │  │           │                 │                       └─ param[0] →
+                │  │           │                 │                          └─ get_func_variable [id:leqa](«1n7r_0nvi», ∅)
+                │  │           │                 └─ param[2] →
+                │  │           │                    └─ calc_operation [id:dhsl](∅, <calc_basic>, ∅, «square»)
+                │  │           │                       └─ param[1] →
+                │  │           │                          └─ calc_basic [id:avjf](<stringParam_lp4n>, «MINUS», <value_of_index_from_list>)
+                │  │           │                             ├─ param[0] →
+                │  │           │                             │  └─ stringParam_lp4n [id:tjvx]
+                │  │           │                             └─ param[2] →
+                │  │           │                                └─ value_of_index_from_list [id:doat](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │  │           │                                   └─ param[3] →
+                │  │           │                                      └─ calc_basic [id:r6o6](<get_func_variable>, «PLUS», number("3"))
+                │  │           │                                         └─ param[0] →
+                │  │           │                                            └─ get_func_variable [id:q2hp](«1n7r_0nvi», ∅)
+                │  │           └─ param[2] →
+                │  │              └─ value_of_index_from_list [id:ug3k](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │  │                 └─ param[3] →
+                │  │                    └─ calc_basic [id:sa76](<get_func_variable>, «PLUS», number("4"))
+                │  │                       └─ param[0] →
+                │  │                          └─ get_func_variable [id:ctno](«1n7r_0nvi», ∅)
+                │  └─ stmt[1]:
+                │     └─ if_else [id:qop7](<boolean_basic_operator>, ∅)
+                │        ├─ param[0] →
+                │        │  └─ boolean_basic_operator [id:hcx3](<value_of_index_from_list>, «EQUAL», text("2"))
+                │        │     └─ param[0] →
+                │        │        └─ value_of_index_from_list [id:zynw](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │        │           └─ param[3] →
+                │        │              └─ calc_basic [id:1u15](<get_func_variable>, «PLUS», number("0"))
+                │        │                 └─ param[0] →
+                │        │                    └─ get_func_variable [id:jkew](«1n7r_0nvi», ∅)
+                │        ├─ stmt[0]:
+                │        │  └─ set_func_variable [id:k1p5](«1n7r_0tfi», <calc_basic>)
+                │        │     └─ param[1] →
+                │        │        └─ calc_basic [id:vs2g](<stringParam_qqoy>, «MINUS», <value_of_index_from_list>)
+                │        │           ├─ param[0] →
+                │        │           │  └─ stringParam_qqoy [id:h0nb]
+                │        │           └─ param[2] →
+                │        │              └─ value_of_index_from_list [id:romd](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │        │                 └─ param[3] →
+                │        │                    └─ calc_basic [id:lbcs](<get_func_variable>, «PLUS», number("1"))
+                │        │                       └─ param[0] →
+                │        │                          └─ get_func_variable [id:zkk7](«1n7r_0nvi», ∅)
+                │        └─ stmt[1]:
+                │           └─ _if [id:lluh](<boolean_basic_operator>)
+                │              ├─ param[0] →
+                │              │  └─ boolean_basic_operator [id:z2em](<value_of_index_from_list>, «EQUAL», text("3"))
+                │              │     └─ param[0] →
+                │              │        └─ value_of_index_from_list [id:2hsn](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │              │           └─ param[3] →
+                │              │              └─ calc_basic [id:9kzc](<get_func_variable>, «PLUS», number("0"))
+                │              │                 └─ param[0] →
+                │              │                    └─ get_func_variable [id:y1jg](«1n7r_0nvi», ∅)
+                │              └─ stmt[0]:
+                │                 ├─ set_func_variable [id:lr6d](«1n7r_ur3s», <calc_basic>)
+                │                 │  └─ param[1] →
+                │                 │     └─ calc_basic [id:y9ey](<calc_basic>, «MINUS», <calc_basic>)
+                │                 │        ├─ param[0] →
+                │                 │        │  └─ calc_basic [id:yea7](<calc_basic>, «MULTI», <calc_basic>)
+                │                 │        │     ├─ param[0] →
+                │                 │        │     │  └─ calc_basic [id:d96x](<value_of_index_from_list>, «MINUS», <value_of_index_from_list>)
+                │                 │        │     │     ├─ param[0] →
+                │                 │        │     │     │  └─ value_of_index_from_list [id:mx4b](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │        │     │     │     └─ param[3] →
+                │                 │        │     │     │        └─ calc_basic [id:8qo1](<get_func_variable>, «PLUS», number("5"))
+                │                 │        │     │     │           └─ param[0] →
+                │                 │        │     │     │              └─ get_func_variable [id:eezi](«1n7r_0nvi», ∅)
+                │                 │        │     │     └─ param[2] →
+                │                 │        │     │        └─ value_of_index_from_list [id:p42n](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │        │     │           └─ param[3] →
+                │                 │        │     │              └─ calc_basic [id:ndld](<get_func_variable>, «PLUS», number("2"))
+                │                 │        │     │                 └─ param[0] →
+                │                 │        │     │                    └─ get_func_variable [id:5gcd](«1n7r_0nvi», ∅)
+                │                 │        │     └─ param[2] →
+                │                 │        │        └─ calc_basic [id:ct06](<value_of_index_from_list>, «MINUS», <value_of_index_from_list>)
+                │                 │        │           ├─ param[0] →
+                │                 │        │           │  └─ value_of_index_from_list [id:10ev](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │        │           │     └─ param[3] →
+                │                 │        │           │        └─ calc_basic [id:vwkc](<get_func_variable>, «PLUS», number("3"))
+                │                 │        │           │           └─ param[0] →
+                │                 │        │           │              └─ get_func_variable [id:8vec](«1n7r_0nvi», ∅)
+                │                 │        │           └─ param[2] →
+                │                 │        │              └─ value_of_index_from_list [id:364i](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │        │                 └─ param[3] →
+                │                 │        │                    └─ calc_basic [id:r0vo](<get_func_variable>, «PLUS», number("9"))
+                │                 │        │                       └─ param[0] →
+                │                 │        │                          └─ get_func_variable [id:y03j](«1n7r_0nvi», ∅)
+                │                 │        └─ param[2] →
+                │                 │           └─ calc_basic [id:mjqv](<calc_basic>, «MULTI», <calc_basic>)
+                │                 │              ├─ param[0] →
+                │                 │              │  └─ calc_basic [id:rh08](<value_of_index_from_list>, «MINUS», <value_of_index_from_list>)
+                │                 │              │     ├─ param[0] →
+                │                 │              │     │  └─ value_of_index_from_list [id:fb66](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │              │     │     └─ param[3] →
+                │                 │              │     │        └─ calc_basic [id:aolc](<get_func_variable>, «PLUS», number("6"))
+                │                 │              │     │           └─ param[0] →
+                │                 │              │     │              └─ get_func_variable [id:i7eu](«1n7r_0nvi», ∅)
+                │                 │              │     └─ param[2] →
+                │                 │              │        └─ value_of_index_from_list [id:wqay](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │              │           └─ param[3] →
+                │                 │              │              └─ calc_basic [id:7vo8](<get_func_variable>, «PLUS», number("3"))
+                │                 │              │                 └─ param[0] →
+                │                 │              │                    └─ get_func_variable [id:n12g](«1n7r_0nvi», ∅)
+                │                 │              └─ param[2] →
+                │                 │                 └─ calc_basic [id:wkyl](<value_of_index_from_list>, «MINUS», <value_of_index_from_list>)
+                │                 │                    ├─ param[0] →
+                │                 │                    │  └─ value_of_index_from_list [id:z95h](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │                    │     └─ param[3] →
+                │                 │                    │        └─ calc_basic [id:dyao](<get_func_variable>, «PLUS», number("2"))
+                │                 │                    │           └─ param[0] →
+                │                 │                    │              └─ get_func_variable [id:2xem](«1n7r_0nvi», ∅)
+                │                 │                    └─ param[2] →
+                │                 │                       └─ value_of_index_from_list [id:tk7q](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │                          └─ param[3] →
+                │                 │                             └─ calc_basic [id:0sli](<get_func_variable>, «PLUS», number("8"))
+                │                 │                                └─ param[0] →
+                │                 │                                   └─ get_func_variable [id:uq3a](«1n7r_0nvi», ∅)
+                │                 ├─ set_func_variable [id:bivh](«1n7r_hgdn», <calc_basic>)
+                │                 │  └─ param[1] →
+                │                 │     └─ calc_basic [id:y5o5](<calc_basic>, «MINUS», <calc_basic>)
+                │                 │        ├─ param[0] →
+                │                 │        │  └─ calc_basic [id:jeqf](<calc_basic>, «MULTI», <calc_basic>)
+                │                 │        │     ├─ param[0] →
+                │                 │        │     │  └─ calc_basic [id:g8oz](<value_of_index_from_list>, «MINUS», <value_of_index_from_list>)
+                │                 │        │     │     ├─ param[0] →
+                │                 │        │     │     │  └─ value_of_index_from_list [id:dyuj](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │        │     │     │     └─ param[3] →
+                │                 │        │     │     │        └─ calc_basic [id:a1pw](<get_func_variable>, «PLUS», number("6"))
+                │                 │        │     │     │           └─ param[0] →
+                │                 │        │     │     │              └─ get_func_variable [id:qudf](«1n7r_0nvi», ∅)
+                │                 │        │     │     └─ param[2] →
+                │                 │        │     │        └─ value_of_index_from_list [id:ty7c](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │        │     │           └─ param[3] →
+                │                 │        │     │              └─ calc_basic [id:cjei](<get_func_variable>, «PLUS», number("3"))
+                │                 │        │     │                 └─ param[0] →
+                │                 │        │     │                    └─ get_func_variable [id:f440](«1n7r_0nvi», ∅)
+                │                 │        │     └─ param[2] →
+                │                 │        │        └─ calc_basic [id:pd74](<value_of_index_from_list>, «MINUS», <value_of_index_from_list>)
+                │                 │        │           ├─ param[0] →
+                │                 │        │           │  └─ value_of_index_from_list [id:d3ek](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │        │           │     └─ param[3] →
+                │                 │        │           │        └─ calc_basic [id:p6jl](<get_func_variable>, «PLUS», number("1"))
+                │                 │        │           │           └─ param[0] →
+                │                 │        │           │              └─ get_func_variable [id:qkbp](«1n7r_0nvi», ∅)
+                │                 │        │           └─ param[2] →
+                │                 │        │              └─ value_of_index_from_list [id:4mlc](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │        │                 └─ param[3] →
+                │                 │        │                    └─ calc_basic [id:zwye](<get_func_variable>, «PLUS», number("7"))
+                │                 │        │                       └─ param[0] →
+                │                 │        │                          └─ get_func_variable [id:r78h](«1n7r_0nvi», ∅)
+                │                 │        └─ param[2] →
+                │                 │           └─ calc_basic [id:2ebb](<calc_basic>, «MULTI», <calc_basic>)
+                │                 │              ├─ param[0] →
+                │                 │              │  └─ calc_basic [id:zyva](<value_of_index_from_list>, «MINUS», <value_of_index_from_list>)
+                │                 │              │     ├─ param[0] →
+                │                 │              │     │  └─ value_of_index_from_list [id:nyly](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │              │     │     └─ param[3] →
+                │                 │              │     │        └─ calc_basic [id:cchd](<get_func_variable>, «PLUS», number("4"))
+                │                 │              │     │           └─ param[0] →
+                │                 │              │     │              └─ get_func_variable [id:eyyn](«1n7r_0nvi», ∅)
+                │                 │              │     └─ param[2] →
+                │                 │              │        └─ value_of_index_from_list [id:cdr2](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │              │           └─ param[3] →
+                │                 │              │              └─ calc_basic [id:mkrb](<get_func_variable>, «PLUS», number("1"))
+                │                 │              │                 └─ param[0] →
+                │                 │              │                    └─ get_func_variable [id:qxy6](«1n7r_0nvi», ∅)
+                │                 │              └─ param[2] →
+                │                 │                 └─ calc_basic [id:65za](<value_of_index_from_list>, «MINUS», <value_of_index_from_list>)
+                │                 │                    ├─ param[0] →
+                │                 │                    │  └─ value_of_index_from_list [id:hxmu](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │                    │     └─ param[3] →
+                │                 │                    │        └─ calc_basic [id:p4vm](<get_func_variable>, «PLUS», number("3"))
+                │                 │                    │           └─ param[0] →
+                │                 │                    │              └─ get_func_variable [id:26s8](«1n7r_0nvi», ∅)
+                │                 │                    └─ param[2] →
+                │                 │                       └─ value_of_index_from_list [id:c1lp](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │                          └─ param[3] →
+                │                 │                             └─ calc_basic [id:vfdj](<get_func_variable>, «PLUS», number("9"))
+                │                 │                                └─ param[0] →
+                │                 │                                   └─ get_func_variable [id:bxqo](«1n7r_0nvi», ∅)
+                │                 ├─ set_func_variable [id:dt1v](«1n7r_nj9a», <calc_basic>)
+                │                 │  └─ param[1] →
+                │                 │     └─ calc_basic [id:4cn3](<calc_basic>, «MINUS», <calc_basic>)
+                │                 │        ├─ param[0] →
+                │                 │        │  └─ calc_basic [id:83e2](<calc_basic>, «MULTI», <calc_basic>)
+                │                 │        │     ├─ param[0] →
+                │                 │        │     │  └─ calc_basic [id:3ufo](<value_of_index_from_list>, «MINUS», <value_of_index_from_list>)
+                │                 │        │     │     ├─ param[0] →
+                │                 │        │     │     │  └─ value_of_index_from_list [id:ssjb](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │        │     │     │     └─ param[3] →
+                │                 │        │     │     │        └─ calc_basic [id:3fo2](<get_func_variable>, «PLUS», number("4"))
+                │                 │        │     │     │           └─ param[0] →
+                │                 │        │     │     │              └─ get_func_variable [id:li2j](«1n7r_0nvi», ∅)
+                │                 │        │     │     └─ param[2] →
+                │                 │        │     │        └─ value_of_index_from_list [id:wth5](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │        │     │           └─ param[3] →
+                │                 │        │     │              └─ calc_basic [id:v43r](<get_func_variable>, «PLUS», number("1"))
+                │                 │        │     │                 └─ param[0] →
+                │                 │        │     │                    └─ get_func_variable [id:y3zk](«1n7r_0nvi», ∅)
+                │                 │        │     └─ param[2] →
+                │                 │        │        └─ calc_basic [id:jfym](<value_of_index_from_list>, «MINUS», <value_of_index_from_list>)
+                │                 │        │           ├─ param[0] →
+                │                 │        │           │  └─ value_of_index_from_list [id:knk5](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │        │           │     └─ param[3] →
+                │                 │        │           │        └─ calc_basic [id:r9m7](<get_func_variable>, «PLUS», number("2"))
+                │                 │        │           │           └─ param[0] →
+                │                 │        │           │              └─ get_func_variable [id:zpfj](«1n7r_0nvi», ∅)
+                │                 │        │           └─ param[2] →
+                │                 │        │              └─ value_of_index_from_list [id:u0ce](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │        │                 └─ param[3] →
+                │                 │        │                    └─ calc_basic [id:avtr](<get_func_variable>, «PLUS», number("8"))
+                │                 │        │                       └─ param[0] →
+                │                 │        │                          └─ get_func_variable [id:9cwd](«1n7r_0nvi», ∅)
+                │                 │        └─ param[2] →
+                │                 │           └─ calc_basic [id:5r18](<calc_basic>, «MULTI», <calc_basic>)
+                │                 │              ├─ param[0] →
+                │                 │              │  └─ calc_basic [id:p3s0](<value_of_index_from_list>, «MINUS», <value_of_index_from_list>)
+                │                 │              │     ├─ param[0] →
+                │                 │              │     │  └─ value_of_index_from_list [id:vgm0](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │              │     │     └─ param[3] →
+                │                 │              │     │        └─ calc_basic [id:8qlp](<get_func_variable>, «PLUS», number("5"))
+                │                 │              │     │           └─ param[0] →
+                │                 │              │     │              └─ get_func_variable [id:jrpn](«1n7r_0nvi», ∅)
+                │                 │              │     └─ param[2] →
+                │                 │              │        └─ value_of_index_from_list [id:dge0](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │              │           └─ param[3] →
+                │                 │              │              └─ calc_basic [id:c0iv](<get_func_variable>, «PLUS», number("2"))
+                │                 │              │                 └─ param[0] →
+                │                 │              │                    └─ get_func_variable [id:xg4q](«1n7r_0nvi», ∅)
+                │                 │              └─ param[2] →
+                │                 │                 └─ calc_basic [id:abd7](<value_of_index_from_list>, «MINUS», <value_of_index_from_list>)
+                │                 │                    ├─ param[0] →
+                │                 │                    │  └─ value_of_index_from_list [id:5lva](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │                    │     └─ param[3] →
+                │                 │                    │        └─ calc_basic [id:jei1](<get_func_variable>, «PLUS», number("1"))
+                │                 │                    │           └─ param[0] →
+                │                 │                    │              └─ get_func_variable [id:awje](«1n7r_0nvi», ∅)
+                │                 │                    └─ param[2] →
+                │                 │                       └─ value_of_index_from_list [id:jotu](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │                          └─ param[3] →
+                │                 │                             └─ calc_basic [id:d6tf](<get_func_variable>, «PLUS», number("7"))
+                │                 │                                └─ param[0] →
+                │                 │                                   └─ get_func_variable [id:v7d4](«1n7r_0nvi», ∅)
+                │                 ├─ set_func_variable [id:tucb](«1n7r_7zjm», <calc_operation>)
+                │                 │  └─ param[1] →
+                │                 │     └─ calc_operation [id:k2p1](∅, <calc_basic>, ∅, «root»)
+                │                 │        └─ param[1] →
+                │                 │           └─ calc_basic [id:vadw](<calc_operation>, «PLUS», <calc_basic>)
+                │                 │              ├─ param[0] →
+                │                 │              │  └─ calc_operation [id:1oia](∅, <get_func_variable>, ∅, «square»)
+                │                 │              │     └─ param[1] →
+                │                 │              │        └─ get_func_variable [id:2o64](«1n7r_ur3s», ∅)
+                │                 │              └─ param[2] →
+                │                 │                 └─ calc_basic [id:lp7b](<calc_operation>, «PLUS», <calc_operation>)
+                │                 │                    ├─ param[0] →
+                │                 │                    │  └─ calc_operation [id:vwbg](∅, <get_func_variable>, ∅, «square»)
+                │                 │                    │     └─ param[1] →
+                │                 │                    │        └─ get_func_variable [id:6ogf](«1n7r_hgdn», ∅)
+                │                 │                    └─ param[2] →
+                │                 │                       └─ calc_operation [id:ly6x](∅, <get_func_variable>, ∅, «square»)
+                │                 │                          └─ param[1] →
+                │                 │                             └─ get_func_variable [id:glua](«1n7r_nj9a», ∅)
+                │                 ├─ _if [id:351l](<boolean_basic_operator>)
+                │                 │  ├─ param[0] →
+                │                 │  │  └─ boolean_basic_operator [id:usmu](<get_func_variable>, «GREATER», text("0"))
+                │                 │  │     └─ param[0] →
+                │                 │  │        └─ get_func_variable [id:ohck](«1n7r_7zjm», ∅)
+                │                 │  └─ stmt[0]:
+                │                 │     ├─ set_func_variable [id:x1yi](«1n7r_ur3s», <calc_basic>)
+                │                 │     │  └─ param[1] →
+                │                 │     │     └─ calc_basic [id:ix4i](<get_func_variable>, «DIVIDE», <get_func_variable>)
+                │                 │     │        ├─ param[0] →
+                │                 │     │        │  └─ get_func_variable [id:a2yz](«1n7r_ur3s», ∅)
+                │                 │     │        └─ param[2] →
+                │                 │     │           └─ get_func_variable [id:jcb6](«1n7r_7zjm», ∅)
+                │                 │     ├─ set_func_variable [id:fpf3](«1n7r_hgdn», <calc_basic>)
+                │                 │     │  └─ param[1] →
+                │                 │     │     └─ calc_basic [id:7avt](<get_func_variable>, «DIVIDE», <get_func_variable>)
+                │                 │     │        ├─ param[0] →
+                │                 │     │        │  └─ get_func_variable [id:uedc](«1n7r_hgdn», ∅)
+                │                 │     │        └─ param[2] →
+                │                 │     │           └─ get_func_variable [id:mel8](«1n7r_7zjm», ∅)
+                │                 │     └─ set_func_variable [id:fqhw](«1n7r_nj9a», <calc_basic>)
+                │                 │        └─ param[1] →
+                │                 │           └─ calc_basic [id:9nkg](<get_func_variable>, «DIVIDE», <get_func_variable>)
+                │                 │              ├─ param[0] →
+                │                 │              │  └─ get_func_variable [id:rbl8](«1n7r_nj9a», ∅)
+                │                 │              └─ param[2] →
+                │                 │                 └─ get_func_variable [id:t3ng](«1n7r_7zjm», ∅)
+                │                 ├─ set_func_variable [id:nby2](«1n7r_ig5t», <calc_basic>)
+                │                 │  └─ param[1] →
+                │                 │     └─ calc_basic [id:yvq5](<calc_basic>, «PLUS», <calc_basic>)
+                │                 │        ├─ param[0] →
+                │                 │        │  └─ calc_basic [id:hd59](<calc_basic>, «MULTI», <get_func_variable>)
+                │                 │        │     ├─ param[0] →
+                │                 │        │     │  └─ calc_basic [id:mxcg](<stringParam_xr1y>, «MINUS», <value_of_index_from_list>)
+                │                 │        │     │     ├─ param[0] →
+                │                 │        │     │     │  └─ stringParam_xr1y [id:j6cx]
+                │                 │        │     │     └─ param[2] →
+                │                 │        │     │        └─ value_of_index_from_list [id:ppdg](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │        │     │           └─ param[3] →
+                │                 │        │     │              └─ calc_basic [id:mjks](<get_func_variable>, «PLUS», number("1"))
+                │                 │        │     │                 └─ param[0] →
+                │                 │        │     │                    └─ get_func_variable [id:n86b](«1n7r_0nvi», ∅)
+                │                 │        │     └─ param[2] →
+                │                 │        │        └─ get_func_variable [id:jvr3](«1n7r_ur3s», ∅)
+                │                 │        └─ param[2] →
+                │                 │           └─ calc_basic [id:wmcv](<calc_basic>, «PLUS», <calc_basic>)
+                │                 │              ├─ param[0] →
+                │                 │              │  └─ calc_basic [id:okj0](<calc_basic>, «MULTI», <get_func_variable>)
+                │                 │              │     ├─ param[0] →
+                │                 │              │     │  └─ calc_basic [id:a1ci](<stringParam_qqoy>, «MINUS», <value_of_index_from_list>)
+                │                 │              │     │     ├─ param[0] →
+                │                 │              │     │     │  └─ stringParam_qqoy [id:mib4]
+                │                 │              │     │     └─ param[2] →
+                │                 │              │     │        └─ value_of_index_from_list [id:s650](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │              │     │           └─ param[3] →
+                │                 │              │     │              └─ calc_basic [id:4qt7](<get_func_variable>, «PLUS», number("2"))
+                │                 │              │     │                 └─ param[0] →
+                │                 │              │     │                    └─ get_func_variable [id:il4z](«1n7r_0nvi», ∅)
+                │                 │              │     └─ param[2] →
+                │                 │              │        └─ get_func_variable [id:fjts](«1n7r_hgdn», ∅)
+                │                 │              └─ param[2] →
+                │                 │                 └─ calc_basic [id:4hg2](<calc_basic>, «MULTI», <get_func_variable>)
+                │                 │                    ├─ param[0] →
+                │                 │                    │  └─ calc_basic [id:z5xd](<stringParam_lp4n>, «MINUS», <value_of_index_from_list>)
+                │                 │                    │     ├─ param[0] →
+                │                 │                    │     │  └─ stringParam_lp4n [id:epqd]
+                │                 │                    │     └─ param[2] →
+                │                 │                    │        └─ value_of_index_from_list [id:k38d](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │                    │           └─ param[3] →
+                │                 │                    │              └─ calc_basic [id:ir1u](<get_func_variable>, «PLUS», number("3"))
+                │                 │                    │                 └─ param[0] →
+                │                 │                    │                    └─ get_func_variable [id:eix0](«1n7r_0nvi», ∅)
+                │                 │                    └─ param[2] →
+                │                 │                       └─ get_func_variable [id:hue4](«1n7r_nj9a», ∅)
+                │                 ├─ set_func_variable [id:rvy2](«1n7r_ur3s», <calc_basic>)
+                │                 │  └─ param[1] →
+                │                 │     └─ calc_basic [id:958f](<calc_basic>, «DIVIDE», number("3"))
+                │                 │        └─ param[0] →
+                │                 │           └─ calc_basic [id:mxvg](<value_of_index_from_list>, «PLUS», <calc_basic>)
+                │                 │              ├─ param[0] →
+                │                 │              │  └─ value_of_index_from_list [id:32po](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │              │     └─ param[3] →
+                │                 │              │        └─ calc_basic [id:vi1k](<get_func_variable>, «PLUS», number("1"))
+                │                 │              │           └─ param[0] →
+                │                 │              │              └─ get_func_variable [id:4t2g](«1n7r_0nvi», ∅)
+                │                 │              └─ param[2] →
+                │                 │                 └─ calc_basic [id:wxff](<value_of_index_from_list>, «PLUS», <value_of_index_from_list>)
+                │                 │                    ├─ param[0] →
+                │                 │                    │  └─ value_of_index_from_list [id:y9dt](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │                    │     └─ param[3] →
+                │                 │                    │        └─ calc_basic [id:h6gv](<get_func_variable>, «PLUS», number("4"))
+                │                 │                    │           └─ param[0] →
+                │                 │                    │              └─ get_func_variable [id:6m4z](«1n7r_0nvi», ∅)
+                │                 │                    └─ param[2] →
+                │                 │                       └─ value_of_index_from_list [id:uw7k](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │                          └─ param[3] →
+                │                 │                             └─ calc_basic [id:d0ec](<get_func_variable>, «PLUS», number("7"))
+                │                 │                                └─ param[0] →
+                │                 │                                   └─ get_func_variable [id:r6qz](«1n7r_0nvi», ∅)
+                │                 ├─ set_func_variable [id:s1ga](«1n7r_hgdn», <calc_basic>)
+                │                 │  └─ param[1] →
+                │                 │     └─ calc_basic [id:qx1s](<calc_basic>, «DIVIDE», number("3"))
+                │                 │        └─ param[0] →
+                │                 │           └─ calc_basic [id:e3mv](<value_of_index_from_list>, «PLUS», <calc_basic>)
+                │                 │              ├─ param[0] →
+                │                 │              │  └─ value_of_index_from_list [id:ts81](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │              │     └─ param[3] →
+                │                 │              │        └─ calc_basic [id:uujm](<get_func_variable>, «PLUS», number("2"))
+                │                 │              │           └─ param[0] →
+                │                 │              │              └─ get_func_variable [id:itud](«1n7r_0nvi», ∅)
+                │                 │              └─ param[2] →
+                │                 │                 └─ calc_basic [id:gjk6](<value_of_index_from_list>, «PLUS», <value_of_index_from_list>)
+                │                 │                    ├─ param[0] →
+                │                 │                    │  └─ value_of_index_from_list [id:aq9l](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │                    │     └─ param[3] →
+                │                 │                    │        └─ calc_basic [id:34ld](<get_func_variable>, «PLUS», number("5"))
+                │                 │                    │           └─ param[0] →
+                │                 │                    │              └─ get_func_variable [id:u95d](«1n7r_0nvi», ∅)
+                │                 │                    └─ param[2] →
+                │                 │                       └─ value_of_index_from_list [id:xjmz](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │                          └─ param[3] →
+                │                 │                             └─ calc_basic [id:7gst](<get_func_variable>, «PLUS», number("8"))
+                │                 │                                └─ param[0] →
+                │                 │                                   └─ get_func_variable [id:0nvn](«1n7r_0nvi», ∅)
+                │                 ├─ set_func_variable [id:r5cm](«1n7r_nj9a», <calc_basic>)
+                │                 │  └─ param[1] →
+                │                 │     └─ calc_basic [id:gf78](<calc_basic>, «DIVIDE», number("3"))
+                │                 │        └─ param[0] →
+                │                 │           └─ calc_basic [id:l1j9](<value_of_index_from_list>, «PLUS», <calc_basic>)
+                │                 │              ├─ param[0] →
+                │                 │              │  └─ value_of_index_from_list [id:llhv](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │              │     └─ param[3] →
+                │                 │              │        └─ calc_basic [id:u52h](<get_func_variable>, «PLUS», number("3"))
+                │                 │              │           └─ param[0] →
+                │                 │              │              └─ get_func_variable [id:1ifb](«1n7r_0nvi», ∅)
+                │                 │              └─ param[2] →
+                │                 │                 └─ calc_basic [id:7fnf](<value_of_index_from_list>, «PLUS», <value_of_index_from_list>)
+                │                 │                    ├─ param[0] →
+                │                 │                    │  └─ value_of_index_from_list [id:aj4w](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │                    │     └─ param[3] →
+                │                 │                    │        └─ calc_basic [id:mw4a](<get_func_variable>, «PLUS», number("6"))
+                │                 │                    │           └─ param[0] →
+                │                 │                    │              └─ get_func_variable [id:gbzm](«1n7r_0nvi», ∅)
+                │                 │                    └─ param[2] →
+                │                 │                       └─ value_of_index_from_list [id:48dh](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                 │                          └─ param[3] →
+                │                 │                             └─ calc_basic [id:4b3b](<get_func_variable>, «PLUS», number("9"))
+                │                 │                                └─ param[0] →
+                │                 │                                   └─ get_func_variable [id:3dhq](«1n7r_0nvi», ∅)
+                │                 ├─ set_func_variable [id:hus3](«1n7r_7zjm», <calc_operation>)
+                │                 │  └─ param[1] →
+                │                 │     └─ calc_operation [id:5q8m](∅, <calc_basic>, ∅, «root»)
+                │                 │        └─ param[1] →
+                │                 │           └─ calc_basic [id:pr5v](<calc_operation>, «PLUS», <calc_basic>)
+                │                 │              ├─ param[0] →
+                │                 │              │  └─ calc_operation [id:jcza](∅, <calc_basic>, ∅, «square»)
+                │                 │              │     └─ param[1] →
+                │                 │              │        └─ calc_basic [id:srxz](<stringParam_xr1y>, «MINUS», <get_func_variable>)
+                │                 │              │           ├─ param[0] →
+                │                 │              │           │  └─ stringParam_xr1y [id:75l1]
+                │                 │              │           └─ param[2] →
+                │                 │              │              └─ get_func_variable [id:w9y4](«1n7r_ur3s», ∅)
+                │                 │              └─ param[2] →
+                │                 │                 └─ calc_basic [id:703h](<calc_operation>, «PLUS», <calc_operation>)
+                │                 │                    ├─ param[0] →
+                │                 │                    │  └─ calc_operation [id:odm4](∅, <calc_basic>, ∅, «square»)
+                │                 │                    │     └─ param[1] →
+                │                 │                    │        └─ calc_basic [id:swac](<stringParam_qqoy>, «MINUS», <get_func_variable>)
+                │                 │                    │           ├─ param[0] →
+                │                 │                    │           │  └─ stringParam_qqoy [id:pbkf]
+                │                 │                    │           └─ param[2] →
+                │                 │                    │              └─ get_func_variable [id:ew34](«1n7r_hgdn», ∅)
+                │                 │                    └─ param[2] →
+                │                 │                       └─ calc_operation [id:vy0s](∅, <calc_basic>, ∅, «square»)
+                │                 │                          └─ param[1] →
+                │                 │                             └─ calc_basic [id:h76d](<stringParam_lp4n>, «MINUS», <get_func_variable>)
+                │                 │                                ├─ param[0] →
+                │                 │                                │  └─ stringParam_lp4n [id:smv0]
+                │                 │                                └─ param[2] →
+                │                 │                                   └─ get_func_variable [id:h0uo](«1n7r_nj9a», ∅)
+                │                 └─ if_else [id:al0v](<boolean_basic_operator>, ∅)
+                │                    ├─ param[0] →
+                │                    │  └─ boolean_basic_operator [id:2bla](<get_func_variable>, «GREATER», text("3"))
+                │                    │     └─ param[0] →
+                │                    │        └─ get_func_variable [id:uyn1](«1n7r_7zjm», ∅)
+                │                    ├─ stmt[0]:
+                │                    │  └─ set_func_variable [id:8n4q](«1n7r_0tfi», <calc_basic>)
+                │                    │     └─ param[1] →
+                │                    │        └─ calc_basic [id:0zdn](<get_func_variable>, «MINUS», number("1"))
+                │                    │           └─ param[0] →
+                │                    │              └─ get_func_variable [id:0kll](«1n7r_7zjm», ∅)
+                │                    └─ stmt[1]:
+                │                       ├─ set_func_variable [id:47ku](«1n7r_ur3s», <func_4j2t>)
+                │                       │  └─ param[1] →
+                │                       │     └─ func_4j2t [id:t599](text("min"), <value_of_index_from_list>, <value_of_index_from_list>, <value_of_index_from_list>)
+                │                       │        ├─ param[1] →
+                │                       │        │  └─ value_of_index_from_list [id:oebe](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                       │        │     └─ param[3] →
+                │                       │        │        └─ calc_basic [id:2q1g](<get_func_variable>, «PLUS», number("1"))
+                │                       │        │           └─ param[0] →
+                │                       │        │              └─ get_func_variable [id:8bla](«1n7r_0nvi», ∅)
+                │                       │        ├─ param[2] →
+                │                       │        │  └─ value_of_index_from_list [id:q0uj](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                       │        │     └─ param[3] →
+                │                       │        │        └─ calc_basic [id:hpbc](<get_func_variable>, «PLUS», number("4"))
+                │                       │        │           └─ param[0] →
+                │                       │        │              └─ get_func_variable [id:l6fw](«1n7r_0nvi», ∅)
+                │                       │        └─ param[3] →
+                │                       │           └─ value_of_index_from_list [id:h7uy](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                       │              └─ param[3] →
+                │                       │                 └─ calc_basic [id:g6ia](<get_func_variable>, «PLUS», number("7"))
+                │                       │                    └─ param[0] →
+                │                       │                       └─ get_func_variable [id:rea7](«1n7r_0nvi», ∅)
+                │                       ├─ set_func_variable [id:l3v3](«1n7r_hgdn», <func_4j2t>)
+                │                       │  └─ param[1] →
+                │                       │     └─ func_4j2t [id:mjqy](text("max"), <value_of_index_from_list>, <value_of_index_from_list>, <value_of_index_from_list>)
+                │                       │        ├─ param[1] →
+                │                       │        │  └─ value_of_index_from_list [id:lbef](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                       │        │     └─ param[3] →
+                │                       │        │        └─ calc_basic [id:hsnz](<get_func_variable>, «PLUS», number("1"))
+                │                       │        │           └─ param[0] →
+                │                       │        │              └─ get_func_variable [id:kyri](«1n7r_0nvi», ∅)
+                │                       │        ├─ param[2] →
+                │                       │        │  └─ value_of_index_from_list [id:gtil](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                       │        │     └─ param[3] →
+                │                       │        │        └─ calc_basic [id:cbne](<get_func_variable>, «PLUS», number("4"))
+                │                       │        │           └─ param[0] →
+                │                       │        │              └─ get_func_variable [id:p1rx](«1n7r_0nvi», ∅)
+                │                       │        └─ param[3] →
+                │                       │           └─ value_of_index_from_list [id:prn0](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                       │              └─ param[3] →
+                │                       │                 └─ calc_basic [id:nn21](<get_func_variable>, «PLUS», number("7"))
+                │                       │                    └─ param[0] →
+                │                       │                       └─ get_func_variable [id:wzcd](«1n7r_0nvi», ∅)
+                │                       ├─ set_func_variable [id:ob64](«1n7r_nj9a», <func_4j2t>)
+                │                       │  └─ param[1] →
+                │                       │     └─ func_4j2t [id:izio](text("min"), <value_of_index_from_list>, <value_of_index_from_list>, <value_of_index_from_list>)
+                │                       │        ├─ param[1] →
+                │                       │        │  └─ value_of_index_from_list [id:0q20](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                       │        │     └─ param[3] →
+                │                       │        │        └─ calc_basic [id:7v5b](<get_func_variable>, «PLUS», number("2"))
+                │                       │        │           └─ param[0] →
+                │                       │        │              └─ get_func_variable [id:j9ba](«1n7r_0nvi», ∅)
+                │                       │        ├─ param[2] →
+                │                       │        │  └─ value_of_index_from_list [id:jlxc](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                       │        │     └─ param[3] →
+                │                       │        │        └─ calc_basic [id:dns4](<get_func_variable>, «PLUS», number("5"))
+                │                       │        │           └─ param[0] →
+                │                       │        │              └─ get_func_variable [id:t238](«1n7r_0nvi», ∅)
+                │                       │        └─ param[3] →
+                │                       │           └─ value_of_index_from_list [id:caqr](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                       │              └─ param[3] →
+                │                       │                 └─ calc_basic [id:hrzr](<get_func_variable>, «PLUS», number("8"))
+                │                       │                    └─ param[0] →
+                │                       │                       └─ get_func_variable [id:8hgi](«1n7r_0nvi», ∅)
+                │                       ├─ set_func_variable [id:phhj](«1n7r_7zjm», <func_4j2t>)
+                │                       │  └─ param[1] →
+                │                       │     └─ func_4j2t [id:abv0](text("max"), <value_of_index_from_list>, <value_of_index_from_list>, <value_of_index_from_list>)
+                │                       │        ├─ param[1] →
+                │                       │        │  └─ value_of_index_from_list [id:qjay](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                       │        │     └─ param[3] →
+                │                       │        │        └─ calc_basic [id:a4tm](<get_func_variable>, «PLUS», number("2"))
+                │                       │        │           └─ param[0] →
+                │                       │        │              └─ get_func_variable [id:xale](«1n7r_0nvi», ∅)
+                │                       │        ├─ param[2] →
+                │                       │        │  └─ value_of_index_from_list [id:5s3y](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                       │        │     └─ param[3] →
+                │                       │        │        └─ calc_basic [id:gc1q](<get_func_variable>, «PLUS», number("5"))
+                │                       │        │           └─ param[0] →
+                │                       │        │              └─ get_func_variable [id:jwlz](«1n7r_0nvi», ∅)
+                │                       │        └─ param[3] →
+                │                       │           └─ value_of_index_from_list [id:cb90](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │                       │              └─ param[3] →
+                │                       │                 └─ calc_basic [id:w11a](<get_func_variable>, «PLUS», number("8"))
+                │                       │                    └─ param[0] →
+                │                       │                       └─ get_func_variable [id:bhc8](«1n7r_0nvi», ∅)
+                │                       └─ if_else [id:nvye](<boolean_and_or>, ∅)
+                │                          ├─ param[0] →
+                │                          │  └─ boolean_and_or [id:7ujr](<boolean_and_or>, «AND», <boolean_and_or>)
+                │                          │     ├─ param[0] →
+                │                          │     │  └─ boolean_and_or [id:ev9u](<boolean_basic_operator>, «AND», <boolean_basic_operator>)
+                │                          │     │     ├─ param[0] →
+                │                          │     │     │  └─ boolean_basic_operator [id:jr32](<get_func_variable>, «LESS», <stringParam_xr1y>)
+                │                          │     │     │     ├─ param[0] →
+                │                          │     │     │     │  └─ get_func_variable [id:zbiu](«1n7r_ur3s», ∅)
+                │                          │     │     │     └─ param[2] →
+                │                          │     │     │        └─ stringParam_xr1y [id:lrhf]
+                │                          │     │     └─ param[2] →
+                │                          │     │        └─ boolean_basic_operator [id:0gqa](<stringParam_xr1y>, «LESS», <get_func_variable>)
+                │                          │     │           ├─ param[0] →
+                │                          │     │           │  └─ stringParam_xr1y [id:7frj]
+                │                          │     │           └─ param[2] →
+                │                          │     │              └─ get_func_variable [id:c60t](«1n7r_hgdn», ∅)
+                │                          │     └─ param[2] →
+                │                          │        └─ boolean_and_or [id:vwp9](<boolean_basic_operator>, «AND», <boolean_basic_operator>)
+                │                          │           ├─ param[0] →
+                │                          │           │  └─ boolean_basic_operator [id:t3z1](<get_func_variable>, «LESS», <stringParam_qqoy>)
+                │                          │           │     ├─ param[0] →
+                │                          │           │     │  └─ get_func_variable [id:prcj](«1n7r_nj9a», ∅)
+                │                          │           │     └─ param[2] →
+                │                          │           │        └─ stringParam_qqoy [id:dtbt]
+                │                          │           └─ param[2] →
+                │                          │              └─ boolean_basic_operator [id:bj9c](<stringParam_qqoy>, «LESS», <get_func_variable>)
+                │                          │                 ├─ param[0] →
+                │                          │                 │  └─ stringParam_qqoy [id:qnn2]
+                │                          │                 └─ param[2] →
+                │                          │                    └─ get_func_variable [id:emos](«1n7r_7zjm», ∅)
+                │                          ├─ stmt[0]:
+                │                          │  └─ set_func_variable [id:5f8g](«1n7r_0tfi», <calc_operation>)
+                │                          │     └─ param[1] →
+                │                          │        └─ calc_operation [id:5z2n](∅, <get_func_variable>, ∅, «abs»)
+                │                          │           └─ param[1] →
+                │                          │              └─ get_func_variable [id:73jn](«1n7r_ig5t», ∅)
+                │                          └─ stmt[1]:
+                │                             ├─ set_func_variable [id:c38s](«1n7r_ur3s», <func_4j2t>)
+                │                             │  └─ param[1] →
+                │                             │     └─ func_4j2t [id:vln7](text("max"), <calc_basic>, text("0"), <calc_basic>)
+                │                             │        ├─ param[1] →
+                │                             │        │  └─ calc_basic [id:b6o6](<get_func_variable>, «MINUS», <stringParam_xr1y>)
+                │                             │        │     ├─ param[0] →
+                │                             │        │     │  └─ get_func_variable [id:yz8k](«1n7r_ur3s», ∅)
+                │                             │        │     └─ param[2] →
+                │                             │        │        └─ stringParam_xr1y [id:rhhj]
+                │                             │        └─ param[3] →
+                │                             │           └─ calc_basic [id:83md](<stringParam_xr1y>, «MINUS», <get_func_variable>)
+                │                             │              ├─ param[0] →
+                │                             │              │  └─ stringParam_xr1y [id:9gp6]
+                │                             │              └─ param[2] →
+                │                             │                 └─ get_func_variable [id:jwdh](«1n7r_hgdn», ∅)
+                │                             ├─ set_func_variable [id:hbll](«1n7r_hgdn», <func_4j2t>)
+                │                             │  └─ param[1] →
+                │                             │     └─ func_4j2t [id:asxj](text("max"), <calc_basic>, text("0"), <calc_basic>)
+                │                             │        ├─ param[1] →
+                │                             │        │  └─ calc_basic [id:fbn3](<get_func_variable>, «MINUS», <stringParam_qqoy>)
+                │                             │        │     ├─ param[0] →
+                │                             │        │     │  └─ get_func_variable [id:1kq5](«1n7r_nj9a», ∅)
+                │                             │        │     └─ param[2] →
+                │                             │        │        └─ stringParam_qqoy [id:esz3]
+                │                             │        └─ param[3] →
+                │                             │           └─ calc_basic [id:vw8h](<stringParam_qqoy>, «MINUS», <get_func_variable>)
+                │                             │              ├─ param[0] →
+                │                             │              │  └─ stringParam_qqoy [id:yfd1]
+                │                             │              └─ param[2] →
+                │                             │                 └─ get_func_variable [id:f3qi](«1n7r_7zjm», ∅)
+                │                             └─ set_func_variable [id:3rz1](«1n7r_0tfi», <calc_basic>)
+                │                                └─ param[1] →
+                │                                   └─ calc_basic [id:urb2](<calc_operation>, «PLUS», <calc_operation>)
+                │                                      ├─ param[0] →
+                │                                      │  └─ calc_operation [id:mhix](∅, <calc_basic>, ∅, «root»)
+                │                                      │     └─ param[1] →
+                │                                      │        └─ calc_basic [id:fkr5](<calc_operation>, «PLUS», <calc_operation>)
+                │                                      │           ├─ param[0] →
+                │                                      │           │  └─ calc_operation [id:u21i](∅, <get_func_variable>, ∅, «square»)
+                │                                      │           │     └─ param[1] →
+                │                                      │           │        └─ get_func_variable [id:v9at](«1n7r_ur3s», ∅)
+                │                                      │           └─ param[2] →
+                │                                      │              └─ calc_operation [id:khdv](∅, <get_func_variable>, ∅, «square»)
+                │                                      │                 └─ param[1] →
+                │                                      │                    └─ get_func_variable [id:zycc](«1n7r_hgdn», ∅)
+                │                                      └─ param[2] →
+                │                                         └─ calc_operation [id:lvdq](∅, <get_func_variable>, ∅, «abs»)
+                │                                            └─ param[1] →
+                │                                               └─ get_func_variable [id:9fhs](«1n7r_ig5t», ∅)
+                ├─ _if [id:d4f4](<boolean_basic_operator>)
+                │  ├─ param[0] →
+                │  │  └─ boolean_basic_operator [id:nj7f](<get_func_variable>, «LESS», <get_func_variable>)
+                │  │     ├─ param[0] →
+                │  │     │  └─ get_func_variable [id:m4mx](«1n7r_0tfi», ∅)
+                │  │     └─ param[2] →
+                │  │        └─ get_func_variable [id:1kfz](«1n7r_y4v6», ∅)
+                │  └─ stmt[0]:
+                │     ├─ set_func_variable [id:lvu0](«1n7r_y4v6», <get_func_variable>)
+                │     │  └─ param[1] →
+                │     │     └─ get_func_variable [id:5wig](«1n7r_0tfi», ∅)
+                │     └─ set_variable [id:vqex](«gz12», <value_of_index_from_list>)
+                │        └─ param[1] →
+                │           └─ value_of_index_from_list [id:m58e](∅, «tbrn», ∅, <calc_basic>, ∅)
+                │              └─ param[3] →
+                │                 └─ calc_basic [id:b7ii](<get_func_variable>, «PLUS», number("10"))
+                │                    └─ param[0] →
+                │                       └─ get_func_variable [id:lc3y](«1n7r_0nvi», ∅)
+                ├─ set_func_variable [id:ffxl](«1n7r_9591», <calc_basic>)
+                │  └─ param[1] →
+                │     └─ calc_basic [id:o9ti](<get_func_variable>, «PLUS», number("1"))
+                │        └─ param[0] →
+                │           └─ get_func_variable [id:a9ga](«1n7r_9591», ∅)
+                └─ wait_until_true [id:awei](<boolean_not>)
+                   └─ param[0] →
+                      └─ boolean_not [id:0xyb](∅, <continue_repeat>, ∅)
+                         └─ param[1] →
+                            └─ continue_repeat [id:tkx4]
+
+function [4j2t] type=value local=[{"name":"return","value":0,"id":"4j2t_lb0w"}]
+  content[0]:
+    └─ function_create_value [id:1lbu](<function_field_label>, ∅, <get_func_variable>)
+       ├─ param[0] →
+       │  └─ function_field_label [id:wips](«min/max», <function_field_string>)
+       │     └─ param[1] →
+       │        └─ function_field_string [id:8eit](<stringParam_x35f>, <function_field_label>)
+       │           ├─ param[0] →
+       │           │  └─ stringParam_x35f [id:dd7z]
+       │           └─ param[1] →
+       │              └─ function_field_label [id:grn6](«(1,2,3)», <function_field_string>)
+       │                 └─ param[1] →
+       │                    └─ function_field_string [id:6kwa](<stringParam_ab1c>, <function_field_string>)
+       │                       ├─ param[0] →
+       │                       │  └─ stringParam_ab1c [id:huqq]
+       │                       └─ param[1] →
+       │                          └─ function_field_string [id:tq5t](<stringParam_15ix>, <function_field_string>)
+       │                             ├─ param[0] →
+       │                             │  └─ stringParam_15ix [id:sy3n]
+       │                             └─ param[1] →
+       │                                └─ function_field_string [id:spwh](<stringParam_z3jd>, ∅)
+       │                                   └─ param[0] →
+       │                                      └─ stringParam_z3jd [id:jbva]
+       ├─ param[3] →
+       │  └─ get_func_variable [id:18x2](«4j2t_lb0w», ∅)
+       └─ stmt[0]:
+          └─ if_else [id:p07o](<boolean_basic_operator>, ∅)
+             ├─ param[0] →
+             │  └─ boolean_basic_operator [id:6nzh](<stringParam_x35f>, «EQUAL», text("min"))
+             │     └─ param[0] →
+             │        └─ stringParam_x35f [id:fshn]
+             ├─ stmt[0]:
+             │  └─ if_else [id:xkk6](<boolean_and_or>, ∅)
+             │     ├─ param[0] →
+             │     │  └─ boolean_and_or [id:km9o](<boolean_basic_operator>, «AND», <boolean_basic_operator>)
+             │     │     ├─ param[0] →
+             │     │     │  └─ boolean_basic_operator [id:flb2](<stringParam_ab1c>, «LESS», <stringParam_15ix>)
+             │     │     │     ├─ param[0] →
+             │     │     │     │  └─ stringParam_ab1c [id:gmw2]
+             │     │     │     └─ param[2] →
+             │     │     │        └─ stringParam_15ix [id:svbu]
+             │     │     └─ param[2] →
+             │     │        └─ boolean_basic_operator [id:ovmr](<stringParam_ab1c>, «LESS», <stringParam_z3jd>)
+             │     │           ├─ param[0] →
+             │     │           │  └─ stringParam_ab1c [id:9iak]
+             │     │           └─ param[2] →
+             │     │              └─ stringParam_z3jd [id:81p4]
+             │     ├─ stmt[0]:
+             │     │  └─ set_func_variable [id:251i](«4j2t_lb0w», <stringParam_ab1c>)
+             │     │     └─ param[1] →
+             │     │        └─ stringParam_ab1c [id:va73]
+             │     └─ stmt[1]:
+             │        └─ if_else [id:3bp1](<boolean_and_or>, ∅)
+             │           ├─ param[0] →
+             │           │  └─ boolean_and_or [id:q9qw](<boolean_basic_operator>, «AND», <boolean_basic_operator>)
+             │           │     ├─ param[0] →
+             │           │     │  └─ boolean_basic_operator [id:rl7z](<stringParam_15ix>, «LESS», <stringParam_ab1c>)
+             │           │     │     ├─ param[0] →
+             │           │     │     │  └─ stringParam_15ix [id:mcml]
+             │           │     │     └─ param[2] →
+             │           │     │        └─ stringParam_ab1c [id:yhfy]
+             │           │     └─ param[2] →
+             │           │        └─ boolean_basic_operator [id:pl3f](<stringParam_15ix>, «LESS», <stringParam_z3jd>)
+             │           │           ├─ param[0] →
+             │           │           │  └─ stringParam_15ix [id:98ys]
+             │           │           └─ param[2] →
+             │           │              └─ stringParam_z3jd [id:pohr]
+             │           ├─ stmt[0]:
+             │           │  └─ set_func_variable [id:3nix](«4j2t_lb0w», <stringParam_15ix>)
+             │           │     └─ param[1] →
+             │           │        └─ stringParam_15ix [id:39le]
+             │           └─ stmt[1]:
+             │              └─ set_func_variable [id:oaq7](«4j2t_lb0w», <stringParam_z3jd>)
+             │                 └─ param[1] →
+             │                    └─ stringParam_z3jd [id:4qa6]
+             └─ stmt[1]:
+                └─ _if [id:s1rn](<boolean_basic_operator>)
+                   ├─ param[0] →
+                   │  └─ boolean_basic_operator [id:t8lx](<stringParam_x35f>, «EQUAL», text("max"))
+                   │     └─ param[0] →
+                   │        └─ stringParam_x35f [id:3olb]
+                   └─ stmt[0]:
+                      └─ if_else [id:zgq2](<boolean_and_or>, ∅)
+                         ├─ param[0] →
+                         │  └─ boolean_and_or [id:luzn](<boolean_basic_operator>, «AND», <boolean_basic_operator>)
+                         │     ├─ param[0] →
+                         │     │  └─ boolean_basic_operator [id:7qpx](<stringParam_ab1c>, «GREATER», <stringParam_15ix>)
+                         │     │     ├─ param[0] →
+                         │     │     │  └─ stringParam_ab1c [id:8uv2]
+                         │     │     └─ param[2] →
+                         │     │        └─ stringParam_15ix [id:9s12]
+                         │     └─ param[2] →
+                         │        └─ boolean_basic_operator [id:yzog](<stringParam_ab1c>, «GREATER», <stringParam_z3jd>)
+                         │           ├─ param[0] →
+                         │           │  └─ stringParam_ab1c [id:ny36]
+                         │           └─ param[2] →
+                         │              └─ stringParam_z3jd [id:4jn6]
+                         ├─ stmt[0]:
+                         │  └─ set_func_variable [id:5yb1](«4j2t_lb0w», <stringParam_ab1c>)
+                         │     └─ param[1] →
+                         │        └─ stringParam_ab1c [id:510p]
+                         └─ stmt[1]:
+                            └─ if_else [id:r6no](<boolean_and_or>, ∅)
+                               ├─ param[0] →
+                               │  └─ boolean_and_or [id:ey8d](<boolean_basic_operator>, «AND», <boolean_basic_operator>)
+                               │     ├─ param[0] →
+                               │     │  └─ boolean_basic_operator [id:la2u](<stringParam_15ix>, «GREATER», <stringParam_ab1c>)
+                               │     │     ├─ param[0] →
+                               │     │     │  └─ stringParam_15ix [id:fq44]
+                               │     │     └─ param[2] →
+                               │     │        └─ stringParam_ab1c [id:hfs2]
+                               │     └─ param[2] →
+                               │        └─ boolean_basic_operator [id:5s67](<stringParam_15ix>, «GREATER», <stringParam_z3jd>)
+                               │           ├─ param[0] →
+                               │           │  └─ stringParam_15ix [id:09mr]
+                               │           └─ param[2] →
+                               │              └─ stringParam_z3jd [id:i101]
+                               ├─ stmt[0]:
+                               │  └─ set_func_variable [id:l3m0](«4j2t_lb0w», <stringParam_15ix>)
+                               │     └─ param[1] →
+                               │        └─ stringParam_15ix [id:0rj9]
+                               └─ stmt[1]:
+                                  └─ set_func_variable [id:ohfp](«4j2t_lb0w», <stringParam_z3jd>)
+                                     └─ param[1] →
+                                        └─ stringParam_z3jd [id:l5g4]
+
+function [c25s] type=normal local=[{"name":"mousex","value":0,"id":"c25s_dq3e"},{"name":"mousey","value":0,"id":"c25s_9e7c"}]
+  content[0]:
+    └─ function_create [id:nrs0](<function_field_label>)
+       ├─ param[0] →
+       │  └─ function_field_label [id:wips](«main», ∅)
+       └─ stmt[0]:
+          ├─ func_juo7 [id:usta](∅)
+          ├─ func_3u80 [id:t1vv](∅)
+          ├─ rotate_absolute [id:gqyw](angle("0"))
+          ├─ repeat_basic [id:brh1](get_variable("1u0q"))
+          │  └─ stmt[0]:
+          │     ├─ create_clone [id:w064](«self»)
+          │     ├─ rotate_relative [id:7v23](angle("1"))
+          │     └─ wait_until_true [id:gary](<boolean_not>)
+          │        └─ param[0] →
+          │           └─ boolean_not [id:btjd](∅, <continue_repeat>, ∅)
+          │              └─ param[1] →
+          │                 └─ continue_repeat [id:sgxp]
+          ├─ set_variable [id:0zul](«vonp», text("1"))
+          └─ repeat_inf [id:hpaa](∅)
+             └─ stmt[0]:
+                ├─ set_variable [id:cw8d](«ai41», <calc_basic>)
+                │  └─ param[1] →
+                │     └─ calc_basic [id:vb9w](<coordinate_mouse>, «MULTI», get_variable("r55f"))
+                │        └─ param[0] →
+                │           └─ coordinate_mouse [id:0nvo](∅, «x», ∅)
+                ├─ _if [id:16xp](<is_press_some_key>)
+                │  ├─ param[0] →
+                │  │  └─ is_press_some_key [id:j2w0](«37», ∅)
+                │  └─ stmt[0]:
+                │     └─ change_variable [id:y0p5](«ai41», <calc_basic>)
+                │        └─ param[1] →
+                │           └─ calc_basic [id:eo17](number("0"), «MINUS», get_variable("5u4s"))
+                ├─ _if [id:slpn](<is_press_some_key>)
+                │  ├─ param[0] →
+                │  │  └─ is_press_some_key [id:hs4m](«39», ∅)
+                │  └─ stmt[0]:
+                │     └─ change_variable [id:3icy](«ai41», get_variable("5u4s"))
+                ├─ set_variable [id:4rjk](«cy06», <calc_operation>)
+                │  └─ param[1] →
+                │     └─ calc_operation [id:zep3](∅, get_variable("ai41"), ∅, «sin»)
+                ├─ set_variable [id:zftm](«vq0l», <calc_operation>)
+                │  └─ param[1] →
+                │     └─ calc_operation [id:vyjj](∅, get_variable("ai41"), ∅, «cos»)
+                ├─ set_variable [id:60zm](«d071», get_variable("vq0l"))
+                ├─ set_variable [id:i5ck](«9mq8», <calc_basic>)
+                │  └─ param[1] →
+                │     └─ calc_basic [id:v0u6](number("0"), «MINUS», get_variable("cy06"))
+                ├─ _if [id:514i](<is_press_some_key>)
+                │  ├─ param[0] →
+                │  │  └─ is_press_some_key [id:4r4f](«87», ∅)
+                │  └─ stmt[0]:
+                │     ├─ change_variable [id:ipgb](«7yp4», <calc_basic>)
+                │     │  └─ param[1] →
+                │     │     └─ calc_basic [id:e2fr](get_variable("cy06"), «MULTI», get_variable("kevq"))
+                │     └─ change_variable [id:5lt8](«m809», <calc_basic>)
+                │        └─ param[1] →
+                │           └─ calc_basic [id:fg5e](get_variable("vq0l"), «MULTI», get_variable("kevq"))
+                ├─ _if [id:hq8j](<is_press_some_key>)
+                │  ├─ param[0] →
+                │  │  └─ is_press_some_key [id:dyjn](«83», ∅)
+                │  └─ stmt[0]:
+                │     ├─ change_variable [id:9o9o](«7yp4», <calc_basic>)
+                │     │  └─ param[1] →
+                │     │     └─ calc_basic [id:qr76](number("0"), «MINUS», <calc_basic>)
+                │     │        └─ param[2] →
+                │     │           └─ calc_basic [id:ahgk](get_variable("cy06"), «MULTI», get_variable("kevq"))
+                │     └─ change_variable [id:1igk](«m809», <calc_basic>)
+                │        └─ param[1] →
+                │           └─ calc_basic [id:2jl4](number("0"), «MINUS», <calc_basic>)
+                │              └─ param[2] →
+                │                 └─ calc_basic [id:4uxh](get_variable("vq0l"), «MULTI», get_variable("kevq"))
+                ├─ _if [id:xc9l](<is_press_some_key>)
+                │  ├─ param[0] →
+                │  │  └─ is_press_some_key [id:zt1z](«65», ∅)
+                │  └─ stmt[0]:
+                │     ├─ change_variable [id:k4a3](«7yp4», <calc_basic>)
+                │     │  └─ param[1] →
+                │     │     └─ calc_basic [id:sa2b](number("0"), «MINUS», <calc_basic>)
+                │     │        └─ param[2] →
+                │     │           └─ calc_basic [id:ftkp](get_variable("d071"), «MULTI», get_variable("kevq"))
+                │     └─ change_variable [id:3cno](«m809», <calc_basic>)
+                │        └─ param[1] →
+                │           └─ calc_basic [id:wrm5](number("0"), «MINUS», <calc_basic>)
+                │              └─ param[2] →
+                │                 └─ calc_basic [id:1zju](get_variable("9mq8"), «MULTI», get_variable("kevq"))
+                ├─ _if [id:tq3e](<is_press_some_key>)
+                │  ├─ param[0] →
+                │  │  └─ is_press_some_key [id:xskq](«68», ∅)
+                │  └─ stmt[0]:
+                │     ├─ change_variable [id:az7u](«7yp4», <calc_basic>)
+                │     │  └─ param[1] →
+                │     │     └─ calc_basic [id:7o9y](get_variable("d071"), «MULTI», get_variable("kevq"))
+                │     └─ change_variable [id:bi0b](«m809», <calc_basic>)
+                │        └─ param[1] →
+                │           └─ calc_basic [id:kh39](get_variable("9mq8"), «MULTI», get_variable("kevq"))
+                ├─ _if [id:tge8](<is_press_some_key>)
+                │  ├─ param[0] →
+                │  │  └─ is_press_some_key [id:f3a3](«32», ∅)
+                │  └─ stmt[0]:
+                │     └─ change_variable [id:opl9](«khh1», get_variable("kevq"))
+                ├─ _if [id:2m9j](<is_press_some_key>)
+                │  ├─ param[0] →
+                │  │  └─ is_press_some_key [id:zh23](«16», ∅)
+                │  └─ stmt[0]:
+                │     └─ change_variable [id:o3xw](«khh1», <calc_basic>)
+                │        └─ param[1] →
+                │           └─ calc_basic [id:q374](number("-1"), «MULTI», get_variable("kevq"))
+                ├─ change_value_list_index [id:3qja](«2ntd», text("1"), <calc_operation>)
+                │  └─ param[2] →
+                │     └─ calc_operation [id:sv46](∅, get_variable("ai41"), ∅, «sin»)
+                ├─ change_value_list_index [id:vd32](«2ntd», text("2"), text("0"))
+                ├─ change_value_list_index [id:ysao](«2ntd», text("3"), <calc_operation>)
+                │  └─ param[2] →
+                │     └─ calc_operation [id:syjl](∅, get_variable("ai41"), ∅, «cos»)
+                ├─ change_value_list_index [id:7mqh](«2ntd», text("4"), <calc_operation>)
+                │  └─ param[2] →
+                │     └─ calc_operation [id:l3rl](∅, get_variable("ai41"), ∅, «cos»)
+                ├─ change_value_list_index [id:2lk7](«2ntd», text("5"), text("0"))
+                ├─ change_value_list_index [id:onik](«2ntd», text("6"), <calc_basic>)
+                │  └─ param[2] →
+                │     └─ calc_basic [id:rgef](number("0"), «MINUS», <calc_operation>)
+                │        └─ param[2] →
+                │           └─ calc_operation [id:0p4z](∅, get_variable("ai41"), ∅, «sin»)
+                ├─ change_value_list_index [id:5m0b](«2ntd», text("7"), text("0"))
+                ├─ change_value_list_index [id:ehcq](«2ntd», text("8"), text("1"))
+                ├─ change_value_list_index [id:kzsn](«2ntd», text("9"), text("0"))
+                ├─ brush_erase_all [id:o7vq]
+                ├─ set_variable [id:4jav](«vonp», text("0"))
+                ├─ wait_until_true [id:y1ac](<boolean_basic_operator>)
+                │  └─ param[0] →
+                │     └─ boolean_basic_operator [id:uxhw](get_variable("vonp"), «GREATER_OR_EQUAL», <quotient_and_mod>)
+                │        └─ param[2] →
+                │           └─ quotient_and_mod [id:h8if](∅, number("270"), ∅, get_variable("6vza"), ∅, «QUOTIENT»)
+                ├─ wait_second [id:coq6](number("0"))
+                ├─ set_func_variable [id:3l6d](«c25s_dq3e», <coordinate_mouse>)
+                │  └─ param[1] →
+                │     └─ coordinate_mouse [id:s89t](∅, «x», ∅)
+                └─ set_func_variable [id:pm2n](«c25s_9e7c», <coordinate_mouse>)
+                   └─ param[1] →
+                      └─ coordinate_mouse [id:v1qy](∅, «y», ∅)
+
+function [r0qz] type=normal local=[{"name":"ix","value":0,"id":"r0qz_nz00"},{"name":"uv_x","value":0,"id":"r0qz_5mim"},{"name":"uv_y","value":0,"id":"r0qz_42a6"},{"name":"rdX","value":0,"id":"r0qz_l4tv"},{"name":"rdY","value":0,"id":"r0qz_ke3o"},{"name":"rdZ","value":0,"id":"r0qz_ve09"},{"name":"0","value":0,"id":"r0qz_9wdz"},{"name":"1","value":0,"id":"r0qz_pumo"},{"name":"2","value":0,"id":"r0qz_uv9p"},{"name":"3","value":0,"id":"r0qz_lixr"},{"name":"vndc","value":0,"id":"r0qz_vndc"},{"name":"hit","value":0,"id":"r0qz_hit"}]
+  content[0]:
+    └─ function_create [id:or06](<function_field_label>)
+       ├─ param[0] →
+       │  └─ function_field_label [id:wips](«render», <function_field_string>)
+       │     └─ param[1] →
+       │        └─ function_field_string [id:q40a](<stringParam_j2wh>, ∅)
+       │           └─ param[0] →
+       │              └─ stringParam_j2wh [id:pn8j]
+       └─ stmt[0]:
+          └─ repeat_inf [id:otbb](∅)
+             └─ stmt[0]:
+                ├─ wait_until_true [id:csec](<boolean_basic_operator>)
+                │  └─ param[0] →
+                │     └─ boolean_basic_operator [id:jfwd](get_variable("vonp"), «EQUAL», text("0"))
+                ├─ wait_second [id:6cca](number("0"))
+                ├─ locate_xy [id:t2j8](number("-240"), <calc_basic>)
+                │  └─ param[1] →
+                │     └─ calc_basic [id:jmrn](number("135"), «MINUS», <calc_basic>)
+                │        └─ param[2] →
+                │           └─ calc_basic [id:95pp](<stringParam_j2wh>, «MULTI», get_variable("6vza"))
+                │              └─ param[0] →
+                │                 └─ stringParam_j2wh [id:dnbj]
+                ├─ set_thickness [id:ay3d](get_variable("6vza"))
+                ├─ set_func_variable [id:l2ww](«r0qz_nz00», text("0"))
+                ├─ set_func_variable [id:z6n6](«r0qz_vndc», <calc_basic>)
+                │  └─ param[1] →
+                │     └─ calc_basic [id:jzsa](<calc_basic>, «DIVIDE», <calc_basic>)
+                │        ├─ param[0] →
+                │        │  └─ calc_basic [id:ls85](<stringParam_j2wh>, «MINUS», get_variable("8cb1"))
+                │        │     └─ param[0] →
+                │        │        └─ stringParam_j2wh [id:gnba]
+                │        └─ param[2] →
+                │           └─ calc_basic [id:gd5z](number("0"), «MINUS», get_variable("8cb1"))
+                ├─ repeat_basic [id:0b0o](get_variable("8ryj"))
+                │  └─ stmt[0]:
+                │     ├─ set_func_variable [id:zejc](«r0qz_5mim», <calc_basic>)
+                │     │  └─ param[1] →
+                │     │     └─ calc_basic [id:l6no](<calc_basic>, «DIVIDE», get_variable("8cb1"))
+                │     │        └─ param[0] →
+                │     │           └─ calc_basic [id:3bi7](<get_func_variable>, «MINUS», get_variable("azq1"))
+                │     │              └─ param[0] →
+                │     │                 └─ get_func_variable [id:ns07](«r0qz_nz00», ∅)
+                │     ├─ set_func_variable [id:l05m](«r0qz_l4tv», <calc_basic>)
+                │     │  └─ param[1] →
+                │     │     └─ calc_basic [id:d7fx](<value_of_index_from_list>, «PLUS», <calc_basic>)
+                │     │        ├─ param[0] →
+                │     │        │  └─ value_of_index_from_list [id:9if1](∅, «2ntd», ∅, number("1"), ∅)
+                │     │        └─ param[2] →
+                │     │           └─ calc_basic [id:x8l9](<calc_basic>, «PLUS», <calc_basic>)
+                │     │              ├─ param[0] →
+                │     │              │  └─ calc_basic [id:uuvq](<value_of_index_from_list>, «MULTI», <get_func_variable>)
+                │     │              │     ├─ param[0] →
+                │     │              │     │  └─ value_of_index_from_list [id:agoq](∅, «2ntd», ∅, number("4"), ∅)
+                │     │              │     └─ param[2] →
+                │     │              │        └─ get_func_variable [id:5f24](«r0qz_5mim», ∅)
+                │     │              └─ param[2] →
+                │     │                 └─ calc_basic [id:y0xj](<value_of_index_from_list>, «MULTI», <get_func_variable>)
+                │     │                    ├─ param[0] →
+                │     │                    │  └─ value_of_index_from_list [id:71d1](∅, «2ntd», ∅, number("7"), ∅)
+                │     │                    └─ param[2] →
+                │     │                       └─ get_func_variable [id:wbae](«r0qz_vndc», ∅)
+                │     ├─ set_func_variable [id:y1jf](«r0qz_ke3o», <calc_basic>)
+                │     │  └─ param[1] →
+                │     │     └─ calc_basic [id:elf6](<value_of_index_from_list>, «PLUS», <calc_basic>)
+                │     │        ├─ param[0] →
+                │     │        │  └─ value_of_index_from_list [id:f724](∅, «2ntd», ∅, number("2"), ∅)
+                │     │        └─ param[2] →
+                │     │           └─ calc_basic [id:eti5](<calc_basic>, «PLUS», <calc_basic>)
+                │     │              ├─ param[0] →
+                │     │              │  └─ calc_basic [id:gbj4](<value_of_index_from_list>, «MULTI», <get_func_variable>)
+                │     │              │     ├─ param[0] →
+                │     │              │     │  └─ value_of_index_from_list [id:rl81](∅, «2ntd», ∅, number("5"), ∅)
+                │     │              │     └─ param[2] →
+                │     │              │        └─ get_func_variable [id:805i](«r0qz_5mim», ∅)
+                │     │              └─ param[2] →
+                │     │                 └─ calc_basic [id:yd5g](<value_of_index_from_list>, «MULTI», <get_func_variable>)
+                │     │                    ├─ param[0] →
+                │     │                    │  └─ value_of_index_from_list [id:bw5u](∅, «2ntd», ∅, number("8"), ∅)
+                │     │                    └─ param[2] →
+                │     │                       └─ get_func_variable [id:tgln](«r0qz_vndc», ∅)
+                │     ├─ set_func_variable [id:bh33](«r0qz_ve09», <calc_basic>)
+                │     │  └─ param[1] →
+                │     │     └─ calc_basic [id:mqn1](<value_of_index_from_list>, «PLUS», <calc_basic>)
+                │     │        ├─ param[0] →
+                │     │        │  └─ value_of_index_from_list [id:bj81](∅, «2ntd», ∅, number("3"), ∅)
+                │     │        └─ param[2] →
+                │     │           └─ calc_basic [id:890z](<calc_basic>, «PLUS», <calc_basic>)
+                │     │              ├─ param[0] →
+                │     │              │  └─ calc_basic [id:uqq1](<value_of_index_from_list>, «MULTI», <get_func_variable>)
+                │     │              │     ├─ param[0] →
+                │     │              │     │  └─ value_of_index_from_list [id:6hls](∅, «2ntd», ∅, number("6"), ∅)
+                │     │              │     └─ param[2] →
+                │     │              │        └─ get_func_variable [id:o022](«r0qz_5mim», ∅)
+                │     │              └─ param[2] →
+                │     │                 └─ calc_basic [id:qtq3](<value_of_index_from_list>, «MULTI», <get_func_variable>)
+                │     │                    ├─ param[0] →
+                │     │                    │  └─ value_of_index_from_list [id:tbn6](∅, «2ntd», ∅, number("9"), ∅)
+                │     │                    └─ param[2] →
+                │     │                       └─ get_func_variable [id:3zfl](«r0qz_vndc», ∅)
+                │     ├─ set_func_variable [id:oypd](«r0qz_9wdz», <calc_operation>)
+                │     │  └─ param[1] →
+                │     │     └─ calc_operation [id:upj6](∅, <calc_basic>, ∅, «root»)
+                │     │        └─ param[1] →
+                │     │           └─ calc_basic [id:7tqk](<calc_operation>, «PLUS», <calc_basic>)
+                │     │              ├─ param[0] →
+                │     │              │  └─ calc_operation [id:c0fa](∅, <get_func_variable>, ∅, «square»)
+                │     │              │     └─ param[1] →
+                │     │              │        └─ get_func_variable [id:5lmt](«r0qz_l4tv», ∅)
+                │     │              └─ param[2] →
+                │     │                 └─ calc_basic [id:asyl](<calc_operation>, «PLUS», <calc_operation>)
+                │     │                    ├─ param[0] →
+                │     │                    │  └─ calc_operation [id:9d50](∅, <get_func_variable>, ∅, «square»)
+                │     │                    │     └─ param[1] →
+                │     │                    │        └─ get_func_variable [id:vfk7](«r0qz_ke3o», ∅)
+                │     │                    └─ param[2] →
+                │     │                       └─ calc_operation [id:5850](∅, <get_func_variable>, ∅, «square»)
+                │     │                          └─ param[1] →
+                │     │                             └─ get_func_variable [id:n3yh](«r0qz_ve09», ∅)
+                │     ├─ set_func_variable [id:0nnd](«r0qz_l4tv», <calc_basic>)
+                │     │  └─ param[1] →
+                │     │     └─ calc_basic [id:f0uf](<get_func_variable>, «DIVIDE», <get_func_variable>)
+                │     │        ├─ param[0] →
+                │     │        │  └─ get_func_variable [id:4p4i](«r0qz_l4tv», ∅)
+                │     │        └─ param[2] →
+                │     │           └─ get_func_variable [id:grmz](«r0qz_9wdz», ∅)
+                │     ├─ set_func_variable [id:u4hm](«r0qz_ke3o», <calc_basic>)
+                │     │  └─ param[1] →
+                │     │     └─ calc_basic [id:vuvt](<get_func_variable>, «DIVIDE», <get_func_variable>)
+                │     │        ├─ param[0] →
+                │     │        │  └─ get_func_variable [id:cmhw](«r0qz_ke3o», ∅)
+                │     │        └─ param[2] →
+                │     │           └─ get_func_variable [id:40um](«r0qz_9wdz», ∅)
+                │     ├─ set_func_variable [id:31om](«r0qz_ve09», <calc_basic>)
+                │     │  └─ param[1] →
+                │     │     └─ calc_basic [id:a3m6](<get_func_variable>, «DIVIDE», <get_func_variable>)
+                │     │        ├─ param[0] →
+                │     │        │  └─ get_func_variable [id:j5p7](«r0qz_ve09», ∅)
+                │     │        └─ param[2] →
+                │     │           └─ get_func_variable [id:w27v](«r0qz_9wdz», ∅)
+                │     ├─ set_func_variable [id:09i1](«r0qz_9wdz», text("0"))
+                │     ├─ set_func_variable [id:ub1y](«r0qz_pumo», get_variable("7yp4"))
+                │     ├─ set_func_variable [id:v5b4](«r0qz_uv9p», get_variable("khh1"))
+                │     ├─ set_func_variable [id:6i8k](«r0qz_lixr», get_variable("m809"))
+                │     ├─ set_func_variable [id:obef](«r0qz_42a6», text("0"))
+                │     ├─ set_func_variable [id:s7my](«r0qz_hit», number("0"))
+                │     ├─ repeat_basic [id:p5re](get_variable("zrdn"))
+                │     │  └─ stmt[0]:
+                │     │     ├─ set_func_variable [id:rtkp](«r0qz_5mim», <func_1n7r>)
+                │     │     │  └─ param[1] →
+                │     │     │     └─ func_1n7r [id:o4a2](<get_func_variable>, <get_func_variable>, <get_func_variable>)
+                │     │     │        ├─ param[0] →
+                │     │     │        │  └─ get_func_variable [id:wdl1](«r0qz_pumo», ∅)
+                │     │     │        ├─ param[1] →
+                │     │     │        │  └─ get_func_variable [id:ww1z](«r0qz_uv9p», ∅)
+                │     │     │        └─ param[2] →
+                │     │     │           └─ get_func_variable [id:14ax](«r0qz_lixr», ∅)
+                │     │     ├─ _if [id:o5ud](<boolean_basic_operator>)
+                │     │     │  ├─ param[0] →
+                │     │     │  │  └─ boolean_basic_operator [id:mbhz](<get_func_variable>, «LESS», get_variable("5q4p"))
+                │     │     │  │     └─ param[0] →
+                │     │     │  │        └─ get_func_variable [id:036v](«r0qz_5mim», ∅)
+                │     │     │  └─ stmt[0]:
+                │     │     │     ├─ set_func_variable [id:rjz7](«r0qz_hit», number("1"))
+                │     │     │     └─ stop_repeat [id:b0cq]
+                │     │     ├─ set_func_variable [id:hmmj](«r0qz_9wdz», <calc_basic>)
+                │     │     │  └─ param[1] →
+                │     │     │     └─ calc_basic [id:tjjp](<get_func_variable>, «PLUS», <get_func_variable>)
+                │     │     │        ├─ param[0] →
+                │     │     │        │  └─ get_func_variable [id:kk5m](«r0qz_9wdz», ∅)
+                │     │     │        └─ param[2] →
+                │     │     │           └─ get_func_variable [id:my4w](«r0qz_5mim», ∅)
+                │     │     ├─ set_func_variable [id:0udj](«r0qz_pumo», <calc_basic>)
+                │     │     │  └─ param[1] →
+                │     │     │     └─ calc_basic [id:dz29](<get_func_variable>, «PLUS», <calc_basic>)
+                │     │     │        ├─ param[0] →
+                │     │     │        │  └─ get_func_variable [id:1if4](«r0qz_pumo», ∅)
+                │     │     │        └─ param[2] →
+                │     │     │           └─ calc_basic [id:z8si](<get_func_variable>, «MULTI», <get_func_variable>)
+                │     │     │              ├─ param[0] →
+                │     │     │              │  └─ get_func_variable [id:jbog](«r0qz_l4tv», ∅)
+                │     │     │              └─ param[2] →
+                │     │     │                 └─ get_func_variable [id:otpb](«r0qz_5mim», ∅)
+                │     │     ├─ set_func_variable [id:1ehh](«r0qz_uv9p», <calc_basic>)
+                │     │     │  └─ param[1] →
+                │     │     │     └─ calc_basic [id:3aq4](<get_func_variable>, «PLUS», <calc_basic>)
+                │     │     │        ├─ param[0] →
+                │     │     │        │  └─ get_func_variable [id:e2y8](«r0qz_uv9p», ∅)
+                │     │     │        └─ param[2] →
+                │     │     │           └─ calc_basic [id:0bpy](<get_func_variable>, «MULTI», <get_func_variable>)
+                │     │     │              ├─ param[0] →
+                │     │     │              │  └─ get_func_variable [id:vady](«r0qz_ke3o», ∅)
+                │     │     │              └─ param[2] →
+                │     │     │                 └─ get_func_variable [id:67qj](«r0qz_5mim», ∅)
+                │     │     ├─ set_func_variable [id:baqb](«r0qz_lixr», <calc_basic>)
+                │     │     │  └─ param[1] →
+                │     │     │     └─ calc_basic [id:vua0](<get_func_variable>, «PLUS», <calc_basic>)
+                │     │     │        ├─ param[0] →
+                │     │     │        │  └─ get_func_variable [id:umsq](«r0qz_lixr», ∅)
+                │     │     │        └─ param[2] →
+                │     │     │           └─ calc_basic [id:fmkf](<get_func_variable>, «MULTI», <get_func_variable>)
+                │     │     │              ├─ param[0] →
+                │     │     │              │  └─ get_func_variable [id:4o03](«r0qz_ve09», ∅)
+                │     │     │              └─ param[2] →
+                │     │     │                 └─ get_func_variable [id:v2wx](«r0qz_5mim», ∅)
+                │     │     ├─ _if [id:lfrw](<boolean_basic_operator>)
+                │     │     │  ├─ param[0] →
+                │     │     │  │  └─ boolean_basic_operator [id:j7w8](<get_func_variable>, «GREATER», get_variable("4pav"))
+                │     │     │  │     └─ param[0] →
+                │     │     │  │        └─ get_func_variable [id:6ssk](«r0qz_9wdz», ∅)
+                │     │     │  └─ stmt[0]:
+                │     │     │     └─ stop_repeat [id:d5db]
+                │     │     ├─ set_func_variable [id:v5a6](«r0qz_42a6», <calc_basic>)
+                │     │     │  └─ param[1] →
+                │     │     │     └─ calc_basic [id:8bsn](<get_func_variable>, «PLUS», number("1"))
+                │     │     │        └─ param[0] →
+                │     │     │           └─ get_func_variable [id:aksz](«r0qz_42a6», ∅)
+                │     │     └─ wait_until_true [id:6r7d](<boolean_not>)
+                │     │        └─ param[0] →
+                │     │           └─ boolean_not [id:o35a](∅, <continue_repeat>, ∅)
+                │     │              └─ param[1] →
+                │     │                 └─ continue_repeat [id:9yhs]
+                │     ├─ if_else [id:r94j](<boolean_basic_operator>, ∅)
+                │     │  ├─ param[0] →
+                │     │  │  └─ boolean_basic_operator [id:w4t9](<get_func_variable>, «EQUAL», number("1"))
+                │     │  │     └─ param[0] →
+                │     │  │        └─ get_func_variable [id:4sor](«r0qz_hit», ∅)
+                │     │  ├─ stmt[0]:
+                │     │  │  ├─ set_func_variable [id:bsmg](«r0qz_l4tv», <calc_basic>)
+                │     │  │  │  └─ param[1] →
+                │     │  │  │     └─ calc_basic [id:jam1](number("1"), «MINUS», <calc_basic>)
+                │     │  │  │        └─ param[2] →
+                │     │  │  │           └─ calc_basic [id:72nm](<get_func_variable>, «DIVIDE», get_variable("zrdn"))
+                │     │  │  │              └─ param[0] →
+                │     │  │  │                 └─ get_func_variable [id:l0f6](«r0qz_42a6», ∅)
+                │     │  │  ├─ set_func_variable [id:8kwn](«r0qz_ke3o», <calc_basic>)
+                │     │  │  │  └─ param[1] →
+                │     │  │  │     └─ calc_basic [id:vajg](number("1"), «MINUS», <calc_basic>)
+                │     │  │  │        └─ param[2] →
+                │     │  │  │           └─ calc_basic [id:7lr8](<get_func_variable>, «DIVIDE», get_variable("4pav"))
+                │     │  │  │              └─ param[0] →
+                │     │  │  │                 └─ get_func_variable [id:j21i](«r0qz_9wdz», ∅)
+                │     │  │  ├─ set_func_variable [id:mz48](«r0qz_l4tv», <calc_basic>)
+                │     │  │  │  └─ param[1] →
+                │     │  │  │     └─ calc_basic [id:jvjt](<get_func_variable>, «MULTI», <get_func_variable>)
+                │     │  │  │        ├─ param[0] →
+                │     │  │  │        │  └─ get_func_variable [id:3nrv](«r0qz_l4tv», ∅)
+                │     │  │  │        └─ param[2] →
+                │     │  │  │           └─ get_func_variable [id:g80h](«r0qz_ke3o», ∅)
+                │     │  │  ├─ set_func_variable [id:fdad](«r0qz_ke3o», get_variable("gz12"))
+                │     │  │  ├─ _if [id:4smc](<boolean_basic_operator>)
+                │     │  │  │  ├─ param[0] →
+                │     │  │  │  │  └─ boolean_basic_operator [id:4cjx](get_variable("gz12"), «GREATER_OR_EQUAL», <length_of_list>)
+                │     │  │  │  │     └─ param[2] →
+                │     │  │  │  │        └─ length_of_list [id:ebg9](∅, «uite», ∅)
+                │     │  │  │  └─ stmt[0]:
+                │     │  │  │     └─ set_func_variable [id:ludb](«r0qz_ke3o», <calc_basic>)
+                │     │  │  │        └─ param[1] →
+                │     │  │  │           └─ calc_basic [id:r4jc](<length_of_list>, «MINUS», number("1"))
+                │     │  │  │              └─ param[0] →
+                │     │  │  │                 └─ length_of_list [id:jpyk](∅, «uite», ∅)
+                │     │  │  ├─ set_func_variable [id:86wh](«r0qz_ke3o», <value_of_index_from_list>)
+                │     │  │  │  └─ param[1] →
+                │     │  │  │     └─ value_of_index_from_list [id:9f7e](∅, «uite», ∅, <calc_operation>, ∅)
+                │     │  │  │        └─ param[3] →
+                │     │  │  │           └─ calc_operation [id:qgnx](∅, <calc_basic>, ∅, «floor»)
+                │     │  │  │              └─ param[1] →
+                │     │  │  │                 └─ calc_basic [id:8j7m](<get_func_variable>, «PLUS», number("1"))
+                │     │  │  │                    └─ param[0] →
+                │     │  │  │                       └─ get_func_variable [id:s4eu](«r0qz_ke3o», ∅)
+                │     │  │  ├─ set_color [id:18ff](<get_func_variable>)
+                │     │  │  │  └─ param[0] →
+                │     │  │  │     └─ get_func_variable [id:uru0](«r0qz_ke3o», ∅)
+                │     │  │  ├─ start_drawing [id:gos9]
+                │     │  │  ├─ move_x [id:o4ym](get_variable("6vza"))
+                │     │  │  └─ stop_drawing [id:icll]
+                │     │  └─ stmt[1]:
+                │     │     └─ move_x [id:16oa](get_variable("6vza"))
+                │     ├─ set_func_variable [id:k7o0](«r0qz_nz00», <calc_basic>)
+                │     │  └─ param[1] →
+                │     │     └─ calc_basic [id:u6r7](<get_func_variable>, «PLUS», number("1"))
+                │     │        └─ param[0] →
+                │     │           └─ get_func_variable [id:bvy4](«r0qz_nz00», ∅)
+                │     └─ wait_until_true [id:72vd](<boolean_not>)
+                │        └─ param[0] →
+                │           └─ boolean_not [id:17p0](∅, <continue_repeat>, ∅)
+                │              └─ param[1] →
+                │                 └─ continue_repeat [id:s5mx]
+                └─ change_variable [id:wr16](«vonp», text("1"))
+

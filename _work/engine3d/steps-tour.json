@@ -1,0 +1,11 @@
+[{"wait":2500,"shot":"m0.png"},
+ {"down":{"code":"Enter","key":"Enter","keyCode":13}},
+ {"wait":400},
+ {"up":{"code":"Enter","key":"Enter","keyCode":13}},
+ {"wait":2500,"shot":"m1.png"},
+ {"eval":"(()=>{const V=n=>Entry.variableContainer.variables_.find(x=>x.name_===n).value_;return {scene:V('scene'),obj:V('오브젝트수'),drawn:V('그린면수'),stars:V('starsLeft'),warn:V('엔진알림')}})()"},
+ {"down":{"code":"KeyW","key":"w","keyCode":87}},
+ {"wait":1800},
+ {"up":{"code":"KeyW","key":"w","keyCode":87}},
+ {"wait":600,"shot":"m2.png"},
+ {"eval":"(()=>{const V=n=>Entry.variableContainer.variables_.find(x=>x.name_===n).value_;const L=(n,i)=>Entry.variableContainer.lists_.find(x=>x.name_===n).array_[i-1].data;const p=Number(V('player'));return {score:V('score'),x:L('오브젝트X',p),y:L('오브젝트Y',p),z:L('오브젝트Z',p),g:L('오브젝트땅닿음',p)}})()"}]

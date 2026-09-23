@@ -1,0 +1,10 @@
+[{"wait":2500},
+ {"down":{"code":"ArrowDown","key":"ArrowDown","keyCode":40}},
+ {"wait":300},
+ {"up":{"code":"ArrowDown","key":"ArrowDown","keyCode":40}},
+ {"wait":250},
+ {"down":{"code":"Enter","key":"Enter","keyCode":13}},
+ {"wait":400},
+ {"up":{"code":"Enter","key":"Enter","keyCode":13}},
+ {"wait":3500,"shot":"s_ter.png"},
+ {"eval":"(()=>{const V=n=>Entry.variableContainer.variables_.find(x=>x.name_===n).value_;return {drawn:V('그린면수'),seen:V('보인물체수'),fps:Math.round(Number(V('FPS'))),obj:V('오브젝트수')}})()"}]

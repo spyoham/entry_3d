@@ -1,0 +1,5 @@
+[{"wait":2000},
+ {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":300},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":800},
+ {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":300},{"up":{"code":"Enter","key":"Enter","keyCode":13}},
+ {"wait":8000,"eval":"(()=>{ const ch = Entry.stage.selectedObjectContainer.children; const out=[]; let stamps=0; ch.forEach((c,i)=>{ const e=c.entity; const n = e ? (e.parent ? e.parent.name : '?') + (e.isStamp?':stamp':'') + (e.isClone&&!e.isStamp?':clone':'') : 'noentity'; if (n.endsWith(':stamp')) { stamps++; } else out.push(i+':'+n); }); return {len: ch.length, stamps, order: out}; })()"},
+ {"wait":30000,"eval":"(()=>{ const ch = Entry.stage.selectedObjectContainer.children; const out=[]; let stamps=0; ch.forEach((c,i)=>{ const e=c.entity; const n = e ? (e.parent ? e.parent.name : '?') + (e.isStamp?':stamp':'') + (e.isClone&&!e.isStamp?':clone':'') : 'noentity'; if (n.endsWith(':stamp')) { stamps++; } else out.push(i+':'+n); }); return {len: ch.length, stamps, order: out}; })()"}]

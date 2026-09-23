@@ -1,0 +1,11 @@
+[{"wait":2500},
+ {"down":{"code":"ArrowRight","key":"ArrowRight","keyCode":39},"wait":250},
+ {"up":{"code":"ArrowRight","key":"ArrowRight","keyCode":39},"wait":200},
+ {"down":{"code":"KeyW","key":"w","keyCode":87},"wait":2600},
+ {"up":{"code":"KeyW","key":"w","keyCode":87},"wait":300,"shot":"g1.png"},
+ {"eval":"(()=>{const V=n=>{const v=Entry.variableContainer.variables_.find(x=>x.name_===n);return v?v.value_:null};const L=n=>{const l=Entry.variableContainer.lists_.find(x=>x.name_===n);return l?l.array_.map(o=>o.data):null};const p=Number(V('player'));return {score:V('score'),coins:V('coinsLeft'),x:L('오브젝트X')[p-1],z:L('오브젝트Z')[p-1],yaw:V('카메라좌우각')}})()"},
+ {"down":{"code":"ArrowLeft","key":"ArrowLeft","keyCode":37},"wait":900},
+ {"up":{"code":"ArrowLeft","key":"ArrowLeft","keyCode":37},"wait":200},
+ {"down":{"code":"KeyW","key":"w","keyCode":87},"wait":3000},
+ {"up":{"code":"KeyW","key":"w","keyCode":87},"wait":300,"shot":"g2.png"},
+ {"eval":"(()=>{const V=n=>{const v=Entry.variableContainer.variables_.find(x=>x.name_===n);return v?v.value_:null};const L=n=>{const l=Entry.variableContainer.lists_.find(x=>x.name_===n);return l?l.array_.map(o=>o.data):null};const p=Number(V('player'));return {score:V('score'),coins:V('coinsLeft'),x:L('오브젝트X')[p-1],y:L('오브젝트Y')[p-1],z:L('오브젝트Z')[p-1],ground:L('오브젝트땅닿음')[p-1]}})()"}]

@@ -1,0 +1,8 @@
+[{"wait":3000,"eval":"({f:Number(Entry.variableContainer.variables_.find(v=>v.name_==='프레임번호').value_), t:Math.round(performance.now())})"},
+ {"wait":4000,"eval":"({phase:'base', f:Number(Entry.variableContainer.variables_.find(v=>v.name_==='프레임번호').value_), t:Math.round(performance.now())})"},
+ {"eval":"(()=>{Entry.variableContainer.variables_.find(v=>v.name_==='skyOn').value_=0;return 'sky off'})()"},
+ {"wait":4000,"eval":"({phase:'nosky', f:Number(Entry.variableContainer.variables_.find(v=>v.name_==='프레임번호').value_), t:Math.round(performance.now())})"},
+ {"eval":"(()=>{Entry.variableContainer.variables_.find(v=>v.name_==='shadowOn').value_=0;return 'shadow off'})()"},
+ {"wait":4000,"eval":"({phase:'noshadow', f:Number(Entry.variableContainer.variables_.find(v=>v.name_==='프레임번호').value_), t:Math.round(performance.now())})"},
+ {"eval":"(()=>{Entry.variableContainer.variables_.find(v=>v.name_==='maxFaces').value_=2;return 'faces 2'})()"},
+ {"wait":4000,"eval":"({phase:'nodraw', f:Number(Entry.variableContainer.variables_.find(v=>v.name_==='프레임번호').value_), t:Math.round(performance.now())})"}]

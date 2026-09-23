@@ -1,0 +1,5 @@
+[
+  {"wait": 6000},
+  {"eval": "(['temp','repPen'].forEach((n,i)=>Entry.variableContainer.variables_.find(v=>v.name_===n).setValue(i?1:0)), Entry.stage.inputField.value('Once upon a time'), Entry.dispatchEvent('canvasInputComplete'), 'answered')"},
+  {"wait": 1000, "vars": true}
+]

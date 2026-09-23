@@ -1,0 +1,3 @@
+[{"wait":3000,"shot":"q1.png"},{"wait":3000,"shot":"q2.png"},{"wait":4000,"shot":"q3.png"},
+ {"eval":"(()=>{const V=n=>Entry.variableContainer.variables_.find(x=>x.name_===n).value_;return {obj:V('오브젝트수'),drawn:V('그린면수'),touch:V('닿음'),fps:Math.round(Number(V('FPS')))}})()"},
+ {"wait":4000,"shot":"q4.png"}]

@@ -1,0 +1,7 @@
+[{"wait":3000,"shot":"e_title.png"},
+ {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":300},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":1000,"shot":"e_menu.png"},
+ {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":300},{"up":{"code":"Enter","key":"Enter","keyCode":13}},
+ {"wait":5000,"shot":"e_start.png","vars":1},
+ {"down":{"code":"KeyW","key":"w","keyCode":87}},{"wait":2500},{"up":{"code":"KeyW","key":"w","keyCode":87}},
+ {"down":{"code":"ControlLeft","key":"Control","keyCode":17}},{"wait":1500},{"up":{"code":"ControlLeft","key":"Control","keyCode":17}},
+ {"wait":1000,"shot":"e_walk.png","vars":1}]

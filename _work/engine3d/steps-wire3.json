@@ -1,0 +1,4 @@
+[{"wait":3000},
+ {"eval":"(()=>{Entry.variableContainer.variables_.find(v=>v.name_==='drawMode').value_=1;const o=Entry.container.getAllObjects().find(o=>o.name==='게임');o.entity.setVisible(true);return {vis:o.entity.visible, thick:o.entity.brush?o.entity.brush.thickness:null}})()"},
+ {"wait":1500,"shot":"wh.png"},
+ {"eval":"(()=>{const o=Entry.container.getAllObjects().find(o=>o.name==='게임');return {b:!!o.entity.brush, f:!!o.entity.fillBrush, x:Math.round(o.entity.getX()), y:Math.round(o.entity.getY())}})()"}]

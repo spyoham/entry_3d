@@ -1,0 +1,7 @@
+[
+  {"wait": 1500},
+  {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":250},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":4800},
+  {"wait":50000,"eval":"(()=>{const g=n=>Number(Entry.variableContainer.variables_.find(x=>x.name_===n).value_);const L=n=>Entry.variableContainer.lists_.find(x=>x.name_===n).array_.slice(0,8).map(e=>Number(e.data));return {t:50,raceT:+g('raceT').toFixed(1),lap:L('caLap'),rank:L('caRank'),seg:L('caSeg'),stuck:L('caStuck').map(v=>+v.toFixed(1))};})()"},
+  {"wait":50000,"eval":"(()=>{const g=n=>Number(Entry.variableContainer.variables_.find(x=>x.name_===n).value_);const L=n=>Entry.variableContainer.lists_.find(x=>x.name_===n).array_.slice(0,8).map(e=>Number(e.data));return {t:100,raceT:+g('raceT').toFixed(1),lap:L('caLap'),rank:L('caRank'),best:L('caBest').map(v=>+v.toFixed(1))};})()"},
+  {"shot":"L1.png"}
+]

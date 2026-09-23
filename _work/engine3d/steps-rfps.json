@@ -1,0 +1,2 @@
+[{"wait":3000,"eval":"({f:Number(Entry.variableContainer.variables_.find(v=>v.name_==='frameId').value_), t:Math.round(performance.now())})"},
+ {"wait":6000,"eval":"({f:Number(Entry.variableContainer.variables_.find(v=>v.name_==='frameId').value_), t:Math.round(performance.now())})"}]

@@ -1,0 +1,9 @@
+loaded in 23225 ms
+eval "answered"
+t=7000 {"status":"프롬프트 읽는 중  토큰 1  |  레이어 1/30  |  0초","outText":"Once upon a time","layerNo":1}
+poll layerNo=1 at 5 ms
+poll layerNo=2 at 8985 ms
+poll layerNo=3 at 17752 ms
+{"status":"프롬프트 읽는 중  토큰 1  |  레이어 3/30  |  17.9초","outText":"Once upon a time","layerNo":3}
+loadComplete at []
+errors: none

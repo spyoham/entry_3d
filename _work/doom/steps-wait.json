@@ -1,0 +1,5 @@
+[{"wait":2000},
+ {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":300},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":800},
+ {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":300},{"up":{"code":"Enter","key":"Enter","keyCode":13}},
+ {"wait":3000,"shot":"w1.png"},{"wait":15000,"shot":"w2.png"},{"wait":20000,"shot":"w3.png"},
+ {"eval":"(()=>{ const o = Entry.container.objects_.find(o=>o.name==='world'); const pics=o.pictures; let loaded=0, img=0; return {n: pics.length, gl: !!(typeof GEHelper!=='undefined'), webgl: Entry.options && Entry.options.useWebGL }; })()"}]

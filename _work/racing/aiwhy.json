@@ -1,0 +1,7 @@
+[
+  {"wait":1800},
+  {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":250},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":4800},
+  {"eval":"(()=>{window.__r=[];window.__iv=setInterval(()=>{const L=n=>Entry.variableContainer.lists_.find(x=>x.name_===n).array_;const su=L('caSurf'),sg=L('caSeg'),of=L('caOff'),sp=L('caSpd'),dr=L('caDrift'),W=L('sgW');for(let i=1;i<8;i++){if(Number(su[i].data)>=2){const s=Number(sg[i].data);window.__r.push([s,+(Math.abs(Number(of[i].data))-Number(W[s-1].data)).toFixed(1),Math.round(Number(sp[i].data)*3.6),Math.round(Number(dr[i].data)),Number(of[i].data)>0?1:-1]);}}},120);return 1;})()"},
+  {"wait":40000},
+  {"eval":"(()=>{clearInterval(window.__iv);const r=window.__r;const over=r.map(x=>x[1]).sort((a,b)=>a-b);const spd=r.map(x=>x[2]).sort((a,b)=>a-b);const dft=r.map(x=>x[3]).sort((a,b)=>a-b);const q=(a,p)=>a[Math.floor(a.length*p)];return {n:r.length,overMed:q(over,0.5),overP90:q(over,0.9),spdMed:q(spd,0.5),spdP90:q(spd,0.9),driftMed:q(dft,0.5),driftP90:q(dft,0.9),rightSide:Math.round(100*r.filter(x=>x[4]>0).length/r.length)};})()"}
+]

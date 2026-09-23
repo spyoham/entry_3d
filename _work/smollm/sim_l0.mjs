@@ -1,0 +1,11 @@
+import { createSim } from './sim.mjs';
+const S = createSim({}); const { R } = S; const f = (n) => R.peek(n);
+f('initLists')(); f('embed')(6403);
+console.log('emb', R.peek('X').slice(0, 5).map(v => +v.toFixed(5)));
+R.poke('LVMS', R.peek('LVMALL')[0]); f('prep_X')(1);
+R.poke('LVS', R.peek('LVALL')[0]); f('tablesD')();
+R.poke('M', R.peek('WALL')[0]); R.poke('MP', 2); R.poke('YO', 0); f('rowsD')(960); f('sparseFix')(1);
+const Y = R.peek('Y');
+console.log('q', Y.slice(0, 5).map(v => +v.toFixed(5)));
+console.log('k', Y.slice(576, 581).map(v => +v.toFixed(5)));
+console.log('v', Y.slice(768, 773).map(v => +v.toFixed(5)));

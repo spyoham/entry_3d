@@ -1,0 +1,7 @@
+[
+  {"wait":1800},
+  {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":250},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":4800},
+  {"eval":"(()=>{window.__mx=0;window.__iv=setInterval(()=>{const L=Entry.variableContainer.lists_.find(x=>x.name_==='caSpd').array_;for(let i=1;i<8;i++){const v=Number(L[i].data)*3.6;if(v>window.__mx)window.__mx=v;}},60);return 1;})()"},
+  {"wait":60000},
+  {"eval":"(()=>{clearInterval(window.__iv);const L=n=>Entry.variableContainer.lists_.find(x=>x.name_===n).array_.slice(0,8).map(e=>Number(e.data));return {aiMaxKmh:Math.round(window.__mx),lap:L('caLap'),seg:L('caSeg'),raceT:+Number(Entry.variableContainer.variables_.find(x=>x.name_==='raceT').value_).toFixed(1)};})()"}
+]

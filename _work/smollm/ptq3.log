@@ -1,0 +1,13 @@
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/75 [00:00<?, ?it/s]Loading weights: 100%|██████████| 75/75 [00:00<00:00, 49924.27it/s]
+fp ppl=12.046  (400194 test tokens, 796079 calib tokens)
+layer 0 done 21s
+layer 1 done 42s
+layer 2 done 62s
+layer 3 done 85s
+layer 4 done 105s
+layer 5 done 126s
+layer 6 done 146s
+layer 7 done 166s
+bits=3.0 gs=64 map={} rtn=False ppl=17.423  (170s)
+"Once upon a time, there was a little boy named Tim. Tim loved to play with his toy car. One day, Tim's toy car broke. He was"

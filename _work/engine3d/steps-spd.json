@@ -1,0 +1,5 @@
+[{"wait":3000},
+ {"down":{"code":"KeyW","key":"w","keyCode":87},"wait":2000},
+ {"eval":"(()=>{const V=n=>{const v=Entry.variableContainer.variables_.find(x=>x.name_===n);return v?Number(v.value_):null};const L=n=>{const l=Entry.variableContainer.lists_.find(x=>x.name_===n);return l?Number(l.array_[Number(V('player'))-1].data):null};return {z:L('오브젝트Z'),vz:L('오브젝트속도Z'),dt:V('프레임시간'),f:V('프레임번호'),t:Math.round(performance.now()),fwd:V('입력앞뒤'),ctl:Number(Entry.variableContainer.lists_.find(x=>x.name_==='오브젝트속도X')?1:0)}})()"},
+ {"wait":2000,"eval":"(()=>{const V=n=>{const v=Entry.variableContainer.variables_.find(x=>x.name_===n);return v?Number(v.value_):null};const L=n=>{const l=Entry.variableContainer.lists_.find(x=>x.name_===n);return l?Number(l.array_[Number(V('player'))-1].data):null};return {z:L('오브젝트Z'),vz:L('오브젝트속도Z'),dt:V('프레임시간'),f:V('프레임번호'),t:Math.round(performance.now())}})()"},
+ {"up":{"code":"KeyW","key":"w","keyCode":87}}]

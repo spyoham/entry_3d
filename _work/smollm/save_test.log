@@ -1,0 +1,5 @@
+load { ok: true } 8092 ms
+after load heap 609 MB
+export { ok: true, jsonMB: 92.7, entMB: 69.3, b64: '92427240 b64 chars' } 7344 ms
+after export heap 396 MB
+errors: none

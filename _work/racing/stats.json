@@ -1,0 +1,8 @@
+[
+  {"wait": 1200},
+  {"down": {"code":"Enter","key":"Enter","keyCode":13}}, {"wait": 150}, {"up": {"code":"Enter","key":"Enter","keyCode":13}}, {"wait": 700},
+  {"down": {"code":"Enter","key":"Enter","keyCode":13}}, {"wait": 150}, {"up": {"code":"Enter","key":"Enter","keyCode":13}}, {"wait": 700},
+  {"down": {"code":"Enter","key":"Enter","keyCode":13}}, {"wait": 150}, {"up": {"code":"Enter","key":"Enter","keyCode":13}}, {"wait": 4000},
+  {"down": {"code":"KeyW","key":"w","keyCode":87}}, {"wait": 2500},
+  {"eval": "(()=>{const g=n=>{const v=Entry.variableContainer.variables_.find(x=>x.name_===n);return v?Number(v.value_):null};return {nVis:g('nVis'),drawnQuads:g('drawnQuads'),trkLen:g('trkLen'),fogFar:g('fogFar'),camSeg:g('frameId')&&null,caSeg1:(()=>{const l=Entry.variableContainer.lists_.find(x=>x.name_==='caSeg');return l?Number(l.array_[1].data):null})(),nCars:g('nCars')};})()"}
+]

@@ -1,0 +1,5 @@
+[{"wait":6000,"vars":1},
+ {"eval":"(()=>{const v=Entry.variableContainer.variables_.find(v=>v.name_==='dbgMode'); v.setValue(1); return 1})()"},
+ {"wait":5000,"vars":1},
+ {"eval":"(()=>{const v=Entry.variableContainer.variables_.find(v=>v.name_==='dbgMode'); v.setValue(2); return 2})()"},
+ {"wait":5000,"vars":1}]

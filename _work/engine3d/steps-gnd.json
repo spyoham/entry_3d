@@ -1,0 +1,10 @@
+[{"wait":2500},
+ {"down":{"code":"ArrowDown","key":"ArrowDown","keyCode":40}},
+ {"wait":300},{"up":{"code":"ArrowDown","key":"ArrowDown","keyCode":40}},{"wait":250},
+ {"down":{"code":"ArrowDown","key":"ArrowDown","keyCode":40}},
+ {"wait":300},{"up":{"code":"ArrowDown","key":"ArrowDown","keyCode":40}},{"wait":250},
+ {"down":{"code":"Enter","key":"Enter","keyCode":13}},
+ {"wait":400},{"up":{"code":"Enter","key":"Enter","keyCode":13}},
+ {"wait":2000,"eval":"(()=>{const V=n=>Number(Entry.variableContainer.variables_.find(x=>x.name_===n).value_);const L=n=>Entry.variableContainer.lists_.find(x=>x.name_===n).array_.map(o=>Number(o.data));const vis=L('오브젝트보임'),x=L('오브젝트X'),z=L('오브젝트Z'),mesh=L('오브젝트모양');const big=Entry.variableContainer.lists_.find(x=>x.name_==='bigList').array_.map(o=>Number(o.data));return {nBig:V('nBig'),big:big.slice(0,12),tiles:[1,2,3].map(i=>({i,vis:vis[i-1],x:x[i-1],z:z[i-1],m:mesh[i-1]})),cam:[V('카메라X'),V('카메라Y'),V('카메라Z'),V('카메라상하각')]}})()"},
+ {"down":{"code":"KeyW","key":"w","keyCode":87}},{"wait":4000},{"up":{"code":"KeyW","key":"w","keyCode":87}},
+ {"wait":600,"shot":"g_far.png","eval":"(()=>{const V=n=>Number(Entry.variableContainer.variables_.find(x=>x.name_===n).value_);return {nBig:V('nBig'),seen:V('보인물체수'),drawn:V('그린면수'),cam:[Math.round(V('카메라X')),Math.round(V('카메라Y')),Math.round(V('카메라Z'))]}})()"}]

@@ -1,0 +1,28 @@
+# 임시/디컴파일 폴더
+.decompile-tmp-*/
+.minitest-tmp/
+tmp1/
+
+# 외부 저장소 (별도 git 저장소: github.com/205sla/entry-vibe-coding) 와 그 심볼릭 링크
+entry-vibe-coding/
+entryjs
+
+# SmolLM / TinyStories 파이프라인: 데이터셋, 원본 모델, 체크포인트, 중간 산출물 (재생성/재다운로드 가능, 대용량)
+_work/smollm/data/
+_work/smollm/model/
+_work/smollm/model-*/
+_work/smollm/probe/
+_work/smollm/export*/
+_work/smollm/*.pt
+_work/smollm/*.ent
+_work/smollm/*.parquet
+_work/smollm/wt2_*.txt
+
+# DOOM: Freedoom 원본 (재다운로드 가능)
+_work/doom/freedoom.zip
+_work/doom/freedoom-*/
+
+# 기타
+node_modules/
+__pycache__/
+*.pyc

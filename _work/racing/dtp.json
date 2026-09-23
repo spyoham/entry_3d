@@ -1,0 +1,9 @@
+[
+  {"wait": 1200},
+  {"down": {"code":"Enter","key":"Enter","keyCode":13}}, {"wait": 150}, {"up": {"code":"Enter","key":"Enter","keyCode":13}}, {"wait": 700},
+  {"down": {"code":"Enter","key":"Enter","keyCode":13}}, {"wait": 150}, {"up": {"code":"Enter","key":"Enter","keyCode":13}}, {"wait": 700},
+  {"down": {"code":"Enter","key":"Enter","keyCode":13}}, {"wait": 150}, {"up": {"code":"Enter","key":"Enter","keyCode":13}}, {"wait": 5000},
+  {"eval": "(()=>{window.__s=[];const g=n=>Number(Entry.variableContainer.variables_.find(x=>x.name_===n).value_);window.__iv=setInterval(()=>{window.__s.push([performance.now(),g('gt'),g('frameId'),g('dt'),Entry.engine.projectTimer.getValue()])},50);return 1;})()"},
+  {"wait": 4000},
+  {"eval": "(()=>{clearInterval(window.__iv);const s=window.__s;const a=s[2],b=s[s.length-1];const dw=(b[0]-a[0])/1000;return {wall:dw.toFixed(2),gameSec:(b[1]-a[1]).toFixed(2),frames:b[2]-a[2],lastDt:b[3],entryTimerDelta:(b[4]-a[4]).toFixed(2)};})()"}
+]

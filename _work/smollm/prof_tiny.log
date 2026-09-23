@@ -1,0 +1,54 @@
+loaded in 9120 ms
+eval "answered"
+t=7000 {}
+seconds 45.2, blocks/second 733319  (all counts below are per second)
+per type: get_variable=180048  number=137378  value_of_index_from_list=99892  combine_something=70112  calc_basic=59643  index_of_string=50066  char_at=50066  change_value_list_index=24616  set_variable=13122  boolean_basic_operator=6334  substring=6011  repeat_while_true=5936  wait_until_true=5841  boolean_not=5841  continue_repeat=5841  length_of_string=3129  quotient_and_mod=2723  get_func_variable=2652  calc_operation=1907  set_func_variable=752  if_else=383  stringParam_h1di=299  _if=211  function_create=182  function_field_label=182
+per function: rowsD=291958  rowsF=89555  abp=49794  pieces=47608  tb0=19811  tb1=19811  tb2=19811  tb3=19811  tb4=19811  tb5=19811  tb6=19811  tb7=19811
+ 285404 x  298  L803: Y[YO + ri] = substr(RW, 185, 197) * ((((substr(RW, 129, 133) * strlen(str(str(str(str(T0[indexOf(ALP0, charAt(
+  88806 x   34  L812: Y[YO + ri] = substr(RW, 479, 491) * (((((substr(RW, 353, 357) * strlen(str(str(str(str(T0[indexOf(ALP0, charAt
+   3469 x  385  L270: T0[ti + 1] = str(ABP[ai], ABP[65]);
+   3469 x  385  L271: T0[ti + 2] = str(ABP[ai], ABP[66]);
+   3469 x  385  L272: T0[ti + 3] = str(ABP[ai], ABP[67]);
+   3469 x  385  L273: T0[ti + 4] = str(ABP[ai], ABP[68]);
+   3469 x  385  L293: T1[ti + 1] = str(ABP[ai], ABP[65]);
+   3469 x  385  L294: T1[ti + 2] = str(ABP[ai], ABP[66]);
+   3469 x  385  L295: T1[ti + 3] = str(ABP[ai], ABP[67]);
+   3469 x  385  L296: T1[ti + 4] = str(ABP[ai], ABP[68]);
+   3469 x  385  L316: T2[ti + 1] = str(ABP[ai], ABP[65]);
+   3469 x  385  L317: T2[ti + 2] = str(ABP[ai], ABP[66]);
+   3469 x  385  L318: T2[ti + 3] = str(ABP[ai], ABP[67]);
+   3469 x  385  L319: T2[ti + 4] = str(ABP[ai], ABP[68]);
+   3469 x  385  L339: T3[ti + 1] = str(ABP[ai], ABP[65]);
+   3469 x  385  L340: T3[ti + 2] = str(ABP[ai], ABP[66]);
+   3469 x  385  L341: T3[ti + 3] = str(ABP[ai], ABP[67]);
+   3469 x  385  L342: T3[ti + 4] = str(ABP[ai], ABP[68]);
+   3469 x  385  L362: T4[ti + 1] = str(ABP[ai], ABP[65]);
+   3469 x  385  L363: T4[ti + 2] = str(ABP[ai], ABP[66]);
+   3469 x  385  L364: T4[ti + 3] = str(ABP[ai], ABP[67]);
+   3469 x  385  L365: T4[ti + 4] = str(ABP[ai], ABP[68]);
+   3469 x  385  L385: T5[ti + 1] = str(ABP[ai], ABP[65]);
+   3469 x  385  L386: T5[ti + 2] = str(ABP[ai], ABP[66]);
+   3469 x  385  L387: T5[ti + 3] = str(ABP[ai], ABP[67]);
+   3469 x  385  L388: T5[ti + 4] = str(ABP[ai], ABP[68]);
+   3469 x  385  L408: T6[ti + 1] = str(ABP[ai], ABP[65]);
+   3469 x  385  L409: T6[ti + 2] = str(ABP[ai], ABP[66]);
+   3469 x  385  L410: T6[ti + 3] = str(ABP[ai], ABP[67]);
+   3469 x  385  L411: T6[ti + 4] = str(ABP[ai], ABP[68]);
+   3469 x  385  L431: T7[ti + 1] = str(ABP[ai], ABP[65]);
+   3469 x  385  L432: T7[ti + 2] = str(ABP[ai], ABP[66]);
+   3469 x  385  L433: T7[ti + 3] = str(ABP[ai], ABP[67]);
+   3469 x  385  L434: T7[ti + 4] = str(ABP[ai], ABP[68]);
+   3090 x  391  L275: ti = ti + 4;
+   3090 x  391  L298: ti = ti + 4;
+   3090 x  391  L321: ti = ti + 4;
+   3090 x  391  L344: ti = ti + 4;
+   3090 x  391  L367: ti = ti + 4;
+   3090 x  391  L390: ti = ti + 4;
+   3090 x  391  L413: ti = ti + 4;
+   3090 x  391  L436: ti = ti + 4;
+   2385 x  298  L804: ri = ri + 1;
+   2151 x  187  L1385: AF[j] = (s0 + (SILU[fi + 1] - s0) * (fx - fi)) * Y[FF + j];
+   2083 x  298  L801: RW = substr(M, MP, MP + 196);
+{}
+loadComplete at []
+errors: none

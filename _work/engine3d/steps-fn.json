@@ -1,0 +1,2 @@
+[{"wait":1500,"eval":"(()=>{const out=[];const fs=Entry.variableContainer.functions_;for(const k in fs){const f=fs[k];out.push((f.block&&f.block.template)||'?');}return out.slice(0,14)})()"},
+ {"eval":"(()=>{const out=[];const fs=Entry.variableContainer.functions_;let n=0;for(const k in fs){n++;}return {count:n}})()"}]

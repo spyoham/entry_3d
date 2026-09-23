@@ -1,0 +1,11 @@
+[
+  {"wait": 1200},
+  {"down": {"code":"Enter","key":"Enter","keyCode":13}}, {"wait": 150}, {"up": {"code":"Enter","key":"Enter","keyCode":13}}, {"wait": 700},
+  {"down": {"code":"Enter","key":"Enter","keyCode":13}}, {"wait": 150}, {"up": {"code":"Enter","key":"Enter","keyCode":13}}, {"wait": 700},
+  {"down": {"code":"Enter","key":"Enter","keyCode":13}}, {"wait": 150}, {"up": {"code":"Enter","key":"Enter","keyCode":13}}, {"wait": 4000},
+  {"down": {"code":"KeyW","key":"w","keyCode":87}}, {"wait": 3000, "shot": "c1_drive.png"},
+  {"eval": "(()=>{const g=n=>Number(Entry.variableContainer.variables_.find(x=>x.name_===n).value_);window.__g0=g('gt');window.__f0=g('frameId');window.__w0=performance.now();return 1;})()"},
+  {"wait": 6000, "shot": "c2_drive.png"},
+  {"eval": "(()=>{const g=n=>Number(Entry.variableContainer.variables_.find(x=>x.name_===n).value_);const dw=(performance.now()-window.__w0)/1000;return {fps:((g('frameId')-window.__f0)/dw).toFixed(1),timeRatio:((g('gt')-window.__g0)/dw).toFixed(2),quads:g('drawnQuads'),nVis:g('nVis'),kmh:(Number(Entry.variableContainer.lists_.find(x=>x.name_==='caSpd').array_[1].data)*3.6).toFixed(0)};})()"},
+  {"down": {"code":"KeyC","key":"c","keyCode":67}}, {"wait": 200}, {"up": {"code":"KeyC","key":"c","keyCode":67}}, {"wait": 1500, "shot": "c3_cockpit.png"}
+]

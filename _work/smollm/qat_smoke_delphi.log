@@ -1,0 +1,6 @@
+Loading weights:   0%|          | 0/74 [00:00<?, ?it/s]Loading weights: 100%|██████████| 74/74 [00:00<00:00, 2888.85it/s]
+Loading weights:   0%|          | 0/74 [00:00<?, ?it/s]Loading weights: 100%|██████████| 74/74 [00:00<00:00, 2681.57it/s]
+student ppl at start 14.031
+step 0/12 kd 1.3129 15941 tok/s  0.0 min
+ppl 10.4
+"Once upon a time, there was a little girl named Amy. Amy loved to dance and play with her friends. One day, her friends told her they had a surprise. They all got very excited and couldn't"

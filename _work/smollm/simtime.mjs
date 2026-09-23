@@ -1,0 +1,16 @@
+import { createSim } from './sim.mjs';
+const S = createSim({});
+const { R } = S;
+let t = Date.now();
+R.peek('initLists')();
+console.log('initLists', Date.now() - t, 'ms');
+t = Date.now(); R.peek('embed')(504); console.log('embed', Date.now() - t);
+R.peek('ropeTable')(0);
+const f = (n) => R.peek(n);
+R.poke('LVMS', R.peek('LVMALL')[0]); t = Date.now(); f('prep_X')(1); console.log('prep', Date.now() - t);
+R.poke('LVS', R.peek('LVALL')[0]);
+t = Date.now(); f('tablesD')(); console.log('tablesD', Date.now() - t);
+R.poke('M', R.peek('WALL')[0]); R.poke('MP', 2); R.poke('YO', 0);
+t = Date.now(); f('rowsD')(960); console.log('rows9 x960', Date.now() - t);
+console.log('Y', R.peek('Y').slice(0, 5));
+t = Date.now(); f('layerStep')(0); console.log('layerStep', Date.now() - t);

@@ -1,0 +1,5 @@
+[
+  {"wait": 1500, "shot": "f0_menu.png"},
+  {"wait": 100, "eval": "(()=>{const g=n=>Entry.variableContainer.variables_.find(v=>v.name_===n);window.__g0=Number(g('gt').value_);window.__w0=performance.now();return 1;})()"},
+  {"wait": 3000, "eval": "(()=>{const g=n=>Entry.variableContainer.variables_.find(v=>v.name_===n);const dg=Number(g('gt').value_)-window.__g0;const dw=(performance.now()-window.__w0)/1000;return {gameSec:dg.toFixed(2),wallSec:dw.toFixed(2),timeRatio:(dg/dw).toFixed(2),dt:Number(g('dt').value_).toFixed(4),fps:(1/Number(g('dt').value_)).toFixed(1)};})()"}
+]

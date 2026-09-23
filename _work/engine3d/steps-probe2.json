@@ -1,0 +1,2 @@
+[{"wait":3000,"vars":1},{"wait":3000,"vars":1},
+ {"eval":"({timerObj: typeof Entry.engine.projectTimer, keys: Object.keys(Entry.engine).slice(0,40).join(','), tv: (Entry.engine.projectTimer||{}).value})"}]

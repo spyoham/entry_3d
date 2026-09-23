@@ -1,0 +1,7 @@
+[
+  {"wait":1800},
+  {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":250},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":4800},
+  {"eval":"(()=>{window.__prev={};window.__ev=[];window.__iv=setInterval(()=>{const L=n=>Entry.variableContainer.lists_.find(x=>x.name_===n).array_;const su=L('caSurf'),sg=L('caSeg'),sp=L('caSpd'),dr=L('caDrift'),of=L('caOff');for(let i=1;i<8;i++){const s=Number(su[i].data);const p=window.__prev[i]||0;if(p<2&&s>=2){window.__ev.push([Number(sg[i].data),Math.round(Number(sp[i].data)*3.6),Math.round(Number(dr[i].data)),+Number(of[i].data).toFixed(1)]);}window.__prev[i]=s;}},60);return 1;})()"},
+  {"wait":40000},
+  {"eval":"(()=>{clearInterval(window.__iv);const e=window.__ev;const spd=e.map(x=>x[1]).sort((a,b)=>a-b);const dft=e.map(x=>x[2]).sort((a,b)=>a-b);const q=(a,p)=>a.length?a[Math.floor(a.length*p)]:null;const bySeg={};for(const x of e){const b=Math.floor(x[0]/25)*25;bySeg[b]=(bySeg[b]||0)+1;}return {events:e.length,entrySpdMed:q(spd,0.5),entrySpdP90:q(spd,0.9),driftMed:q(dft,0.5),driftP90:q(dft,0.9),bySeg:Object.entries(bySeg).sort((a,b)=>b[1]-a[1]).slice(0,6)};})()"}
+]

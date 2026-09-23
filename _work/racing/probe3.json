@@ -1,0 +1,8 @@
+[
+  {"wait": 2000,
+   "eval": "(()=>{const o=Entry.container.objects_.find(o=>o.name==='tSpd');return {initial:JSON.stringify(o.entity.getText()), objText:JSON.stringify(o.text), protoText:JSON.stringify(o.entity.text)};})()"},
+  {"wait": 100, "eval": "(()=>{Entry.variableContainer.variables_.find(v=>v.name_==='hSpd').setValue('ABC');return 1;})()"},
+  {"wait": 600, "eval": "(()=>{const o=Entry.container.objects_.find(o=>o.name==='tSpd');return JSON.stringify(o.entity.getText());})()"},
+  {"wait": 100, "eval": "(()=>{Entry.variableContainer.variables_.find(v=>v.name_==='hSpd').setValue('');return 1;})()"},
+  {"wait": 600, "eval": "(()=>{const o=Entry.container.objects_.find(o=>o.name==='tSpd');return JSON.stringify(o.entity.getText());})()"}
+]

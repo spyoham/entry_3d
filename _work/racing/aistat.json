@@ -1,0 +1,7 @@
+[
+  {"wait":1800},
+  {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":250},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":4800},
+  {"eval":"(()=>{window.__h={off:0,n:0,spd:[],stuck:0};window.__iv=setInterval(()=>{const L=n=>Entry.variableContainer.lists_.find(x=>x.name_===n).array_;const su=L('caSurf'),sp=L('caSpd'),st=L('caStuck');for(let i=1;i<8;i++){window.__h.n++;if(Number(su[i].data)>=2)window.__h.off++;if(Number(st[i].data)>0.5)window.__h.stuck++;window.__h.spd.push(Number(sp[i].data)*3.6);}},120);return 1;})()"},
+  {"wait":45000},
+  {"eval":"(()=>{clearInterval(window.__iv);const h=window.__h;const s=h.spd.slice().sort((a,b)=>a-b);const q=p=>Math.round(s[Math.floor(s.length*p)]);return {offTrackPct:Math.round(100*h.off/h.n),stuckPct:Math.round(100*h.stuck/h.n),p10:q(0.1),median:q(0.5),p90:q(0.9),max:Math.round(s[s.length-1])};})()"}
+]

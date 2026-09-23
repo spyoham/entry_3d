@@ -1,0 +1,10 @@
+loading C:/Users/spyoh/entry_3d/SmolLM2-135M (2.67비트) v5.ent
+load { ok: true }
+after load heap 608 MB
+open 속성 (variable view) -> ok 27 ms
+   heap 609 MB
+select 리스트 tab -> ok 5 ms
+   heap 394 MB
+click WALL (open its item list) -> selected WALL 2727 ms
+   heap 287 MB
+crashed: false | errors: none

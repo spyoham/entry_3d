@@ -1,0 +1,31 @@
+SmolLM2-135M in Entry — third-party notices
+===========================================
+
+Model weights
+-------------
+This Entry project contains a MODIFIED version of the model
+
+    HuggingFaceTB/SmolLM2-135M
+    https://huggingface.co/HuggingFaceTB/SmolLM2-135M
+    Copyright Hugging Face, licensed under the Apache License, Version 2.0
+
+Modifications: all linear layers and the (tied) embedding were quantized to
+2.67 bits per weight (3,3,2-bit columns, per-column learned levels, per-row/48-column scales, 0.05%
+sparse exact weights) and fine-tuned by quantization-aware knowledge
+distillation from the original model. The weights are stored as text inside
+the Entry project; the inference code is written in Entry blocks.
+
+The tokenizer data (vocabulary and BPE merges) is taken unchanged from the
+same repository.
+
+Apache License 2.0: https://www.apache.org/licenses/LICENSE-2.0
+You may not use these files except in compliance with the License. Unless
+required by applicable law or agreed to in writing, software distributed under
+the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+CONDITIONS OF ANY KIND, either express or implied.
+
+Distillation data
+-----------------
+A small sample of HuggingFaceTB/smollm-corpus (fineweb-edu-dedup, ODC-By 1.0;
+cosmopedia-v2, Apache 2.0) was used as training text for the quantization-aware
+fine-tuning. No text from the corpus is included in the project.

@@ -1,0 +1,20 @@
+loaded in 9019 ms
+eval "answered"
+t=7000 {"status":"프롬프트 읽는 중  토큰 1  |  레이어 1/8  |  0초","outText":"Once upon a time","layerNo":1}
+t=18s {"heapMB":241,"status":"프롬프트 읽는 중  토큰 1  |  레이어 2/8  |  15.5초","outText":"Once upon a time","layerNo":"2"}
+t=36s {"heapMB":218,"status":"프롬프트 읽는 중  토큰 1  |  레이어 4/8  |  34초","outText":"Once upon a time","layerNo":"4"}
+t=54s {"heapMB":202,"status":"프롬프트 읽는 중  토큰 1  |  레이어 6/8  |  52.1초","outText":"Once upon a time","layerNo":"6"}
+t=72s {"heapMB":196,"status":"프롬프트 읽는 중  토큰 1  |  레이어 8/8  |  69.8초","outText":"Once upon a time","layerNo":"8"}
+t=89s {"heapMB":175,"status":"프롬프트 읽는 중  토큰 2  |  레이어 2/8  |  14.2초","outText":"Once upon a time","layerNo":"2"}
+t=107s {"heapMB":185,"status":"프롬프트 읽는 중  토큰 2  |  레이어 4/8  |  32.2초","outText":"Once upon a time","layerNo":"4"}
+t=124s {"heapMB":190,"status":"프롬프트 읽는 중  토큰 2  |  레이어 7/8  |  49.3초","outText":"Once upon a time","layerNo":"7"}
+t=141s {"heapMB":171,"status":"프롬프트 읽는 중  토큰 3  |  레이어 1/8  |  5.4초","outText":"Once upon a time","layerNo":"1"}
+t=159s {"heapMB":191,"status":"프롬프트 읽는 중  토큰 3  |  레이어 3/8  |  23.2초","outText":"Once upon a time","layerNo":"3"}
+t=177s {"heapMB":186,"status":"프롬프트 읽는 중  토큰 3  |  레이어 5/8  |  41.1초","outText":"Once upon a time","layerNo":"5"}
+t=195s {"heapMB":169,"status":"프롬프트 읽는 중  토큰 3  |  레이어 7/8  |  59초","outText":"Once upon a time","layerNo":"7"}
+t=213s {"heapMB":194,"status":"프롬프트 읽는 중  토큰 4  |  레이어 1/8  |  5.4초","outText":"Once upon a time","layerNo":"1"}
+t=231s {"heapMB":195,"status":"프롬프트 읽는 중  토큰 4  |  레이어 3/8  |  23.4초","outText":"Once upon a time","layerNo":"3"}
+t=249s {"heapMB":183,"status":"프롬프트 읽는 중  토큰 4  |  레이어 5/8  |  41.3초","outText":"Once upon a time","layerNo":"5"}
+{"status":"프롬프트 읽는 중  토큰 4  |  레이어 5/8  |  41.3초","outText":"Once upon a time","layerNo":5}
+loadComplete at []
+errors: none

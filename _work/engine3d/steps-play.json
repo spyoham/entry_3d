@@ -1,0 +1,12 @@
+[{"wait":2000,"shot":"p0.png"},
+ {"down":{"code":"KeyW","key":"w","keyCode":87},"wait":2500,"shot":"p1.png"},
+ {"up":{"code":"KeyW","key":"w","keyCode":87}},
+ {"down":{"code":"Space","key":" ","keyCode":32},"wait":900},
+ {"up":{"code":"Space","key":" ","keyCode":32},"wait":600,"shot":"p2.png"},
+ {"down":{"code":"ArrowRight","key":"ArrowRight","keyCode":39},"wait":1200},
+ {"up":{"code":"ArrowRight","key":"ArrowRight","keyCode":39},"shot":"p3.png"},
+ {"down":{"code":"KeyF","key":"f","keyCode":70},"wait":300},
+ {"up":{"code":"KeyF","key":"f","keyCode":70},"wait":1200,"shot":"p4.png"},
+ {"down":{"code":"KeyC","key":"c","keyCode":67},"wait":300},
+ {"up":{"code":"KeyC","key":"c","keyCode":67},"wait":1200,"shot":"p5.png"},
+ {"eval":"(()=>{const V=n=>{const v=Entry.variableContainer.variables_.find(x=>x.name_===n);return v?Number(v.value_):null};const L=n=>{const l=Entry.variableContainer.lists_.find(x=>x.name_===n);return l?l.array_.map(o=>o.data):null};const p=V('player');return {score:V('score'),coins:V('coinsLeft'),px:L('오브젝트X')[p-1],py:L('오브젝트Y')[p-1],pz:L('오브젝트Z')[p-1],ground:L('오브젝트땅닿음')[p-1],n:V('오브젝트수'),drawn:V('그린면수')}})()"}]

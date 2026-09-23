@@ -1,0 +1,1 @@
+[{"wait":2500,"eval":"(async()=>{const t=Entry.engine.projectTimer;const V=n=>Number(Entry.variableContainer.variables_.find(x=>x.name_===n).value_);const out=[];for(let i=0;i<6;i++){out.push([Math.round(performance.now()), Number(t.getValue?t.getValue():t.value_), V('흐른시간'), V('프레임번호'), V('프레임시간')]);await new Promise(r=>setTimeout(r,200));}return out})()"}]
