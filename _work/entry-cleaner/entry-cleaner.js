@@ -15,7 +15,7 @@
     const vc = E.variableContainer;
     const kinds = [
         { key: 'var', label: '변수', on: true, list: () => [...vc.variables_] },
-        { key: 'list', label: '리스트', on: false, list: () => [...vc.lists_] },
+        { key: 'list', label: '리스트', on: true, list: () => [...vc.lists_] },
         { key: 'func', label: '함수', on: true, list: () => Object.values(vc.functions_ || {}) },
         { key: 'msg', label: '신호', on: false, list: () => [...(vc.messages_ || [])] },
     ];
@@ -99,7 +99,12 @@
             E.playground.reloadPlayground();
             vc.updateList();
             refreshCounts();
-            msg(`완료: ${summary} 삭제.\n저장해야 반영됩니다.`);
+            const left = chosen.filter((k) => k.list().length).map((k) => `${k.label} ${k.list().length}개`);
+            msg(
+                left.length
+                    ? `일부 남음: ${left.join(', ')}\n한 번 더 눌러 보세요.`
+                    : `완료: ${summary} 삭제.\n저장해야 반영됩니다.`
+            );
         } catch (err) {
             console.error(err);
             refreshCounts();
