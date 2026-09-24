@@ -26,6 +26,9 @@ let RT_K1 = '|'; let RT_K2 = '|'; let RT_K3 = '|'; let RT_K4 = '|';
 let RT_K5 = '|'; let RT_K6 = '|'; let RT_K7 = '|'; let RT_K8 = '|';
 let RT_G1 = '|'; let RT_G2 = '|'; let RT_G3 = '|'; let RT_G4 = '|';
 let RT_G5 = '|'; let RT_G6 = '|'; let RT_G7 = '|'; let RT_G8 = '|';
+// set to 'ok' by the first save ever: seeing it means the server's values
+// have arrived (Entry sends them a moment after the work starts)
+let RT_SYNC = '-';
 
 const HCH = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-.';
 let oRT = '|';
@@ -265,7 +268,8 @@ function lapDone(lt) {
         setMsg('NEW CIRCUIT BEST!', 2.6);
         if (gMode >= M_TT) { addXP(30); }
         pDirty = 1;
-        if (tk <= NTRK) { if (rsAssist < 1) { rankSubmit(tk, lt); } }
+        // the ranking is written later, at a quiet moment (profileStep)
+        if (tk <= NTRK) { if (rsAssist < 1) { pendRk[tk] = lt; pendG[tk] = lgOk; } }
     }
     if (gMode == M_TT) { addXP(15); }
     if (gMode == M_PR) { addXP(10); }
@@ -317,15 +321,40 @@ function parseRec(s, from) {
     pF[nF] = cur;
 }
 
-function applyRec() {
+// Fold the record parsed into pF (the server's copy) into the session.
+// addMode 1 (the first load): what was earned before the save arrived is
+// added on top. addMode 0 (every save): the larger / better value wins, so
+// two sessions of the same player never lose each other's progress.
+function mergeRec(addMode) {
     if (nF >= 32) {
-        pXP = pF[2] * 1;
-        upE = pF[3] * 1; upA = pF[4] * 1; upB = pF[5] * 1; upT = pF[6] * 1;
-        suW = pF[7] - 3; suG = pF[8] - 3; suB = pF[9] - 3; suS = pF[10] - 3;
+        let xp = pF[2] * 1;
+        if (addMode > 0) {
+            pXP = pXP + xp;
+            stRaces = stRaces + pF[12] * 1; stWins = stWins + pF[13] * 1; stPods = stPods + pF[14] * 1; stKm = stKm + pF[15] * 1;
+        } else {
+            pXP = Math.max(pXP, xp);
+            stRaces = Math.max(stRaces, pF[12] * 1); stWins = Math.max(stWins, pF[13] * 1);
+            stPods = Math.max(stPods, pF[14] * 1); stKm = Math.max(stKm, pF[15] * 1);
+        }
+        // the garage: the saved one, unless it was changed in this session
+        if (tuneTouched < 1) {
+            upE = pF[3] * 1; upA = pF[4] * 1; upB = pF[5] * 1; upT = pF[6] * 1;
+            suW = pF[7] - 3; suG = pF[8] - 3; suB = pF[9] - 3; suS = pF[10] - 3;
+        }
         let mask = pF[11] * 1;
         let k = 1;
-        while (k <= NACH) { achGot[k] = mod(mask, 2); mask = idiv(mask, 2); k = k + 1; }
-        stRaces = pF[12] * 1; stWins = pF[13] * 1; stPods = pF[14] * 1; stKm = pF[15] * 1; stCirc = pF[16] * 1;
+        while (k <= NACH) { if (mod(mask, 2) > 0) { achGot[k] = 1; } mask = idiv(mask, 2); k = k + 1; }
+        let c1 = stCirc;
+        let c2 = pF[16] * 1;
+        stCirc = 0;
+        let b = 1;
+        k = 1;
+        while (k <= NTRK) {
+            let on = mod(idiv(c1, b), 2) + mod(idiv(c2, b), 2);
+            if (on > 0) { stCirc = stCirc + b; }
+            b = b * 2;
+            k = k + 1;
+        }
         let t = 1;
         while (t <= NTRK) {
             let a = pF[16 + t] / 1000;
@@ -334,30 +363,66 @@ function applyRec() {
             if (r > 0) { if (recRace[t] <= 0) { recRace[t] = r; } else if (r < recRace[t]) { recRace[t] = r; } }
             t = t + 1;
         }
-        levelFromXP();
-        countAch();
+    }
+    levelFromXP();
+    countAch();
+}
+let tuneTouched = 0;
+
+// ---- sync, load, save ------------------------------------------------------------
+// Entry's real-time variables start with the work's own values and are
+// replaced by the server's a moment later. Nothing is read or written for
+// real until that has happened: pSync 1 once RT_SYNC reads 'ok', 2 when it
+// has not after 12 s (a brand-new work nobody has saved in yet, or offline).
+let pSync = 0;
+let pVerT = 0;              // seconds until the last save is checked
+let pVerN = 0;              // saves retried
+let pRkT = 0;               // same for the ranking write
+let pRkN = 0;
+let pRkTk = 0;              // circuit whose ranking write is being checked
+let pRkLt = 0;
+function syncStep() {
+    if (pSync < 1) {
+        if (RT_SYNC == 'ok') { pSync = 1; }
+        else if (gt > 12) { pSync = 2; }
+        if (pSync > 0) { loadProfile(1); }
+    } else if (pSync == 2) {
+        // the server's values turned up late after all: take them in
+        if (RT_SYNC == 'ok') { pSync = 1; loadProfile(0); }
     }
 }
 
-function loadProfile() {
+function findMine() {
+    rtGetS(pSh);
+    oMine = 0;
+    let v = oRT;
+    let p = indexOf(v, str('|', pNick, ','));
+    if (p > 0) { parseRec(v, p + 1); oMine = 1; }
+}
+let oMine = 0;
+
+function loadProfile(addMode) {
     whoAmI();
     if (pGuest < 1) {
         rtGetS(pSh);
-        let v = oRT;
-        if (strlen(v) > 2) { pCache = v; }
-        let p = indexOf(v, str('|', pNick, ','));
-        if (p > 0) { parseRec(v, p + 1); applyRec(); }
+        if (strlen(oRT) > 2) { pCache = oRT; }
+        findMine();
+        if (oMine > 0) { mergeRec(addMode); }
     }
     levelFromXP();
     countAch();
     rankAll();
     pLoaded = 1;
+    pDirty = 1;
 }
 
 function saveProfile() {
     pDirty = 0;
     pSaveT = 3;
     if (pGuest < 1) {
+        // take in whatever the server has for this player first
+        findMine();
+        if (oMine > 0) { mergeRec(0); }
         buildRec();
         rtGetS(pSh);
         let v = oRT;
@@ -389,22 +454,92 @@ function saveProfile() {
         }
         rtSetS(pSh, v);
         pCache = v;
+        if (RT_SYNC != 'ok') { RT_SYNC = 'ok'; }
+        // someone else may have written the same shard at the same moment:
+        // look again once the dust has settled
+        pVerT = 2;
+    }
+}
+
+// was the last save kept? (a record with at least this XP must be there)
+function verifySave() {
+    findMine();
+    let good = 0;
+    if (oMine > 0) { if (pF[2] * 1 >= pXP) { good = 1; } }
+    if (good > 0) { pVerN = 0; }
+    else {
+        // back off a random, growing moment so writers stop colliding
+        pVerN = pVerN + 1;
+        pDirty = 1;
+        pSaveT = rand(0.2, 1.6) * Math.min(6, pVerN);
+    }
+}
+
+// write the pending best laps into the ranking, one circuit at a time
+function rankStep() {
+    if (pRkT > 0) {
+        pRkT = pRkT - dt;
+        if (pRkT <= 0) {
+            // check the entry is in; if a simultaneous write pushed it out, retry
+            rankParse(pRkTk);
+            let there = 0;
+            let i = 1;
+            while (i <= rkC) {
+                if (rkN[i] == pNick) { if (rkT[i] <= pRkLt + 0.0005) { there = 1; } }
+                i = i + 1;
+            }
+            let fits = 1;
+            if (rkC >= NRANK) { if (rkT[NRANK] <= pRkLt) { fits = 0; } }
+            if (there < 1) {
+                if (fits > 0) {
+                    pRkN = pRkN + 1;
+                    pendRk[pRkTk] = pRkLt;
+                    pRkT = 0 - rand(0.2, 1.6) * Math.min(6, pRkN);
+                }
+            }
+            if (pRkT > 0 - 0.001) { pRkT = 0; }
+        }
+    } else if (pRkT < 0) {
+        pRkT = pRkT + dt;
+        if (pRkT >= 0) { pRkT = 0; }
+    } else {
+        let t = 1;
+        while (t <= NTRK) {
+            if (pendRk[t] > 0) {
+                pRkTk = t;
+                pRkLt = pendRk[t];
+                pendRk[t] = 0;
+                if (pRkN < 1) { pRkN = 0; }
+                rankSubmit(t, pRkLt);
+                pRkT = 2;
+                t = NTRK;
+            }
+            t = t + 1;
+        }
+        if (pRkT == 0) { pRkN = 0; }
     }
 }
 
 // save at a quiet moment, at most every few seconds
 function profileStep() {
     popStep();
+    syncStep();
     if (pSaveT > 0) { pSaveT = pSaveT - dt; }
-    if (pDirty > 0) {
-        if (pSaveT <= 0) {
-            let quiet = 0;
-            if (raceState == ST_MENU) { quiet = 1; }
-            if (raceState == ST_DONE) { quiet = 1; }
-            if (raceState == ST_STAND) { quiet = 1; }
-            if (raceState == ST_TUNE) { quiet = 1; }
-            if (raceState == ST_PROF) { quiet = 1; }
-            if (quiet > 0) { saveProfile(); }
+    let quiet = 0;
+    if (raceState == ST_MENU) { quiet = 1; }
+    if (raceState == ST_DONE) { quiet = 1; }
+    if (raceState == ST_STAND) { quiet = 1; }
+    if (raceState == ST_QRES) { quiet = 1; }
+    if (raceState == ST_TUNE) { quiet = 1; }
+    if (raceState == ST_PROF) { quiet = 1; }
+    if (raceState == ST_PAUSE) { quiet = 1; }
+    if (pLoaded > 0) {
+        if (pSync > 0) {
+            if (quiet > 0) {
+                if (pVerT > 0) { pVerT = pVerT - dt; if (pVerT <= 0) { verifySave(); } }
+                else if (pDirty > 0) { if (pSaveT <= 0) { saveProfile(); } }
+                rankStep();
+            }
         }
     }
 }
@@ -497,7 +632,7 @@ function rankSubmit(tk, lt) {
                 if (pos == 1) {
                     unlock(12);
                     // only with the ghost of this very lap
-                    if (lgOk > 0) { wrUpload(tk, lt); }
+                    if (pendG[tk] > 0) { wrUpload(tk, lt); }
                 }
             }
         }

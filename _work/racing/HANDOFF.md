@@ -37,6 +37,20 @@ v7 소스는 git 기록에 있다(`40a8c73`). 로컬은 sparse-checkout이라 `b
 - tessvm: 13줄 메뉴·차고·프로필·고스트 카드 스크린샷, 다른 차 소리 재생, 싱가포르 ULTRA 아케이드 5.1–5.2 ms / 리얼리스틱 5.9–6.0 ms.
 - **온라인 동기화는 시험하지 못했다**(playentry 업로드·로그인 필요). 실시간 변수 한 개의 최대 길이도 모른다.
 
+## 실시간 저장 — 동시 접속 수정 (v8 이후)
+사용자: "동접자가 2명 이상이어도 잘 작동하는지 확인해 줘, 저장이 잘 안 되는 것 같아."
+- 엔트리 소스(entryjs `src/extensions/CloudVariable.js`, `class/variable/variable.js`, `blocks/block_variable.js`)에서 확인한 동작:
+  실시간 변수 `set`은 서버로 보내고 **ack를 받아야** 로컬 값이 바뀐다(`set_variable` 블록은 그 Promise를 기다린다).
+  `get`은 로컬 dmet 사본(없으면 value_). 서버 값은 소켓 `welcome`으로 **시작 뒤에** 온다. 여러 명이 쓰면 last-write-wins.
+- 옛 코드의 문제(모델로 재현): ① 1.5 s에 불러오기 → welcome 전이면 새 프로필 → 저장하면 기존 기록을 덮음(XP 5000 → 0).
+  ② 같은 칸 동시 저장이면 매번 한 명 손실. ③ 같은 랭킹 동시 등록이면 3명 중 2명 손실.
+- 고친 것(profile.js): `RT_SYNC`('ok'를 보면 동기화됨, 12 s까지 안 보이면 새 작품·오프라인으로 보고 진행) → `loadProfile(1)`은 받아온 기록에 그 전 진행을 **더한다**(`mergeRec(1)`).
+  저장 전 `mergeRec(0)`(XP·통계 max, 도전과제 OR, 서킷 비트 OR, 기록 min, 튜닝은 이번 판에 안 바꿨으면 서버 것) → 쓰기 → 2 s 뒤 `verifySave` → 밀려났으면 `rand(0.2,1.6)·min(6,n)` s 뒤 재시도(포기하지 않음).
+  랭킹은 `lapDone`이 `pendRk/pendG`에 적어 두고 조용한 화면에서 `rankStep`이 등록 → 2 s 뒤 확인 → 재시도. 조용한 화면에 일시정지·예선 결과도 넣었다.
+- 시험: `node t7/multi.mjs [지연ms] [welcome s]` — sim의 `R.rtNet`에 서버 모델을 꽂는다(ejs JS 백엔드가 `RT_*`를 `R.rtGet/rtSet`으로 보낸다).
+  120 ms/3 s ×3회, 400 ms/6 s 모두 A~E PASS. `t7/prof.mjs`는 서버가 없으니 13 s 기다린다.
+- 남는 한계: 같은 사람이 두 기기에서 **동시에** 플레이하면 XP는 큰 쪽만 남는다(더해지지 않는다). 실시간 변수 한 개의 길이 제한은 여전히 모른다.
+
 ## 소리는 MP3 (v8 이후 수정)
 - 온라인 엔트리는 WAV 업로드를 받지 않는다. `enginewav.mjs toMp3()`가 `lame -m m -b 64`(없으면 ffmpeg)로 인코딩한다(엔진 64 kbps, 다른 차 48 kbps).
 - 크롬 decodeAudioData는 LAME 갭리스 헤더를 무시해 앞뒤에 무음이 붙는다(0.5 s → 0.576 s). 그래서 루프 재시작을 엔진 0.14 s, 다른 차 0.10 s 앞당겨 겹친다.

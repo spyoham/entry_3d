@@ -361,7 +361,7 @@ function drawTrkSel() {
 function hudMenu() {
     tx(9, 'ENTRY RACING 3D', 0 - 232, 116, 21, C_WHITE, 1);
     tx(10, 'F1 EDITION  /  v8', 0 - 232, 96, 8, C_WHITE, 1);
-    tx(13, str('LV ', pLv, '  ', pNick), 0 - 80, 96, 8, C_GOLD, 1);
+    tx(13, pLoaded > 0 ? str('LV ', pLv, '  ', pNick) : 'LOADING SAVE...', 0 - 80, 96, 8, C_GOLD, 1);
     let i = 1;
     while (i <= NMENU) {
         rowY(i);
@@ -699,6 +699,7 @@ function tuneKeys() {
     else if (actKey == 27) { raceState = ST_MENU; nCars = 0; pDirty = 1; }
 }
 function tuneStep(d) {
+    tuneTouched = 1;
     levelFromXP();
     if (tuRow <= 4) {
         let v = upE;
@@ -840,7 +841,12 @@ function hudProf() {
         tx(24, str(pLv), 0 - 170, 50, 22, C_WHITE, 0);
         tx(25, pNick, 0 - 120, 74, 16, C_GOLD, 1);
         tx(26, str('LEVEL ', pLv, '    ', pXP, ' XP    ', pLvNeed - pLvXP, ' TO THE NEXT LEVEL'), 0 - 120, 56, 8, C_WHITE, 1);
-        tx(27, pGuest > 0 ? 'GUEST - SIGN IN TO KEEP YOUR PROGRESS ONLINE' : str('SAVED ONLINE  (SLOT ', pSh, ')'), 0 - 120, 24, 7, pGuest > 0 ? C_ACC : C_DIM, 1);
+        let sv = str('SAVED ONLINE  (SLOT ', pSh, ')');
+        if (pSync == 2) { sv = str('SAVING  (SLOT ', pSh, ' - NO SERVER REPLY YET, KEPT IF OFFLINE)'); }
+        if (pVerN > 0) { sv = str('SAVING AGAIN - SOMEONE ELSE SAVED AT THE SAME MOMENT (TRY ', pVerN, ')'); }
+        if (pGuest > 0) { sv = 'GUEST - SIGN IN TO KEEP YOUR PROGRESS ONLINE'; }
+        if (pLoaded < 1) { sv = 'LOADING YOUR SAVE...'; }
+        tx(27, sv, 0 - 120, 24, 7, pGuest > 0 ? C_ACC : C_DIM, 1);
         tx(28, str('RACES  ', stRaces), 0 - 200, 0 - 4, 9, C_WHITE, 1);
         tx(29, str('WINS  ', stWins), 0 - 200, 0 - 20, 9, C_WHITE, 1);
         tx(30, str('PODIUMS  ', stPods), 0 - 200, 0 - 36, 9, C_WHITE, 1);

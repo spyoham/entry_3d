@@ -393,9 +393,8 @@ on('start', 'pen3', function () {
             }
         }
         engineSound();
-        // v8: the saved game is read once the real-time variables have had
-        // a moment to arrive, then kept up to date
-        if (pLoaded < 1) { if (gt > 1.5) { loadProfile(); } }
+        // v8: the saved game - loaded once the real-time variables have
+        // arrived, then saved, checked and ranked at quiet moments
         profileStep();
         updateHud();
     }

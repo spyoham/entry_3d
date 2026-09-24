@@ -10,7 +10,7 @@ const ok = (c, m) => console.log((c ? 'PASS ' : 'FAIL ') + m);
 
 // ---- alice races one lap -------------------------------------------------
 s.R.nick = 'alice';
-run(2.5);
+run(13);                 // no server in this test: the save counts as synced after 12 s
 ok(+g('pLoaded') === 1 && +g('pGuest') === 0 && g('pNick') === 'alice', `profile loaded for alice (shard ${g('pSh')})`);
 g(`rules = 1; wx = 1; gfx = 2; lapSel = 1; gMode = 1; aiDiff = 1; applyWeather(); selTrk = ${trk}; buildTrack(${trk}); startRace();`);
 g(`playerInput = function(){ aiPlan(1); aiDrive(1); }`);

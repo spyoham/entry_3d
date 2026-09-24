@@ -1188,6 +1188,7 @@ export function buildData() {
     lists.rkN = new Array(C.NRANK + 2).fill('-'); lists.rkT = zeros(C.NRANK + 2);
     lists.achGot = zeros(C.NACH + 1); lists.popQ = zeros(33);
     lists.recNm = new Array(C.NTRK + 1).fill('-'); lists.recWR = zeros(C.NTRK + 1);
+    lists.pendRk = zeros(C.NTRK + 1); lists.pendG = zeros(C.NTRK + 1);
     // time into the lap at each ring: best lap and the current one (live delta)
     lists.bsT = zeros(R + 1); lists.csT = zeros(R + 1);
     lists.sgDRS = zeros(R); lists.sgGrid = zeros(R);

@@ -519,7 +519,8 @@ export function compileToJS(sources) {
             case 'Literal': return JSON.stringify(n.value);
             case 'ArrayExpression': return '[' + n.elements.map(E).join(',') + ']';
             case 'TemplateLiteral': return '(' + n.quasis.map((q, i) => JSON.stringify(q.value.cooked) + (i < n.expressions.length ? '+R.s(' + E(n.expressions[i]) + ')' : '')).join('+') + ')';
-            case 'Identifier': return n.name;
+            // v8: real-time variables go through the runtime (the sim models the server)
+            case 'Identifier': return n.name.startsWith('RT_') ? `R.rtGet(${JSON.stringify(n.name)})` : n.name;
             case 'UnaryExpression': return `(${n.operator}${E(n.argument)})`;
             case 'BinaryExpression':
                 if (n.operator === '%') return `R.mod(${E(n.left)},${E(n.right)})`;
@@ -550,6 +551,7 @@ export function compileToJS(sources) {
                     if (n.operator === '=') return `R.set(${L},${E(n.left.property)},${E(n.right)},${JSON.stringify(L)})`;
                     return `R.set(${L},R.$i=(${E(n.left.property)}),R.get(${L},R.$i,${JSON.stringify(L)})${n.operator[0]}(${E(n.right)}),${JSON.stringify(L)})`;
                 }
+                if (n.left.name.startsWith('RT_')) return `R.rtSet(${JSON.stringify(n.left.name)},${E(n.right)})`;
                 return `${n.left.name}${n.operator}${E(n.right)}`;
             case 'UpdateExpression':
                 if (n.argument.type === 'MemberExpression') return `R.set(${n.argument.object.name},R.$i=(${E(n.argument.property)}),R.get(${n.argument.object.name},R.$i)${n.operator[0]}1)`;
@@ -581,6 +583,8 @@ export function compileToJS(sources) {
         if (st.type === 'ExpressionStatement' && st.expression.type === 'CallExpression' && st.expression.callee.name === 'on') {
             const [ev, obj, fn] = st.expression.arguments;
             parts.push(`R.on(${JSON.stringify(ev.value)},${JSON.stringify(obj.value)},function*(){${Sb(fn.body)}});`);
+        } else if (st.type === 'VariableDeclaration' && st.kind !== 'const' && st.declarations[0].id.name.startsWith('RT_')) {
+            parts.push(st.declarations.map(d => `R.rtDefault(${JSON.stringify(d.id.name)},${E(d.init)});`).join(''));
         } else if (st.type === 'VariableDeclaration' && st.kind !== 'const') {
             parts.push('let ' + st.declarations.map(d => d.id.name + '=' + (d.init && d.init.type === 'ArrayExpression' ? '(R.data && R.data[' + JSON.stringify(d.id.name) + '] ? R.data[' + JSON.stringify(d.id.name) + '].slice() : ' + E(d.init) + ')' : (d.init ? E(d.init) : '0'))).join(',') + ';');
         } else parts.push(S(st));
