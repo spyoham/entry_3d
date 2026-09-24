@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "tessvm 실시간 변수 보정",
+  "version": "1.0.0",
+  "description": "tessvm 0.3.x에서 엔트리 실시간 변수가 저장되지 않는 문제를 tessvm이 고쳐질 때까지 임시로 바로잡습니다.",
+  "content_scripts": [
+    {
+      "matches": ["https://playentry.org/*"],
+      "exclude_matches": ["https://playentry.org/ws*", "https://playentry.org/iframe/*"],
+      "js": ["hook.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": false
+    }
+  ]
+}
