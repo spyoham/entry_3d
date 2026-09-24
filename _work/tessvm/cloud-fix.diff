@@ -1,0 +1,57 @@
+--- a/cloud.js	2026-09-24 21:21:17
++++ b/cloud.js	2026-09-24 21:21:17
+@@ -103,6 +103,7 @@
+                 const arr = JSON.parse(msg.slice(bracketIdx));
+                 if (arr[0] === 'welcome' && arr[1]) {
+                   this.handleWelcome(arr[1]);
++                  this.flushPending();
+                 } else if (arr[0] === 'action' && arr[1]) {
+                   this.handleAction(arr[1]);
+                 }
+@@ -160,7 +161,8 @@
+     
+     if (action.variableType === 'variable') {
+       if (action.type === 'set') {
+-        this.values.set(tessId, action.data);
++        // Entry's dmetVariable 'set' operation carries `value`, not `data`
++        this.values.set(tessId, action.value !== undefined ? action.value : action.data);
+         this.onRemoteChange?.();
+       }
+     } else if (action.variableType === 'list') {
+@@ -196,7 +198,9 @@
+     if (!isList) {
+       if (this.values.get(key) !== value) {
+         this.values.set(key, value);
+-        this.sendAction(key, "variable", { type: "set", data: value });
++        // Entry sends { type: 'set', value } for a variable (dmet.js); the
++        // server reads `value`, so `data` saved nothing
++        this.sendAction(key, "variable", { type: "set", value });
+       }
+       return;
+     }
+@@ -243,8 +247,23 @@
+     }
+   }
+ 
+-          sendAction(tessId        , variableType        , actionData     ) {
+-    if (this.ws?.readyState === WebSocket.OPEN) {
++          pendingActions = [];
++
++  flushPending() {
++    const queued = this.pendingActions;
++    this.pendingActions = [];
++    for (const [tessId, variableType, actionData] of queued) {
++      this.sendAction(tessId, variableType, actionData);
++    }
++  }
++
++  sendAction(tessId        , variableType        , actionData     ) {
++    if (this.ws?.readyState !== WebSocket.OPEN) {
++      // not connected yet (or reconnecting): keep it, instead of dropping it
++      this.pendingActions.push([tessId, variableType, actionData]);
++      return;
++    }
++    {
+       const entryId = this.tessIdToEntryId.get(tessId);
+       const _id = this.variableMongoIds.get(tessId);
+       if (!entryId || !_id) return;

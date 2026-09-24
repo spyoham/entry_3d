@@ -361,7 +361,9 @@ function drawTrkSel() {
 function hudMenu() {
     tx(9, 'ENTRY RACING 3D', 0 - 232, 116, 21, C_WHITE, 1);
     tx(10, 'F1 EDITION  /  v8', 0 - 232, 96, 8, C_WHITE, 1);
-    tx(13, pLoaded > 0 ? str('LV ', pLv, '  ', pNick) : 'LOADING SAVE...', 0 - 80, 96, 8, C_GOLD, 1);
+    let lvl = pLoaded > 0 ? str('LV ', pLv, '  ', pNick) : 'LOADING SAVE...';
+    if ($TESSVM == 1) { if (pGuest < 1) { lvl = str(lvl, '  (NOT SAVED)'); } }
+    tx(13, lvl, 0 - 80, 96, 8, C_GOLD, 1);
     let i = 1;
     while (i <= NMENU) {
         rowY(i);
@@ -876,6 +878,7 @@ function hudProf() {
         if (pVerN > 0) { sv = str('SAVING AGAIN - SOMEONE ELSE SAVED AT THE SAME MOMENT (TRY ', pVerN, ')'); }
         if (pGuest > 0) { sv = 'GUEST - SIGN IN TO KEEP YOUR PROGRESS ONLINE'; }
         if (pLoaded < 1) { sv = 'LOADING YOUR SAVE...'; }
+        if ($TESSVM == 1) { if (pGuest < 1) { sv = 'TESSVM EXTENSION: SAVE IS READ-ONLY (ITS ONLINE WRITES ARE BROKEN) - TURN IT OFF TO SAVE'; } }
         tx(27, sv, 0 - 120, 24, 7, pGuest > 0 ? C_ACC : C_DIM, 1);
         tx(28, str('RACES  ', stRaces), 0 - 200, 0 - 4, 9, C_WHITE, 1);
         tx(29, str('WINS  ', stWins), 0 - 200, 0 - 20, 9, C_WHITE, 1);

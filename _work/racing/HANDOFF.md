@@ -64,6 +64,13 @@ v7 소스는 git 기록에 있다(`40a8c73`). 로컬은 sparse-checkout이라 `b
   tessvm 하네스는 `trun.mjs --nick 이름`으로 로그인 사용자를 흉내 낸다.
 - 저장 확인(`verifySave`)은 현재 XP가 아니라 **저장한 XP**(`pSavedXP`)와 비교한다(저장 직후 XP가 늘면 충돌로 오인하던 문제).
 
+## tessvm에서 저장 안 됨 — 원인 (v8 이후)
+사용자: "tessvm 확장을 켜면 저장이 안 되지만 끄면 되는 것 같다(실시간 변수만 있는 작품에서 테스트)."
+- tessvm 0.3.9 `page/cloud.js`: 변수 set을 `{type:'set', data}`로 보낸다. 엔트리(dmet.js)는 `{type:'set', value}`이고 서버도 `value`를 읽는다.
+  받을 때도 `action.data`를 읽는다. 연결 전 쓰기는 버린다. 가짜 소켓으로 확인했고, 수정 diff는 `_work/tessvm/cloud-fix.diff`, 설명은 `_work/tessvm/tessvm-실시간변수-버그.md`.
+- 게임 대응: `profile.js writeOK()` — `$TESSVM == 1`이면 저장 칸, 랭킹, 고스트, RT_SYNC를 쓰지 않는다(읽기는 한다).
+  메뉴에 "(NOT SAVED)", PROFILE에 안내. 확장이 고쳐지면 이 조건만 지운다.
+
 ## 소리는 MP3 (v8 이후 수정)
 - 온라인 엔트리는 WAV 업로드를 받지 않는다. `enginewav.mjs toMp3()`가 `lame -m m -b 64`(없으면 ffmpeg)로 인코딩한다(엔진 64 kbps, 다른 차 48 kbps).
 - 크롬 decodeAudioData는 LAME 갭리스 헤더를 무시해 앞뒤에 무음이 붙는다(0.5 s → 0.576 s). 그래서 루프 재시작을 엔진 0.14 s, 다른 차 0.10 s 앞당겨 겹친다.
