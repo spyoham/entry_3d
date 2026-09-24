@@ -416,21 +416,10 @@ function loadProfile(addMode) {
     pDirty = 1;
 }
 
-// Under the tessvm extension (0.3.9) a real-time variable write reaches the
-// server as {..., data: v} where Entry sends {..., value: v}; the server
-// reads `value`, so the save would be lost or blanked - for everybody in
-// that slot. Under tessvm the save is therefore read but never written.
-function writeOK() {
-    oWOK = 1;
-    if ($TESSVM == 1) { oWOK = 0; }
-}
-let oWOK = 1;
-
 function saveProfile() {
     pDirty = 0;
     pSaveT = 3;
-    writeOK();
-    if (pGuest < 1) { if (oWOK > 0) {
+    if (pGuest < 1) {
         // take in whatever the server has for this player first
         findMine();
         if (oMine > 0) { mergeRec(0); }
@@ -471,7 +460,7 @@ function saveProfile() {
         // someone else may have written the same shard at the same moment:
         // look again once the dust has settled
         pVerT = 2;
-    } }
+    }
 }
 
 // was the last save kept? (a record with at least the XP it wrote must be there)
@@ -547,8 +536,8 @@ function rankStep() {
                 pRkLt = pendRk[t];
                 pendRk[t] = 0;
                 if (pRkN < 1) { pRkN = 0; }
-                writeOK();
-                if (oWOK > 0) { rankSubmit(t, pRkLt); pRkT = 2; }
+                rankSubmit(t, pRkLt);
+                pRkT = 2;
                 t = NTRK;
             }
             t = t + 1;

@@ -1,3 +1,17 @@
+# ENTRY RACING 3D — 작업 인계 메모 (2026-09-25, v10)
+
+산출물: `3D 레이싱 v10.ent` ← 최신, 설명서 `3D 레이싱 v10 설명서.md` (v9는 루트 `old/`로)
+빌드: `node build.mjs racing10.ent` → `globals 371, lists 409, functions 265, handlers 3`
+
+## 요청과 한 것
+"그냥 항상 저장을 시도하도록 바꿔줘" (tessvm 제작자가 몇 달 안에 고친다고 답함, 그동안은 보조 확장 `_work/tessvm-cloudfix`)
+- `profile.js`: `writeOK()`/`oWOK` 삭제 → `saveProfile`, `rankStep`의 `rankSubmit`이 `$TESSVM`과 상관없이 쓴다.
+- `menu.js`: "(NOT SAVED)", "SAVE IS READ-ONLY" 안내 삭제, 버전 표시 v10.
+- 아래 v8 절의 "tessvm에서 저장 안 됨 — 게임 대응"은 이제 지난 이야기다. tessvm만(보정 확장 없이) 쓰면 저장 확인이 실패해 재시도가 이어진다.
+- 시험: `t7/multi.mjs` A–G PASS (JIT=300 포함). 실제 서버 + tessvm + 보정 확장은 미확인.
+
+---
+
 # ENTRY RACING 3D — 작업 인계 메모 (2026-09-25, v9)
 
 산출물: `3D 레이싱 v9.ent` ← 최신, 설명서 `3D 레이싱 v9 설명서.md` (v8 파일은 루트 `old/`로 옮김 — 사용자 규칙: 루트에는 작품별 최신판만)
