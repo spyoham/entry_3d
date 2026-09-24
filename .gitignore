@@ -26,3 +26,13 @@ _work/doom/freedoom-*/
 node_modules/
 __pycache__/
 *.pyc
+
+# tessvm 확장(제3자 코드, CRX에서 다시 받기)과 테스트 산출물 — 하네스 페이지만 포함
+_work/tessvm/ext/*
+!_work/tessvm/ext/harness/
+_work/tessvm/*.crx
+_work/tessvm/t.zip
+_work/tessvm/ent/
+_work/tessvm/shots/
+_work/tessvm/*.png
+_work/tessvm/tsrv.log

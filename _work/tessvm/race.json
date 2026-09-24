@@ -1,0 +1,6 @@
+[{"wait":3000,"fps":"menu"},{"wait":3000,"fps":"menu","shot":"m.png"},
+{"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":200},{"up":{"code":"Enter","key":"Enter","keyCode":13}},
+{"wait":5000,"fps":"count"},
+{"down":{"code":"KeyW","key":"w","keyCode":87}},
+{"wait":5000,"fps":"race1","shot":"r1.png"},{"wait":5000,"fps":"race2","shot":"r2.png"},{"wait":5000,"fps":"race3"},
+{"vars":1}]

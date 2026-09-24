@@ -1,0 +1,4 @@
+[{"wait":2000},
+{"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":200},{"up":{"code":"Enter","key":"Enter","keyCode":13}},
+{"wait":2000},{"down":{"code":"KeyW","key":"w","keyCode":87}},{"wait":4000},
+{"eval":"(()=>{const vm=window.__vm; const out={}; const dec=x=>{x=Number(x); if(!isFinite(x)||Number.isInteger(x)) return 0; const s=String(x); const i=s.indexOf('.'); return i<0?99:s.length-i-1}; for(const v of vm.variables){ if(v.array){ const a=v.array.slice(0,400).map(d=>d.data); const nums=a.filter(x=>typeof x==='number'||(x!==''&&!isNaN(Number(x)))); if(!nums.length) continue; const sh=nums.filter(x=>{const d=dec(x); return d>0&&d<10}).length; if(sh>nums.length*0.3) out[v.name]=[sh+'/'+nums.length, a.slice(0,4)]; } else { const d=dec(v.value); if(d>0&&d<10) out[v.name]=v.value; } } return out})()"}]

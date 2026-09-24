@@ -60,7 +60,9 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
                 const name = d.id.name;
                 if (st.kind === 'const') { consts[name] = evalConst(d.init); continue; }
                 if (d.init && d.init.type === 'ArrayExpression') lists.set(name, { id: newId(), init: d.init.elements.map(evalConst) });
-                else globals.set(name, { id: newId(), init: d.init ? evalConst(d.init) : 0 });
+                // `let obj$name` is a variable of object `obj` alone: every
+                // clone of it gets its own copy (Entry's object-scoped variable)
+                else globals.set(name, { id: newId(), init: d.init ? evalConst(d.init) : 0, object: name.includes('$') && !name.startsWith('$') ? name.slice(0, name.indexOf('$')) : null });
             }
         } else if (st.type === 'FunctionDeclaration') {
             const name = st.id.name;
@@ -280,6 +282,8 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
             case 'volume': return B('sound_volume_set', [A(0), null]);
             case 'write': return B('text_write', [A(0), null]);
             case 'textColor': return B('text_change_font_color', [B('color', [String(evalConst(args[0]))]), null]);
+            case 'textColorHex': return B('text_change_font_color', [A(0), null]);
+            case 'dateSec': return B('get_date', [null, 'SECOND', null]);
             case 'broadcast': return B('message_cast', [messageId(evalConst(args[0])), null]);
             case 'timerReset': return B('choose_project_timer_action', [null, 'RESET', null, null]);
             case 'timerStart': return B('choose_project_timer_action', [null, 'START', null, null]);
@@ -474,7 +478,7 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
     });
 
     const variables = [];
-    for (const [name, g] of globals) variables.push({ name, id: g.id, value: g.init, variableType: 'variable', visible: false, isCloud: false, isRealTime: false, cloudDate: false, object: null, x: 0, y: 0 });
+    for (const [name, g] of globals) variables.push({ name, id: g.id, value: g.init, variableType: 'variable', visible: false, isCloud: false, isRealTime: false, cloudDate: false, object: g.object || null, x: 0, y: 0 });
     for (const [name, l] of lists) variables.push({ name, id: l.id, value: 0, variableType: 'list', visible: false, isCloud: false, isRealTime: false, cloudDate: false, object: null, x: 0, y: 0, width: 100, height: 120,
         array: l.init.map((v, i) => ({ id: `${l.id}_${i}`, data: v })) });
     variables.sort((a, b) => (use.get(b.id) || 0) - (use.get(a.id) || 0));

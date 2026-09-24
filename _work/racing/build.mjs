@@ -12,7 +12,7 @@ import { buildF1 } from './f1tracks.mjs';
 import { f1Car } from './f1car.mjs';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'editor.js', 'hud.js', 'main.js'];
+export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'editor.js', 'menu.js', 'hud.js', 'main.js'];
 
 // ============================================================
 // constants shared with the EJS sources
@@ -38,7 +38,11 @@ export const C = {
     NCARV: 272,         // vertices in the car model (both LOD tiers)
     NCARF: 140,         // faces in the car model
     NSCENE: 1500,       // scenery instances placed around a circuit
-    GHOST: 9,           // car slot of the time-trial ghost (NCAR + 1)
+    GHOST: 9,
+    NTX: 64,            // v6: text slots, one clone of the text object each
+    TXW: 1000, TXH: 28, TXF: 20,     // text box: fixed width/height, font px
+    TXCW: 0.5,          // monospace advance, em per character
+    NMAP: 64,           // centreline samples in the 3D circuit map           // car slot of the time-trial ghost (NCAR + 1)
     NGH: 3000,          // ghost samples per lap (every GHDT s -> 5 minutes)
     GHDT: 0.1,          // ghost sample interval, seconds
     RLPASS: 90,         // relaxation passes for the racing line
@@ -799,6 +803,13 @@ export function carModel() {
 // data lists
 // ============================================================
 const NSAMP_MAX = 1200;
+// lists whose fractional values are read back as exact decimals
+const NO_JITTER = new Set(['lmU']);
+export function longTail(x) {
+    if (typeof x !== 'number' || Number.isInteger(x) || !isFinite(x)) return x;
+    return x * (1 + Math.PI * 1e-10);
+}
+
 export function buildData() {
     const lists = {};
     const consts = {};
@@ -833,6 +844,8 @@ export function buildData() {
     lists.trkHillK = TT.map(t => t.hill[0]);
     lists.trkHillT = TT.map(t => t.hill[1]);
     lists.trkTheme = TT.map(t => t.theme);
+    lists.trkTurns = TT.map(t => t.turnsN || 0);
+    lists.trkType = TT.map(t => (t === ED ? 'YOUR DESIGN' : t.walls ? 'STREET CIRCUIT' : 'PERMANENT'));
 
     // Palette. The fogged colour table is built at track load from these
     // three lists (NMAT x NFOG rgb() calls, once), which keeps eight skies'
@@ -880,14 +893,18 @@ export function buildData() {
     if (CM.F.length > C.NCARF) throw new Error('car faces ' + CM.F.length);
     consts.NCV = CM.V.length; consts.NCF = CM.F.length;
     consts.NCVLO = CM.vLo; consts.NCFLO = CM.fLo; consts.NCFHI = CM.F.length - CM.fLo;
-    lists.cvX = CM.V.map(p => p[0]); lists.cvY = CM.V.map(p => p[1]); lists.cvZ = CM.V.map(p => p[2]);
-    lists.cvP = CM.PIV.map(p => p[0]); lists.cvPX = CM.PIV.map(p => p[1]); lists.cvPZ = CM.PIV.map(p => p[2]);
+    // v6: whole millimetres, so the renderer's per-vertex transform is integer
+    // arithmetic (see QS/BS in render.js)
+    const mm = (x) => Math.round(x * 1000);
+    lists.cvX = CM.V.map(p => mm(p[0])); lists.cvY = CM.V.map(p => mm(p[1])); lists.cvZ = CM.V.map(p => mm(p[2]));
+    lists.cvP = CM.PIV.map(p => p[0]); lists.cvPX = CM.PIV.map(p => mm(p[1])); lists.cvPZ = CM.PIV.map(p => mm(p[2]));
     lists.cfA = CM.F.map(f => f.q[0]); lists.cfB = CM.F.map(f => f.q[1]); lists.cfC = CM.F.map(f => f.q[2]); lists.cfD = CM.F.map(f => f.q[3]);
     lists.cfK = CM.F.map(f => f.k);
-    lists.cnX = CM.N.map(n => n[0]); lists.cnY = CM.N.map(n => n[1]); lists.cnZ = CM.N.map(n => n[2]);
+    // normals x1024, plane offsets in mm x1024
+    lists.cnX = CM.N.map(n => Math.round(n[0] * 1024)); lists.cnY = CM.N.map(n => Math.round(n[1] * 1024)); lists.cnZ = CM.N.map(n => Math.round(n[2] * 1024));
     // plane offset of each face along its normal: the camera is in front of
     // face f when n . camLocal > cfP[f]
-    lists.cfP = CM.F.map((f, i) => { const v = CM.V[f.q[0] - 1], n = CM.N[i]; return +(n[0] * v[0] + n[1] * v[1] + n[2] * v[2]).toFixed(4); });
+    lists.cfP = CM.F.map((f, i) => { const v = CM.V[f.q[0] - 1], n = CM.N[i]; return Math.round((n[0] * v[0] + n[1] * v[1] + n[2] * v[2]) * 1000 * 1024); });
     lists.coLo = CM.ordLo; lists.coHi = CM.ordHi;
     // liveries: primary, accent, helmet; slot 9 is the ghost
     const LIV = [
@@ -914,7 +931,14 @@ export function buildData() {
     const SM = sceneryModels();
     if (Math.max(...SM.T.map(t => t.vn)) > C.NSCNV) throw new Error('scenery model too big');
     consts.NSCNT = SM.T.length;
-    lists.gvX = SM.V.map(p => p[0]); lists.gvY = SM.V.map(p => p[1]); lists.gvZ = SM.V.map(p => p[2]);
+    // v6: whole centimetres (the models are built on a 1 cm grid)
+    lists.gvX = SM.V.map(p => Math.round(p[0] * 100)); lists.gvY = SM.V.map(p => Math.round(p[1] * 100)); lists.gvZ = SM.V.map(p => Math.round(p[2] * 100));
+    // bounding radius about the model origin (cm), for frustum culling; and the
+    // footprint box (m) the placement check keeps off the track
+    lists.gtR = SM.T.map(t => { let r = 0; for (let v = t.v0 + 1; v <= t.v0 + t.vn; v++) { const q = SM.V[v - 1]; r = Math.max(r, Math.hypot(q[0], q[1], q[2])); } return Math.ceil(r * 100) + 1; });
+    const ext = (t, k, f) => { let e = f === 'min' ? 1e9 : -1e9; for (let v = t.v0 + 1; v <= t.v0 + t.vn; v++) { const q = SM.V[v - 1][k]; e = f === 'min' ? Math.min(e, q) : Math.max(e, q); } return e; };
+    lists.gtX0 = SM.T.map(t => ext(t, 0, 'min')); lists.gtX1 = SM.T.map(t => ext(t, 0, 'max'));
+    lists.gtZ0 = SM.T.map(t => ext(t, 2, 'min')); lists.gtZ1 = SM.T.map(t => ext(t, 2, 'max'));
     lists.gfA = SM.F.map(f => f[0]); lists.gfB = SM.F.map(f => f[1]);
     lists.gfC = SM.F.map(f => f[2]); lists.gfD = SM.F.map(f => f[3]); lists.gfM = SM.F.map(f => f[4]);
     lists.gtV0 = SM.T.map(t => t.v0); lists.gtVN = SM.T.map(t => t.vn);
@@ -950,8 +974,29 @@ export function buildData() {
     ];
     lists.ctInfo = ['BALANCED ALL-ROUNDER', 'LOW DRAG - FAST ON THE STRAIGHTS', 'HIGH DOWNFORCE - FAST IN CORNERS', 'TRACTION - QUICK OUT OF SLOW CORNERS'];
     consts.NCARTYPE = CARS.length;
+    consts.TXSZ = (C.TXW + C.TXH) / 2 / C.TXF;
     lists.ctName = CARS.map(c => c.n); lists.ctAcc = CARS.map(c => c.acc); lists.ctTop = CARS.map(c => c.top);
     lists.ctGrip = CARS.map(c => c.grip); lists.ctMass = CARS.map(c => c.mass); lists.ctCol = CARS.map(c => c.col);
+    // v6 showroom figures, from the same longitudinal / grip model as phys.js
+    const perf = CARS.map((c) => {
+        let v = 0, t = 0, t100 = 0, t200 = 0; const dt = 0.002;
+        while (v < 200 / 3.6 && t < 60) {
+            const f = Math.max(0, 1 - v / c.top);
+            const a = c.acc * (0.18 + 0.82 * f * (0.45 + 0.55 * f)) - v * v * 0.00013 - v * 0.020;
+            v = Math.min(c.top, v + a * dt); t += dt;
+            if (!t100 && v >= 100 / 3.6) t100 = t;
+        }
+        t200 = t;
+        const g = (kmh) => c.grip * (15.5 + 0.0019 * (kmh / 3.6) ** 2) / 9.81;
+        return { kmh: Math.round(c.top * 3.6), t100, t200, gl: g(100), gh: g(250), kg: Math.round(798 * c.mass) };
+    });
+    const f1 = (x) => (Math.round(x * 10) / 10).toFixed(1), f2 = (x) => (Math.round(x * 100) / 100).toFixed(2);
+    lists.ctKmh = perf.map(p => p.kmh); lists.ct100 = perf.map(p => f2(p.t100)); lists.ct200 = perf.map(p => f2(p.t200));
+    lists.ctGL = perf.map(p => f1(p.gl)); lists.ctGH = perf.map(p => f1(p.gh)); lists.ctKg = perf.map(p => p.kg);
+    // meter fill 0..1 on fixed scales (so the bars compare across the cars)
+    const bar = (x, lo, hi) => +Math.min(1, Math.max(0.04, (x - lo) / (hi - lo))).toFixed(3);
+    lists.ctB1 = perf.map(p => bar(p.kmh, 290, 352)); lists.ctB2 = perf.map(p => bar(-p.t200, -6.6, -5.0));
+    lists.ctB3 = perf.map(p => bar(p.gl, 1.35, 2.05)); lists.ctB4 = perf.map(p => bar(p.gh, 2.0, 2.95));
 
     // ---- AI difficulty: scales the whole opponent field ----
     const DIFF = [
@@ -966,6 +1011,11 @@ export function buildData() {
 
     // ---- v5 menu options ----
     lists.modeName = ['GRAND PRIX', 'CHAMPIONSHIP', 'TIME TRIAL'];
+    lists.modeD1 = ['ONE RACE AGAINST 7 AI DRIVERS', 'ALL 8 CIRCUITS, ONE AFTER ANOTHER', 'ALONE ON TRACK, UNLIMITED LAPS'];
+    lists.modeD2 = ['PICK THE CIRCUIT AND THE LAPS', 'POINTS 25-18-15-12-10-8-6-4', 'CHASE YOUR BEST-LAP GHOST'];
+    lists.modeD3 = ['SLIPSTREAM AND DRS FROM LAP 2', 'MOST POINTS AFTER ROUND 8 WINS', 'SECTOR TIMES AND LIVE DELTA'];
+    lists.aiD = ['FORGIVING - LEARN THE CIRCUITS', 'STEADY PACE, FEW MISTAKES', 'CLOSE RACING AT A REAL PACE', 'FAST AND ON THE LIMIT', 'FASTER THAN THE CARS ALLOW'];
+    lists.gfxD = ['FASTEST - FOR PLAIN ENTRY', 'BALANCED - RECOMMENDED', 'EVERYTHING ON - FOR TESSVM'];
     lists.lapOpt = [1, 3, 5, 10];
     lists.wxName = ['DRY', 'RAIN'];
     lists.gfxName = ['LOW', 'HIGH', 'ULTRA'];
@@ -996,6 +1046,10 @@ export function buildData() {
     lists.clipX = zeros(10); lists.clipY = zeros(10);
     for (const k of ['tsX', 'tsY', 'tsZ', 'tsW', 'tsF', 'tsA']) lists[k] = zeros(NSAMP_MAX + 2);
     lists.visI = zeros(N + 8); lists.visD = zeros(N + 8); lists.visS = zeros(N + 8);
+    // v6 text slots (hud.js) and the relief map (menu.js)
+    for (const k of ['txS', 'txX', 'txY', 'txZ', 'txC', 'txV']) lists[k] = zeros(C.NTX + 1);
+    for (const k of ['mpX', 'mpY', 'mpZ', 'mpNX', 'mpNZ']) lists[k] = zeros(C.NMAP + 1);
+    for (const k of ['mapSX', 'mapSY', 'mapTX', 'mapTY']) lists[k] = zeros(2 * C.NMAP + 2);
     // cars
     const NC = C.NCAR;
     for (const k of ['caX', 'caY', 'caZ', 'caYaw', 'caVX', 'caVZ', 'caVY', 'caYR', 'caSeg', 'caLap', 'caCP', 'caProg', 'caRank',
@@ -1024,6 +1078,16 @@ export function buildData() {
     lists.cpSeg = zeros(C.NCPMAX + 1);
 
     for (const [k, v] of Object.entries(lists)) if (v.length > 5000) throw new Error(`list ${k} has ${v.length} items; Entry caps a list at 5000`);
+    // v6: tessvm reproduces Entry's decimal arithmetic. An operand with a short
+    // decimal tail (0.12, 5.2) sends every + - x through a digit search and
+    // often a toFixed() round trip, and the result keeps a short tail, so the
+    // slow path spreads from the model data into the whole frame. Nudging each
+    // fractional constant by a relative 3e-10 gives it a full-length mantissa
+    // (the fast path) without changing anything that can be seen.
+    for (const k of Object.keys(lists)) {
+        if (NO_JITTER.has(k)) continue;
+        lists[k] = lists[k].map(longTail);
+    }
     return { lists, consts, mats, idx };
 }
 
@@ -1035,42 +1099,8 @@ export const FUNC_WEIGHTS = { projectRing: 40, quad: 60, drawSeg: 20, carPhys: 8
 // ============================================================
 // .ent
 // ============================================================
-const TEXTS = [
-    // Entry.TEXT_ALIGNS = ['center','left','right'] -> 0 centre, 1 left, 2 right
-    // id,      x,    y,   size, colour,     align
-    ['tSpd', -196, -104, 22, '#ffffff', 1],
-    ['tSpdU', -196, -126, 11, '#a8b0c0', 1],
-    ['tLap', 196, 112, 18, '#ffffff', 2],
-    ['tPos', 196, 88, 18, '#ffd24a', 2],
-    ['tTime', -196, 112, 16, '#ffffff', 1],
-    ['tBest', -196, 92, 12, '#9fd8ff', 1],
-    ['tLast', -196, 76, 12, '#c8c8d2', 1],
-    ['tDrift', 0, 96, 20, '#ffe05a', 0],
-    ['tBig', 0, 14, 40, '#ffffff', 0],
-    ['tSub', 0, -26, 14, '#e0e6f2', 0],
-    ['tMsg', 0, -128, 12, '#cfd6e6', 0],
-    ['tM1', 0, 56, 13, '#ffffff', 0],
-    ['tM2', 0, 40, 13, '#ffffff', 0],
-    ['tM3', 0, 24, 13, '#ffffff', 0],
-    ['tM4', 0, 8, 13, '#ffffff', 0],
-    ['tM5', 0, -8, 13, '#ffffff', 0],
-    ['tM6', 0, -24, 13, '#ffffff', 0],
-    ['tM7', 0, -40, 13, '#ffffff', 0],
-    ['tM8', 0, -56, 13, '#ffffff', 0],
-    ['tM9', 0, -72, 13, '#ffffff', 0],
-    ['tHelp', 0, -100, 11, '#93a0bb', 0],
-    ['tGear', -150, -104, 22, '#ffe05a', 1],
-    ['tDRS', -150, -126, 11, '#5a6270', 1],
-    ['tDelta', 0, 74, 13, '#7dff8a', 0],
-    ['tT1', -232, 58, 10, '#ffffff', 1],
-    ['tT2', -232, 47, 10, '#e6e9f0', 1],
-    ['tT3', -232, 36, 10, '#e6e9f0', 1],
-    ['tT4', -232, 25, 10, '#e6e9f0', 1],
-    ['tT5', -232, 14, 10, '#e6e9f0', 1],
-    ['tT6', -232, 3, 10, '#e6e9f0', 1],
-    ['tT7', -232, -8, 10, '#e6e9f0', 1],
-    ['tT8', -232, -19, 10, '#e6e9f0', 1],
-];
+// v6: one text object; hud.js clones it once per text slot
+const TEXTBOX = { font: 'bold 20px Nanum Gothic Coding' };
 
 export async function buildEnt(outFile, opts = {}) {
     const { packEnt } = await import('./pack.mjs');
@@ -1087,12 +1117,13 @@ export async function buildEnt(outFile, opts = {}) {
         '0d0000000f49444154789c636040020630c40000004900011ea9ec2c0000000049454e44ae426082', 'hex');
     const O = (id, name, extra = {}) => ({ id, name, script: prog.objectScripts[name] || [[]], ...extra });
     const objects = [];
-    for (const [id, x, y, size, colour, align] of TEXTS) {
-        objects.push(O(id, id, {
-            objectType: 'textBox', text: '',
-            entity: { x, y, colour, font: `${size}px Nanum Gothic Coding`, textAlign: align, lineBreak: false, bold: true, underLine: false, strike: false, italic: false, fontSize: size, width: 470, height: size + 6 },
-        }));
-    }
+    // Entry.TEXT_ALIGNS = ['center','left','right'] -> 1 is left. A line-break
+    // box keeps its width whatever it holds, so "set size" scales it exactly.
+    objects.push(O('txt', 'txt', {
+        objectType: 'textBox', text: '​',
+        entity: { x: 0, y: 0, colour: '#ffffff', bgColor: 'transparent', font: TEXTBOX.font, textAlign: 1, lineBreak: true, bold: true, underLine: false, strike: false, italic: false,
+            fontSize: D.consts.TXF, width: D.consts.TXW, height: D.consts.TXH, visible: false },
+    }));
     objects.push(O('pen3', 'pen3', { pictures: [{ id: '1', name: 'dot', buf: dot, w: 2, h: 2 }], entity: { x: 0, y: 0, visible: true } }));
     const project = packEnt(outFile, {
         name: 'ENTRY RACING 3D', tmpDir: path.join(HERE, '.pack'),

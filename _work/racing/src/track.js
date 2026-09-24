@@ -30,6 +30,9 @@ let roadBase = 0;          // asphalt family for this circuit
 let runStyle = 0;          // 0 walled, 1 gravel, 2 tarmac, 3 gravel slow / tarmac fast
 let hillK = 1;             // distant skyline height
 let hillT = 0;             // ...and kind: 0 ridges, 1 city blocks
+let drsN = 0;              // v6 menu facts, filled by buildTrack
+let trkElev = 0;
+let mapTop = 1;
 const RUNG = 16;           // gravel trap depth
 const RUNT = 13;           // tarmac run-off depth
 const RUNV = 3;            // plain grass verge
@@ -330,6 +333,15 @@ function buildTrack(tk) {
         i = i + 1;
     }
 
+    // v6: the renderer works in whole centimetres
+    i = 1;
+    while (i <= (NSEG + 1) * PPR) {
+        wvX[i] = Math.round(wvX[i] * WU);
+        wvY[i] = Math.round(wvY[i] * WU);
+        wvZ[i] = Math.round(wvZ[i] * WU);
+        i = i + 1;
+    }
+
     // ---- 6) per-segment materials ----
     i = 1;
     while (i <= NSEG) {
@@ -505,6 +517,36 @@ function buildTrack(tk) {
         i = i + 1;
     }
 
+    // ---- 9b) v6 menu facts: DRS zones, elevation range, the 3D map ----
+    drsN = 0;
+    let mnY = sgY[1];
+    let mxY = sgY[1];
+    i = 1;
+    while (i <= NSEG) {
+        if (sgDRS[i] == 2) { drsN = drsN + 1; }
+        if (sgY[i] < mnY) { mnY = sgY[i]; }
+        if (sgY[i] > mxY) { mxY = sgY[i]; }
+        i = i + 1;
+    }
+    trkElev = mxY - mnY;
+    let half = (mxX - mnX) / 2;
+    if ((mxZ - mnZ) / 2 > half) { half = (mxZ - mnZ) / 2; }
+    let ms = 1 / (half + 1);
+    // heights exaggerated, but never past a third of the map's size
+    let ey = ms * 3;
+    if (trkElev * ey > 0.34) { ey = 0.34 / (trkElev + 0.01); }
+    mapTop = trkElev * ey + 0.001;
+    i = 1;
+    while (i <= NMAP) {
+        let s = 1 + Math.floor((i - 1) * NSEG / NMAP);
+        mpX[i] = (sgX[s] - mmCx) * ms;
+        mpZ[i] = (sgZ[s] - mmCz) * ms;
+        mpY[i] = (sgY[s] - mnY) * ey;
+        mpNX[i] = sgNX[s];
+        mpNZ[i] = sgNZ[s];
+        i = i + 1;
+    }
+
     // ---- 10) the racing line ----
     buildRacingLine();
 
@@ -609,6 +651,13 @@ function scRnd() {
 }
 
 // place one object `dist` metres out from the centreline of segment i
+// v6: the object's footprint (its model's x/z box, scaled and turned) is then
+// checked against the whole circuit - its own corner and any other part of
+// the lap that passes close by. One that reaches the road or its run-off is
+// moved further out, and dropped if it still does not fit.
+let scFace = 0;             // scPutFacing: turn it to face the road
+let scCheck = 1;            // 0 for landmarks that stand over the track on purpose
+let oClr = 0;
 function scPut(i, side, dist, type, scale, matOff, lod) {
     oPut = 0;
     if (scN < NSCENE) {
@@ -626,17 +675,72 @@ function scPut(i, side, dist, type, scale, matOff, lod) {
         // stood square to the track by default
         scC[scN] = sgDZ[i];
         scS[scN] = sgDX[i];
-        scNext[scN] = scHead[i];
-        scHead[i] = scN;
+        if (scFace > 0) {
+            scC[scN] = 0 - sgNZ[i] * side;
+            scS[scN] = 0 - sgNX[i] * side;
+        }
+        if (scCheck > 0) {
+            scClear(scN);
+            let tries = 0;
+            let dd = dist;
+            while (oClr < 0) {
+                if (tries >= 3) { break; }
+                dd = dd - oClr + 1.5;
+                scX[scN] = sgX[i] + nx * dd;
+                scZ[scN] = sgZ[i] + nz * dd;
+                scClear(scN);
+                tries = tries + 1;
+            }
+            if (oClr < 0) { scN = scN - 1; oPut = 0; }
+        }
+        if (oPut > 0) {
+            scNext[scN] = scHead[i];
+            scHead[i] = scN;
+        }
     }
 }
 
 // same, but turned to face the road
 function scPutFacing(i, side, dist, type, scale, matOff, lod) {
+    scFace = 1;
     scPut(i, side, dist, type, scale, matOff, lod);
-    if (oPut > 0) {
-        scC[scN] = 0 - sgNZ[i] * side;
-        scS[scN] = 0 - sgNX[i] * side;
+    scFace = 0;
+}
+
+// Clearance of object o from the circuit in metres (negative: it overlaps
+// the road, the curbs or the run-off of some ring). Rings are tested against
+// the footprint box in the object's own frame; a ring far away lets the scan
+// skip ahead, since each ring is at most segStep closer than the last.
+function scClear(o) {
+    let t = scT[o];
+    let k = scK[o];
+    let x0 = gtX0[t] * k; let x1 = gtX1[t] * k;
+    let z0 = gtZ0[t] * k; let z1 = gtZ1[t] * k;
+    let cy = scC[o]; let sy = scS[o];
+    let px = scX[o]; let pz = scZ[o];
+    oClr = 999;
+    let j = 1;
+    while (j <= NSEG) {
+        let dx = sgX[j] - px;
+        let dz = sgZ[j] - pz;
+        let lx = cy * dx - sy * dz;
+        let lz = sy * dx + cy * dz;
+        let ex = 0;
+        if (lx < x0) { ex = x0 - lx; } else if (lx > x1) { ex = lx - x1; }
+        let ez = 0;
+        if (lz < z0) { ez = z0 - lz; } else if (lz > z1) { ez = lz - z1; }
+        let d = Math.sqrt(ex * ex + ez * ez);
+        let need = sgW[j] + 0.8;
+        if (sgHW[j] < 1) {
+            if ((px - sgX[j]) * sgNX[j] + (pz - sgZ[j]) * sgNZ[j] < 0) { need = need + sgRWL[j]; }
+            else { need = need + sgRWR[j]; }
+        }
+        let m = d - need;
+        if (m < oClr) { oClr = m; }
+        let skip = Math.floor((d - 30) / segStep);
+        if (skip < 1) { skip = 1; }
+        j = j + skip;
+        if (oClr < 0) { j = NSEG + 1; }
     }
 }
 
@@ -649,8 +753,14 @@ function placeLandmarks(tk) {
         let i = 1 + Math.floor(lmU[k] * NSEG);
         if (i > NSEG) { i = NSEG; }
         let md = lmMode[k];
+        // a landmark at distance 0 stands over the road on purpose (the
+        // hotel on the tunnel, the gantry, the bridge)
+        scCheck = 1;
+        if (lmDist[k] < 1) { scCheck = 0; }
+        if (md == 2) { scCheck = 0; }
         if (md == 1) { scPutFacing(i, lmSide[k], lmDist[k], lmType[k], lmK[k], lmMat[k], 0); }
         else { scPut(i, lmSide[k], lmDist[k], lmType[k], lmK[k], lmMat[k], 0); }
+        scCheck = 1;
         if (oPut > 0) {
             scY[scN] = scY[scN] + lmDY[k];
             if (md == 2) { scC[scN] = cosd(lmYaw[k]); scS[scN] = sind(lmYaw[k]); }

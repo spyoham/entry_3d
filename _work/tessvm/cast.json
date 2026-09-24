@@ -1,0 +1,4 @@
+[{"wait":2000},
+{"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":200},{"up":{"code":"Enter","key":"Enter","keyCode":13}},
+{"wait":2000},{"down":{"code":"KeyW","key":"w","keyCode":87}},{"wait":6000},
+{"castStart":1},{"wait":4000},{"castStop":1}]

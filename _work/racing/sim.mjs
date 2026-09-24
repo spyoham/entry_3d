@@ -106,7 +106,7 @@ export function createSim({ fps = 30 } = {}) {
         show: () => { }, hide: () => { }, costume: () => { }, setSize: () => { }, resetSize: () => { },
         stretchW: () => { }, stretchH: () => { }, effect: () => { }, clearEffects: () => { },
         cloneSelf: () => { }, deleteClone: () => { }, stamp: () => { },
-        sound: () => { }, stopSounds: () => { }, volume: () => { }, textColor: () => { },
+        sound: () => { }, stopSounds: () => { }, volume: () => { }, textColor: () => { }, textColorHex: () => { }, dateSec: () => Math.floor(Date.now() / 1000) % 60,
         broadcast: () => { }, toFront: () => { }, toBack: () => { },
         stopAll: () => { }, stopThread: () => { }, waitSec: () => { }, waitUntil: () => { },
     };

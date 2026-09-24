@@ -13,22 +13,6 @@ const SCNM = 120;          // scenery reaches this far out, so cull wider
 const CARBASE = (NSEG + 1) * PPR;
 const SCRBASE = CARBASE + NCARV;
 const SCNBASE = SCRBASE + 8;
-// v6: screen positions (psX/psY, clipX/clipY) are kept as whole numbers of
-// 1/QS stage units. tessvm reproduces Entry's decimal arithmetic, and the
-// differences in the back-face and bounds tests are otherwise the costliest
-// operations of the frame; on integers they are plain machine arithmetic.
-// Coordinates are divided back to stage units only when handed to the pen.
-const QS = 16;
-const QX = 245 * QS;
-const QY = 140 * QS;
-// ...and the 3D transform is integer too: world positions in whole cm (WU per
-// metre), the camera basis scaled by BS, so a view-space coordinate is a whole
-// number of cm/BS... i.e. of 1/ZU metres. Dot products of those are exact
-// machine integers in tessvm instead of emulated decimals.
-const WU = 100;
-const BS = 16384;
-const ZU = WU * BS;
-const NEARZI = NEARZ * ZU;
 
 let camX = 0;
 let camY = 3;
@@ -42,15 +26,6 @@ let cuX = 0; let cuY = 1; let cuZ = 0;      // up
 let chX = 0; let chZ = 1;                   // forward, flattened
 let csX = 1; let csZ = 0;                   // right, flattened
 let camScale = 300;
-let camQ = 4800;            // camScale in 1/QS units, whole
-let camXi = 0; let camYi = 0; let camZi = 0;          // camera, whole cm
-let cfXi = 0; let cfYi = 0; let cfZi = BS;            // basis x BS, whole
-let crXi = BS; let crYi = 0; let crZi = 0;
-let cuXi = 0; let cuYi = BS; let cuZi = 0;
-let scrOX = 0; let scrOY = 0;                        // screen shift (1/QS units), cards only
-let frKX = 1; let frKY = 1;                           // frustum slopes (x, y) and
-let frFX = 1; let frFY = 1;                           // their sphere-test factors
-let fogK2 = 0.019;          // fogK / 2, for the mean of two depths
 let camFov = 74;
 let tanHalf = 0.8;
 let farCull2 = 160000;
@@ -92,16 +67,8 @@ function setupCam() {
     cuX = ux * cr - csX * sr; cuY = uy * cr; cuZ = uz * cr - csZ * sr;
     tanHalf = tand(camFov / 2);
     camScale = 240 / tanHalf;
-    camQ = Math.round(camScale * QS);
-    camXi = Math.round(camX * WU); camYi = Math.round(camY * WU); camZi = Math.round(camZ * WU);
-    cfXi = Math.round(cfX * BS); cfYi = Math.round(cfY * BS); cfZi = Math.round(cfZ * BS);
-    crXi = Math.round(crX * BS); crYi = Math.round(crY * BS); crZi = Math.round(crZ * BS);
-    cuXi = Math.round(cuX * BS); cuYi = Math.round(cuY * BS); cuZi = Math.round(cuZ * BS);
-    frKX = 250 / camScale; frKY = 145 / camScale;
-    frFX = Math.sqrt(1 + frKX * frKX); frFY = Math.sqrt(1 + frKY * frKY);
     farCull2 = fogFar * fogFar;
     fogK = (NFOG - 1) / fogFar;
-    fogK2 = fogK / 2;
     colOff = 1 - NFOG;
     // how far along the ring the LOD bands and the scan itself reach. Working
     // in ring offsets instead of metres keeps the cull loop free of list reads.
@@ -119,19 +86,20 @@ function setupCam() {
 function projSlots(a, b) {
     let p = a;
     while (p <= b) {
-        let dx = wvX[p] - camXi;
-        let dy = wvY[p] - camYi;
-        let dz = wvZ[p] - camZi;
-        let vz = dx * cfXi + dy * cfYi + dz * cfZi;
-        pvZ[p] = vz / ZU;
-        let vx = dx * crXi + dy * crYi + dz * crZi;
-        let vy = dx * cuXi + dy * cuYi + dz * cuZi;
-        if (vz > NEARZI) {
-            psX[p] = Math.round(vx * camQ / vz);
-            psY[p] = Math.round(vy * camQ / vz);
+        let dx = wvX[p] - camX;
+        let dy = wvY[p] - camY;
+        let dz = wvZ[p] - camZ;
+        let vz = dx * cfX + dy * cfY + dz * cfZ;
+        pvZ[p] = vz;
+        let vx = dx * crX + dy * crY + dz * crZ;
+        let vy = dx * cuX + dy * cuY + dz * cuZ;
+        if (vz > NEARZ) {
+            let iv = camScale / vz;
+            psX[p] = vx * iv;
+            psY[p] = vy * iv;
         } else {
-            pvX[p] = vx / ZU;
-            pvY[p] = vy / ZU;
+            pvX[p] = vx;
+            pvY[p] = vy;
         }
         p = p + 1;
     }
@@ -171,15 +139,15 @@ function clipAdd(a, b) {
     let zb = pvZ[b];
     let ax = pvX[a];
     let ay = pvY[a];
-    if (za >= NEARZ) { let k = za / camQ; ax = psX[a] * k; ay = psY[a] * k; }
+    if (za >= NEARZ) { let k = za / camScale; ax = psX[a] * k; ay = psY[a] * k; }
     let bx = pvX[b];
     let by = pvY[b];
-    if (zb >= NEARZ) { let k = zb / camQ; bx = psX[b] * k; by = psY[b] * k; }
+    if (zb >= NEARZ) { let k = zb / camScale; bx = psX[b] * k; by = psY[b] * k; }
     let t = (NEARZ - za) / (zb - za);
-    let iv = camQ / NEARZ;
+    let iv = camScale / NEARZ;
     nClip = nClip + 1;
-    clipX[nClip] = Math.round((ax + (bx - ax) * t) * iv);
-    clipY[nClip] = Math.round((ay + (by - ay) * t) * iv);
+    clipX[nClip] = (ax + (bx - ax) * t) * iv;
+    clipY[nClip] = (ay + (by - ay) * t) * iv;
 }
 function clipEdge(a, b) {
     if (pvZ[a] >= NEARZ) {
@@ -212,25 +180,23 @@ function quad(a, b, c, d, mat) {
         let ar = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax) + (cx - ax) * (dy - ay) - (cy - ay) * (dx - ax);
         if (ar > 0) {
             let off = 0;
-            if (ax > QX) { if (bx > QX) { if (cx > QX) { if (dx > QX) { off = 1; } } } }
-            if (off < 1) { if (ax < 0 - QX) { if (bx < 0 - QX) { if (cx < 0 - QX) { if (dx < 0 - QX) { off = 1; } } } } }
-            if (off < 1) { if (ay > QY) { if (by > QY) { if (cy > QY) { if (dy > QY) { off = 1; } } } } }
-            if (off < 1) { if (ay < 0 - QY) { if (by < 0 - QY) { if (cy < 0 - QY) { if (dy < 0 - QY) { off = 1; } } } } }
+            if (ax > 245) { if (bx > 245) { if (cx > 245) { if (dx > 245) { off = 1; } } } }
+            if (off < 1) { if (ax < 0 - 245) { if (bx < 0 - 245) { if (cx < 0 - 245) { if (dx < 0 - 245) { off = 1; } } } } }
+            if (off < 1) { if (ay > 140) { if (by > 140) { if (cy > 140) { if (dy > 140) { off = 1; } } } } }
+            if (off < 1) { if (ay < 0 - 140) { if (by < 0 - 140) { if (cy < 0 - 140) { if (dy < 0 - 140) { off = 1; } } } } }
             if (off < 1) {
                 if (mat < 0) { fillColorHex(qHex); }
                 else {
-                    let fl = Math.floor((za + zc) * fogK2);
+                    let fl = Math.floor((za + zc) * 0.5 * fogK);
                     if (fl > NFOG - 1) { fl = NFOG - 1; }
                     fillColorHex(colTab[colOff + mat * NFOG + fl]);
                 }
-                let sx = ax / QS;
-                let sy = ay / QS;
-                goto(sx, sy);
+                goto(ax, ay);
                 fillStart();
-                goto(bx / QS, by / QS);
-                goto(cx / QS, cy / QS);
-                goto(dx / QS, dy / QS);
-                goto(sx, sy);
+                goto(bx, by);
+                goto(cx, cy);
+                goto(dx, dy);
+                goto(ax, ay);
                 fillStop();
                 drawnQuads = drawnQuads + 1;
             }
@@ -260,16 +226,14 @@ function quad(a, b, c, d, mat) {
                     if (fl > NFOG - 1) { fl = NFOG - 1; }
                     fillColorHex(colTab[colOff + mat * NFOG + fl]);
                 }
-                let sx = clipX[1] / QS;
-                let sy = clipY[1] / QS;
-                goto(sx, sy);
+                goto(clipX[1], clipY[1]);
                 fillStart();
                 k = 2;
                 while (k <= nClip) {
-                    goto(clipX[k] / QS, clipY[k] / QS);
+                    goto(clipX[k], clipY[k]);
                     k = k + 1;
                 }
-                goto(sx, sy);
+                goto(clipX[1], clipY[1]);
                 fillStop();
                 drawnQuads = drawnQuads + 1;
             }
@@ -279,26 +243,19 @@ function quad(a, b, c, d, mat) {
 
 // a quad given directly in screen space (used for decals and billboards,
 // whose corners are interpolated from already-projected road points)
-// (corners in 1/QS units, like psX)
 function quadS(x1, y1, x2, y2, x3, y3, x4, y4, mat, depth) {
-    let ax = Math.round(x1); let ay = Math.round(y1);
-    let bx = Math.round(x2) - ax; let by = Math.round(y2) - ay;
-    let cx = Math.round(x3) - ax; let cy = Math.round(y3) - ay;
-    let dx = Math.round(x4) - ax; let dy = Math.round(y4) - ay;
-    let ar = bx * cy - by * cx + cx * dy - cy * dx;
+    let ar = (x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1) + (x3 - x1) * (y4 - y1) - (y3 - y1) * (x4 - x1);
     if (ar > 0) {
         let fl = Math.floor(depth * fogK);
         if (fl > NFOG - 1) { fl = NFOG - 1; }
         if (fl < 0) { fl = 0; }
         fillColorHex(colTab[colOff + mat * NFOG + fl]);
-        let sx = ax / QS;
-        let sy = ay / QS;
-        goto(sx, sy);
+        goto(x1, y1);
         fillStart();
-        goto((ax + bx) / QS, (ay + by) / QS);
-        goto((ax + cx) / QS, (ay + cy) / QS);
-        goto((ax + dx) / QS, (ay + dy) / QS);
-        goto(sx, sy);
+        goto(x2, y2);
+        goto(x3, y3);
+        goto(x4, y4);
+        goto(x1, y1);
         fillStop();
         drawnQuads = drawnQuads + 1;
     }
@@ -679,142 +636,116 @@ function drawCar(c, tier) {
     let dx = caX[c] - camX;
     let dy = caY[c] - camY;
     let dz = caZ[c] - camZ;
-    let o2 = cfX * dx + cfY * dy + cfZ * dz;
-    // the whole car off screen: nothing to transform (radius 3.2 m)
     let o0 = crX * dx + crY * dy + crZ * dz;
     let o1 = cuX * dx + cuY * dy + cuZ * dz;
-    let vis = 1;
-    if (o2 < 0 - 3.2) { vis = 0; }
-    if (o0 - frKX * o2 > 3.2 * frFX) { vis = 0; }
-    if (0 - o0 - frKX * o2 > 3.2 * frFX) { vis = 0; }
-    if (o1 - frKY * o2 > 3.2 * frFY) { vis = 0; }
-    if (0 - o1 - frKY * o2 > 3.2 * frFY) { vis = 0; }
-    if (vis > 0) {
-        // integer versions: model mm -> view units (1/ZU m)
-        let dxi = Math.round(caX[c] * WU) - camXi;
-        let dyi = Math.round(caY[c] * WU) - camYi;
-        let dzi = Math.round(caZ[c] * WU) - camZi;
-        let i0 = dxi * crXi + dyi * crYi + dzi * crZi;
-        let i1 = dxi * cuXi + dyi * cuYi + dzi * cuZi;
-        let i2 = dxi * cfXi + dyi * cfYi + dzi * cfZi;
-        let m = BS / 10;
-        let b00 = Math.round(a00 * m); let b01 = Math.round(a01 * m); let b02 = Math.round(a02 * m);
-        let b10 = Math.round(a10 * m); let b11 = Math.round(a11 * m); let b12 = Math.round(a12 * m);
-        let b20 = Math.round(a20 * m); let b21 = Math.round(a21 * m); let b22 = Math.round(a22 * m);
-        // the camera and the sun as the car sees them: back faces and lighting
-        // are then one dot product per face against constants from the build
-        let lcx = 0 - (xX * dx + xY * dy + xZ * dz);
-        let lcy = 0 - (yX * dx + yY * dy + yZ * dz);
-        let lcz = 0 - (zX * dx + zY * dy + zZ * dz);
-        // camera (mm) and sun (x1024) in car space, whole numbers for the face loop
-        let lci = Math.round(lcx * 1000); let lcj = Math.round(lcy * 1000); let lck = Math.round(lcz * 1000);
-        let lsi = Math.round((xX * SUNX + xY * SUNY + xZ * SUNZ) * 1024);
-        let lsj = Math.round((yX * SUNX + yY * SUNY + yZ * SUNZ) * 1024);
-        let lsk = Math.round((zX * SUNX + zY * SUNY + zZ * SUNZ) * 1024);
-        // one fog level for the whole car
-        let t = o2 / fogFar;
-        if (t > 1) { t = 1; }
-        if (t < 0) { t = 0; }
-        let kf = 1 - t;
-        // face light = (0.44 + 0.56 * sun) * kf, folded per car
-        let kA = 0.44 * kf;
-        let kB = 0.56 * kf;
-        let fr = skyR * t;
-        let fg = skyG * t;
-        let fb = skyB * t;
-        // the front wheels turn with the steering
-        let sa = caSteer[c] * 20;
-        let wc = cosd(sa);
-        let ws = sind(sa);
-        let v0 = 1;
-        let vn = NCVLO;
-        let fn = NCFLO;
-        if (tier > 0) { v0 = NCVLO + 1; vn = NCV; fn = NCFHI; }
-        let v = v0;
-        while (v <= vn) {
-            let lx = cvX[v];
-            let ly = cvY[v];
-            let lz = cvZ[v];
-            if (cvP[v] > 0) {
-                let ox = cvPX[v];
-                let oz = cvPZ[v];
-                let ex = lx - ox;
-                let ez = lz - oz;
-                lx = Math.round(ox + ex * wc + ez * ws);
-                lz = Math.round(oz - ex * ws + ez * wc);
-            }
-            let s = CARBASE + v;
-            let vz = b20 * lx + b21 * ly + b22 * lz + i2;
-            pvZ[s] = vz / ZU;
-            let vx = b00 * lx + b01 * ly + b02 * lz + i0;
-            let vy = b10 * lx + b11 * ly + b12 * lz + i1;
-            if (vz > NEARZI) {
-                psX[s] = Math.round(vx * camQ / vz) + scrOX;
-                psY[s] = Math.round(vy * camQ / vz) + scrOY;
-            } else {
-                pvX[s] = vx / ZU;
-                pvY[s] = vy / ZU;
-            }
-            v = v + 1;
+    let o2 = cfX * dx + cfY * dy + cfZ * dz;
+    // the camera and the sun as the car sees them: back faces and lighting
+    // are then one dot product per face against constants from the build
+    let lcx = 0 - (xX * dx + xY * dy + xZ * dz);
+    let lcy = 0 - (yX * dx + yY * dy + yZ * dz);
+    let lcz = 0 - (zX * dx + zY * dy + zZ * dz);
+    let lsx = xX * SUNX + xY * SUNY + xZ * SUNZ;
+    let lsy = yX * SUNX + yY * SUNY + yZ * SUNZ;
+    let lsz = zX * SUNX + zY * SUNY + zZ * SUNZ;
+    // one fog level for the whole car
+    let t = o2 / fogFar;
+    if (t > 1) { t = 1; }
+    if (t < 0) { t = 0; }
+    let kf = 1 - t;
+    let fr = skyR * t;
+    let fg = skyG * t;
+    let fb = skyB * t;
+    // the front wheels turn with the steering
+    let sa = caSteer[c] * 20;
+    let wc = cosd(sa);
+    let ws = sind(sa);
+    let v0 = 1;
+    let vn = NCVLO;
+    let fn = NCFLO;
+    if (tier > 0) { v0 = NCVLO + 1; vn = NCV; fn = NCFHI; }
+    let v = v0;
+    while (v <= vn) {
+        let lx = cvX[v];
+        let ly = cvY[v];
+        let lz = cvZ[v];
+        if (cvP[v] > 0) {
+            let ox = cvPX[v];
+            let oz = cvPZ[v];
+            let ex = lx - ox;
+            let ez = lz - oz;
+            lx = ox + ex * wc + ez * ws;
+            lz = oz - ex * ws + ez * wc;
         }
-        // which way round the camera sees the car: 0 from ahead, 2 from its right
-        atan2d(lcx, lcz);
-        let ob = mod(Math.round(oAtan / 45) + 8, 8) * fn;
-        let col = caCol[c];
-        let lR = lvR[col]; let lG = lvG[col]; let lB = lvB[col];
-        let lit = 0;
-        if (caBrk[c] > 0.05) { lit = 1; }
-        if (wx > 1) { lit = 1; }
-        let k = 1;
-        while (k <= fn) {
-            let f = 0;
-            if (tier > 0) { f = coHi[ob + k]; } else { f = coLo[ob + k]; }
-            let nx = cnX[f];
-            let ny = cnY[f];
-            let nz = cnZ[f];
-            // a face turned clearly away is skipped before any colour work
-            // (the margin covers the steered front wheels); quad() makes the
-            // exact call on the rest
-            if (nx * lci + ny * lcj + nz * lck - cfP[f] > 0 - 307200) {
-                let kd = cfK[f];
-                let r = 30; let g = 31; let b = 35;
-                if (kd == 0) { r = lR; g = lG; b = lB; }
-                else if (kd == 1) { r = lvR2[col]; g = lvG2[col]; b = lvB2[col]; }
-                else if (kd == 3) { r = 22; g = 22; b = 25; }
-                else if (kd == 4) { r = 150; g = 152; b = 162; }
-                else if (kd == 5) { r = lvHR[col]; g = lvHG[col]; b = lvHB[col]; }
-                else if (kd == 7) { r = lR * 0.55; g = lG * 0.55; b = lB * 0.55; }
-                let l = (nx * lsi + ny * lsj + nz * lsk) / 1048576;
-                if (l < 0) { l = 0; }
-                l = kA + kB * l;
-                if (kd == 6) {
-                    l = kf;
-                    if (lit > 0) { r = 255; g = 64; b = 52; } else { r = 96; g = 24; b = 24; }
-                }
-                // Entry's rgb() packs with (r << 16) + (g << 8) + b: the shifts
-                // truncate red and green, but a fractional blue would leak into a
-                // hex string with a decimal point in it, so only blue is floored
-                qHex = rgb(r * l + fr, g * l + fg, Math.floor(b * l + fb));
-                let a = CARBASE + cfA[f];
-                quad(a, CARBASE + cfB[f], CARBASE + cfC[f], CARBASE + cfD[f], 0 - 1);
-            }
-            k = k + 1;
+        let s = CARBASE + v;
+        let vz = a20 * lx + a21 * ly + a22 * lz + o2;
+        pvZ[s] = vz;
+        if (vz > NEARZ) {
+            let iv = camScale / vz;
+            psX[s] = (a00 * lx + a01 * ly + a02 * lz + o0) * iv;
+            psY[s] = (a10 * lx + a11 * ly + a12 * lz + o1) * iv;
+        } else {
+            pvX[s] = a00 * lx + a01 * ly + a02 * lz + o0;
+            pvY[s] = a10 * lx + a11 * ly + a12 * lz + o1;
         }
+        v = v + 1;
+    }
+    // which way round the camera sees the car: 0 from ahead, 2 from its right
+    atan2d(lcx, lcz);
+    let ob = mod(Math.round(oAtan / 45) + 8, 8) * fn;
+    let col = caCol[c];
+    let lR = lvR[col]; let lG = lvG[col]; let lB = lvB[col];
+    let lit = 0;
+    if (caBrk[c] > 0.05) { lit = 1; }
+    if (wx > 1) { lit = 1; }
+    let k = 1;
+    while (k <= fn) {
+        let f = 0;
+        if (tier > 0) { f = coHi[ob + k]; } else { f = coLo[ob + k]; }
+        let nx = cnX[f];
+        let ny = cnY[f];
+        let nz = cnZ[f];
+        // a face turned clearly away is skipped before any colour work
+        // (the margin covers the steered front wheels); quad() makes the
+        // exact call on the rest
+        if (nx * lcx + ny * lcy + nz * lcz - cfP[f] > 0 - 0.3) {
+            let kd = cfK[f];
+            let r = 30; let g = 31; let b = 35;
+            if (kd == 0) { r = lR; g = lG; b = lB; }
+            else if (kd == 1) { r = lvR2[col]; g = lvG2[col]; b = lvB2[col]; }
+            else if (kd == 3) { r = 22; g = 22; b = 25; }
+            else if (kd == 4) { r = 150; g = 152; b = 162; }
+            else if (kd == 5) { r = lvHR[col]; g = lvHG[col]; b = lvHB[col]; }
+            else if (kd == 7) { r = lR * 0.55; g = lG * 0.55; b = lB * 0.55; }
+            let l = nx * lsx + ny * lsy + nz * lsz;
+            if (l < 0) { l = 0; }
+            l = (0.44 + 0.56 * l) * kf;
+            if (kd == 6) {
+                l = kf;
+                if (lit > 0) { r = 255; g = 64; b = 52; } else { r = 96; g = 24; b = 24; }
+            }
+            // Entry's rgb() packs with (r << 16) + (g << 8) + b: the shifts
+            // truncate red and green, but a fractional blue would leak into a
+            // hex string with a decimal point in it, so only blue is floored
+            qHex = rgb(r * l + fr, g * l + fg, Math.floor(b * l + fb));
+            let a = CARBASE + cfA[f];
+            quad(a, CARBASE + cfB[f], CARBASE + cfC[f], CARBASE + cfD[f], 0 - 1);
+        }
+        k = k + 1;
     }
 }
 
 function drawCarFar(c) {
     let s = SCRBASE + 2;
-    wvX[s] = Math.round(caX[c] * WU);
-    wvY[s] = Math.round((caY[c] + 0.45) * WU);
-    wvZ[s] = Math.round(caZ[c] * WU);
+    wvX[s] = caX[c];
+    wvY[s] = caY[c] + 0.45;
+    wvZ[s] = caZ[c];
     projSlots(s, s);
     if (pvZ[s] > NEARZ) {
         let r = camScale / pvZ[s];
         let hx = r * 0.95;
         let hy = r * 0.38;
-        let x = psX[s] / QS;
-        let y = psY[s] / QS;
+        let x = psX[s];
+        let y = psY[s];
         let col = caCol[c];
         let t = pvZ[s] / fogFar;
         if (t > 1) { t = 1; }
@@ -881,55 +812,29 @@ function drawScn(o, hi) {
     let cy = scC[o];
     let sy = scS[o];
     let sk = scK[o];
-    let dxi = Math.round(scX[o] * WU) - camXi;
-    let dyi = Math.round(scY[o] * WU) - camYi;
-    let dzi = Math.round(scZ[o] * WU) - camZi;
-    // bounding sphere against the view frustum: an object wholly off screen
-    // costs a handful of operations instead of a model's worth of vertices
-    let rr = gtR[t] * sk * BS;
-    let i2 = dxi * cfXi + dyi * cfYi + dzi * cfZi;
-    let i0 = dxi * crXi + dyi * crYi + dzi * crZi;
-    let i1 = dxi * cuXi + dyi * cuYi + dzi * cuZi;
-    let vis = 1;
-    if (i2 < 0 - rr) { vis = 0; }
-    if (i0 - frKX * i2 > rr * frFX) { vis = 0; }
-    if (0 - i0 - frKX * i2 > rr * frFX) { vis = 0; }
-    if (i1 - frKY * i2 > rr * frFY) { vis = 0; }
-    if (0 - i1 - frKY * i2 > rr * frFY) { vis = 0; }
-    if (vis > 0) {
-        // model (whole cm) straight to view space (1/ZU m): model x runs along
-        // (cy, 0, -sy) in the world, z along (sy, 0, cy)
-        let m00 = Math.round(sk * (crXi * cy - crZi * sy)); let m01 = Math.round(sk * crYi); let m02 = Math.round(sk * (crXi * sy + crZi * cy));
-        let m10 = Math.round(sk * (cuXi * cy - cuZi * sy)); let m11 = Math.round(sk * cuYi); let m12 = Math.round(sk * (cuXi * sy + cuZi * cy));
-        let m20 = Math.round(sk * (cfXi * cy - cfZi * sy)); let m21 = Math.round(sk * cfYi); let m22 = Math.round(sk * (cfXi * sy + cfZi * cy));
-        let v = 1;
-        while (v <= vn) {
-            let g = v0 + v;
-            let gx = gvX[g];
-            let gy = gvY[g];
-            let gz = gvZ[g];
-            let sl = SCNBASE + v;
-            let vz = m20 * gx + m21 * gy + m22 * gz + i2;
-            pvZ[sl] = vz / ZU;
-            let vx = m00 * gx + m01 * gy + m02 * gz + i0;
-            let vy = m10 * gx + m11 * gy + m12 * gz + i1;
-            if (vz > NEARZI) {
-                psX[sl] = Math.round(vx * camQ / vz);
-                psY[sl] = Math.round(vy * camQ / vz);
-            } else {
-                pvX[sl] = vx / ZU;
-                pvY[sl] = vy / ZU;
-            }
-            v = v + 1;
-        }
-        let mb = gtMat[t] + scM[o];
-        let f0 = gtF0[t];
-        let f = fA;
-        while (f <= fB) {
-            let g = f0 + f;
-            quad(SCNBASE + gfA[g], SCNBASE + gfB[g], SCNBASE + gfC[g], SCNBASE + gfD[g], mb + gfM[g]);
-            f = f + 1;
-        }
+    let px = scX[o];
+    let py = scY[o];
+    let pz = scZ[o];
+    let v = 1;
+    while (v <= vn) {
+        let g = v0 + v;
+        let lx = gvX[g] * sk;
+        let ly = gvY[g] * sk;
+        let lz = gvZ[g] * sk;
+        let sl = SCNBASE + v;
+        wvX[sl] = px + lx * cy + lz * sy;
+        wvY[sl] = py + ly;
+        wvZ[sl] = pz - lx * sy + lz * cy;
+        v = v + 1;
+    }
+    projSlots(SCNBASE + 1, SCNBASE + vn);
+    let mb = gtMat[t] + scM[o];
+    let f0 = gtF0[t];
+    let f = fA;
+    while (f <= fB) {
+        let g = f0 + f;
+        quad(SCNBASE + gfA[g], SCNBASE + gfB[g], SCNBASE + gfC[g], SCNBASE + gfD[g], mb + gfM[g]);
+        f = f + 1;
     }
 }
 
@@ -958,11 +863,11 @@ function drawSmokeIn(i) {
         if (smSeg[k] == i) {
             if (smL[k] > 0) {
                 let s = SCRBASE + 1;
-                wvX[s] = Math.round(smX[k] * WU); wvY[s] = Math.round(smY[k] * WU); wvZ[s] = Math.round(smZ[k] * WU);
+                wvX[s] = smX[k]; wvY[s] = smY[k]; wvZ[s] = smZ[k];
                 projSlots(s, s);
                 if (pvZ[s] > SMOKEZ) {
-                    let r = smS[k] * camQ / pvZ[s];
-                    if (r > 12 * QS) { r = 12 * QS; }
+                    let r = smS[k] * camScale / pvZ[s];
+                    if (r > 12) { r = 12; }
                     let x = psX[s];
                     let y = psY[s];
                     let m = smL[k] > 0.55 ? M_smoke : M_smokeD;
@@ -1044,8 +949,6 @@ function renderWorld() {
                 if (caFin[c] >= 2) { show = 0; }
                 // the cockpit eye sits inside the player's own bodywork
                 if (camMode == 1) { if (c == 1) { show = 0; } }
-                // the showroom car goes on top of everything, after the loop
-                if (raceState == ST_CARSEL) { show = 0; }
                 if (show > 0) { drawCarAt(c, near, i, b0, b1, visD[k]); }
             }
             c = c + 1;
@@ -1055,14 +958,13 @@ function renderWorld() {
         }
         k = k + 1;
     }
-    if (raceState == ST_CARSEL) { drawTurntable(1); drawCar(1, 1); }
     if (wx > 1) { drawRain(); }
     if (nCars > 0) { if (raceState != ST_CARSEL) { drawMinimap(); } }
     if (raceState == ST_COUNT) { drawLights(); }
     else if (lightsT > 0) { drawLights(); }
     if (raceState == ST_RACE) { drawRev(); }
     else if (raceState == ST_COUNT) { drawRev(); }
-    drawMenuUI();
+    if (panelOn > 0) { drawPanel(); }
 }
 
 // ---- rain: slanted streaks in screen space, leaning with the car's speed --
@@ -1130,34 +1032,8 @@ function drawRev() {
     }
 }
 
-// ---- showroom turntable: two stacked discs under the car -------------------
-function drawTurntable(c) {
-    let rr = 3.9;
-    let pass = 0;
-    while (pass < 2) {
-        let k = 0;
-        while (k < 24) {
-            let a = k * 15 + gt * 25;
-            let s = SCNBASE + 1 + k;
-            wvX[s] = Math.round((caX[c] + rr * cosd(a)) * WU);
-            wvY[s] = Math.round((caY[c] + 0.02 + pass * 0.03) * WU);
-            wvZ[s] = Math.round((caZ[c] + rr * sind(a)) * WU);
-            k = k + 1;
-        }
-        projSlots(SCNBASE + 1, SCNBASE + 24);
-        let ok = 1;
-        k = 1;
-        while (k <= 24) { if (pvZ[SCNBASE + k] <= NEARZ) { ok = 0; } k = k + 1; }
-        if (ok > 0) {
-            fillColorHex(pass > 0 ? '#1b212b' : '#9aa6b8');
-            goto(psX[SCNBASE + 1] / QS, psY[SCNBASE + 1] / QS);
-            fillStart();
-            k = 2;
-            while (k <= 24) { goto(psX[SCNBASE + k] / QS, psY[SCNBASE + k] / QS); k = k + 1; }
-            goto(psX[SCNBASE + 1] / QS, psY[SCNBASE + 1] / QS);
-            fillStop();
-        }
-        rr = 3.6;
-        pass = pass + 1;
-    }
+// ---- the dark card behind the menus --------------------------------------
+function drawPanel() {
+    fill4(0 - 178, panelT, 178, panelT, 178, panelB, 0 - 178, panelB, '#0e1218');
+    fill4(0 - 178, panelT, 178, panelT, 178, panelT - 2, 0 - 178, panelT - 2, '#e8322a');
 }

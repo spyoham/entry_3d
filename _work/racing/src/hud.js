@@ -1,69 +1,75 @@
 // ============================================================
-// hud.js - builds the HUD strings once per frame; each text object only
-// rewrites itself when its own string actually changed.
+// hud.js - every piece of text on screen, through ONE text object (v6).
+//   The object `txt` makes NTX clones of itself at start; clone k shows slot
+//   k of the tx* lists. tx() fills a slot and bumps its version only when
+//   something in it changed, so a clone redraws itself only then.
+//   The text object is a fixed-width, left-aligned box (line break on): its
+//   size is then independent of the text, which makes "set size" an exact
+//   font scale and left alignment exact. Centre and right alignment are
+//   worked out from the monospace advance (TXCW em per character).
 // ============================================================
-let hSpd = BLANK;
-let hSpdU = BLANK;
-let hLap = BLANK;
-let hPos = BLANK;
-let hTime = BLANK;
-let hBest = BLANK;
-let hLast = BLANK;
-let hDrift = BLANK;
-let hBig = BLANK;
-let hSub = BLANK;
-let hMsg = BLANK;
-let hHelp = BLANK;
-let hM1 = BLANK;
-let hM2 = BLANK;
-let hM3 = BLANK;
-let hM4 = BLANK;
-let hM5 = BLANK;
-let hM6 = BLANK;
-let hM7 = BLANK;
-let hM8 = BLANK;
-let hM9 = BLANK;
-let hGear = BLANK;
-let hDRS = BLANK;
-let hDRSC = 0;              // 1 grey (shut), 2 amber (available: press E), 3 green (open)
-let hDelta = BLANK;
-let hDeltaC = 0;            // 1 purple, 2 yellow, 3 green, 4 red
-let hT1 = BLANK;
-let hT2 = BLANK;
-let hT3 = BLANK;
-let hT4 = BLANK;
-let hT5 = BLANK;
-let hT6 = BLANK;
-let hT7 = BLANK;
-let hT8 = BLANK;
-let hBigY = 14;             // the title moves up out of the way on menu screens
-let hSubY = 0 - 26;
-let panelOn = 0;            // dark card behind the menu lines, and its extent
-let panelT = 66;
-let panelB = 0 - 82;
+let txt$slot = 0;           // which slot this clone shows (a per-clone variable)
+let txt$v = 0 - 1;          // the slot version it last drew
+let hudPage = 0 - 1;        // screen the slots were last laid out for
+let hudSub = 0 - 1;
+
+// x, y: anchor in stage units; sz: font px; al: 0 centre, 1 left, 2 right
+function tx(i, s, x, y, sz, col, al) {
+    let gx = x;
+    if (al != 1) {
+        let w = strlen(s) * sz * TXCW;
+        if (al == 0) { gx = x - w / 2; } else { gx = x - w; }
+    }
+    gx = gx + TXW / 2 * sz / TXF;
+    let ch = 0;
+    if (txS[i] != s) { txS[i] = s; ch = 1; }
+    if (txX[i] != gx) { txX[i] = gx; ch = 1; }
+    if (txY[i] != y) { txY[i] = y; ch = 1; }
+    if (txZ[i] != sz) { txZ[i] = sz; ch = 1; }
+    if (txC[i] != col) { txC[i] = col; ch = 1; }
+    if (ch > 0) { txV[i] = txV[i] + 1; }
+}
+function txOff(i) {
+    if (txS[i] != BLANK) { txS[i] = BLANK; txV[i] = txV[i] + 1; }
+}
+function txClear() {
+    let i = 1;
+    while (i <= NTX) { txOff(i); i = i + 1; }
+}
+
+on('start', 'txt', function () {
+    hide();
+    let k = 1;
+    while (k <= NTX) {
+        txS[k] = BLANK; txX[k] = 0; txY[k] = 0; txZ[k] = TXF; txC[k] = '#ffffff'; txV[k] = 0;
+        txt$slot = k;
+        cloneSelf();
+        k = k + 1;
+    }
+    txt$slot = 0;
+});
+
+on('clone', 'txt', function () {
+    show();
+    for (;;) {
+        if (txV[txt$slot] != txt$v) {
+            txt$v = txV[txt$slot];
+            write(txS[txt$slot]);
+            textColorHex(txC[txt$slot]);
+            setSize(txZ[txt$slot] * TXSZ);
+            goto(txX[txt$slot], txY[txt$slot]);
+        }
+    }
+});
+
+// ---- shared bits ----------------------------------------------------------
+const C_DIM = '#8f9bb3';
+const C_WHITE = '#ffffff';
+const C_ACC = '#ff4a3d';
+const C_GOLD = '#ffd24a';
+const C_SKY = '#9fd8ff';
+
 let oRow = BLANK;
-
-function clearHud() {
-    hSpd = BLANK; hSpdU = BLANK; hLap = BLANK; hPos = BLANK; hTime = BLANK; hBest = BLANK; hLast = BLANK; hDrift = BLANK;
-    hGear = BLANK; hDRS = BLANK; hDelta = BLANK;
-    clearLines();
-    clearTower();
-}
-function clearLines() {
-    hM1 = BLANK; hM2 = BLANK; hM3 = BLANK; hM4 = BLANK; hM5 = BLANK; hM6 = BLANK; hM7 = BLANK; hM8 = BLANK; hM9 = BLANK;
-}
-function clearTower() {
-    hT1 = BLANK; hT2 = BLANK; hT3 = BLANK; hT4 = BLANK; hT5 = BLANK; hT6 = BLANK; hT7 = BLANK; hT8 = BLANK;
-}
-
-function setLine(i, s) {
-    if (i == 1) { hM1 = s; } else if (i == 2) { hM2 = s; } else if (i == 3) { hM3 = s; }
-    else if (i == 4) { hM4 = s; } else if (i == 5) { hM5 = s; } else if (i == 6) { hM6 = s; }
-    else if (i == 7) { hM7 = s; } else if (i == 8) { hM8 = s; } else { hM9 = s; }
-}
-function menuLine(i, sel, label) {
-    setLine(i, sel == i ? str('▶ ', label, '  ') : str('   ', label, '   '));
-}
 
 // "P3  K. TANAKA   AZURE    +4.512" for results and standings tables
 function tableRow(pos, o, tail) {
@@ -75,18 +81,24 @@ function tableRow(pos, o, tail) {
     oRow = str(o == 1 ? '▶' : ' ', pos < 10 ? ' P' : 'P', pos, '  ', nm, tm, oPad);
 }
 
+function tableLine(i, s) {
+    tx(23 + i, s, 0 - 168, 60 - (i - 1) * 15, 11, i == 1 ? C_GOLD : C_WHITE, 1);
+}
+
 function resultsTable() {
     let lead = srtI[1];
     let i = 1;
-    while (i <= nCars) {
-        let o = srtI[i];
-        let tail = 'ON TRACK';
-        if (caFin[o] > 0) {
-            if (i == 1) { fmtTime(caFinT[o]); tail = oTime; }
-            else { fmtSec(caFinT[o] - caFinT[lead]); tail = str('+', oSec); }
-        } else if (caGap[o] < 0) { tail = str('+', 0 - caGap[o], ' LAP'); }
-        tableRow(i, o, tail);
-        setLine(i, oRow);
+    while (i <= NCAR) {
+        if (i <= nCars) {
+            let o = srtI[i];
+            let tail = 'ON TRACK';
+            if (caFin[o] > 0) {
+                if (i == 1) { fmtTime(caFinT[o]); tail = oTime; }
+                else { fmtSec(caFinT[o] - caFinT[lead]); tail = str('+', oSec); }
+            } else if (caGap[o] < 0) { tail = str('+', 0 - caGap[o], ' LAP'); }
+            tableRow(i, o, tail);
+            tableLine(i, oRow);
+        } else { txOff(23 + i); }
         i = i + 1;
     }
 }
@@ -96,7 +108,7 @@ function standingsTable() {
     while (i <= NCAR) {
         let o = chOrd[i];
         tableRow(i, o, str(chPts[o], ' PTS'));
-        setLine(i, oRow);
+        tableLine(i, oRow);
         i = i + 1;
     }
 }
@@ -104,10 +116,12 @@ function standingsTable() {
 // the timing tower down the left: position, name, gap to the leader.
 // Rebuilt a few times a second from updateGaps.
 function buildTower() {
+    let on = 0;
+    if (raceState == ST_RACE) { on = 1; } else if (raceState == ST_COUNT) { on = 1; }
     let i = 1;
     while (i <= NCAR) {
         let s = BLANK;
-        if (i <= nCars) {
+        if (i <= nCars * on) {
             if (nCars > 1) {
                 let o = srtI[i];
                 padR(drvShort[o], 7);
@@ -120,241 +134,131 @@ function buildTower() {
                 if (caFin[o] > 0) { s = str(s, ' ■'); }
             }
         }
-        if (i == 1) { hT1 = s; } else if (i == 2) { hT2 = s; } else if (i == 3) { hT3 = s; } else if (i == 4) { hT4 = s; }
-        else if (i == 5) { hT5 = s; } else if (i == 6) { hT6 = s; } else if (i == 7) { hT7 = s; } else { hT8 = s; }
+        tx(15 + i, s, 0 - 232, 58 - (i - 1) * 11, 10, i == 1 ? C_WHITE : '#e6e9f0', 1);
         i = i + 1;
     }
 }
 
+// one row of a menu card: label on the left, value on the right
+function cardRow(r, label, value, y) {
+    tx(43 + r, label, cardX0 + 10, y, 9, C_DIM, 1);
+    tx(53 + r, value, cardX0 + 112, y, 9, C_WHITE, 1);
+}
+function cardRowsOff(from) {
+    let r = from;
+    while (r <= 10) { txOff(43 + r); txOff(53 + r); r = r + 1; }
+}
+
+// ---- per screen -------------------------------------------------------------
 function updateHud() {
     if (bannerT > 0) { bannerT = bannerT - dt; if (bannerT <= 0) { banner = BLANK; } }
     if (msgT > 0) { msgT = msgT - dt; if (msgT <= 0) { msg = BLANK; } }
-    hBig = banner;
-    hMsg = msg;
-    hBigY = 106;
-    hSubY = 80;
-    panelOn = 1;
-    panelT = 68;
-    panelB = 0 - 82;
-    if (raceState == ST_MENU) {
-        clearHud();
-        hBig = 'ENTRY RACING 3D';
-        hSub = str('v5 F1 EDITION   -   ', trkName[selTrk], '   /   ', ctName[selCar]);
-        if (gMode == M_CH) { menuLine(1, menuSel, 'START CHAMPIONSHIP'); }
-        else if (gMode == M_TT) { menuLine(1, menuSel, 'START TIME TRIAL'); }
-        else { menuLine(1, menuSel, 'RACE START'); }
-        menuLine(2, menuSel, str('MODE       < ', modeName[gMode], ' >'));
-        menuLine(3, menuSel, str('CAR        < ', ctName[selCar], ' >'));
-        if (gMode == M_CH) { menuLine(4, menuSel, str('TRACKS       ALL ', NTRK, ' ROUNDS')); }
-        else { menuLine(4, menuSel, str('TRACK      < ', trkName[selTrk], ' >')); }
-        if (gMode == M_TT) { menuLine(5, menuSel, 'AI LEVEL     NO OPPONENTS'); }
-        else { menuLine(5, menuSel, str('AI LEVEL   < ', aiName[aiDiff], ' >')); }
-        if (gMode == M_TT) { menuLine(6, menuSel, 'LAPS         UNLIMITED'); }
-        else { menuLine(6, menuSel, str('LAPS       < ', lapOpt[lapSel], ' >')); }
-        menuLine(7, menuSel, str('WEATHER    < ', wxName[wx], ' >'));
-        menuLine(8, menuSel, str('GRAPHICS   < ', gfxName[gfx], ' >'));
-        menuLine(9, menuSel, 'TRACK EDITOR');
-        hHelp = 'W/S throttle-brake  A/D steer  E DRS  C camera  L racing line  P pause';
-        hMsg = 'UP/DOWN select   LEFT/RIGHT change   ENTER confirm';
-    } else if (raceState == ST_CARSEL) {
-        clearHud();
-        hBig = ctName[selCar];
-        hSub = ctInfo[selCar];
-        hM6 = str('TOP SPEED   ', Math.round(ctTop[selCar] * 3.6), ' km/h');
-        hM7 = str('ACCEL       ', Math.round(ctAcc[selCar] * 10) / 10);
-        hM8 = str('GRIP        ', Math.round(ctGrip[selCar] * 100), ' %');
-        hM9 = str('TEAM        ', lvName[ctCol[selCar]]);
-        panelT = 0 - 14;
-        hHelp = BLANK;
-        hMsg = 'LEFT/RIGHT change   ENTER confirm   ESC back';
-    } else if (raceState == ST_TRKSEL) {
-        clearHud();
-        hBig = trkName[selTrk];
-        hSub = trkInfo[selTrk];
-        fmtTime(recLap[selTrk] > 0 ? recLap[selTrk] : 0 - 1);
-        hM6 = str('BEST LAP    ', oTime);
-        fmtTime(recRace[selTrk] > 0 ? recRace[selTrk] : 0 - 1);
-        hM7 = str('BEST RACE   ', oTime);
-        hM8 = str('LENGTH      ', Math.round(trkLen), ' m');
-        hM9 = str('CIRCUIT     ', selTrk, ' / ', NTRK);
-        panelT = 0 - 14;
-        hHelp = BLANK;
-        hMsg = 'LEFT/RIGHT change   ENTER confirm   ESC back';
-    } else if (raceState == ST_EDIT) {
-        clearHud();
-        panelOn = 0;
-        hBig = BLANK;
-        hSub = BLANK;
-        hM6 = 'DRAG a node to move   CLICK the road to add   X delete';
-        hM7 = 'Q/E width   R/F height   T tunnel   J jump   B barrier';
-        hM8 = 'C checkpoint   S start line   N new oval   Z/V zoom   ARROWS pan';
-        hM9 = str('NODES ', ctlCnt[EDTRK], '   LENGTH ', Math.round(trkLen), ' m   CHECKPOINTS ', nCP);
-        hHelp = 'ENTER race this circuit   ESC back to menu';
-        hMsg = BLANK;
+    // a new screen starts from a blank page
+    let page = raceState;
+    if (page == ST_COUNT) { page = ST_RACE; }
+    let sub = 0;
+    if (page == ST_MENU) { sub = menuSel; }
+    if (page != hudPage) { txClear(); hudPage = page; hudSub = sub; }
+    else if (sub != hudSub) { hudSub = sub; let i = 42; while (i <= NTX) { txOff(i); i = i + 1; } }
+    if (raceState == ST_MENU) { hudMenu(); }
+    else if (raceState == ST_CARSEL) { hudCarSel(); }
+    else if (raceState == ST_TRKSEL) { hudTrkSel(); }
+    else if (raceState == ST_EDIT) {
+        tx(24, 'DRAG a node to move   CLICK the road to add   X delete', 0, 0 - 64, 10, C_WHITE, 0);
+        tx(25, 'Q/E width   R/F height   T tunnel   J jump   B barrier', 0, 0 - 78, 10, C_WHITE, 0);
+        tx(26, 'C checkpoint   S start line   N new oval   Z/V zoom   ARROWS pan', 0, 0 - 92, 10, C_WHITE, 0);
+        tx(27, str('NODES ', ctlCnt[EDTRK], '   LENGTH ', Math.round(trkLen), ' m   CHECKPOINTS ', nCP), 0, 0 - 106, 10, C_GOLD, 0);
+        tx(12, 'ENTER race this circuit   ESC back to menu', 0, 0 - 122, 10, C_DIM, 0);
     } else if (raceState == ST_PAUSE) {
-        clearHud();
-        hBig = 'PAUSED';
-        hSub = str(trkName[selTrk], '   ', modeName[gMode]);
-        hM1 = 'P  resume';
-        hM2 = 'R  restart';
-        hM3 = 'M  main menu';
-        panelB = 14;
-        hHelp = BLANK;
-        hMsg = BLANK;
+        tx(9, 'PAUSED', 0, 44, 32, C_WHITE, 0);
+        tx(10, str(trkName[selTrk], '   ', modeName[gMode]), 0, 16, 11, '#e0e6f2', 0);
+        tx(24, 'P   RESUME', 0, 0 - 6, 12, C_WHITE, 0);
+        tx(25, 'R   RESTART', 0, 0 - 24, 12, C_WHITE, 0);
+        tx(26, 'M   MAIN MENU', 0, 0 - 42, 12, C_WHITE, 0);
     } else if (raceState == ST_STAND) {
-        clearHud();
         if (chRound >= NTRK) {
-            hBig = 'CHAMPIONS';
-            hSub = str('FINAL STANDINGS   -   ', drvName[chOrd[1]], ' WINS THE TITLE');
-            hM9 = 'ENTER main menu';
+            tx(9, 'CHAMPIONS', 0, 106, 30, C_GOLD, 0);
+            tx(10, str('FINAL STANDINGS   -   ', drvName[chOrd[1]], ' WINS THE TITLE'), 0, 82, 11, '#e0e6f2', 0);
+            tx(12, 'ENTER  main menu', 0, 0 - 112, 11, C_DIM, 0);
         } else {
-            hBig = 'STANDINGS';
-            hSub = str('AFTER ROUND ', chRound, ' OF ', NTRK, '   -   NEXT: ', trkName[chRound + 1]);
-            hM9 = 'ENTER next round';
+            tx(9, 'STANDINGS', 0, 106, 30, C_WHITE, 0);
+            tx(10, str('AFTER ROUND ', chRound, ' OF ', NTRK, '   -   NEXT: ', trkName[chRound + 1]), 0, 82, 11, '#e0e6f2', 0);
+            tx(12, 'ENTER  next round', 0, 0 - 112, 11, C_DIM, 0);
         }
         standingsTable();
-        hHelp = BLANK;
     } else if (raceState == ST_DONE) {
-        clearHud();
-        hBig = str('FINISH  P', finished);
+        tx(9, str('FINISH  P', finished), 0, 106, 30, finished == 1 ? C_GOLD : C_WHITE, 0);
         fmtTime(caFinT[1]);
         let tt = oTime;
         fmtTime(bestLap);
-        hSub = str('TOTAL ', tt, '     BEST LAP ', oTime);
+        tx(10, str('TOTAL ', tt, '     BEST LAP ', oTime), 0, 82, 11, '#e0e6f2', 0);
         resultsTable();
-        if (gMode == M_CH) { hM9 = 'ENTER championship standings   R restart'; }
-        else { hM9 = 'ENTER menu   R restart'; }
-        hHelp = BLANK;
-    } else {
-        // ---- racing ----
-        hBigY = 14;
-        hSubY = 0 - 26;
-        panelOn = 0;
-        clearLines();
-        hHelp = BLANK;
-        let kmh = Math.abs(caSpd[1]) * 3.6;
-        hSpd = str(Math.round(kmh));
-        hSpdU = 'km/h';
-        if (caGear[1] < 0) { hGear = 'R'; }
-        else if (kmh < 2) { hGear = 'N'; }
-        else { hGear = str(caGear[1]); }
-        let lp = caLap[1];
-        if (lp < 1) { lp = 1; }
-        if (gMode == M_TT) {
-            hLap = str('LAP ', lp);
-            hPos = 'TIME TRIAL';
-            clearTower();
-        } else {
-            if (lp > nLaps) { lp = nLaps; }
-            hLap = str('LAP ', lp, ' / ', nLaps);
-            hPos = str('P ', caRank[1], ' / ', nCars);
-        }
-        fmtTime(raceT);
-        hTime = oTime;
-        if (gMode == M_TT) { fmtTime(raceT - caLapT[1]); if (caLap[1] < 1) { oTime = '--:--.---'; } hTime = oTime; }
-        fmtTime(bestLap);
-        hBest = str('BEST  ', oTime);
-        fmtTime(lastLap);
-        hLast = str('LAST  ', oTime);
-        if (driftScore > 1) {
-            hDrift = driftNow > 0
-                ? str('DRIFT ', Math.round(driftScore), '  x', Math.round(driftCombo * 10) / 10)
-                : BLANK;
-        } else { hDrift = BLANK; }
-        // DRS: shown only inside a zone
-        hDRS = BLANK;
-        if (sgDRS[caSeg[1]] > 0) {
-            hDRS = 'DRS';
-            hDRSC = 1;
-            if (caDOk[1] == 1) { hDRSC = 2; hDRS = 'DRS  E'; }
-            if (caDRS[1] > 0) { hDRSC = 3; hDRS = 'DRS OPEN'; }
-        }
-        // sector split for a few seconds, otherwise the live delta to the best lap
-        hDelta = BLANK;
-        if (secMsgT > 0) { hDelta = secMsg; hDeltaC = secCol; }
-        else if (bestLap > 0) {
-            if (caLap[1] >= 1) {
-                if (raceState == ST_RACE) {
-                    let s = caSeg[1];
-                    let ref = bsT[s] + (bsT[s + 1] - bsT[s]) * caU[1];
-                    let d = raceT - caLapT[1] - ref;
-                    fmtDelta(d);
-                    hDelta = str('DELTA  ', oSec);
-                    hDeltaC = d < 0 ? 3 : 4;
-                }
-            }
-        }
-        if (raceState == ST_COUNT) {
-            hSub = BLANK;
-            if (lightN < 1) { hSub = 'GET READY'; }
-        } else { hSub = BLANK; }
-        if (caSurf[1] >= 2) {
-            if (caOffT[1] > 1.2) { hMsg = 'OFF TRACK'; }
-        }
-    }
+        if (gMode == M_CH) { tx(12, 'ENTER  championship standings     R  restart', 0, 0 - 112, 11, C_DIM, 0); }
+        else { tx(12, 'ENTER  menu     R  restart', 0, 0 - 112, 11, C_DIM, 0); }
+    } else { hudRace(); }
 }
 
-// ---- one thread per text object; each only redraws on change ------------
-on('start', 'tSpd', function () { let p = '~'; for (;;) { if (hSpd != p) { p = hSpd; write(p); } } });
-on('start', 'tSpdU', function () { let p = '~'; for (;;) { if (hSpdU != p) { p = hSpdU; write(p); } } });
-on('start', 'tLap', function () { let p = '~'; for (;;) { if (hLap != p) { p = hLap; write(p); } } });
-on('start', 'tPos', function () { let p = '~'; for (;;) { if (hPos != p) { p = hPos; write(p); } } });
-on('start', 'tTime', function () { let p = '~'; for (;;) { if (hTime != p) { p = hTime; write(p); } } });
-on('start', 'tBest', function () { let p = '~'; for (;;) { if (hBest != p) { p = hBest; write(p); } } });
-on('start', 'tLast', function () { let p = '~'; for (;;) { if (hLast != p) { p = hLast; write(p); } } });
-on('start', 'tDrift', function () { let p = '~'; for (;;) { if (hDrift != p) { p = hDrift; write(p); } } });
-on('start', 'tBig', function () {
-    let p = '~'; let py = 0 - 999;
-    for (;;) {
-        if (hBigY != py) { py = hBigY; goto(0, py); }
-        if (hBig != p) { p = hBig; write(p); }
+function hudRace() {
+    tx(9, banner, 0, 14, 40, C_WHITE, 0);
+    let ms = msg;
+    let mc = '#cfd6e6';
+    if (caSurf[1] >= 2) { if (caOffT[1] > 1.2) { ms = 'OFF TRACK'; mc = '#ff8a7a'; } }
+    tx(11, ms, 0, 0 - 128, 12, mc, 0);
+    let kmh = Math.abs(caSpd[1]) * 3.6;
+    tx(1, str(Math.round(kmh)), 0 - 196, 0 - 104, 22, C_WHITE, 1);
+    tx(2, 'km/h', 0 - 196, 0 - 126, 11, '#a8b0c0', 1);
+    let gr = str(caGear[1]);
+    if (caGear[1] < 0) { gr = 'R'; }
+    else if (kmh < 2) { gr = 'N'; }
+    tx(13, gr, 0 - 150, 0 - 104, 22, '#ffe05a', 1);
+    let lp = caLap[1];
+    if (lp < 1) { lp = 1; }
+    if (gMode == M_TT) {
+        tx(3, str('LAP ', lp), 104, 112, 18, C_WHITE, 1);
+        tx(4, 'TIME TRIAL', 104, 88, 18, C_GOLD, 1);
+    } else {
+        if (lp > nLaps) { lp = nLaps; }
+        tx(3, str('LAP ', lp, ' / ', nLaps), 104, 112, 18, C_WHITE, 1);
+        tx(4, str('P ', caRank[1], ' / ', nCars), 104, 88, 18, C_GOLD, 1);
     }
-});
-on('start', 'tSub', function () {
-    let p = '~'; let py = 0 - 999;
-    for (;;) {
-        if (hSubY != py) { py = hSubY; goto(0, py); }
-        if (hSub != p) { p = hSub; write(p); }
+    fmtTime(raceT);
+    if (gMode == M_TT) { fmtTime(raceT - caLapT[1]); if (caLap[1] < 1) { oTime = '--:--.---'; } }
+    tx(5, oTime, 0 - 196, 112, 16, C_WHITE, 1);
+    fmtTime(bestLap);
+    tx(6, str('BEST  ', oTime), 0 - 196, 92, 12, C_SKY, 1);
+    fmtTime(lastLap);
+    tx(7, str('LAST  ', oTime), 0 - 196, 76, 12, '#c8c8d2', 1);
+    let dr = BLANK;
+    if (driftScore > 1) { if (driftNow > 0) { dr = str('DRIFT ', Math.round(driftScore), '  x', Math.round(driftCombo * 10) / 10); } }
+    tx(8, dr, 0, 96, 20, '#ffe05a', 0);
+    // DRS: shown only inside a zone
+    let ds = BLANK;
+    let dc = '#7a8290';
+    if (sgDRS[caSeg[1]] > 0) {
+        ds = 'DRS';
+        if (caDOk[1] == 1) { dc = '#ffc53a'; ds = 'DRS  E'; }
+        if (caDRS[1] > 0) { dc = '#3dff6e'; ds = 'DRS OPEN'; }
     }
-});
-on('start', 'tMsg', function () { let p = '~'; for (;;) { if (hMsg != p) { p = hMsg; write(p); } } });
-on('start', 'tHelp', function () { let p = '~'; for (;;) { if (hHelp != p) { p = hHelp; write(p); } } });
-on('start', 'tM1', function () { let p = '~'; for (;;) { if (hM1 != p) { p = hM1; write(p); } } });
-on('start', 'tM2', function () { let p = '~'; for (;;) { if (hM2 != p) { p = hM2; write(p); } } });
-on('start', 'tM3', function () { let p = '~'; for (;;) { if (hM3 != p) { p = hM3; write(p); } } });
-on('start', 'tM4', function () { let p = '~'; for (;;) { if (hM4 != p) { p = hM4; write(p); } } });
-on('start', 'tM5', function () { let p = '~'; for (;;) { if (hM5 != p) { p = hM5; write(p); } } });
-on('start', 'tM6', function () { let p = '~'; for (;;) { if (hM6 != p) { p = hM6; write(p); } } });
-on('start', 'tM7', function () { let p = '~'; for (;;) { if (hM7 != p) { p = hM7; write(p); } } });
-on('start', 'tM8', function () { let p = '~'; for (;;) { if (hM8 != p) { p = hM8; write(p); } } });
-on('start', 'tM9', function () { let p = '~'; for (;;) { if (hM9 != p) { p = hM9; write(p); } } });
-on('start', 'tGear', function () { let p = '~'; for (;;) { if (hGear != p) { p = hGear; write(p); } } });
-on('start', 'tDRS', function () {
-    let p = '~'; let pc = 0 - 1;
-    for (;;) {
-        if (hDRSC != pc) {
-            pc = hDRSC;
-            if (pc == 3) { textColor('#3dff6e'); } else if (pc == 2) { textColor('#ffc53a'); } else { textColor('#7a8290'); }
+    tx(14, ds, 0 - 150, 0 - 126, 11, dc, 1);
+    // sector split for a few seconds, otherwise the live delta to the best lap
+    let de = BLANK;
+    let dcol = '#5cf07a';
+    if (secMsgT > 0) { de = secMsg; dcol = secCol == 1 ? '#d78cff' : '#ffd84a'; }
+    else if (bestLap > 0) {
+        if (caLap[1] >= 1) {
+            if (raceState == ST_RACE) {
+                let s = caSeg[1];
+                let ref = bsT[s] + (bsT[s + 1] - bsT[s]) * caU[1];
+                let d = raceT - caLapT[1] - ref;
+                fmtDelta(d);
+                de = str('DELTA  ', oSec);
+                dcol = d < 0 ? '#5cf07a' : '#ff6a5a';
+            }
         }
-        if (hDRS != p) { p = hDRS; write(p); }
     }
-});
-on('start', 'tDelta', function () {
-    let p = '~'; let pc = 0 - 1;
-    for (;;) {
-        if (hDeltaC != pc) {
-            pc = hDeltaC;
-            if (pc == 1) { textColor('#d78cff'); } else if (pc == 2) { textColor('#ffd84a'); }
-            else if (pc == 3) { textColor('#5cf07a'); } else { textColor('#ff6a5a'); }
-        }
-        if (hDelta != p) { p = hDelta; write(p); }
-    }
-});
-on('start', 'tT1', function () { let p = '~'; for (;;) { if (hT1 != p) { p = hT1; write(p); } } });
-on('start', 'tT2', function () { let p = '~'; for (;;) { if (hT2 != p) { p = hT2; write(p); } } });
-on('start', 'tT3', function () { let p = '~'; for (;;) { if (hT3 != p) { p = hT3; write(p); } } });
-on('start', 'tT4', function () { let p = '~'; for (;;) { if (hT4 != p) { p = hT4; write(p); } } });
-on('start', 'tT5', function () { let p = '~'; for (;;) { if (hT5 != p) { p = hT5; write(p); } } });
-on('start', 'tT6', function () { let p = '~'; for (;;) { if (hT6 != p) { p = hT6; write(p); } } });
-on('start', 'tT7', function () { let p = '~'; for (;;) { if (hT7 != p) { p = hT7; write(p); } } });
-on('start', 'tT8', function () { let p = '~'; for (;;) { if (hT8 != p) { p = hT8; write(p); } } });
+    tx(15, de, 0, 74, 13, dcol, 0);
+    let sb = BLANK;
+    if (raceState == ST_COUNT) { if (lightN < 1) { sb = 'GET READY'; } }
+    tx(10, sb, 0, 0 - 26, 14, '#e0e6f2', 0);
+    if (gMode == M_TT) { let i = 16; while (i <= 23) { txOff(i); i = i + 1; } }
+}

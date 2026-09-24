@@ -1,0 +1,6 @@
+[{"wait":2000},
+{"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":200},{"up":{"code":"Enter","key":"Enter","keyCode":13}},
+{"wait":3000},
+{"down":{"code":"KeyW","key":"w","keyCode":87}},
+{"wait":6000,"eval":"(()=>{const vm=window.__vm; const g=n=>{const v=vm.variables.find(v=>v.name===n); return v && (v.array? v.array.slice(0,3): v.value)}; return {keys:[...vm.pressedKeys], rs:g('raceState'), spd:g('caSpd'), keys2: Object.keys(vm.variables.find(v=>v.name==='caSpd')||{})}})()"},
+{"wait":3000,"shot":"r3.png"}]

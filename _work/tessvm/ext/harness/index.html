@@ -1,0 +1,30 @@
+<!doctype html><html><head><meta charset="utf-8"><title>tessvm harness</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Gothic+Coding:wght@400;700&family=Nanum+Gothic:wght@400;700&display=block">
+<style>body{margin:0;background:#111} #stage{width:960px;height:540px}</style></head>
+<body><div id="stage"></div>
+<script type="module">
+import { toTessProject } from '../page/tess-project.js';
+import { boot } from '../vendor/tessvm/web/boot.js';
+window.__errors = [];
+const OF = window.Function;
+window.Function = function (...a) { const src = String(a[a.length - 1]); if (src.includes('const F = [];')) window.__progSrc = src; else if (src.includes('ld_item')) window.__kernSrc = src; return OF(...a); };
+window.Function.prototype = OF.prototype;
+window.addEventListener('error', e => window.__errors.push(String(e.message)));
+async function start() {
+  const work = await (await fetch('/ent/temp/project.json')).json();
+  for (const o of work.objects) for (const p of (o.sprite?.pictures || [])) p.fileurl = '/ent/' + p.fileurl;
+  work.id = 'local';
+  const t0 = performance.now();
+  const built = toTessProject(work);
+  window.__compileMs = performance.now() - t0;
+  window.__dropped = built.dropped;
+  window.__source = built.source;
+  window.__fnNames = built.project.functions.map(fn => { let c = fn.content; if (typeof c === 'string') c = JSON.parse(c); const st = c.find(s => s[0] && s[0].type.startsWith('function_create')); let lab = st && st[0].params[0]; return lab && lab.params ? String(lab.params[0]) : fn.id; });
+  await document.fonts.load('bold 20px "Nanum Gothic Coding"').catch(()=>{});
+  const handle = await boot({ project: built.project, container: document.getElementById('stage'), autoStart: false, boost: true, svg: false,
+     keyTarget: document.body });
+  window.__handle = handle;
+  window.__vm = handle.vm;
+  window.__ready = true;
+}
+start().catch(e => { window.__errors.push('start: ' + (e.stack || e)); window.__ready = true; });
+</script></body></html>

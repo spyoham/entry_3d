@@ -26,16 +26,8 @@ function pollAction() {
 }
 
 // ---- attract / showroom cameras ----------------------------------------
-// v6: the fly-over used to aim at a ring a whole number of segments ahead, so
-// the view direction jumped a little every time the camera crossed a ring.
-// Both the eye and the aim point now slide continuously along the spline, and
-// the resulting yaw/pitch are eased, which also rounds off the kinks where
-// the straight ring-to-ring pieces meet.
-let mcYaw = 0;
-let mcPitch = 0;
-let mcInit = 0;
 function menuCam() {
-    attractT = attractT + dt * 3.4;
+    attractT = attractT + dt * 6;
     let f = mod(attractT, NSEG);
     let s = Math.floor(f) + 1;
     let u = f - Math.floor(f);
@@ -43,35 +35,22 @@ function menuCam() {
     let x = sgX[s] + (sgX[s2] - sgX[s]) * u;
     let y = sgY[s] + (sgY[s2] - sgY[s]) * u;
     let z = sgZ[s] + (sgZ[s2] - sgZ[s]) * u;
-    let side = 10 * sind(gt * 9);
-    let nx = sgNX[s] + (sgNX[s2] - sgNX[s]) * u;
-    let nz = sgNZ[s] + (sgNZ[s2] - sgNZ[s]) * u;
-    camX = x + nx * side;
-    camY = y + 5.2 + 2 * sind(gt * 7);
-    camZ = z + nz * side;
+    let side = 10 * sind(gt * 20);
+    camX = x + sgNX[s] * side;
+    camY = y + 5.2 + 2 * sind(gt * 15);
+    camZ = z + sgNZ[s] * side;
     let la = mod(s - 1 + 18, NSEG) + 1;
-    let lb = mod(la, NSEG) + 1;
-    let dx = sgX[la] + (sgX[lb] - sgX[la]) * u - camX;
-    let dz = sgZ[la] + (sgZ[lb] - sgZ[la]) * u - camZ;
-    let ly = sgY[la] + (sgY[lb] - sgY[la]) * u;
+    let dx = sgX[la] - camX;
+    let dz = sgZ[la] - camZ;
     atan2d(dx, dz);
-    let ty = oAtan;
-    atan2d(ly + 1.5 - camY, Math.sqrt(dx * dx + dz * dz));
-    let tp = oAtan;
-    if (mcInit < 1) { mcYaw = ty; mcPitch = tp; mcInit = 1; }
-    let k = Math.min(1, dt * 2.5);
-    mcYaw = mcYaw + (mod(ty - mcYaw + 540, 360) - 180) * k;
-    mcPitch = mcPitch + (tp - mcPitch) * k;
-    camYaw = mcYaw;
-    camPitch = mcPitch;
-    camRoll = 1.2 * sind(gt * 6);
+    camYaw = oAtan;
+    atan2d(sgY[la] + 1.5 - camY, Math.sqrt(dx * dx + dz * dz));
+    camPitch = oAtan;
+    camRoll = 1.6 * sind(gt * 10);
     camFov = 78;
     caSeg[1] = s;
 }
 
-// Showroom: the car turns on a turntable at the start line; the camera
-// stands still at a three-quarter view and looks a little to the right of
-// it, so the car sits in the left half beside the data panel.
 function showroomCam() {
     nCars = 1;
     let s = 1;
@@ -85,22 +64,21 @@ function showroomCam() {
     caPitch[1] = 0;
     caBrk[1] = 0;
     caFin[1] = 0;
-    caSteer[1] = 0.35 * sind(gt * 35);
     caCol[1] = ctCol[selCar];
     atan2d(sgDX[s], sgDZ[s]);
-    let base = oAtan;
-    caYaw[1] = base + gt * 24;
-    let a = base + 150;
-    camX = caX[1] + sind(a) * 15.5;
-    camZ = caZ[1] + cosd(a) * 15.5;
-    camY = caY[1] + 3.8;
+    caYaw[1] = oAtan;
+    // orbit close and aim below the car, so it sits in the upper half of the
+    // screen above the stats card
+    let a = gt * 22;
+    camX = caX[1] + sind(a) * 13;
+    camZ = caZ[1] + cosd(a) * 13;
+    camY = caY[1] + 3;
     atan2d(caX[1] - camX, caZ[1] - camZ);
-    camYaw = oAtan + 11;
-    atan2d(caY[1] + 0.2 - camY, 15.5);
-    camPitch = oAtan;
+    camYaw = oAtan;
+    atan2d(caY[1] + 0.4 - camY, 13);
+    camPitch = oAtan - 3.5;
     camRoll = 0;
-    camFov = 52;
-    mcInit = 0;
+    camFov = 46;
 }
 
 // ---- menu wiring --------------------------------------------------------
@@ -108,7 +86,6 @@ function pickTrack(d) {
     selTrk = mod(selTrk - 1 + d, NTRK + (ctlCnt[EDTRK] >= 5 ? 1 : 0)) + 1;
     buildTrack(selTrk);
     attractT = 0;
-    mcInit = 0;
 }
 
 // left / right on a menu line
@@ -163,9 +140,9 @@ function selKeys() {
 function raceKeys() {
     if (actKey == 67) { camMode = mod(camMode + 1, 4); }
     else if (actKey == 76) { showLine = 1 - showLine; setMsg(showLine > 0 ? 'RACING LINE ON' : 'RACING LINE OFF', 1.2); }
-    else if (actKey == 80) { prevState = raceState; raceState = ST_PAUSE; drawPausePanel(); }
+    else if (actKey == 80) { prevState = raceState; raceState = ST_PAUSE; }
     else if (actKey == 82) { setupRace(selTrk, selCar); }
-    else if (actKey == 27) { prevState = raceState; raceState = ST_PAUSE; drawPausePanel(); }
+    else if (actKey == 27) { prevState = raceState; raceState = ST_PAUSE; }
 }
 
 function toMenu() {
@@ -196,28 +173,6 @@ function initGame() {
 // average cannot drift.
 let dtS = 0.05;
 let simT = 0;
-// tessvm sets $TESSVM to 1. Its clock advances a fixed 1/60 s per engine
-// tick, so on a machine that cannot keep 60 ticks a second the whole game
-// would run in slow motion. The real tick rate is counted against the wall
-// clock's seconds and the frame time scaled up to match.
-let $TESSVM = 0;
-let rtSec = 0 - 1;
-let rtN = 0;
-let rtK = 1;
-function realTimeScale() {
-    rtN = rtN + 1;
-    let sc = dateSec();
-    if (sc != rtSec) {
-        if (rtSec >= 0) {
-            let want = 60 / rtN;
-            if (want < 1) { want = 1; }
-            if (want > 3) { want = 3; }
-            rtK = rtK + (want - rtK) * 0.5;
-        }
-        rtSec = sc;
-        rtN = 0;
-    }
-}
 function frameClock() {
     let t = timer();
     let raw = t - lastT;
@@ -227,12 +182,6 @@ function frameClock() {
     dtS = dtS + (raw - dtS) * 0.2;
     dt = dtS + (t - simT - dtS) * 0.1;
     if (t - simT > 1.0) { simT = t - 0.3; }
-    if ($TESSVM == 1) {
-        // the tick clock is exact, so no drift correction: just rescale it
-        realTimeScale();
-        dt = dtS * rtK;
-        simT = t - dt;
-    }
     if (dt < 0.004) { dt = 0.004; }
     if (dt > 0.30) { dt = 0.30; }
     simT = simT + dt;

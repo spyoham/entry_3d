@@ -1,0 +1,1 @@
+[{"wait":7000},{"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":1200},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":4000},{"down":{"code":"KeyW","key":"w","keyCode":87}},{"wait":4000,"vars":1},{"wait":20000,"vars":1}]

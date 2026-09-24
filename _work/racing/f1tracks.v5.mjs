@@ -375,7 +375,7 @@ export const F1 = [
         ],
         elev: [[0, 0], ['c3', 1], ['c7', -3], ['c9', -1], ['c11', 1]],
         landmarks: [
-            { at: 's8', side: 1, dist: 34, type: 'BANKING', scale: 1.0, face: true },
+            { at: 's8', side: 1, dist: 0, type: 'BANKING', scale: 1.0 },
             { at: 's1', side: 1, dist: 0, type: 'GANTRY', scale: 1.0, du: 0.03 },
             { at: 's1', side: 1, dist: 36, type: 'STAND2', scale: 1.1, face: true },
             { at: 'c1', side: -1, dist: 44, type: 'STAND2', scale: 1.0, face: true },

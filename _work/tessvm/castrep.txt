@@ -1,0 +1,16 @@
+    if (st.castStart) await page.evaluate(() => { globalThis.__castI = { fix: 0, dec: 0, st: [], st2: [], f0: window.__vm.frame }; });
+    if (st.castStop) {
+        const R = await page.evaluate(() => { const I = globalThis.__castI; globalThis.__castI = null; return { fix: I.fix, dec: I.dec, st: I.st, st2: I.st2, frames: window.__vm.frame - I.f0, src: window.__progSrc, names: window.__fnNames }; });
+        console.log('frames', R.frames, 'toFixed/frame', (R.fix / R.frames).toFixed(0), 'decimalsBelow/frame', (R.dec / R.frames).toFixed(0));
+        const lines = R.src.split(String.fromCharCode(10)); const starts = [];
+        lines.forEach((l, i) => { const m = /^F\[(\d+)\] = /.exec(l); if (m) starts.push([i, Number(m[1])]); });
+        for (const [lab, arr] of [['toFixed', R.st], ['decimalsBelow', R.st2]]) {
+            const cnt = new Map();
+            for (const s of arr) { const m = /<anonymous>:(\d+):(\d+)/.exec(s); if (!m) { cnt.set('?', (cnt.get('?') || 0) + 1); continue; }
+                const L = Number(m[1]) - 3; let f = null; for (const [ln, idx] of starts) if (ln <= L) f = idx;
+                const key = (f !== null ? R.names[f] : '?') + ' | ' + (lines[L] || '').trim().slice(0, 150);
+                cnt.set(key, (cnt.get(key) || 0) + 1); }
+            console.log('== ' + lab);
+            for (const [k, c] of [...cnt].sort((a, b) => b[1] - a[1]).slice(0, 25)) console.log(String(c).padStart(5), k);
+        }
+    }

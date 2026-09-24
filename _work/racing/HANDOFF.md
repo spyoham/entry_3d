@@ -1,3 +1,145 @@
+# ENTRY RACING 3D — 작업 인계 메모 (2026-09-24, v6)
+
+산출물: `C:\Users\spyoh\entry_3d\3D 레이싱 v6.ent` (734 KB) ← 최신 (v1–v5 보존), 설명서 `3D 레이싱 v6 설명서.md`
+빌드: `node build.mjs racing6.ent` → `globals 198, lists 296, functions 137, handlers 3`
+v5 소스 백업: `build.v5.mjs`, `src.v5bak/`, `f1car.v5.mjs`, `f1tracks.v5.mjs`
+
+플레이어는 **tessvm**(크롬 확장: Entry→Tess 디컴파일→JS 컴파일→pixi 렌더)로 돌린다. 이제 성능 판단 기준은 tessvm.
+
+## tessvm 테스트 환경 (`_work/tessvm/`)
+- 확장 CRX를 받아 `ext/`에 풀었다(제3자 코드라 git 제외). 다시 받기:
+  `curl -sL -o tessvm.crx "https://clients2.google.com/service/update2/crx?response=redirect&prodversion=130.0&acceptformat=crx2,crx3&x=id%3Dmdakllbjgeemolgfefbkbjfcoaknnfkk%26uc"`
+  → 파일에서 `PK\x03\x04` 이후를 zip으로 잘라 `ext/`에 풀기. `ext/harness/index.html`만 git에 있다.
+- `node tsrv.mjs` (포트 3100: `ext/` + 풀린 .ent) → `node trun.mjs file.ent --script s.json [--throttle 4]`
+  스텝: `wait/down/up/shot/eval/fps(틱 ms·flush ms)/profStart/profStop(Entry 함수별 CPU)`.
+  하네스는 확장의 `toTessProject` + `boot`를 그대로 쓰고, 구글 폰트로 나눔고딕코딩을 로드한다(playentry와 같게).
+- `mkbench.mjs trk gfx out.json 9 shotPrefix` (메뉴 조작→레이스 벤치), `mktour.mjs prefix` (메뉴 전체 스크린샷).
+
+## tessvm 성능 모델 (측정)
+- 틱 = 고정 1/60초, `maxCatchUp 4`. **타이머도 틱 기반** → 틱이 느리면 게임이 슬로모션.
+  v6은 `$TESSVM == 1`일 때 `get_date SECOND`로 실제 초당 틱을 세어 dt 배율 `rtK` (main.js `realTimeScale`).
+- `+ - ×`는 엔트리 BigNumber 흉내(`cast.js`): 정수끼리 ~3 ns, 긴 소수 ~15–45 ns,
+  **짧은 꼬리이거나 상쇄가 있는 소수 뺄셈은 decimalsBelow + toFixed로 130–250 ns** (161.86 − 147.66 같은 것).
+  나눗셈은 |결과| ≥ 1e-3이면 싸다. 프로파일상 v5 프레임의 ~70%가 정점 변환의 이 연산이었다.
+  → **정수 고정소수점**: 월드 cm 정수(`WU`), 카메라 축 ×16384(`BS`), 뷰 단위 1/ZU m, 화면 1/16(`QS`).
+  풍경 모델 cm 정수, 차 모델 mm 정수, 차 법선 ×1024, 면 평면 오프셋 mm×1024. `drawScn`은 모델→뷰 정수 행렬 1개.
+- 풍경·차는 경계구 절두체 컬링(`gtR`, 차 3.2 m). 싱가포르 ULTRA 13–21 → 5–6 ms/틱.
+- 함수 호출은 제너레이터 트램펄린(싸다). `wait_until_true(not continue)` 트릭은 tessvm도 인식한다(무양보 루프).
+- 데이터 리스트 소수는 `longTail()`로 상대 3e-10 흔든다(효과는 작음; 주범은 상쇄 뺄셈).
+
+## v6에서 한 것
+1. **풍경 침범**: `scPut`이 놓을 때 `scClear`(모델 상자 `gtX0/X1/Z0/Z1` × 배율, 회전)로 **서킷 전체** 링과 거리 검사.
+   도로 + 연석 + 런오프(+0.8 m)에 닿으면 바깥으로 최대 3번 밀고, 안 되면 버린다. 먼 링은 `(d − 30)/segStep`만큼 건너뜀.
+   dist 0 랜드마크(갠트리/호텔/다리)는 제외. 몬자 BANKING은 도로를 가로막고 있어서 `dist 34, face`로.
+   검사: `node scncheck.mjs [gfx] [trks]` (의도된 5개만 남음), `node t6/lmcheck.mjs`.
+2. **최적화**: 위 tessvm 항목. 순정 엔트리도 HIGH 레이스 1.9 → 2.55 fps.
+3. **오브젝트 2개**: `txt`(줄바꿈 글상자, 폭 1000 고정 → "크기 정하기"가 정확한 글자 배율, 왼쪽 정렬) + `pen3`.
+   `txt`가 복제본 64개(`NTX`) 생성, 복제본별 변수 `txt$slot`/`txt$v`.
+   **ejs 새 기능**: `let obj$name` = 그 오브젝트 전용 변수(복제본마다 따로), `textColorHex(expr)`, `dateSec()`.
+   `tx(i, s, x, y, 크기, 색, 정렬)`이 칸을 채우고 바뀌었을 때만 `txV` 증가. 가운데/오른쪽 정렬은 고정폭 추정(`TXCW` 0.5em)
+   → 값 열은 전부 왼쪽 정렬로 배치(글꼴이 달라도 안 틀어짐).
+   칸 배정: 1–23 레이스 HUD/타워, 24–41 메뉴 행·결과표, 42–64 카드. **칸 충돌 검사 `node t6/slots.mjs`**.
+4. **메뉴** (`src/menu.js`): 메인 메뉴 + 미리보기 카드(3D 지도 `drawMap3D`, 카드 속 3D 차 `drawCardCar` —
+   카메라 저장/복원 + `scrOX/scrOY` 화면 이동), 차고(턴테이블 `drawTurntable`, 차는 월드를 다 그린 뒤 그림),
+   서킷 화면. 차 성능치는 build가 phys 식으로 적분(`ctKmh/ct100/ct200/ctGL/ctGH/ctKg`, 막대 `ctB1..4`).
+5. **메뉴 카메라**: 조준점도 u로 보간 + yaw/pitch 이징. `node t6/camsmooth.mjs`로 v5 대비 저크 비교.
+
+## 함정 (v6에서 새로 발견)
+- tessvm은 `bgColor`가 없는 글상자를 **흰 배경**으로 그린다(컴파일러 기본값 #ffffff) → `bgColor: 'transparent'` 명시.
+- Entry "크기 정하기"는 (폭×sx + 높이×sy)/2 기준이고 일반 글상자는 폭이 글자에 따라 변함 → 줄바꿈 글상자로 고정.
+- Entry 함수는 중간 `return` 불가 → 컬링은 `vis` 플래그로 감싼다. ejs는 매개변수 재대입 불가.
+- sim에서 함수 매개변수 이름 `R`은 런타임 객체를 가린다(쓰지 말 것).
+- `v5shots.mjs`의 텍스트 출력은 옛 글상자 기준이라 이제 undefined — 글자 확인은 tessvm 하네스 스크린샷으로.
+
+---
+
+# ENTRY RACING 3D — 작업 인계 메모 (2026-09-23, v5)
+
+산출물: `C:\Users\spyoh\entry_3d\3D 레이싱 v5.ent` (646 KB) ← 최신 (v1–v4 보존), 설명서 `3D 레이싱 v5 설명서.md`
+빌드: `node build.mjs racing5.ent` → `globals 226, lists 259, functions 114, handlers 33`
+v4 소스 백업: `build.v4.mjs`, `src.v4bak/`
+
+전제(사용자): 확장 프로그램이 블록 코드를 컴파일해 약 100배 빠르게 돌린다. 리스트 5000칸 제한은 그대로.
+→ 헤드리스 프로파일에서 v4 프레임의 ~95%가 블록 실행, 그리기(easel)는 몇 %뿐이었다. 확장 환경에서는
+**그리기(폴리곤 수)가 병목**이 되므로, 남는 연산은 "그리기는 싸고 계산은 비싼" 기능(조명·물리·AI·모드)에 쓰고
+폴리곤은 그래픽 옵션(LOW/HIGH/ULTRA)으로 조절하게 했다.
+
+## v5에서 한 것
+### 그래픽
+- **F1 오픈휠 차** (`f1car.mjs`): 로프트(앞/뒤 단면이 다른 상자) + 육각 바퀴. 2단 LOD
+  (실루엣 64정점/38면, 풀 208정점/95면). 노즈·프런트윙(플랩·엔드플레이트)·사이드포드·헤일로·헬멧·에어박스·
+  디퓨저·리어윙·레인라이트, 앞바퀴가 조향각만큼 돈다.
+  - 볼록하지 않아 백페이스 컬링만으로는 순서가 안 맞는다 → 빌드가 **8방향별로 면을 뒤→앞 정렬**(`coLo/coHi`),
+    렌더러는 카메라가 차를 보는 방위(45° 단위)로 순서를 고른다.
+  - **런타임 조명**: 면 법선(`cnX/Y/Z`)·태양, 차 단위 안개, `rgb()`로 직접 색 → 리버리 색이 팔레트와 무관.
+  - 비용: 모델→뷰를 차마다 3×3 행렬 하나로 합성(정점당 곱 9개), 카메라·태양을 **차 로컬 좌표로** 옮겨서
+    백페이스 사전검사가 면당 내적 1개 + 빌드 상수(`cfP` 평면 오프셋). 1.0M → 0.73M 블록/프레임(출발 그리드).
+  - 가까운 K대만 풀 모델(`gfFull` LOW 1 / HIGH 4 / ULTRA 8, `pickCarDetail`), 나머지 실루엣, 더 멀면 카드 1장.
+  - 도색 9종(`lv*` 리스트, 9번 = 고스트), 드라이버 이름 `drvName/drvShort`.
+- **정점 버퍼**: `NSEG 480→460` (차 모델 272정점 자리). (461×10)+272+8+48 = 4938 ≤ 5000.
+- 흰 **트랙 가장자리 선**(연석이 있으면 연석 안쪽), **그리드 박스**(`sgGrid`), 미니맵 차 색은 리버리.
+- **그래픽 옵션** `gfx` 1/2/3: LOD 밴드 거리 `gfLod2/3`, 풍경 거리 `gfScn`, 풍경 풀모델 반경 `gfScnHi`,
+  차 LOD `gfCar/gfCarM/gfFull`, 안개 거리 배율 `gfFog`, ULTRA는 풍경 산포 한 겹 더(`gfDen`). 바꾸면 buildTrack.
+- **비**: 하늘 회색, 안개 거리 ×0.62, 팔레트 전체를 어둡게(loadPalette), 화면 빗줄기(속도에 따라 기울기),
+  차 뒤 물보라(연기 풀 재사용, `NSMOKE 96`), 레인라이트 상시 점등, 그립 ×0.80(`wetK`, AI 계산에도 반영),
+  스키드마크 없음.
+- HUD: F1식 **5개 스타트 라이트**, 15칸 **레브 LED**(녹/적/청), 기어, DRS 표시(회색 / 주황 "DRS E" / 녹색 OPEN),
+  섹터 기록·라이브 델타(보라=개인 최고, 노랑=느림, 녹/적 델타), 왼쪽 **타이밍 타워**(0.3초마다 갱신),
+  메뉴 뒤 어두운 카드(`drawPanel`), 제목/부제는 상태에 따라 `goto`로 이동.
+- 카메라 4종: 추격 / 콕핏 / 원거리 / **T캠**(에어박스 위, 노즈와 앞바퀴가 보임).
+- **레이싱 라인 어시스트**(L 키): 트랙 로드 때 최소곡률 라인(`buildRacingLine`, 이웃 6→3→1링 이완 90회)과
+  그 곡률로 만든 속도 프로파일(`speedProfile`, 제동 20 m/s² 역방향 패스). 도로에 띠로 그리고
+  내 속도 대비 녹(가속) / 주황(리프트) / 빨강(제동).
+  - AI에게 이 라인을 따르게 한 A/B(8서킷×100초): 4곳에서 느려지고 이탈 증가 → AI는 v4 라인 유지(`AIRL = 0`).
+
+### 게임플레이
+- **모드**: GRAND PRIX(1경기) / CHAMPIONSHIP(8라운드, 25-18-15-12-10-8-6-4점, 경기 후 순위표 `ST_STAND`)
+  / TIME TRIAL(혼자, 무제한 랩, **고스트**).
+- 메뉴 9항목: 시작, 모드, 차, 트랙, AI 레벨, **랩 수(1/3/5/10)**, **날씨**, **그래픽**, 에디터.
+- 그리드: 플레이어 6번째 출발. AI 도색은 플레이어 팀과 겹치지 않게.
+- **슬립스트림**: 앞차 40 m 이내·측면 2.4 m 이내 → 최고속 +3.5%, 항력 −30% (`updateTow`, 프레임당 1회).
+- **DRS**: 가장 긴 직선 2개(360 m 초과)를 자동 탐지(`sgDRS`), 존 진입 때 1회 판정(2랩째부터, 앞차와 1초 이내,
+  타임트라이얼은 항상). AI는 자동, 플레이어는 **E**. 브레이크를 밟으면 닫힘. 효과: 최고속 +5%, 항력 −35%, 다운포스 −25%.
+- 섹터 3개(링 번호 1/3, 2/3), 개인 최고 섹터, 최고 랩 대비 **라이브 델타**(`bsT/csT` 링별 랩타임).
+- 고스트: 0.1초 간격 샘플(`gr*` 기록 → 최고 랩이면 `gb*`로 복사, 최대 3000샘플 = 5분). 같은 서킷 재시작 시 유지.
+  고스트는 실제 차보다 먼저 그려서 겹쳐도 내 차를 가리지 않는다.
+- 결과표: 순위·이름·팀·기록/격차. 피니시 뒤에도 AI가 계속 달려 들어온다
+  (v4는 `aiDrive`가 `raceState != 3`이면 브레이크를 밟아서 AI가 멈췄다).
+- 차-차 충돌: 원 대신 **차 기준 직사각형**(길이 4.9, 폭 1.95) 겹침 → 얕은 축으로 밀어냄 + 요 흔들림.
+- 차종 4개를 F1 세팅으로: ROSSO R5(균형) / ARGENTO W(저항 적음) / AZURE RB(다운포스) / ARANCIA MC(트랙션).
+
+### 엔진
+- **프레임 시계 스무딩**(`frameClock`): 프로젝트 타이머는 60Hz로 갱신돼서, 60fps 근처 이상(확장 사용 시)에서는
+  대부분의 프레임이 dt=0을 읽는다 → dt를 지수평균하고 sim 시계를 실제 시계 쪽으로 천천히 당긴다.
+- 시간 포맷터가 BLANK 대신 명시적 0채움 → 표의 열이 맞는다(`fmtMs`, `padR`).
+
+## 함정 (v5에서 새로 발견)
+- **`rgb()`에 소수를 넣으면 파랑 채널이 망가진다.** `Entry.rgb2hex = '#' + ((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1)`
+  — r, g는 시프트가 정수로 자르지만 b는 그대로 더해져 `#d61f23.b33` 같은 문자열 → 검은색. b만 `Math.floor`.
+  `sim.mjs`의 rgb도 이제 똑같이 동작하고, 잘못된 색 문자열은 검정으로 칠한다.
+- Bash 도구에서 따옴표가 든 heredoc이 가끔 깨진다 → 편집 스크립트는 파일로 쓰거나 `python3 - <<'EOF'`.
+- node 코드 안에서 `/tmp/...` 문자열은 `C:\tmp`가 된다(명령 인자일 때만 MSYS가 변환). 테스트 산출물은 `t5/`.
+
+## 성능 (순정 Entry, 헤드리스)
+- 출발 그리드 HIGH: 약 73만 블록/프레임(8대 밀집), 레이스 중 LOW 42–49만. 약 1.5–3.4 fps(v4는 3.4).
+  확장(≈100배) 기준으로는 블록 비용이 수 ms 수준 → 폴리곤 수(HIGH 250–650장)가 지배할 것.
+- 순정 Entry로 할 거면 GRAPHICS LOW 권장.
+
+## 테스트 도구 (v5 추가)
+- `node f1car.mjs` (정점/면 수), `node carpreview.mjs out.png` (8방향×2티어 미리보기, 게임과 같은 규칙)
+- `node v5shots.mjs trk prefix` — env `GFX WX MODE CAM SECS` (시뮬레이터 스크린샷 + HUD 문자열)
+- `node v5flow.mjs rounds fps` — 챔피언십 흐름(결과표→순위표→다음 라운드), DRS/슬립스트림/섹터. env `LAPSEL`
+- `node rlplot.mjs out.png` — 8서킷 레이싱 라인·속도 프로파일 평면도
+- `node mkscript5.mjs N out.json tag mode wx gfx secs` — 실제 Entry 키 스크립트 (9항목 메뉴용)
+- `t5/dt.mjs trk secs` (env `AIRL`) — AI 라인 A/B
+
+## 남은 아이디어
+1. 타이어 마모·피트스톱(피트레인 경로가 필요), 차 손상.
+2. AI 속도 계산을 레이싱 라인 곡률 기반으로 바꾸면 라인 추종도 이득일 수 있다(지금은 중심선 곡률).
+3. 폴리곤 예산: 확장 환경에서 fps를 재서 `gf*` 표를 조정.
+
+---
+
 # ENTRY RACING 3D — 작업 인계 메모 (2026-09-21, v4)
 
 산출물: `C:\Users\spyoh\entry_3d\3D 레이싱 v4.ent` (475 KB) ← 최신 (v3, v2, v1 보존)

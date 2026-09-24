@@ -243,13 +243,13 @@ function drawEditor() {
         let j = i + 1;
         let b0 = (i - 1) * PPR;
         let b1 = i * PPR;
-        edProj(wvX[b0 + P_L], wvZ[b0 + P_L]);
+        edProj(wvX[b0 + P_L] / WU, wvZ[b0 + P_L] / WU);
         let ax = edSX; let ay = edSY;
-        edProj(wvX[b0 + P_R], wvZ[b0 + P_R]);
+        edProj(wvX[b0 + P_R] / WU, wvZ[b0 + P_R] / WU);
         let bx = edSX; let by = edSY;
-        edProj(wvX[b1 + P_R], wvZ[b1 + P_R]);
+        edProj(wvX[b1 + P_R] / WU, wvZ[b1 + P_R] / WU);
         let cx = edSX; let cy = edSY;
-        edProj(wvX[b1 + P_L], wvZ[b1 + P_L]);
+        edProj(wvX[b1 + P_L] / WU, wvZ[b1 + P_L] / WU);
         let dx = edSX; let dy = edSY;
         let lo = ax;
         if (bx < lo) { lo = bx; } if (cx < lo) { lo = cx; }
