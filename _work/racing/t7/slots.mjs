@@ -14,10 +14,15 @@ const check = (label) => {
 };
 for (const r of [1, 2]) {
     g(`rules = ${r}`);
-    for (let m = 1; m <= 13; m++) { g(`menuSel = ${m}`); check(`r${r} menu ${m}`); }
+    for (let pg = 0; pg <= 3; pg++) {
+        g(`mnPage = ${pg}; mnRow = 1; mnBuild();`);
+        const n = g('mnN');
+        for (let row = 1; row <= n; row++) { g(`mnRow = ${row}; menuSel = mnItem[${row - 1}];`); check(`r${r} p${pg} row${row}`); }
+    }
+    g('mnPage = 0; mnRow = 1; mnBuild();');
 }
-g('wx = 3'); g('menuSel = 9'); check('menu 9 wx3');
-g('menuSel = 8; gMode = 3'); check('menu 8 TT'); g('gMode = 4'); check('menu 8 PR'); g('gMode = 1');
+g('wx = 3'); g('mnPage = 1; mnRow = 6; mnBuild();'); check('menu 9 wx3');
+g('mnPage = 1; mnRow = 5; mnBuild(); gMode = 3'); check('menu 8 TT'); g('gMode = 4'); check('menu 8 PR'); g('gMode = 1; mnPage = 0; mnRow = 1; mnBuild();');
 g('raceState = ST_TUNE; tuRow = 1'); check('garage'); g('tuRow = 6'); check('garage 6');
 for (let t = 1; t <= 4; t++) { g(`raceState = ST_PROF; prTab = ${t}`); check('profile ' + t); }
 g('wx = 1');
@@ -25,7 +30,7 @@ g('raceState = ST_CARSEL'); check('carsel');
 g('raceState = ST_TRKSEL'); check('trksel');
 g('raceState = ST_EDIT'); check('editor');
 g('shEncode(); shShow = 1'); check('editor code');
-g('shShow = 0; menuSel = 1; raceState = ST_MENU; rules = 2; gfx = 2;');
+g('shShow = 0; mnPage = 0; mnRow = 1; mnBuild(); raceState = ST_MENU; rules = 2; gfx = 2;');
 g('startRace()'); g(`playerInput = function(){ aiPlan(1); aiDrive(1); }`);
 check('quali');
 g('endQuali()'); check('quali result');

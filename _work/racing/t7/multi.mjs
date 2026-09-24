@@ -9,6 +9,7 @@
 import { createSim } from '../sim.mjs';
 const LAT = (+(process.argv[2] || 120)) / 1000;
 const WELCOME = +(process.argv[3] || 3);
+const JIT = (+(process.env.JIT || 0)) / 1000;     // random extra delay per message
 const fps = 10;
 
 class Server {
@@ -34,7 +35,7 @@ class Client {
     get(n) { return this.local[n]; }
     set(n, v) {
         const s = this.srv;
-        s.at(s.t + LAT, () => {
+        s.at(s.t + LAT + Math.random() * JIT, () => {
             s.vals[n] = v; s.writes++;
             for (const c of s.clients) s.at(s.t + LAT, () => { c.local[n] = v; });
         });
@@ -139,4 +140,48 @@ const rkHas = (srv, tk, nick) => String(srv.vals['RT_K' + tk]).includes('|' + ni
     if (process.env.DBG) { for (const c of cs) console.log(c.nick, 'xp', c.g('pXP'), 'srv', recOf(srv, c.nick), 'verT', c.g('pVerT'), 'dirty', c.g('pDirty'), 'saveT', (+c.g('pSaveT')).toFixed(2), 'verN', c.g('pVerN'), 'sh', c.g('pSh'), 'rkT', c.g('pRkT'), 'st', c.g('raceState')); console.log(srv.vals.RT_S3); }
     const ranked = Object.keys(best).filter((n) => { const m = String(srv.vals.RT_K3).match(new RegExp('\\|' + n + ',(\\d+)')); return m && Math.abs(+m[1] - Math.round(best[n] * 1000)) <= 1; }).length;
     ok(saved === 4 && ranked === Object.keys(best).length, `E 4 players, one slot, 60 s: ${saved}/4 saves current, ${ranked}/${Object.keys(best).length} best laps ranked; ${srv.writes} server writes`);
+}
+
+// ---- F (v9): a garage change that earns no XP, while another player saves the same slot ----
+{
+    const srv = new Server();
+    const a = new Client(srv, 'alice', 0.3), b = new Client(srv, 'bob', 0.3);
+    srv.vals.RT_SYNC = 'ok';
+    idle(srv, [a, b], 3);
+    a.g('pSh = 2; addXP(400); pDirty = 1; pSaveT = 0;'); b.g('pSh = 2; addXP(100); pDirty = 1; pSaveT = 0;');
+    idle(srv, [a, b], 12);
+    let lost = 0;
+    for (let i = 0; i < 6; i++) {
+        a.g('upE = upE + 1; if (upE > UPMAX) { upE = 1; } pDirty = 1; pSaveT = 0;');   // no XP involved
+        b.g('addXP(20); pDirty = 1; pSaveT = 0;');
+        idle(srv, [a, b], 12);
+        const m = String(srv.vals.RT_S2).match(/\|alice,\d+,(\d+),/);
+        if (!m || +m[1] !== +a.g('upE')) lost++;
+    }
+    ok(lost === 0, `F garage-only change vs a same-moment save, 6 rounds: ${lost} rounds lost the change`);
+}
+
+// ---- G (v9): two new circuit records at the same moment - the ghost must be P1's ----
+{
+    let bad = 0;
+    const NR = +(process.env.GR || 5);
+    for (let round = 0; round < NR; round++) {
+        const srv = new Server();
+        const a = new Client(srv, 'alice', 0.3), b = new Client(srv, 'bob', 0.3);
+        srv.vals.RT_SYNC = 'ok';
+        idle(srv, [a, b], 3);
+        for (const [c, t] of [[a, 80.5], [b, 79.25]]) {
+            c.g(`pbN[3] = 12; for (let i = 0; i < 12; i++) { pbX[3 * PBN + i] = 10 + i; pbZ[3 * PBN + i] = 5 + i; } pendRk[3] = ${t}; pendG[3] = 1;`);
+        }
+        // bob's write lands first in odd rounds, alice's in even ones
+        if (round % 2) { idle(srv, [b], 0.1); }
+        idle(srv, [a, b], 20);
+        const k = String(srv.vals.RT_K4), gst = String(srv.vals.RT_G4);
+        const p1 = (k.match(/\|\|?([^,|]+),(\d+)/) || [])[1];
+        if (process.env.DBG) console.log("K", k, "G", gst.slice(0, 30), "pendG", a.g("pendG[3]"), b.g("pendG[3]"), "pbN", b.g("pbN[3]"), "rkT", b.g("rkT[0]"));
+        if (p1 !== 'bob' || !gst.startsWith('bob,79250,')) bad++;
+        a.g('loadWrGhost(4)');
+        if (a.g('oWR') == 1 && !gst.startsWith('bob,')) bad++;
+    }
+    ok(bad === 0, `G two record laps at once, ${NR} rounds: ${bad} rounds left a ghost that is not P1's`);
 }

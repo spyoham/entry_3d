@@ -466,6 +466,7 @@ function saveProfile() {
         rtSetS(pSh, v);
         pCache = v;
         pSavedXP = pXP;
+        pSavedRec = pRec;
         if (RT_SYNC != 'ok') { RT_SYNC = 'ok'; }
         // someone else may have written the same shard at the same moment:
         // look again once the dust has settled
@@ -475,10 +476,19 @@ function saveProfile() {
 
 // was the last save kept? (a record with at least the XP it wrote must be there)
 let pSavedXP = 0;
+let pSavedRec = '|';
 function verifySave() {
-    findMine();
+    // v9: the exact record written must be there. Comparing only the XP let a
+    // change without XP (a garage upgrade or setup) be rolled back silently by
+    // another player who wrote the shard from an older read.
+    rtGetS(pSh);
     let good = 0;
-    if (oMine > 0) { if (pF[2] * 1 >= pSavedXP) { good = 1; } }
+    if (indexOf(str(oRT, '|'), str(pSavedRec, '|')) > 0) { good = 1; }
+    else {
+        // or a newer copy of it (this player saved again from elsewhere)
+        findMine();
+        if (oMine > 0) { if (pF[2] * 1 > pSavedXP) { good = 1; } }
+    }
     if (good > 0) { pVerN = 0; }
     else {
         // back off a random, growing moment so writers stop colliding
@@ -501,6 +511,20 @@ function rankStep() {
                 if (rkN[i] == pNick) { if (rkT[i] <= pRkLt + 0.0005) { there = 1; } }
                 i = i + 1;
             }
+            // v9: two new P1s at once could leave the ghost of the one who
+            // ended up second in the ghost slot. The P1 checks it is theirs.
+            if (there > 0) {
+                if (rkN[1] == pNick) {
+                    rtGetG(pRkTk);
+                    if (indexOf(oRT, str(pNick, ',', Math.round(rkT[1] * 1000), ',')) != 1) {
+                        if (pendG[pRkTk] > 0) {
+                            wrUpload(pRkTk, rkT[1]);
+                            pRkN = pRkN + 1;
+                            if (pRkN < 8) { pendRk[pRkTk] = 0; pRkT = 2; }
+                        }
+                    }
+                }
+            }
             let fits = 1;
             if (rkC >= NRANK) { if (rkT[NRANK] <= pRkLt) { fits = 0; } }
             if (there < 1) {
@@ -510,7 +534,7 @@ function rankStep() {
                     pRkT = 0 - rand(0.2, 1.6) * Math.min(6, pRkN);
                 }
             }
-            if (pRkT > 0 - 0.001) { pRkT = 0; }
+            if (pRkT > 0 - 0.001) { if (pRkT < 1) { pRkT = 0; } }
         }
     } else if (pRkT < 0) {
         pRkT = pRkT + dt;
@@ -703,6 +727,11 @@ function loadWrGhost(tk) {
     rtGetG(tk);
     let s = oRT;
     let L = strlen(s);
+    // v9: a ghost that is not the ranking's P1 (a lost race between two
+    // record laps) is not shown as the world record
+    rankParse(tk);
+    if (rkC < 1) { L = 0; }
+    else if (indexOf(s, str(rkN[1], ',', Math.round(rkT[1] * 1000), ',')) != 1) { L = 0; }
     if (L > 20) {
         let c1 = indexOf(s, ',');
         let rest = substr(s, c1 + 1, L);

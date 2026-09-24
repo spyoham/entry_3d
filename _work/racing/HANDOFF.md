@@ -1,3 +1,24 @@
+# ENTRY RACING 3D — 작업 인계 메모 (2026-09-25, v9)
+
+산출물: `3D 레이싱 v9.ent` ← 최신, 설명서 `3D 레이싱 v9 설명서.md` (v8 파일은 루트 `old/`로 옮김 — 사용자 규칙: 루트에는 작품별 최신판만)
+빌드: `node build.mjs racing9.ent` → `globals 372, lists 409, functions 266, handlers 3` (Windows에서는 ffmpeg로 MP3 인코딩)
+
+## 요청과 한 것
+1. "메인화면 선택이 너무 많다, 카테고리로 묶어라" → 메뉴 페이지(main.js `mnPage/mnRow/mnItem/mnBuild/mnOpen/mnBack`).
+   페이지 0: 1 START, 20 RACE SETUP, 21 CAR & GARAGE, 12 PROFILE, 22 SETTINGS, 13 EDITOR.
+   1: 2 3 6 7 8 9 1 23 / 2: 4 5 23 / 3: 10 11 23 (23 = BACK, ESC도 뒤로). 행에는 **v8 항목 번호**가 들어가서
+   `menuSel`은 여전히 v8 항목 → menuChange/hudCard/카드 그림은 그대로. 카테고리 행의 카드는 `cardOf()`로 대표 항목 카드.
+   `rowY = 70 − 17·(i−1)`, 빈 행 텍스트는 hudMenu가 지움, hud `sub = menuSel + 100·mnPage`. 위치 표시 슬롯 23.
+2. "실시간 변수 동시 쓰기로 먼저 보낸 요청이 덮어써지는 것 고려했나" → v8 이후 수정에서 이미 읽기-합치기-쓰기 + 2 s 확인 + 무작위 백오프 재시도.
+   v9에서 구멍 2개를 더 막음:
+   - `verifySave`: XP 비교 → **저장한 줄(`pSavedRec`) 전체가 그대로 있는지**(또는 XP가 더 큰 내 줄). XP 없는 차고 변경의 무음 롤백 방지.
+   - 세계 기록 고스트: 동시에 두 명이 1위를 세우면 RT_G에 2위의 고스트가 남을 수 있었음. `rankStep` 확인에서 1위가 RT_G 머리
+     (`닉,ms,`)를 보고 아니면 `wrUpload` 재시도(최대 8회), `loadWrGhost`는 RT_K 1위와 머리가 맞을 때만 사용.
+   - `t7/multi.mjs`에 F(차고 변경), G(동시 1위 고스트) 추가, `JIT=ms` 환경변수로 메시지별 무작위 지연. JIT=300에서 v8 G 10/20 실패 → v9 0/20.
+   - `t7/slots.mjs`는 메뉴 페이지×행을 모두 돈다(56화면, 움직이는 값 3개 외 충돌 없음).
+
+---
+
 # ENTRY RACING 3D — 작업 인계 메모 (2026-09-24, v8)
 
 산출물: `3D 레이싱 v8.ent` (1.19 MB) ← 최신, 설명서 `3D 레이싱 v8 설명서.md`, 소개 `3D 레이싱 소개.md`

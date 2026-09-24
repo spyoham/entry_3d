@@ -165,13 +165,46 @@ function startRace() {
     else { restartRace(); }
 }
 
+// v9: the menu in pages. Page 0 is the top level; RACE SETUP (1), CAR &
+// GARAGE (2) and SETTINGS (3) open their own list with a BACK row. The rows
+// hold item ids (the v8 row numbers, plus 20-22 for the categories and 23 for
+// BACK), so menuSel is still the v8 item and everything keyed on it stays.
+let mnPage = 0;
+let mnRow = 1;
+let mnN = 6;
+let mnItem = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+function mnAdd(k) { mnN = mnN + 1; mnItem[mnN] = k; }
+function mnBuild() {
+    mnN = 0;
+    if (mnPage == 0) { mnAdd(1); mnAdd(20); mnAdd(21); mnAdd(12); mnAdd(22); mnAdd(13); }
+    else if (mnPage == 1) { mnAdd(2); mnAdd(3); mnAdd(6); mnAdd(7); mnAdd(8); mnAdd(9); mnAdd(1); mnAdd(23); }
+    else if (mnPage == 2) { mnAdd(4); mnAdd(5); mnAdd(23); }
+    else { mnAdd(10); mnAdd(11); mnAdd(23); }
+    if (mnRow > mnN) { mnRow = mnN; }
+    if (mnRow < 1) { mnRow = 1; }
+    menuSel = mnItem[mnRow];
+}
+function mnOpen(p) { mnPage = p; mnRow = 1; mnBuild(); }
+function mnBack() {
+    let p = mnPage;
+    mnPage = 0;
+    mnRow = 5;
+    if (p == 1) { mnRow = 2; } else if (p == 2) { mnRow = 3; }
+    mnBuild();
+}
+
 function menuKeys() {
-    if (actKey == 40) { menuSel = mod(menuSel, NMENU) + 1; }
-    else if (actKey == 38) { menuSel = mod(menuSel + NMENU - 2, NMENU) + 1; }
+    if (actKey == 40) { mnRow = mod(mnRow, mnN) + 1; menuSel = mnItem[mnRow]; }
+    else if (actKey == 38) { mnRow = mod(mnRow + mnN - 2, mnN) + 1; menuSel = mnItem[mnRow]; }
     else if (actKey == 37) { menuChange(0 - 1); }
     else if (actKey == 39) { menuChange(1); }
+    else if (actKey == 27) { if (mnPage > 0) { mnBack(); } }
     else if (actKey == 13) {
         if (menuSel == 1) { startRace(); }
+        else if (menuSel == 20) { mnOpen(1); }
+        else if (menuSel == 21) { mnOpen(2); }
+        else if (menuSel == 22) { mnOpen(3); }
+        else if (menuSel == 23) { mnBack(); }
         else if (menuSel == 4) { raceState = ST_CARSEL; }
         else if (menuSel == 5) { raceState = ST_TUNE; tuRow = 1; }
         else if (menuSel == 6) { if (gMode != M_CH) { raceState = ST_TRKSEL; } }
@@ -227,7 +260,9 @@ function initGame() {
     edReset();
     selTrk = 1;
     selCar = 1;
-    menuSel = 1;
+    mnPage = 0;
+    mnRow = 1;
+    mnBuild();
     camFov = 78;
     hideAnswer();
     applyWeather();

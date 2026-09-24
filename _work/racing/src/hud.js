@@ -180,7 +180,7 @@ function updateHud() {
     if (page == ST_COUNT) { page = ST_RACE; }
     if (page == ST_QUALI) { page = ST_RACE; }
     let sub = 0;
-    if (page == ST_MENU) { sub = menuSel; }
+    if (page == ST_MENU) { sub = menuSel + 100 * mnPage; }
     if (page == ST_EDIT) { sub = shShow; }
     if (page == ST_PROF) { sub = prTab; }
     if (page != hudPage) { txClear(); hudPage = page; hudSub = sub; }
