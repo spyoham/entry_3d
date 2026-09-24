@@ -288,6 +288,9 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
             case 'hideAnswer': return B('set_visible_answer', ['HIDE', null]);
             // v8: the signed-in player's nickname (a space, or 'guest', when nobody is)
             case 'nickname': return B('get_nickname', []);
+            // v11: a data table cell (row 2 is the first data row: row 1 is the field names) and its window
+            case 'tableSet': return B('set_value_from_table', [String(evalConst(args[0])), A(1), A(2), A(3), null]);
+            case 'tableShow': return B('open_table', [String(evalConst(args[0])), null]);
             case 'write': return B('text_write', [A(0), null]);
             case 'textColor': return B('text_change_font_color', [B('color', [String(evalConst(args[0]))]), null]);
             case 'textColorHex': return B('text_change_font_color', [A(0), null]);

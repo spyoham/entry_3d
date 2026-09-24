@@ -5,7 +5,7 @@ import zlib from 'node:zlib';
 import cp from 'node:child_process';
 import crypto from 'node:crypto';
 
-export function packEnt(outFile, { name, objects, variables, functions, messages = [], speed = 60, tmpDir }) {
+export function packEnt(outFile, { name, objects, variables, functions, messages = [], tables = [], speed = 60, tmpDir }) {
     fs.rmSync(tmpDir, { recursive: true, force: true });
     fs.mkdirSync(path.join(tmpDir, 'temp'), { recursive: true });
     const written = new Map();   // content hash -> fileurl
@@ -46,7 +46,7 @@ export function packEnt(outFile, { name, objects, variables, functions, messages
     const project = {
         objects: outObjects,
         scenes: [{ id: sceneId, name: '장면 1' }],
-        variables, messages, functions, tables: [], speed,
+        variables, messages, functions, tables, speed,
         interface: { canvasWidth: 480, menuWidth: 280, object: outObjects[0].id },
         expansionBlocks: [], aiUtilizeBlocks: [], hardwareLiteBlocks: [], externalModules: [], externalModulesLite: [],
         name, isPracticalCourse: false,

@@ -1,3 +1,21 @@
+# ENTRY RACING 3D — 작업 인계 메모 (2026-09-25, v11)
+
+산출물: `3D 레이싱 v11.ent` ← 최신, 설명서 `3D 레이싱 v11 설명서.md` (v10은 루트 `old/`로)
+빌드: `node build.mjs racing11.ent` → `globals 379, lists 410, functions 275, handlers 3`
+
+## 요청과 한 것
+"저장기능은 그대로 두고, 저장이 안됐을 때를 대비해서 암호화된 계정 정보를 복사하고 불러올 수 있게(유효한 문자열은 얼마 없게),
+테이블 기능에서 문자열을 복사할 수 있어"
+- `src/savecode.js` 백업 코드: `S`+버전+소금2+본문(기록 32칸을 SVSYM 13기호로, 닉네임·소금 키 스트림으로 밀기)+검사 8자(키 해시 2개 × 20비트).
+  글자는 share.js의 SHA/shDigit 재사용. 불러오기는 `mergeRec(0)`(큰 값 우선), `pLoaded` 전에는 막음(서버 기록과 이중 합산 방지).
+- 복사: 순정 엔트리 = 표 `svtb` 2행 1열 + `open_table`. tessvm = `$CLIPBOARD`(tessvm이 허락을 받고 복사; tessvm 표는 캔버스라 선택 불가).
+- ejs `tableSet/tableShow`, `pack.mjs` tables, `consts.HANGUL`(한글 음절 11172자, 닉네임 글자 구별 — 엔트리에 글자 코드 블록 없음), `lists.svV`.
+- PROFILE: C 복사, V 불러오기, 슬롯 38 안내(모든 사람), 39 도움말. 테스터 메시지도 슬롯 38.
+- 시험: `node t7/savecode.mjs 20000` 전부 PASS. tessvm 하네스(`_work/tessvm/sv.json`, `sv2.json`, 14 s 기다린 뒤 PROFILE)로 C/V 실제 동작,
+  tessvm이 만든 코드를 sim이 읽음(계산 일치). 순정 엔트리 표 창에서의 복사는 미확인.
+
+---
+
 # ENTRY RACING 3D — 작업 인계 메모 (2026-09-25, v10)
 
 산출물: `3D 레이싱 v10.ent` ← 최신, 설명서 `3D 레이싱 v10 설명서.md` (v9는 루트 `old/`로)

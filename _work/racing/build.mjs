@@ -13,7 +13,7 @@ import { f1Car } from './f1car.mjs';
 import { engineMp3, aiMp3, REF_RPM, LOOP_SEC, AI_RATIOS, AI_LEVELS, AI_LOOP } from './enginewav.mjs';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'rules.js', 'fx.js', 'sound.js', 'share.js', 'profile.js', 'editor.js', 'menu.js', 'hud.js', 'main.js'];
+export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'rules.js', 'fx.js', 'sound.js', 'share.js', 'profile.js', 'savecode.js', 'editor.js', 'menu.js', 'hud.js', 'main.js'];
 
 // ============================================================
 // constants shared with the EJS sources
@@ -76,6 +76,7 @@ export const C = {
     NRANK: 10,          // ranking entries per circuit
     LVMAX: 50,
     UPMAX: 5,           // upgrade steps per part
+    SVMAX: 400,         // v11 backup code: letters read back
 };
 // point slots inside a ring
 // ordered so a ring's LOD levels are contiguous prefixes: road edges alone for
@@ -836,6 +837,9 @@ export function buildData() {
     const lists = {};
     const consts = {};
     for (const [k, v] of Object.entries(C)) consts[k] = v;
+    // v11: every Hangul syllable, so the backup code can tell nicknames apart
+    // (Entry has no block for a character's code)
+    consts.HANGUL = Array.from({ length: 0xD7A4 - 0xAC00 }, (_, i) => String.fromCharCode(0xAC00 + i)).join('');
     for (const [k, v] of Object.entries(P)) consts['P_' + k] = v;
     const { mats, idx } = buildPalette();
     for (const [k, v] of Object.entries(idx)) consts['M_' + k.replace(/[^a-zA-Z0-9]/g, '')] = v;
@@ -1185,6 +1189,7 @@ export function buildData() {
     lists.pbN = zeros(C.EDTRK + 1);
     // v8 profile scratch: parsed save fields, ranking rows, achievements
     lists.pF = new Array(48).fill(0);
+    lists.svV = zeros(C.SVMAX + 1);
     lists.rkN = new Array(C.NRANK + 2).fill('-'); lists.rkT = zeros(C.NRANK + 2);
     lists.achGot = zeros(C.NACH + 1); lists.popQ = zeros(33);
     lists.recNm = new Array(C.NTRK + 1).fill('-'); lists.recWR = zeros(C.NTRK + 1);
@@ -1263,6 +1268,8 @@ export async function buildEnt(outFile, opts = {}) {
     const project = packEnt(outFile, {
         name: 'ENTRY RACING 3D', tmpDir: path.join(HERE, '.pack'),
         variables: orderVariables(prog.variables), functions: prog.functions, messages: prog.messages, objects, speed: 60,
+        // v11: the backup code's table (plain Entry shows it; its text can be selected there)
+        tables: [{ id: 'svtb', name: 'BACKUP CODE', fields: ['CODE'], data: [['-']], chart: [] }],
     });
     fs.writeFileSync(outFile + '.lines.json', JSON.stringify({ blockLines: prog.blockLines, srcLines: prog.srcLines }));
     if (!opts.quiet) console.log('wrote', outFile, fs.statSync(outFile).size, 'bytes;', JSON.stringify(prog.stats));

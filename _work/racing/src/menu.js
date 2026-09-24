@@ -373,7 +373,7 @@ function drawTrkSel() {
 // (cardRow r: label 51+r, value 61+r), 72..76 extras; 77..79 pop-ups.
 function hudMenu() {
     tx(9, 'ENTRY RACING 3D', 0 - 232, 116, 21, C_WHITE, 1);
-    tx(10, 'F1 EDITION  /  v10', 0 - 232, 96, 8, C_WHITE, 1);
+    tx(10, 'F1 EDITION  /  v11', 0 - 232, 96, 8, C_WHITE, 1);
     let lvl = pLoaded > 0 ? str('LV ', pLv, '  ', pNick) : 'LOADING SAVE...';
     tx(13, lvl, 0 - 80, 96, 8, C_GOLD, 1);
     let crumb = 'MAIN MENU';
@@ -862,6 +862,9 @@ function profKeys() {
     }
     else if (actKey == 13) { raceState = ST_MENU; }
     else if (actKey == 27) { raceState = ST_MENU; }
+    // v11 backup code (savecode.js)
+    else if (actKey == 67) { svCopy(); }
+    else if (actKey == 86) { svLoad(); }
 }
 
 function drawProf() {
@@ -922,10 +925,12 @@ function hudProf() {
         tx(33, str('CIRCUITS DRIVEN  ', nc, ' / ', NTRK), 20, 0 - 20, 9, C_WHITE, 1);
         tx(34, str('UPGRADE POINTS  ', pPts), 20, 0 - 36, 9, C_WHITE, 1);
         tx(35, str('UPGRADES  ', upE + upA + upB + upT, ' / ', 4 * UPMAX), 20, 0 - 52, 9, C_WHITE, 1);
-        tx(36, 'ONLINE SAVES WORK ON THE WORK\'S OWN PAGE - IN THE EDITOR ENTRY KEEPS THEM OFFLINE', 0 - 220, 0 - 70, 6, C_DIM, 1);
+        tx(36, 'ONLINE SAVES WORK ON THE WORK\'S OWN PAGE - IN THE EDITOR ENTRY KEEPS THEM OFFLINE', 0 - 220, 0 - 68, 6, C_DIM, 1);
+        // v11: a backup of the save the player keeps, for when the online save is lost
+        tx(39, 'BACKUP CODE   C  COPY IT    V  LOAD IT', 0 - 220, 0 - 81, 8, C_WHITE, 1);
+        tx(38, msg, 0 - 220, 0 - 96, 7, C_GOLD, 1);
         if (pNick == TESTNICK) {
             tx(37, 'TEST  +1000 XP  (X)', 168, 0 - 85, 8, C_GOLD, 0);
-            tx(38, msg, 0 - 220, 0 - 88, 8, C_GOLD, 1);
         }
     } else if (prTab == 2) {
         tx(24, 'CIRCUIT            MY BEST LAP     WORLD RECORD', 0 - 220, 88, 8, C_DIM, 1);
@@ -971,7 +976,7 @@ function hudProf() {
         if (rkC < 1) { me = str(me, '   (NO TIMES YET)'); }
         tx(35, me, 0, 0 - 88, 8, C_DIM, 0);
     }
-    tx(12, 'LEFT/RIGHT tab   UP/DOWN scroll   ENTER back', 0, 0 - 122, 9, '#c9d1de', 0);
+    tx(12, 'LEFT/RIGHT tab   UP/DOWN scroll   C/V backup code   ENTER back', 0, 0 - 122, 9, '#c9d1de', 0);
 }
 
 // ---- v8 pop-up: achievements and level-ups ---------------------------------------
