@@ -454,6 +454,7 @@ function saveProfile() {
         }
         rtSetS(pSh, v);
         pCache = v;
+        pSavedXP = pXP;
         if (RT_SYNC != 'ok') { RT_SYNC = 'ok'; }
         // someone else may have written the same shard at the same moment:
         // look again once the dust has settled
@@ -461,11 +462,12 @@ function saveProfile() {
     }
 }
 
-// was the last save kept? (a record with at least this XP must be there)
+// was the last save kept? (a record with at least the XP it wrote must be there)
+let pSavedXP = 0;
 function verifySave() {
     findMine();
     let good = 0;
-    if (oMine > 0) { if (pF[2] * 1 >= pXP) { good = 1; } }
+    if (oMine > 0) { if (pF[2] * 1 >= pSavedXP) { good = 1; } }
     if (good > 0) { pVerN = 0; }
     else {
         // back off a random, growing moment so writers stop colliding

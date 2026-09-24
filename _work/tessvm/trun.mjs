@@ -19,7 +19,7 @@ const page = await browser.newPage({ viewport: { width: 1000, height: 600 } });
 const errors = [];
 page.on('pageerror', e => errors.push(e.message));
 page.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') errors.push('console: ' + m.text()); });
-await page.goto(`http://localhost:${PORT}/harness/index.html`);
+await page.goto(`http://localhost:${PORT}/harness/index.html` + (opt('nick') ? '?nick=' + encodeURIComponent(opt('nick')) : ''));
 if (opt('throttle')) { const c = await page.context().newCDPSession(page); await c.send('Emulation.setCPUThrottlingRate', { rate: Number(opt('throttle')) }); }
 await page.waitForFunction(() => window.__ready, null, { timeout: 120000 });
 const info = await page.evaluate(() => ({

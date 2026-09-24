@@ -21,7 +21,10 @@ async function start() {
   window.__source = built.source;
   window.__fnNames = built.project.functions.map(fn => { let c = fn.content; if (typeof c === 'string') c = JSON.parse(c); const st = c.find(s => s[0] && s[0].type.startsWith('function_create')); let lab = st && st[0].params[0]; return lab && lab.params ? String(lab.params[0]) : fn.id; });
   await document.fonts.load('bold 20px "Nanum Gothic Coding"').catch(()=>{});
+  // ?nick=... signs a pretend user in (the work reads the nickname)
+  const nick = new URLSearchParams(location.search).get('nick');
   const handle = await boot({ project: built.project, container: document.getElementById('stage'), autoStart: false, boost: true, svg: false,
+     user: nick ? { id: 'tester', username: 'tester', nickname: nick } : undefined,
      keyTarget: document.body });
   window.__handle = handle;
   window.__vm = handle.vm;

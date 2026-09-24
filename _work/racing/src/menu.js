@@ -791,7 +791,33 @@ function hudTune() {
 let prTab = 1;
 let prSel = 1;              // achievement selected
 let prTrk = 1;              // ranking circuit
+// v8 test button: only for the tester's nickname
+const TESTNICK = '코딩재미있어';
+let prMouse = 0;
+let prKeyX = 0;
+function testButton() {
+    if (pNick == TESTNICK) {
+        let hit = 0;
+        let md = mouseDown() ? 1 : 0;
+        if (md > 0) {
+            if (prMouse < 1) {
+                let mx = mouseX();
+                let my = mouseY();
+                if (mx > 110) { if (mx < 226) { if (my > 0 - 96) { if (my < 0 - 74) { hit = 1; } } } }
+            }
+        }
+        prMouse = md;
+        let kx = key(88) ? 1 : 0;
+        if (kx > 0) { if (prKeyX < 1) { hit = 1; } }
+        prKeyX = kx;
+        if (hit > 0) {
+            addXP(1000);
+            setMsg('TEST: +1000 XP', 1.5);
+        }
+    }
+}
 function profKeys() {
+    if (prTab == 1) { testButton(); }
     if (actKey == 37) { prTab = mod(prTab + 2, 4) + 1; }
     else if (actKey == 39) { prTab = mod(prTab, 4) + 1; }
     else if (actKey == 40) {
@@ -814,6 +840,10 @@ function drawProf() {
         k = k + 1;
     }
     if (prTab == 1) {
+        if (pNick == TESTNICK) {
+            box(110, 0 - 74, 226, 0 - 96, C_GOLD);
+            box(112, 0 - 76, 224, 0 - 94, C_PANEL2);
+        }
         fillOct(0 - 170, 50, 30, C_RED);
         fillOct(0 - 170, 50, 25, C_PANEL);
         box(0 - 120, 44, 220, 36, C_PANEL2);
@@ -859,6 +889,11 @@ function hudProf() {
         tx(33, str('CIRCUITS DRIVEN  ', nc, ' / ', NTRK), 20, 0 - 20, 9, C_WHITE, 1);
         tx(34, str('UPGRADE POINTS  ', pPts), 20, 0 - 36, 9, C_WHITE, 1);
         tx(35, str('UPGRADES  ', upE + upA + upB + upT, ' / ', 4 * UPMAX), 20, 0 - 52, 9, C_WHITE, 1);
+        tx(36, 'ONLINE SAVES WORK ON THE WORK\'S OWN PAGE - IN THE EDITOR ENTRY KEEPS THEM OFFLINE', 0 - 220, 0 - 70, 6, C_DIM, 1);
+        if (pNick == TESTNICK) {
+            tx(37, 'TEST  +1000 XP  (X)', 168, 0 - 85, 8, C_GOLD, 0);
+            tx(38, msg, 0 - 220, 0 - 88, 8, C_GOLD, 1);
+        }
     } else if (prTab == 2) {
         tx(24, 'CIRCUIT            MY BEST LAP     WORLD RECORD', 0 - 220, 88, 8, C_DIM, 1);
         while (i <= NTRK) {
