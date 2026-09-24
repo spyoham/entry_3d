@@ -182,15 +182,19 @@ function updateHud() {
     let sub = 0;
     if (page == ST_MENU) { sub = menuSel; }
     if (page == ST_EDIT) { sub = shShow; }
+    if (page == ST_PROF) { sub = prTab; }
     if (page != hudPage) { txClear(); hudPage = page; hudSub = sub; }
     else if (sub != hudSub) {
         hudSub = sub;
-        let i = 46;
+        let i = 50;
         if (page == ST_EDIT) { i = 28; }
+        if (page == ST_PROF) { i = 24; }
         while (i <= NTX) { txOff(i); i = i + 1; }
     }
     if (raceState == ST_MENU) { hudMenu(); }
     else if (raceState == ST_CARSEL) { hudCarSel(); }
+    else if (raceState == ST_TUNE) { hudTune(); }
+    else if (raceState == ST_PROF) { hudProf(); }
     else if (raceState == ST_TRKSEL) { hudTrkSel(); }
     else if (raceState == ST_EDIT) {
         tx(24, 'DRAG a node to move   CLICK the road to add   X delete', 0, 0 - 64, 10, C_WHITE, 0);
@@ -242,11 +246,20 @@ function updateHud() {
         let pn = BLANK;
         if (caPen[1] > 0) { pn = str('   (+', caPen[1], 's PENALTY)'); }
         tx(10, str('TOTAL ', tt, '     BEST LAP ', oTime, pn), 0, 82, 11, '#e0e6f2', 0);
+        // v8: what the race was worth
+        tx(11, str(rsLine, '     LEVEL ', pLv, '  (', pLvXP, ' / ', pLvNeed, ')'), 0, 0 - 94, 9, C_GOLD, 0);
         let rp = BLANK;
         if (gfx > 1) { rp = '     V  replay'; }
         if (gMode == M_CH) { tx(12, str('ENTER  championship standings     R  restart', rp), 0, 0 - 112, 11, C_DIM, 0); }
         else { tx(12, str('ENTER  menu     R  restart', rp), 0, 0 - 112, 11, C_DIM, 0); }
     } else { hudRace(); }
+    // v8: achievement / level-up pop-up (the pen draws its panel)
+    if (popT > 0) {
+        let a = Math.min(1, popT * 3, (3.2 - popT) * 4);
+        let y = 130 - 26 * a;
+        tx(77, popA, 0, y - 6, 10, C_GOLD, 0);
+        tx(78, popB, 0, y - 18, 7, C_WHITE, 0);
+    } else { txOff(77); txOff(78); }
 }
 
 function hudRace() {
@@ -270,9 +283,9 @@ function hudRace() {
         tx(3, ql, 104, 112, 18, C_WHITE, 1);
         tx(4, 'QUALIFYING', 104, 88, 18, C_GOLD, 1);
         tx(12, 'ENTER  end the session', 0, 0 - 112, 9, C_DIM, 0);
-    } else if (gMode == M_TT) {
+    } else if (gMode >= M_TT) {
         tx(3, str('LAP ', lp), 104, 112, 18, C_WHITE, 1);
-        tx(4, 'TIME TRIAL', 104, 88, 18, C_GOLD, 1);
+        tx(4, gMode == M_TT ? 'TIME TRIAL' : 'PRACTICE', 104, 88, 18, C_GOLD, 1);
     } else {
         if (lp > nLaps) { lp = nLaps; }
         tx(3, str('LAP ', lp, ' / ', nLaps), 104, 112, 18, C_WHITE, 1);
@@ -280,7 +293,7 @@ function hudRace() {
     }
     fmtTime(raceT);
     let solo = 0;
-    if (gMode == M_TT) { solo = 1; }
+    if (gMode >= M_TT) { solo = 1; }
     if (raceState == ST_QUALI) { solo = 1; }
     if (solo > 0) { fmtTime(raceT - caLapT[1]); if (caLap[1] < 1) { oTime = '--:--.---'; } }
     tx(5, oTime, 0 - 196, 112, 16, C_WHITE, 1);

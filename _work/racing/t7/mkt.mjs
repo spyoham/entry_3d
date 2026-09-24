@@ -1,6 +1,6 @@
 // tessvm key script for the v7 main menu (11 rows).
 // usage: node t7/mkt.mjs out.json '{"rules":2,"trk":1,"wx":1,"gfx":3,"laps":1,"mode":1,"shot":"x","race":20,"extra":[...]}'
-// rows: 1 start 2 mode 3 rules 4 car 5 circuit 6 ai 7 laps 8 weather 9 graphics 10 sound 11 editor
+// rows (v8): 1 start 2 mode 3 rules 4 car 5 garage 6 circuit 7 ai 8 laps 9 weather 10 graphics 11 sound 12 profile 13 editor
 import fs from 'node:fs';
 const [out, js] = process.argv.slice(2);
 let o = Object.assign({ rules: 1, trk: 1, wx: 1, gfx: 2, laps: 2, mode: 1, shot: '', race: 16, extra: [] }, JSON.parse(js || '{}'));
@@ -13,10 +13,10 @@ const go = (r) => { while (row < r) { press('Down'); row++; } while (row > r) { 
 const right = (n) => { for (let i = 0; i < n; i++) { press('Right'); steps.push({ wait: 120 }); } };
 go(2); right(o.mode - 1);
 go(3); right(o.rules - 1);
-go(5); right(o.trk - 1);
-go(7); right((o.laps - 2 + 4) % 4);
-go(8); right(o.wx - 1);
-go(9); right((o.gfx - 2 + 3) % 3);
+go(6); right(o.trk - 1);
+go(8); right((o.laps - 2 + 4) % 4);
+go(9); right(o.wx - 1);
+go(10); right((o.gfx - 2 + 3) % 3);
 if (o.menuShots) for (const r of o.menuShots) { go(r); steps.push({ wait: 700, shot: `${o.shot}_m${r}.png` }); }
 steps.push({ wait: 800, fps: 'menu', shot: o.shot ? o.shot + '_menu.png' : undefined });
 go(1);

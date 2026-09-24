@@ -108,6 +108,8 @@ function carPhys(c) {
     else if (surf == 5) { gripMul = 0.84; rollRes = 0.22; topMul = 0.55; }    // abrasive tarmac run-off
     else if (surf == 6) { }                                                     // v7: pit lane, plain tarmac
     else if (surf >= 2) { gripMul = 0.52; rollRes = 0.30; topMul = 0.55; }    // grass
+    // v8 setup: a stiff car is worse over curbs and off the tarmac, a soft one better
+    if (surf != 0) { if (surf != 6) { gripMul = gripMul * (1 - 0.04 * caSusp[c]); } }
     if (caAir[c] > 0) { gripMul = 0; rollRes = 0.004; }
 
     // ---- longitudinal ----
@@ -133,7 +135,7 @@ function carPhys(c) {
             acc = acc + ERS_ACC * caErsOn[c] * caThr[c] * (f > 0 ? 1 : 0);
         }
         if (caBrk[c] > 0) {
-            if (vLong > 0.6) { acc = acc - 34 * caBrk[c]; }
+            if (vLong > 0.6) { acc = acc - 34 * caBrk[c] * caBrkK[c]; }
             else { acc = acc - caAcc[c] * 0.55 * caBrk[c]; }
         }
         if (caHB[c] > 0) { acc = acc - 9 * (vLong > 0 ? 1 : 0 - 1); }
@@ -159,7 +161,7 @@ function carPhys(c) {
     // v7: caWK is the weather (arcade) or the tyre on this track (realistic);
     // damage costs downforce
     let dmg = caDmg[c];
-    let mu = caGrip[c] * gripMul * caWK[c] * (GRIP0 + AERO * spA * spA * (1 - 0.25 * drs) * (1 - 0.35 * dmg));
+    let mu = caGrip[c] * gripMul * caWK[c] * (GRIP0 + AERO * caAeroK[c] * spA * spA * (1 - 0.25 * drs) * (1 - 0.35 * dmg));
     // friction circle: tyres that are braking hard have less left for turning
     if (caBrk[c] > 0) { if (vLong > 0.6) { mu = mu * (1 - 0.40 * caBrk[c]); } }
     if (caAir[c] == 0) { if (caThr[c] > 0.9) { if (spA < 30) { mu = mu * 0.94; } } }
@@ -173,6 +175,8 @@ function carPhys(c) {
     let gripF = mu * 0.50 * (1 - 0.28 * dmg);
     if (caWing[c] > 0) { gripF = gripF * 0.86; }
     let gripR = mu * 0.53;
+    // v8 setup: brake bias forward steadies the rear on the brakes and costs turn-in
+    if (caBrk[c] > 0.1) { if (vLong > 0.6) { gripF = gripF * (1 - 0.025 * caBias[c]); gripR = gripR * (1 + 0.025 * caBias[c]); } }
     if (caHB[c] > 0) { gripR = mu * 0.16; }
     if (caThr[c] > 0.9) { if (spA < 22) { gripR = gripR * 0.86; } }   // power oversteer
     // Past its peak slip a tyre slides and gives less, not more: overdriving a

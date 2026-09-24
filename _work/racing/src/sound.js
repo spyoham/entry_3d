@@ -26,7 +26,7 @@ function engineSound() {
         }
     }
     if (want < 1) {
-        if (engOn > 0) { stopSounds(); engOn = 0; engRem = 0; }
+        if (engOn > 0) { stopSounds(); engOn = 0; engRem = 0; aiRem = 0; }
     } else {
         let c = camCar;
         let r = caRpm[c] / ENG_REF;
@@ -48,5 +48,70 @@ function engineSound() {
             if (engOn < 1) { engRem = ENG_LOOP; } else { engRem = engRem + ENG_LOOP - 0.05; }
             engOn = 1;
         }
+        otherCars();
     }
+}
+
+// ---- v8: the nearest other car ------------------------------------------------------
+// The sound speed is the player's revs, so a loop is picked whose baked pitch
+// is the other car's revs relative to the player's (with Doppler: higher
+// while it closes in, lower as it goes away), and whose baked loudness suits
+// its distance: ai<pitch 1..NAIS><near 1 / far 2>. It plays only while a car
+// is within 70 m, and is restarted like the engine loop.
+let aiRem = 0;
+function rpmOf(c) {
+    let v = Math.abs(caSpd[c]);
+    let top = caTop[c];
+    let g = 1;
+    let vg = top * 0.34;
+    while (g < 8) {
+        if (v < vg * 0.97) { break; }
+        g = g + 1;
+        vg = top * (0.34 + 0.66 * (g - 1) / 7);
+    }
+    oRpm = Math.min(12100, 4200 + 7900 * v / vg);
+}
+let oRpm = 0;
+function otherCars() {
+    let me = camCar;
+    let best = 0;
+    let bd = 4900;
+    let c = 1;
+    while (c <= nCars) {
+        if (c != me) {
+            if (caFin[c] < 2) {
+                let dx = caX[c] - caX[me];
+                let dz = caZ[c] - caZ[me];
+                let d = dx * dx + dz * dz;
+                if (d < bd) { bd = d; best = c; }
+            }
+        }
+        c = c + 1;
+    }
+    aiRem = aiRem - dt * engRate;
+    if (best > 0) {
+        if (aiRem < dt * engRate * 1.2 + 0.04) {
+            rpmOf(best);
+            let ratio = oRpm / Math.max(3000, caRpm[me]);
+            // Doppler from the closing speed along the line between the cars
+            let dx = caX[best] - caX[me];
+            let dz = caZ[best] - caZ[me];
+            let d = Math.sqrt(bd) + 0.1;
+            let vr = ((caVX[me] - caVX[best]) * dx + (caVZ[me] - caVZ[best]) * dz) / d;
+            ratio = ratio * (1 + vr / 343);
+            let k = 1;
+            let best2 = 99;
+            let i = 1;
+            while (i <= NAIS) {
+                let e = Math.abs(aiRat[i] - ratio);
+                if (e < best2) { best2 = e; k = i; }
+                i = i + 1;
+            }
+            let lv = 1;
+            if (d > 30) { lv = 2; }
+            sound(str('ai', k, lv));
+            if (aiRem < 0 - 0.3) { aiRem = 0; }
+            aiRem = aiRem + AI_LOOP - 0.04;
+        }
+    } else if (aiRem < 0) { aiRem = 0; }
 }

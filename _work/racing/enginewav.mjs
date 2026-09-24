@@ -12,10 +12,20 @@
 export const REF_RPM = 7400;
 export const LOOP_SEC = 1.5;
 
-export function engineWav({ rate = 22050 } = {}) {
-    const n = Math.round(rate * LOOP_SEC);
-    const fire = REF_RPM / 60 * 3;                  // 370 Hz
-    const cyc = (f) => Math.round(f * LOOP_SEC) / LOOP_SEC;   // snap to whole cycles
+// v8: other cars. Entry's sound speed is one setting for every sound and it
+// follows the player's revs, so another car's pitch has to be baked in as a
+// ratio to the player's: AI_RATIOS below, each at two loudness levels (near,
+// far). A short loop, quieter and with more exhaust noise than the player's.
+export const AI_RATIOS = [0.62, 0.76, 0.9, 1.06, 1.25, 1.5];
+export const AI_LEVELS = [0.46, 0.2];
+export const AI_LOOP = 0.5;
+export function aiWav(ratio, amp) { return engineWav({ rate: 16000, loop: AI_LOOP, pitch: ratio, amp, noise: 1.6, seed: 777 }); }
+
+export function engineWav({ rate = 22050, loop = LOOP_SEC, pitch = 1, amp = 0.82, noise = 1, seed: seed0 = 12345 } = {}) {
+    const LOOP_SEC_ = loop;
+    const n = Math.round(rate * LOOP_SEC_);
+    const fire = REF_RPM / 60 * 3 * pitch;          // 370 Hz for the player's own loop
+    const cyc = (f) => Math.max(1, Math.round(f * LOOP_SEC_)) / LOOP_SEC_;   // snap to whole cycles
     const tones = [
         [cyc(fire * 0.5), 0.34], [cyc(fire), 1.00], [cyc(fire * 1.5), 0.30], [cyc(fire * 2), 0.52],
         [cyc(fire * 3), 0.26], [cyc(fire * 4), 0.16], [cyc(fire * 5), 0.09], [cyc(fire * 6), 0.06],
@@ -23,7 +33,7 @@ export function engineWav({ rate = 22050 } = {}) {
     ];
     const whine = cyc(fire * 3.5);
     // deterministic noise, then two one-pole filters make it band-limited
-    let seed = 12345;
+    let seed = seed0;
     const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648 * 2 - 1; };
     const out = new Float64Array(n);
     let lp1 = 0, lp2 = 0;
@@ -39,19 +49,19 @@ export function engineWav({ rate = 22050 } = {}) {
         const w = rnd();
         lp1 += (w - lp1) * 0.35;
         lp2 += (lp1 - lp2) * 0.35;
-        s += (lp1 - lp2) * 0.9 + lp2 * 0.35;
+        s += ((lp1 - lp2) * 0.9 + lp2 * 0.35) * noise;
         out[i] = s;
     }
     // normalise, soft clip, fade the ends for the restart seam
     let peak = 0;
     for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(out[i]));
-    const fade = Math.round(rate * 0.05);
+    const fade = Math.round(rate * Math.min(0.05, LOOP_SEC_ * 0.1));
     const pcm = Buffer.alloc(n * 2);
     for (let i = 0; i < n; i++) {
         let v = Math.tanh(out[i] / peak * 1.9) / Math.tanh(1.9);
         if (i < fade) v *= i / fade;
         if (i > n - 1 - fade) v *= (n - 1 - i) / fade;
-        pcm.writeInt16LE(Math.round(v * 0.82 * 32767), i * 2);
+        pcm.writeInt16LE(Math.round(v * amp * 32767), i * 2);
     }
     const hdr = Buffer.alloc(44);
     hdr.write('RIFF', 0); hdr.writeUInt32LE(36 + pcm.length, 4); hdr.write('WAVE', 8);

@@ -117,7 +117,7 @@ function fitTyre(c, t) {
     caTy[c] = t;
     caWear[c] = 1;
     caWR[c] = WEARK / (tyLife[t] * raceDur);
-    if (gMode == M_TT) { caWR[c] = 0; }
+    if (gMode >= M_TT) { caWR[c] = 0; }
     tyreGrip(c);
 }
 
@@ -145,7 +145,7 @@ function simCarStep(c, aLat, mu, da) {
         if (caBrk[c] > 0.5) { if (caSpd[c] > 30) { use = use + 0.25; } }
         // treaded tyres cook on a drying track
         if (caTy[c] >= TY_I) { if (wetL < 0.35) { use = use * (1 + 5 * (0.35 - wetL)); } }
-        let w = caWear[c] - caWR[c] * use * dt;
+        let w = caWear[c] - caWR[c] * caWearK[c] * use * dt;
         if (w < 0) { w = 0; }
         caWear[c] = w;
     }
@@ -299,6 +299,7 @@ function pitStop(c) {
     caWing[c] = 0;
     caStops[c] = caStops[c] + 1;
     if (c == 1) {
+        if (t < 2.5) { unlock(8); }
         fmtSec(t);
         setRadio(str('PIT STOP  ', oSec, ' s  -  ', tyName[ny]), t + 1);
         // offer the same compound again next time unless the weather changes
@@ -343,6 +344,7 @@ function aiStrategy(c) {
 function penalise(c, secs, why) {
     caPen[c] = caPen[c] + secs;
     if (c == 1) {
+        rsClean = 0;
         setMsg(str('+', secs, ' SEC PENALTY'), 3);
         setRadio(why, 3.5);
     }
@@ -438,7 +440,7 @@ function maybeSC(chance) {
         if (raceState == ST_RACE) {
             if (scOn == 0) {
                 if (scUsed < 1) {
-                    if (gMode != M_TT) {
+                    if (gMode < M_TT) {
                         if (nLaps >= 3) {
                             if (caLap[srtI[1]] < nLaps) {
                                 if (rand(0.0001, 0.9999) < chance) { deploySC(); }
@@ -475,6 +477,7 @@ function deploySC() {
     caErsOn[g] = 0; caTow[g] = 0; caDRS[g] = 0; caThr[g] = 0; caBrk[g] = 0; caSteer[g] = 0; caHB[g] = 0;
     caFin[g] = 0; caRoll[g] = 0; caPitch[g] = 0; caStuck[g] = 0; caMisT[g] = 0; caDefT[g] = 0 - 3;
     caPace[g] = 1; caHeat[g] = 0; caSpd[g] = v; caOffT[g] = 0; caLap[g] = caLap[L];
+    caAeroK[g] = 1; caBrkK[g] = 1; caBias[g] = 0; caSusp[g] = 0; caWearK[g] = 1;
     tyreGrip(1);
     caWK[g] = caWK[1];
     setBanner('SAFETY CAR', 2.5);
@@ -597,6 +600,7 @@ function endQuali() {
     i = 1;
     while (i <= NCAR) { caGrid[clsI[i]] = i; i = i + 1; }
     qDone = 1;
+    if (caGrid[1] == 1) { if (caQT[1] < 9000) { unlock(4); } }
     nCars = 0;
     raceState = ST_QRES;
     mcInit = 0;

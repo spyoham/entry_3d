@@ -14,9 +14,12 @@ const check = (label) => {
 };
 for (const r of [1, 2]) {
     g(`rules = ${r}`);
-    for (let m = 1; m <= 11; m++) { g(`menuSel = ${m}`); check(`r${r} menu ${m}`); }
+    for (let m = 1; m <= 13; m++) { g(`menuSel = ${m}`); check(`r${r} menu ${m}`); }
 }
-g('wx = 3'); g('menuSel = 8'); check('menu 8 wx3');
+g('wx = 3'); g('menuSel = 9'); check('menu 9 wx3');
+g('menuSel = 8; gMode = 3'); check('menu 8 TT'); g('gMode = 4'); check('menu 8 PR'); g('gMode = 1');
+g('raceState = ST_TUNE; tuRow = 1'); check('garage'); g('tuRow = 6'); check('garage 6');
+for (let t = 1; t <= 4; t++) { g(`raceState = ST_PROF; prTab = ${t}`); check('profile ' + t); }
 g('wx = 1');
 g('raceState = ST_CARSEL'); check('carsel');
 g('raceState = ST_TRKSEL'); check('trksel');

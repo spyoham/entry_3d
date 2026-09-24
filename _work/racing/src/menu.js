@@ -15,7 +15,7 @@ let cardX1 = 236;
 let menuSlide = 0;                  // selected row slides out a little
 let menuPrev = 0;
 
-function rowY(i) { oRowY = 74 - (i - 1) * 15.2; }
+function rowY(i) { oRowY = 77 - (i - 1) * 12.8; }
 let oRowY = 0;
 
 // a bar with slanted ends
@@ -151,6 +151,9 @@ function drawMenuUI() {
     else if (raceState == ST_TRKSEL) { drawTrkSel(); }
     else if (raceState == ST_DONE) { drawTablePanel(); }
     else if (raceState == ST_STAND) { drawTablePanel(); }
+    else if (raceState == ST_QRES) { drawTablePanel(); }
+    else if (raceState == ST_TUNE) { drawTune(); }
+    else if (raceState == ST_PROF) { drawProf(); }
 }
 
 function drawTablePanel() {
@@ -170,18 +173,19 @@ function drawPausePanel() {
 function drawMainMenu() {
     if (menuSel != menuPrev) { menuPrev = menuSel; menuSlide = 0; }
     menuSlide = menuSlide + (1 - menuSlide) * Math.min(1, dt * 10);
-    // title
-    skewBar(0 - 250, 0 - 44, 112, 14, 4, C_PANEL);
-    skewBar(0 - 250, 0 - 90, 92, 5.5, 2, C_RED);
+    // title, and the player's level under it
+    skewBar(0 - 250, 0 - 44, 114, 14, 4, C_PANEL);
+    skewBar(0 - 250, 0 - 90, 95, 5.5, 2, C_RED);
+    box(0 - 80, 87.5, 0 - 80 + 36 * pLvXP / pLvNeed, 86, C_GOLD);
     // the list
     let i = 1;
     while (i <= NMENU) {
         rowY(i);
         if (i == menuSel) {
-            skewBar(0 - 250, 0 - 40 + 12 * menuSlide, oRowY, 6.6, 3, C_RED);
-            skewBar(0 - 250, 0 - 236, oRowY, 6.6, 3, '#ffffff');
+            skewBar(0 - 250, 0 - 40 + 12 * menuSlide, oRowY, 5.8, 3, C_RED);
+            skewBar(0 - 250, 0 - 236, oRowY, 5.8, 3, '#ffffff');
         } else {
-            skewBar(0 - 250, 0 - 44, oRowY, 6.6, 3, C_PANEL);
+            skewBar(0 - 250, 0 - 44, oRowY, 5.8, 3, C_PANEL);
         }
         i = i + 1;
     }
@@ -193,14 +197,9 @@ function drawMainMenu() {
     if (m == 1) {
         drawMap3D(121, 50, 34);
     } else if (m == 2) {
-        choiceBoxes(3, gMode);
+        choiceBoxes(4, gMode);
     } else if (m == 3) {
-        let k = 1;
-        while (k <= 2) {
-            let x0 = cardX0 + 10 + (k - 1) * 112;
-            box(x0, 64, x0 + 102, 42, k == rules ? C_RED : C_PANEL2);
-            k = k + 1;
-        }
+        choiceBoxes(2, rules);
     } else if (m == 4) {
         box(cardX0 + 6, 70, cardX1 - 6, 0 - 16, '#121821');
         drawCardCar(121, 24, 34);
@@ -211,26 +210,44 @@ function drawMainMenu() {
             k = k + 1;
         }
     } else if (m == 5) {
-        drawMap3D(121, 26, 62);
+        // upgrade levels as rows of pips
+        let k = 1;
+        while (k <= 4) {
+            let lvl = upE;
+            if (k == 2) { lvl = upA; } else if (k == 3) { lvl = upB; } else if (k == 4) { lvl = upT; }
+            let j = 1;
+            while (j <= UPMAX) {
+                let x0 = cardX0 + 112 + (j - 1) * 20;
+                box(x0, 58 - (k - 1) * 13 + 3, x0 + 16, 58 - (k - 1) * 13 - 3, j <= lvl ? C_RED : C_PANEL2);
+                j = j + 1;
+            }
+            k = k + 1;
+        }
     } else if (m == 6) {
+        drawMap3D(121, 26, 62);
+    } else if (m == 7) {
         let k = 1;
         while (k <= NDIFF) {
             let x0 = cardX0 + 12 + (k - 1) * 43;
             box(x0, 76, x0 + 38, 70, k <= aiDiff ? C_RED : C_PANEL2);
             k = k + 1;
         }
-    } else if (m == 7) {
-        let k = 1;
-        while (k <= NLAPO) {
-            let x0 = cardX0 + 12 + (k - 1) * 54;
-            box(x0, 26, x0 + 48, 22, k == lapSel ? C_RED : C_PANEL2);
-            k = k + 1;
-        }
     } else if (m == 8) {
-        drawWxIcon(121, 46);
+        if (gMode == M_TT) { choiceBoxes(3, ghSel); }
+        else if (gMode == M_PR) { choiceBoxes(3, paSel); }
+        else {
+            let k = 1;
+            while (k <= NLAPO) {
+                let x0 = cardX0 + 12 + (k - 1) * 54;
+                box(x0, 26, x0 + 48, 22, k == lapSel ? C_RED : C_PANEL2);
+                k = k + 1;
+            }
+        }
     } else if (m == 9) {
-        choiceBoxes(3, gfx);
+        drawWxIcon(121, 46);
     } else if (m == 10) {
+        choiceBoxes(3, gfx);
+    } else if (m == 11) {
         choiceBoxes(2, sndSel);
         // a little level meter that moves when the sound is on
         let k = 0;
@@ -240,7 +257,13 @@ function drawMainMenu() {
             box(cardX0 + 60 + k * 7, 2, cardX0 + 64 + k * 7, 2 + h, sndSel > 1 ? '#3dff6e' : '#2a3240');
             k = k + 1;
         }
-    } else if (m == 11) {
+    } else if (m == 12) {
+        // level badge and XP bar
+        fillOct(cardX0 + 40, 48, 22, C_RED);
+        fillOct(cardX0 + 40, 48, 18, C_PANEL);
+        box(cardX0 + 76, 36, cardX1 - 12, 30, C_PANEL2);
+        box(cardX0 + 76, 36, cardX0 + 76 + (cardX1 - 88 - cardX0) * pLvXP / pLvNeed, 30, C_GOLD);
+    } else if (m == 13) {
         // a little node-and-spline sketch
         let k = 0;
         while (k < 8) {
@@ -333,11 +356,12 @@ function drawTrkSel() {
 }
 
 // ---- screens: text -----------------------------------------------------------
-// v7 slots: menu labels 24..34, values 35..45; cards 50 (title), 51..71
-// (cardRow r: label 51+r, value 61+r), 72..75 extras.
+// v8 slots: menu labels 24..36, values 37..49; cards 50 (title), 51..71
+// (cardRow r: label 51+r, value 61+r), 72..76 extras; 77..79 pop-ups.
 function hudMenu() {
-    tx(9, 'ENTRY RACING 3D', 0 - 232, 114, 21, C_WHITE, 1);
-    tx(10, 'F1 EDITION  /  v7', 0 - 232, 94, 8, C_WHITE, 1);
+    tx(9, 'ENTRY RACING 3D', 0 - 232, 116, 21, C_WHITE, 1);
+    tx(10, 'F1 EDITION  /  v8', 0 - 232, 96, 8, C_WHITE, 1);
+    tx(13, str('LV ', pLv, '  ', pNick), 0 - 80, 96, 8, C_GOLD, 1);
     let i = 1;
     while (i <= NMENU) {
         rowY(i);
@@ -346,21 +370,27 @@ function hudMenu() {
         let val = BLANK;
         if (i == 1) {
             lab = 'RACE START';
-            if (gMode == M_CH) { lab = 'START CHAMPIONSHIP'; } else if (gMode == M_TT) { lab = 'START TIME TRIAL'; }
+            if (gMode == M_CH) { lab = 'START CHAMPIONSHIP'; } else if (gMode == M_TT) { lab = 'START TIME TRIAL'; } else if (gMode == M_PR) { lab = 'START PRACTICE'; }
         } else if (i == 2) { lab = 'MODE'; val = modeName[gMode]; }
         else if (i == 3) { lab = 'RULES'; val = ruleName[rules]; }
         else if (i == 4) { lab = 'CAR'; val = ctName[selCar]; }
-        else if (i == 5) { lab = 'CIRCUIT'; val = gMode == M_CH ? 'ALL 8' : trkName[selTrk]; }
-        else if (i == 6) { lab = 'AI LEVEL'; val = gMode == M_TT ? 'NONE' : aiName[aiDiff]; }
-        else if (i == 7) { lab = 'LAPS'; val = gMode == M_TT ? 'FREE' : str(lapOpt[lapSel]); }
-        else if (i == 8) { lab = 'WEATHER'; val = wxName[wx]; }
-        else if (i == 9) { lab = 'GRAPHICS'; val = gfxName[gfx]; }
-        else if (i == 10) { lab = 'SOUND'; val = sndName[sndSel]; }
+        else if (i == 5) { lab = 'GARAGE'; val = pPts > 0 ? str(pPts, ' POINTS TO SPEND') : 'TUNING'; }
+        else if (i == 6) { lab = 'CIRCUIT'; val = gMode == M_CH ? 'ALL 8' : trkName[selTrk]; }
+        else if (i == 7) { lab = 'AI LEVEL'; val = gMode >= M_TT ? 'NONE' : aiName[aiDiff]; }
+        else if (i == 8) {
+            lab = 'LAPS'; val = str(lapOpt[lapSel]);
+            if (gMode == M_TT) { lab = 'GHOST'; val = ghName[ghSel]; }
+            else if (gMode == M_PR) { lab = 'ASSIST'; val = paName[paSel]; }
+        }
+        else if (i == 9) { lab = 'WEATHER'; val = wxName[wx]; }
+        else if (i == 10) { lab = 'GRAPHICS'; val = gfxName[gfx]; }
+        else if (i == 11) { lab = 'SOUND'; val = sndName[sndSel]; }
+        else if (i == 12) { lab = 'PROFILE'; val = str('LEVEL ', pLv); }
         else { lab = 'TRACK EDITOR'; }
         let x = 0 - 226 + (sel > 0 ? 4 * menuSlide : 0);
-        tx(23 + i, lab, x, oRowY, 9, sel > 0 ? C_WHITE : '#c9d1de', 1);
-        if (sel > 0) { if (val != BLANK) { if (i > 1) { val = str('< ', val, ' >'); } } }
-        tx(34 + i, val, 0 - 134 + (sel > 0 ? 4 * menuSlide : 0), oRowY, 8, sel > 0 ? C_WHITE : C_DIM, 1);
+        tx(23 + i, lab, x, oRowY, 8, sel > 0 ? C_WHITE : '#c9d1de', 1);
+        if (sel > 0) { if (val != BLANK) { if (i > 1) { if (i != 5) { if (i != 12) { val = str('< ', val, ' >'); } } } } }
+        tx(36 + i, val, 0 - 134 + (sel > 0 ? 4 * menuSlide : 0), oRowY, 7, sel > 0 ? C_WHITE : C_DIM, 1);
         i = i + 1;
     }
     tx(12, 'UP/DOWN select   LEFT/RIGHT change   ENTER confirm', 0, 0 - 111, 9, '#c9d1de', 0);
@@ -380,18 +410,21 @@ function hudCard() {
         cardRow(1, 'MODE', str(modeName[gMode], '  /  ', ruleName[rules]), y0);
         cardRow(2, 'CIRCUIT', gMode == M_CH ? str('ALL ', NTRK, ' ROUNDS') : trkName[selTrk], y0 - 13);
         cardRow(3, 'CAR', ctName[selCar], y0 - 26);
-        cardRow(4, 'LAPS', gMode == M_TT ? 'UNLIMITED' : str(lapOpt[lapSel]), y0 - 39);
-        cardRow(5, 'OPPONENTS', gMode == M_TT ? 'NONE  (GHOST)' : str(NCAR - 1, '  /  ', aiName[aiDiff]), y0 - 52);
+        let lp = str(lapOpt[lapSel]);
+        if (gMode == M_TT) { lp = str('UNLIMITED  -  GHOST ', ghName[ghSel]); } else if (gMode == M_PR) { lp = 'UNLIMITED'; }
+        cardRow(4, 'LAPS', lp, y0 - 39);
+        cardRow(5, 'OPPONENTS', gMode >= M_TT ? 'NONE' : str(NCAR - 1, '  /  ', aiName[aiDiff]), y0 - 52);
         cardRow(6, 'WEATHER', wxName[wx], y0 - 65);
         let q = BLANK;
-        if (rules == R_SIM) { if (gMode != M_TT) { q = 'QUALIFYING FIRST'; } }
+        if (rules == R_SIM) { if (gMode < M_TT) { q = 'QUALIFYING FIRST'; } }
         tx(72, q, cardX1 - 10, 84, 8, C_GOLD, 2);
         tx(73, mod(Math.floor(gt * 2), 2) < 1 ? 'PRESS ENTER' : BLANK, 121, 0 - 84, 10, C_GOLD, 0);
     } else if (m == 2) {
         tx(50, 'GAME MODE', cardX0 + 10, 84, 11, C_WHITE, 1);
-        tx(72, 'GP', cardX0 + 44, 53, 10, gMode == 1 ? C_WHITE : C_DIM, 0);
-        tx(73, 'CHAMP', cardX0 + 118, 53, 10, gMode == 2 ? C_WHITE : C_DIM, 0);
-        tx(74, 'TRIAL', cardX0 + 192, 53, 10, gMode == 3 ? C_WHITE : C_DIM, 0);
+        tx(72, 'GP', cardX0 + 35, 53, 9, gMode == 1 ? C_WHITE : C_DIM, 0);
+        tx(73, 'CHAMP', cardX0 + 90, 53, 9, gMode == 2 ? C_WHITE : C_DIM, 0);
+        tx(74, 'TRIAL', cardX0 + 144, 53, 9, gMode == 3 ? C_WHITE : C_DIM, 0);
+        tx(75, 'SOLO', cardX0 + 199, 53, 9, gMode == 4 ? C_WHITE : C_DIM, 0);
         cardTx(52, modeName[gMode], 22, 13, C_GOLD);
         cardTx(53, modeD1[gMode], 4, 9, C_WHITE);
         cardTx(54, modeD2[gMode], 0 - 10, 9, C_WHITE);
@@ -430,12 +463,30 @@ function hudCard() {
             k = k + 1;
         }
     } else if (m == 5) {
+        tx(50, 'GARAGE', cardX0 + 10, 84, 11, C_WHITE, 1);
+        tx(72, str(pPts, ' UPGRADE POINTS'), cardX1 - 10, 84, 8, pPts > 0 ? C_GOLD : C_DIM, 2);
+        let k = 1;
+        while (k <= 4) {
+            let lvl = upE;
+            if (k == 2) { lvl = upA; } else if (k == 3) { lvl = upB; } else if (k == 4) { lvl = upT; }
+            tx(51 + k, upName[k], cardX0 + 10, 58 - (k - 1) * 13, 8, C_DIM, 1);
+            tx(61 + k, str(lvl, '/', UPMAX), cardX1 - 16, 58 - (k - 1) * 13, 7, C_WHITE, 1);
+            k = k + 1;
+        }
+        cardRow(5, 'SETUP', str('WING ', suW, '  GEAR ', suG, '  BIAS ', suB, '  SUSP ', suS), 0 - 4);
+        cardTx(73, 'ONE POINT FOR EVERY LEVEL YOU GAIN', 0 - 30, 7, C_DIM);
+        cardTx(74, 'THE SETUP IS FREE: EVERY GAIN HAS A COST', 0 - 42, 7, C_DIM);
+        tx(75, 'ENTER  OPEN THE GARAGE', 121, 0 - 80, 9, C_GOLD, 0);
+    } else if (m == 6) {
         tx(50, trkName[selTrk], cardX0 + 10, 84, 11, C_WHITE, 1);
         fmtTime(recLap[selTrk] > 0 ? recLap[selTrk] : 0 - 1);
-        cardRow(1, 'LENGTH', str(Math.round(trkLen / 10) / 100, ' km'), 0 - 50);
-        cardRow(2, 'TURNS', str(trkTurns[selTrk], '     DRS ZONES  ', drsN), 0 - 63);
-        cardRow(3, 'BEST LAP', oTime, 0 - 76);
-    } else if (m == 6) {
+        cardRow(1, 'LENGTH', str(Math.round(trkLen / 10) / 100, ' km'), 0 - 44);
+        cardRow(2, 'TURNS', str(trkTurns[selTrk], '     DRS ZONES  ', drsN), 0 - 56);
+        cardRow(3, 'MY BEST LAP', oTime, 0 - 68);
+        let wr = 'NONE YET';
+        if (selTrk <= NTRK) { if (recWR[selTrk] > 0) { fmtTime(recWR[selTrk]); wr = str(oTime, '  ', recNm[selTrk]); } }
+        cardRow(4, 'WORLD RECORD', wr, 0 - 80);
+    } else if (m == 7) {
         tx(50, 'OPPONENTS', cardX0 + 10, 84, 11, C_WHITE, 1);
         tx(72, str(aiName[aiDiff], '   ENGINE ', Math.round(aiPow[aiDiff] * 100), '%   RACECRAFT ', Math.round(aiSkl[aiDiff] * 100), '%'), cardX0 + 10, 58, 8, C_GOLD, 1);
         tx(73, aiD[aiDiff], cardX0 + 10, 44, 7, C_DIM, 1);
@@ -445,17 +496,42 @@ function hudCard() {
             cardRow(k, drvName[k + 1], drvTag[k + 1], 14 - (k - 1) * 12);
             k = k + 1;
         }
-        if (gMode == M_TT) { tx(75, 'NOT USED IN TIME TRIAL', cardX1 - 10, 84, 8, C_ACC, 2); } else { txOff(75); }
-    } else if (m == 7) {
-        tx(50, 'RACE LENGTH', cardX0 + 10, 84, 11, C_WHITE, 1);
-        tx(72, gMode == M_TT ? 'FREE' : str(lapOpt[lapSel]), 121, 54, 34, C_WHITE, 0);
-        tx(52, '1', cardX0 + 36, 12, 9, lapSel == 1 ? C_WHITE : C_DIM, 0);
-        tx(53, '3', cardX0 + 90, 12, 9, lapSel == 2 ? C_WHITE : C_DIM, 0);
-        tx(54, '5', cardX0 + 144, 12, 9, lapSel == 3 ? C_WHITE : C_DIM, 0);
-        tx(55, '10', cardX0 + 198, 12, 9, lapSel == 4 ? C_WHITE : C_DIM, 0);
-        cardRow(5, 'DISTANCE', str(Math.round(trkLen * lapOpt[lapSel] / 100) / 10, ' km'), 0 - 20);
-        cardRow(6, 'ABOUT', str(Math.round(trkLen * lapOpt[lapSel] / 55 / 60 * 10) / 10, ' min'), 0 - 33);
+        if (gMode >= M_TT) { tx(75, 'NOT USED WHEN DRIVING ALONE', cardX1 - 10, 84, 8, C_ACC, 2); } else { txOff(75); }
     } else if (m == 8) {
+        if (gMode == M_TT) {
+            tx(50, 'GHOST', cardX0 + 10, 84, 11, C_WHITE, 1);
+            tx(72, 'MY BEST', cardX0 + 44, 53, 9, ghSel == 1 ? C_WHITE : C_DIM, 0);
+            tx(73, 'WORLD REC', cardX0 + 118, 53, 9, ghSel == 2 ? C_WHITE : C_DIM, 0);
+            tx(74, 'OFF', cardX0 + 192, 53, 9, ghSel == 3 ? C_WHITE : C_DIM, 0);
+            cardTx(52, 'RACE A GHOST OF A LAP', 20, 11, C_GOLD);
+            cardTx(53, 'MY BEST: YOUR FASTEST LAP ON THIS CIRCUIT', 2, 7, C_WHITE);
+            cardTx(54, 'WORLD RECORD: THE RANKING LEADER, ONLINE', 0 - 10, 7, C_WHITE);
+            fmtTime(recLap[selTrk] > 0 ? recLap[selTrk] : 0 - 1);
+            cardRow(4, 'MY BEST', oTime, 0 - 34);
+            let wr = 'NONE YET';
+            if (selTrk <= NTRK) { if (recWR[selTrk] > 0) { fmtTime(recWR[selTrk]); wr = str(oTime, '  ', recNm[selTrk]); } }
+            cardRow(5, 'WORLD RECORD', wr, 0 - 47);
+        } else if (gMode == M_PR) {
+            tx(50, 'PRACTICE ASSISTS', cardX0 + 10, 84, 11, C_WHITE, 1);
+            tx(72, 'LINE+BRAKE', cardX0 + 44, 53, 8, paSel == 1 ? C_WHITE : C_DIM, 0);
+            tx(73, 'LINE', cardX0 + 118, 53, 9, paSel == 2 ? C_WHITE : C_DIM, 0);
+            tx(74, 'NONE', cardX0 + 192, 53, 9, paSel == 3 ? C_WHITE : C_DIM, 0);
+            cardTx(52, 'LEARN THE CIRCUIT ALONE', 20, 11, C_GOLD);
+            cardTx(53, 'LINE: THE RACING LINE ON THE ROAD', 2, 7, C_WHITE);
+            cardTx(54, 'BRAKE: BRAKES FOR YOU WHEN TOO FAST', 0 - 10, 7, C_WHITE);
+            cardTx(55, 'B: BACK ON THE TRACK   R: START AGAIN', 0 - 22, 7, C_WHITE);
+            cardTx(56, 'LAPS WITH THE BRAKE ASSIST DO NOT RANK', 0 - 40, 7, C_DIM);
+        } else {
+            tx(50, 'RACE LENGTH', cardX0 + 10, 84, 11, C_WHITE, 1);
+            tx(72, str(lapOpt[lapSel]), 121, 54, 34, C_WHITE, 0);
+            tx(52, '1', cardX0 + 36, 12, 9, lapSel == 1 ? C_WHITE : C_DIM, 0);
+            tx(53, '3', cardX0 + 90, 12, 9, lapSel == 2 ? C_WHITE : C_DIM, 0);
+            tx(54, '5', cardX0 + 144, 12, 9, lapSel == 3 ? C_WHITE : C_DIM, 0);
+            tx(55, '10', cardX0 + 198, 12, 9, lapSel == 4 ? C_WHITE : C_DIM, 0);
+            cardRow(5, 'DISTANCE', str(Math.round(trkLen * lapOpt[lapSel] / 100) / 10, ' km'), 0 - 20);
+            cardRow(6, 'ABOUT', str(Math.round(trkLen * lapOpt[lapSel] / 55 / 60 * 10) / 10, ' min'), 0 - 33);
+        }
+    } else if (m == 9) {
         tx(50, 'WEATHER', cardX0 + 10, 84, 11, C_WHITE, 1);
         cardTx(72, wxName[wx], 0 - 6, 13, wx == 1 ? C_GOLD : C_SKY);
         if (wx == 3) {
@@ -469,8 +545,8 @@ function hudCard() {
             cardRow(3, 'VISIBILITY', wx > 1 ? 'SPRAY, FOG' : 'CLEAR', 0 - 39);
             cardRow(4, 'RAIN LIGHTS', wx > 1 ? 'ON' : 'OFF', 0 - 52);
         }
-        if (rules == R_ARC) { tx(58 + 13, 'CHANGING WEATHER: REALISTIC RULES ONLY', cardX0 + 10, 0 - 76, 7, C_DIM, 1); } else { txOff(71); }
-    } else if (m == 9) {
+        if (rules == R_ARC) { tx(71, 'CHANGING WEATHER: REALISTIC RULES ONLY', cardX0 + 10, 0 - 76, 7, C_DIM, 1); } else { txOff(71); }
+    } else if (m == 10) {
         tx(50, 'GRAPHICS', cardX0 + 10, 84, 11, C_WHITE, 1);
         tx(72, 'LOW', cardX0 + 44, 53, 10, gfx == 1 ? C_WHITE : C_DIM, 0);
         tx(73, 'HIGH', cardX0 + 118, 53, 10, gfx == 2 ? C_WHITE : C_DIM, 0);
@@ -481,13 +557,23 @@ function hudCard() {
         cardRow(7, 'SCENERY DENSITY', gfDen[gfx] > 1 ? 'x1.5' : 'x1', 0 - 17);
         cardTx(75, gfxFx[gfx], 0 - 40, 7, gfx > 1 ? C_GOLD : C_DIM);
         cardTx(71, gfxD[gfx], 0 - 56, 8, C_DIM);
-    } else if (m == 10) {
+    } else if (m == 11) {
         tx(50, 'SOUND', cardX0 + 10, 84, 11, C_WHITE, 1);
         tx(72, 'OFF', cardX0 + 61, 53, 10, sndSel == 1 ? C_WHITE : C_DIM, 0);
         tx(73, 'ON', cardX0 + 173, 53, 10, sndSel == 2 ? C_WHITE : C_DIM, 0);
         cardTx(52, 'ENGINE SOUND', 0 - 18, 12, C_GOLD);
-        cardTx(53, 'A V6 TURBO HYBRID THAT FOLLOWS YOUR REVS', 0 - 36, 7, C_WHITE);
-        cardTx(54, 'LOUDER ON THE THROTTLE, ALSO IN REPLAYS', 0 - 48, 7, C_DIM);
+        cardTx(53, 'YOUR V6 TURBO HYBRID FOLLOWS YOUR REVS', 0 - 36, 7, C_WHITE);
+        cardTx(54, 'CARS NEARBY ARE HEARD TOO, PASSING BY', 0 - 48, 7, C_DIM);
+    } else if (m == 12) {
+        tx(50, 'PROFILE', cardX0 + 10, 84, 11, C_WHITE, 1);
+        tx(72, str(pLv), cardX0 + 40, 48, 18, C_WHITE, 0);
+        tx(73, pNick, cardX0 + 76, 56, 11, C_GOLD, 1);
+        tx(74, str(pXP, ' XP   NEXT LEVEL ', pLvNeed - pLvXP), cardX0 + 76, 42, 7, C_DIM, 1);
+        cardRow(4, 'ACHIEVEMENTS', str(achCount, ' / ', NACH), 0 - 4);
+        cardRow(5, 'RACES / WINS', str(stRaces, ' / ', stWins), 0 - 17);
+        cardRow(6, 'DISTANCE', str(Math.round(stKm), ' km'), 0 - 30);
+        tx(75, pGuest > 0 ? 'GUEST - SIGN IN TO SAVE ONLINE' : 'SAVED IN THE WORK (REAL-TIME VARIABLES)', cardX0 + 10, 0 - 56, 7, pGuest > 0 ? C_ACC : C_DIM, 1);
+        tx(71, 'ENTER  RECORDS, ACHIEVEMENTS, RANKING', 121, 0 - 80, 8, C_GOLD, 0);
     } else {
         tx(50, 'TRACK EDITOR', cardX0 + 10, 84, 11, C_WHITE, 1);
         cardTx(52, 'DRAW YOUR OWN CIRCUIT', 0 - 12, 10, C_GOLD);
@@ -598,4 +684,228 @@ function drawReplayUI() {
     if (rpN > 1) { f = rpT / ((rpN - 1) * RPDT); }
     box(0 - 150, 0 - 102, 150, 0 - 105, '#2a3240');
     box(0 - 150, 0 - 102, 0 - 150 + 300 * f, 0 - 105, C_RED);
+}
+
+// ---- v8 garage -----------------------------------------------------------------
+// rows 1..4 upgrades (right buys a step with a point, left sells it back),
+// 5..8 setup sliders -3..+3 (free)
+let tuRow = 1;
+function tuneKeys() {
+    if (actKey == 40) { tuRow = mod(tuRow, 8) + 1; }
+    else if (actKey == 38) { tuRow = mod(tuRow + 6, 8) + 1; }
+    else if (actKey == 37) { tuneStep(0 - 1); }
+    else if (actKey == 39) { tuneStep(1); }
+    else if (actKey == 13) { raceState = ST_MENU; nCars = 0; pDirty = 1; }
+    else if (actKey == 27) { raceState = ST_MENU; nCars = 0; pDirty = 1; }
+}
+function tuneStep(d) {
+    levelFromXP();
+    if (tuRow <= 4) {
+        let v = upE;
+        if (tuRow == 2) { v = upA; } else if (tuRow == 3) { v = upB; } else if (tuRow == 4) { v = upT; }
+        let nv = v;
+        if (d > 0) { if (pPts > 0) { if (v < UPMAX) { nv = v + 1; } } }
+        else if (v > 0) { nv = v - 1; }
+        if (tuRow == 1) { upE = nv; } else if (tuRow == 2) { upA = nv; } else if (tuRow == 3) { upB = nv; } else { upT = nv; }
+        if (nv >= UPMAX) { unlock(18); }
+    } else {
+        if (tuRow == 5) { suW = Math.max(0 - 3, Math.min(3, suW + d)); }
+        else if (tuRow == 6) { suG = Math.max(0 - 3, Math.min(3, suG + d)); }
+        else if (tuRow == 7) { suB = Math.max(0 - 3, Math.min(3, suB + d)); }
+        else { suS = Math.max(0 - 3, Math.min(3, suS + d)); }
+    }
+    levelFromXP();
+    pDirty = 1;
+}
+
+function drawTune() {
+    box(34, 116, 240, 0 - 106, C_PANEL);
+    box(34, 116, 240, 113, C_RED);
+    let r = 1;
+    while (r <= 8) {
+        let y = 62 - (r - 1) * 16 - (r > 4 ? 10 : 0);
+        if (r == tuRow) { box(36, y + 7, 238, y - 7, '#2a3240'); }
+        if (r <= 4) {
+            let lvl = upE;
+            if (r == 2) { lvl = upA; } else if (r == 3) { lvl = upB; } else if (r == 4) { lvl = upT; }
+            let j = 1;
+            while (j <= UPMAX) {
+                let x0 = 140 + (j - 1) * 17;
+                box(x0, y + 3, x0 + 14, y - 3, j <= lvl ? C_RED : C_PANEL2);
+                j = j + 1;
+            }
+        } else {
+            let v = suW;
+            if (r == 6) { v = suG; } else if (r == 7) { v = suB; } else if (r == 8) { v = suS; }
+            box(140, y + 1, 224, y - 1, C_PANEL2);
+            box(181, y + 4, 183, y - 4, '#5a6474');
+            let x = 182 + v * 13;
+            box(x - 3, y + 4, x + 3, y - 4, v == 0 ? '#dfe6f0' : C_GOLD);
+        }
+        r = r + 1;
+    }
+    box(0 - 250, 0 - 112, 250, 0 - 132, C_PANEL);
+}
+
+function hudTune() {
+    tx(9, 'GARAGE', 42, 99, 18, C_WHITE, 1);
+    tx(10, str('LEVEL ', pLv, '   ', pPts, ' UPGRADE POINTS'), 42, 80, 9, pPts > 0 ? C_GOLD : C_DIM, 1);
+    let r = 1;
+    while (r <= 8) {
+        let y = 62 - (r - 1) * 16 - (r > 4 ? 10 : 0) - 16;
+        let lab = BLANK;
+        let val = BLANK;
+        if (r <= 4) {
+            lab = upName[r];
+            let lvl = upE;
+            if (r == 2) { lvl = upA; } else if (r == 3) { lvl = upB; } else if (r == 4) { lvl = upT; }
+            val = str(lvl, '/', UPMAX);
+        } else {
+            lab = suName[r - 4];
+            let v = suW;
+            if (r == 6) { v = suG; } else if (r == 7) { v = suB; } else if (r == 8) { v = suS; }
+            val = v > 0 ? str('+', v) : str(v);
+        }
+        tx(23 + r, lab, 44, y + 16, 8, r == tuRow ? C_WHITE : '#c9d1de', 1);
+        tx(31 + r, val, 112, y + 16, 8, r == tuRow ? C_WHITE : C_DIM, 1);
+        r = r + 1;
+    }
+    tx(40, 'SETUP  (FREE)', 44, 62 - 4 * 16 - 1, 7, C_DIM, 1);
+    // what the selected row does, and the car as it stands
+    let info = BLANK;
+    if (tuRow <= 4) { info = upInfo[tuRow]; }
+    else { info = str(suLo[tuRow - 4], ' <  ', suInfo[tuRow - 4], '  > ', suHi[tuRow - 4]); }
+    tx(41, info, 0, 0 - 98, 7, C_GOLD, 0);
+    let top = ctTop[selCar] * (1 + 0.006 * upE) * (1 - 0.012 * suW) * (1 - 0.015 * suG) * 3.6;
+    let acc = (1 + 0.014 * upE) * (1 + 0.03 * suG);
+    let grip = (1 + 0.008 * upT) * (1 + 0.01 * suS);
+    let aero = (1 + 0.03 * upA) * (1 + 0.06 * suW);
+    tx(42, str('TOP ', Math.round(top), ' km/h   PULL ', Math.round(acc * 100), '%   GRIP ', Math.round(grip * 100), '%   DOWNFORCE ', Math.round(aero * 100), '%   BRAKES ', Math.round((1 + 0.04 * upB) * 100), '%'),
+        0 - 238, 0 - 88, 7, C_WHITE, 1);
+    tx(12, 'UP/DOWN choose   LEFT/RIGHT change   ENTER done', 0, 0 - 122, 9, '#c9d1de', 0);
+}
+
+// ---- v8 profile ---------------------------------------------------------------
+// tabs: 1 profile, 2 records, 3 achievements, 4 ranking
+let prTab = 1;
+let prSel = 1;              // achievement selected
+let prTrk = 1;              // ranking circuit
+function profKeys() {
+    if (actKey == 37) { prTab = mod(prTab + 2, 4) + 1; }
+    else if (actKey == 39) { prTab = mod(prTab, 4) + 1; }
+    else if (actKey == 40) {
+        if (prTab == 3) { prSel = mod(prSel, NACH) + 1; }
+        if (prTab == 4) { prTrk = mod(prTrk, NTRK) + 1; }
+    } else if (actKey == 38) {
+        if (prTab == 3) { prSel = mod(prSel + NACH - 2, NACH) + 1; }
+        if (prTab == 4) { prTrk = mod(prTrk + NTRK - 2, NTRK) + 1; }
+    }
+    else if (actKey == 13) { raceState = ST_MENU; }
+    else if (actKey == 27) { raceState = ST_MENU; }
+}
+
+function drawProf() {
+    box(0 - 236, 122, 236, 0 - 106, C_PANEL);
+    let k = 1;
+    while (k <= 4) {
+        let x0 = 0 - 232 + (k - 1) * 116;
+        box(x0, 118, x0 + 112, 102, k == prTab ? C_RED : C_PANEL2);
+        k = k + 1;
+    }
+    if (prTab == 1) {
+        fillOct(0 - 170, 50, 30, C_RED);
+        fillOct(0 - 170, 50, 25, C_PANEL);
+        box(0 - 120, 44, 220, 36, C_PANEL2);
+        box(0 - 120, 44, 0 - 120 + 340 * pLvXP / pLvNeed, 36, C_GOLD);
+    } else if (prTab == 3) {
+        let i = 1;
+        while (i <= NACH) {
+            let col = idiv(i - 1, 10);
+            let row = mod(i - 1, 10);
+            let x0 = 0 - 228 + col * 232;
+            let y = 88 - row * 15;
+            if (i == prSel) { box(x0, y + 6, x0 + 226, y - 7, '#2a3240'); }
+            fillOct(x0 + 8, y, 4, achGot[i] > 0 ? C_GOLD : '#3a4452');
+            i = i + 1;
+        }
+    }
+    box(0 - 250, 0 - 112, 250, 0 - 132, C_PANEL);
+}
+
+function hudProf() {
+    let k = 1;
+    while (k <= 4) { tx(50 + k, prTabN[k], 0 - 176 + (k - 1) * 116, 110, 9, k == prTab ? C_WHITE : C_DIM, 0); k = k + 1; }
+    let i = 1;
+    if (prTab == 1) {
+        tx(24, str(pLv), 0 - 170, 50, 22, C_WHITE, 0);
+        tx(25, pNick, 0 - 120, 74, 16, C_GOLD, 1);
+        tx(26, str('LEVEL ', pLv, '    ', pXP, ' XP    ', pLvNeed - pLvXP, ' TO THE NEXT LEVEL'), 0 - 120, 56, 8, C_WHITE, 1);
+        tx(27, pGuest > 0 ? 'GUEST - SIGN IN TO KEEP YOUR PROGRESS ONLINE' : str('SAVED ONLINE  (SLOT ', pSh, ')'), 0 - 120, 24, 7, pGuest > 0 ? C_ACC : C_DIM, 1);
+        tx(28, str('RACES  ', stRaces), 0 - 200, 0 - 4, 9, C_WHITE, 1);
+        tx(29, str('WINS  ', stWins), 0 - 200, 0 - 20, 9, C_WHITE, 1);
+        tx(30, str('PODIUMS  ', stPods), 0 - 200, 0 - 36, 9, C_WHITE, 1);
+        tx(31, str('DISTANCE  ', Math.round(stKm), ' km'), 0 - 200, 0 - 52, 9, C_WHITE, 1);
+        tx(32, str('ACHIEVEMENTS  ', achCount, ' / ', NACH), 20, 0 - 4, 9, C_WHITE, 1);
+        let nc = 0;
+        let b = 1;
+        let t = 1;
+        while (t <= NTRK) { nc = nc + mod(idiv(stCirc, b), 2); b = b * 2; t = t + 1; }
+        tx(33, str('CIRCUITS DRIVEN  ', nc, ' / ', NTRK), 20, 0 - 20, 9, C_WHITE, 1);
+        tx(34, str('UPGRADE POINTS  ', pPts), 20, 0 - 36, 9, C_WHITE, 1);
+        tx(35, str('UPGRADES  ', upE + upA + upB + upT, ' / ', 4 * UPMAX), 20, 0 - 52, 9, C_WHITE, 1);
+    } else if (prTab == 2) {
+        tx(24, 'CIRCUIT            MY BEST LAP     WORLD RECORD', 0 - 220, 88, 8, C_DIM, 1);
+        while (i <= NTRK) {
+            padR(trkName[i], 19);
+            let nm = oPad;
+            fmtTime(recLap[i] > 0 ? recLap[i] : 0 - 1);
+            padR(oTime, 16);
+            let mb = oPad;
+            let wr = '-';
+            if (recWR[i] > 0) { fmtTime(recWR[i]); wr = str(oTime, '  ', recNm[i]); }
+            tx(24 + i, str(nm, mb, wr), 0 - 220, 72 - (i - 1) * 16, 8, C_WHITE, 1);
+            i = i + 1;
+        }
+        fmtTime(recRace[selTrk] > 0 ? recRace[selTrk] : 0 - 1);
+        tx(33, str('BEST RACE ON ', trkName[selTrk], ':  ', oTime), 0 - 220, 0 - 64, 8, C_DIM, 1);
+    } else if (prTab == 3) {
+        while (i <= NACH) {
+            let col = idiv(i - 1, 10);
+            let row = mod(i - 1, 10);
+            tx(23 + i, achName[i], 0 - 214 + col * 232, 88 - row * 15, 8, achGot[i] > 0 ? C_WHITE : '#6a7486', 1);
+            i = i + 1;
+        }
+        tx(44, str(achName[prSel], ':  ', achDesc[prSel], achGot[prSel] > 0 ? '   (DONE)' : BLANK), 0, 0 - 76, 8, C_GOLD, 0);
+    } else {
+        rankParse(prTrk);
+        tx(24, str('< ', trkName[prTrk], ' >   TOP ', NRANK, ' LAPS'), 0, 88, 11, C_GOLD, 0);
+        while (i <= NRANK) {
+            let s = BLANK;
+            if (i <= rkC) {
+                padR(str(i, '.'), 4);
+                let a = oPad;
+                padR(rkN[i], 18);
+                fmtTime(rkT[i]);
+                s = str(a, oPad, oTime);
+            }
+            tx(24 + i, s, 0 - 120, 68 - (i - 1) * 14, 9, i == rkMe ? C_GOLD : C_WHITE, 1);
+            i = i + 1;
+        }
+        let me = 'NOT IN THE TOP 10 YET';
+        if (rkMe > 0) { me = str('YOU ARE P', rkMe); }
+        if (pGuest > 0) { me = 'SIGN IN TO ENTER THE RANKING'; }
+        if (rkC < 1) { me = str(me, '   (NO TIMES YET)'); }
+        tx(35, me, 0, 0 - 88, 8, C_DIM, 0);
+    }
+    tx(12, 'LEFT/RIGHT tab   UP/DOWN scroll   ENTER back', 0, 0 - 122, 9, '#c9d1de', 0);
+}
+
+// ---- v8 pop-up: achievements and level-ups ---------------------------------------
+function drawPopup() {
+    if (popT > 0) {
+        let a = Math.min(1, popT * 3, (3.2 - popT) * 4);
+        let y = 130 - 26 * a;
+        box(0 - 150, y + 2, 150, y - 26, C_GOLD);
+        box(0 - 148, y, 148, y - 24, C_PANEL);
+    }
 }

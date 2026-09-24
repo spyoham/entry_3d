@@ -1,3 +1,48 @@
+# ENTRY RACING 3D — 작업 인계 메모 (2026-09-24, v8)
+
+산출물: `3D 레이싱 v8.ent` (1.19 MB) ← 최신, 설명서 `3D 레이싱 v8 설명서.md`, 소개 `3D 레이싱 소개.md`
+빌드: `node build.mjs racing8.ent` → `globals 353, lists 406, functions 255, handlers 3`
+v7 소스는 git 기록에 있다(`40a8c73`). 로컬은 sparse-checkout이라 `build.v*.mjs`/`src.v*bak` 백업을 새로 만들지 않았다.
+
+## 요청 (사용자)
+"다른 차 소리(적당한 크기로), 맵별 최고 기록 및 최고 기록을 고스트 모드로 보여주는 시스템, 혼자 하기 시스템, 도전과제 시스템, 레벨 시스템과 자동차 튜닝.
+그리고 실시간 리스트는 엔트리에서 오류가 많기로 유명하기 때문에(저장이 안 됨) 실시간 변수를 사용해서 랭킹 시스템과 게임 데이터 저장 시스템."
+
+## 새 파일·구조
+- `src/profile.js`: 실시간 변수(RT_S1..16 저장, RT_K1..8 랭킹, RT_G1..8 세계 기록 고스트), 닉네임(`whoAmI`, `get_nickname` 블록),
+  레벨(`levelFromXP/addXP`), 팝업(`popPush/popStep`), 도전과제(`unlock`), 경기 통계(`statsReset/statsStep/raceOver`), 랩 처리(`lapDone`),
+  튜닝 적용(`tuneCar`), 저장(`buildRec/parseRec/applyRec/loadProfile/saveProfile/profileStep`), 랭킹(`rankParse/rankBuild/rankAll/rankSubmit`),
+  고스트 인코딩(`wrUpload/loadWrGhost/pickGhost`), 연습 보조(`practiceAssist/backOnTrack`).
+- ejs: 전역 이름이 `RT_`로 시작하면 `isRealTime: true`. 내장 `nickname()`.
+- 고스트 재구성(game.js): 모든 모드에서 0.25 s 간격 기록(`ghostRec`: grX/Z/W), 서킷 최고 랩이면 `lapGhost`가 pb*[(tk−1)·PBN + i]에 보관(PBN 540 → 135 s),
+  타임트라이얼은 gh*를 재생(`updateGhost`, y·seg는 sampleTrack). 옛 gb*/0.1 s 방식은 없앴다.
+- `M_PR 4` 연습 모드: 혼자 하는 경로는 `gMode >= M_TT`로 묶었다(그리드, nLaps, DRS, 마모 없음, SC 없음, HUD). 브레이크 보조는 rlV 속도 프로파일 기준.
+- 상태 `ST_TUNE 12`(차고: showroomCam + 턴테이블), `ST_PROF 13`(프로필 4탭). 메뉴 13줄(`NMENU`), `rowY = 77 − 12.8·(i−1)`.
+  텍스트 슬롯 `NTX 80`: 메뉴 라벨 24–36, 값 37–49, 카드 50–76, 팝업 77–78. 프로필 탭이 바뀌면 24부터 지운다(`hudSub = prTab`).
+- 튜닝 배율 리스트(차마다): `caAeroK, caBrkK, caBias, caSusp, caWearK` — AI와 세이프티카는 1/1/0/0/1.
+- 다른 차 소리: `enginewav.mjs`의 `aiWav(ratio, amp)` → 소리 `ai<1..6><1..2>`(16 kHz 0.5 s, 비율 0.62–1.5, 크기 0.46/0.2). `sound.js otherCars()`.
+  tessvm에서 이름으로 재생되는 것을 확인(`ai41`, `ai31`, `ai61` …).
+
+## 저장 형식
+- 레코드: `|nick,xp,upE,upA,upB,upT,suW+3,suG+3,suB+3,suS+3,achMask,races,wins,pods,km,circMask,lap1..8(ms),race1..8(ms)` (32필드).
+- 칸 = 레코드를 이어 붙인 문자열(기본값 `|`). 저장 = 다시 읽기 → 내 레코드 빼기 → 끝에 붙이기 → 2400자 넘으면 앞에서부터 지우기.
+  방금 읽은 칸이 비었는데 캐시가 있으면 캐시를 기준으로 쓴다. 불러오기는 `gt > 1.5`에 한 번, 저장은 조용한 화면에서 3 s마다 최대 한 번.
+- 게스트(닉네임이 비었거나 ' ' 또는 'guest')는 아무것도 쓰지 않는다. tessvm은 사용자 ID를 `ab****`로 가리므로 ID 대신 닉네임을 쓴다.
+- 고스트: `nick,ms,` + 첫 점 x, z(3자리, 0.2 m, +16384) + 점마다 dx, dz(2자리, +512). Monza 한 랩 1306자.
+
+## 검증
+- `node t7/prof.mjs trk`: alice 레이스 → XP·도전과제·저장·랭킹·고스트 → bob 새 프로필 저장 → 두 사람 다시 불러오기 일치 → 게스트 쓰기 없음
+  → 60명 저장 뒤 칸 2349자(≤ 2400) → 세계 기록 고스트 복원(323샘플) 후 트랙 위 재생 → 튜닝 수치 → 연습 브레이크 보조 → B 복귀. 모두 PASS.
+- `node t7/slots.mjs`: 13줄 × 두 규칙, 차고, 프로필 4탭 포함 42화면 충돌 없음.
+- tessvm: 13줄 메뉴·차고·프로필·고스트 카드 스크린샷, 다른 차 소리 재생, 싱가포르 ULTRA 아케이드 5.1–5.2 ms / 리얼리스틱 5.9–6.0 ms.
+- **온라인 동기화는 시험하지 못했다**(playentry 업로드·로그인 필요). 실시간 변수 한 개의 최대 길이도 모른다.
+
+## 주의
+- 시뮬레이터에서 `peek`로 JS를 직접 쓸 때 리스트는 0부터다(`caThr[0]`이 1번 차). 테스트를 쓰다 두 번 틀렸다.
+- 로컬 저장소는 sparse-checkout이다. 루트에 새 파일을 추가하려면 먼저 `git sparse-checkout add '/파일'`.
+
+---
+
 # ENTRY RACING 3D — 작업 인계 메모 (2026-09-24, v7)
 
 산출물: `3D 레이싱 v7.ent` (980 KB) ← 최신 (v1–v6 보존), 설명서 `3D 레이싱 v7 설명서.md`

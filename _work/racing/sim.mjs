@@ -113,6 +113,7 @@ export function createSim({ fps = 30 } = {}) {
         stretchW: () => { }, stretchH: () => { }, effect: () => { }, clearEffects: () => { },
         cloneSelf: () => { }, deleteClone: () => { }, stamp: () => { },
         sound: (n) => { R.snd.plays++; R.snd.last = n; }, stopSounds: () => { R.snd.stops++; }, volume: (v) => { R.snd.vol = +v; },
+        nickname: () => (R.nick !== undefined ? R.nick : ' '),
         soundSpeed: (v) => { R.snd.speed = Math.max(0.5, Math.min(2, +v)); },
         ask: (q) => { R.asked = String(q); }, answer: () => (R.answerText !== undefined ? R.answerText : ''), hideAnswer: () => { }, textColor: () => { }, textColorHex: () => { }, dateSec: () => Math.floor(Date.now() / 1000) % 60,
         broadcast: () => { }, toFront: () => { }, toBack: () => { },

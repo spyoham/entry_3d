@@ -15,10 +15,13 @@ const ST_STAND = 8;
 const ST_QUALI = 9;         // v7: qualifying session (realistic)
 const ST_QRES = 10;         // v7: qualifying results
 const ST_REPLAY = 11;       // v7: replay with TV cameras (HIGH / ULTRA)
+const ST_TUNE = 12;         // v8: the garage (upgrades and setup)
+const ST_PROF = 13;         // v8: profile, records, achievements, ranking
 
 const M_GP = 1;             // game modes
 const M_CH = 2;
 const M_TT = 3;
+const M_PR = 4;             // v8: practice - alone, free driving, assists
 
 const STEERIN = 2.4;        // player wheel speed, full locks per second
 const STEEROUT = 3.8;       // ...when centring or reversing
@@ -67,7 +70,6 @@ let lastSegP = 0;
 // ghost
 let ghostOn = 0;
 let grN = 0;                // samples recorded on this lap
-let gbN = 0;                // samples in the best lap
 let ghTrk = 0 - 1;          // circuit the best lap / ghost belong to
 let towerT = 0;
 
@@ -82,7 +84,10 @@ function carStats(c, ct) {
     if (c == 1) {
         caAcc[c] = ctAcc[ct]; caTop[c] = ctTop[ct]; caGrip[c] = ctGrip[ct];
         caMass[c] = ctMass[ct]; caCol[c] = ctCol[ct]; caSkill[c] = 1; caLine[c] = 0;
+        // v8: the garage's upgrades and setup
+        tuneCar();
     } else {
+        caAeroK[c] = 1; caBrkK[c] = 1; caBias[c] = 0; caSusp[c] = 0; caWearK[c] = 1;
         // opponents: a spread of top speed, grip and commitment, the whole
         // field scaled by the chosen difficulty; each in a team livery
         // other than the player's
@@ -141,7 +146,7 @@ function initCars(ct) {
         // the player lines up sixth, the others fill the grid round them;
         // after qualifying everyone starts where they qualified
         let slot = c;
-        if (gMode != M_TT) {
+        if (gMode < M_TT) {
             if (qDone > 0) { slot = caGrid[c]; }
             else if (c == 1) { slot = 6; } else if (c <= 6) { slot = c - 1; }
         }
@@ -158,7 +163,7 @@ function setupRace(tk, ct) {
     buildTrack(tk);
     selTrk = tk;
     nLaps = lapOpt[lapSel];
-    if (gMode == M_TT) { nLaps = 999; }
+    if (gMode >= M_TT) { nLaps = 999; }
     // expected lap, for tyre life, the weather plan and the time of day
     let gq = 1;
     if (rules == R_SIM) { gq = tyDry[TY_M]; }
@@ -176,7 +181,7 @@ function setupRace(tk, ct) {
     // a restart keeps the grid that was qualified for
     if (keepGrid < 1) {
         qDone = 0;
-        if (rules == R_SIM) { if (gMode != M_TT) { qOn = 1; } }
+        if (rules == R_SIM) { if (gMode < M_TT) { qOn = 1; } }
     }
     // the ghost car wears the pale livery and never touches anything
     caCol[GHOST] = GHOST; caRoll[GHOST] = 0; caPitch[GHOST] = 0; caSteer[GHOST] = 0;
@@ -186,14 +191,13 @@ function setupRace(tk, ct) {
     // a time trial keeps its best lap, ghost and splits across restarts on
     // the same circuit; anything else starts clean
     let keep = 0;
-    if (gMode == M_TT) { if (ghTrk == tk) { keep = 1; } }
+    if (gMode >= M_TT) { if (ghTrk == tk) { keep = 1; } }
     if (keep < 1) {
-        gbN = 0;
         bestLap = 0 - 1;
         secBest[1] = 0; secBest[2] = 0; secBest[3] = 0;
     }
     ghTrk = tk;
-    if (gMode != M_TT) { ghTrk = 0 - 1; }
+    if (gMode < M_TT) { ghTrk = 0 - 1; }
     raceReset();
     todReset();
     if (qOn > 0) { beginQuali(ct); }
@@ -233,7 +237,7 @@ function raceReset() {
 function startGrid(ct) {
     nLaps = lapOpt[lapSel];
     nCars = NCAR;
-    if (gMode == M_TT) { nCars = 1; nLaps = 999; }
+    if (gMode >= M_TT) { nCars = 1; nLaps = 999; }
     if (qDone > 0) { raceReset(); }
     initCars(ct);
     tyreGrip(1);
@@ -247,6 +251,11 @@ function startGrid(ct) {
     camYawS = caYaw[1];
     camX = caX[1]; camZ = caZ[1]; camY = caY[1] + 3;
     rpReset();
+    // v8: this race's stats; the time trial's ghost; practice assists
+    statsReset();
+    ghostOn = 0;
+    if (gMode == M_TT) { pickGhost(selTrk); }
+    if (gMode == M_PR) { showLine = paSel < 3 ? 1 : 0; }
 }
 
 // ---- laps and checkpoints ----------------------------------------------
@@ -279,8 +288,8 @@ function updateLap(c) {
                             bestLap = lt;
                             keepBestLap();
                         }
-                        if (recLap[selTrk] <= 0) { recLap[selTrk] = lt; }
-                        else if (lt < recLap[selTrk]) { recLap[selTrk] = lt; setMsg('TRACK RECORD!', 2.6); }
+                        // v8: circuit best, its ghost, the ranking, lap XP
+                        lapDone(lt);
                     }
                     lapBad = 0;
                 }
@@ -306,6 +315,7 @@ function updateLap(c) {
                     if (c == 1) {
                         finished = caFin[c];
                         raceState = ST_DONE;
+                        raceOver();
                         if (recRace[selTrk] <= 0) { recRace[selTrk] = raceT; }
                         else if (raceT < recRace[selTrk]) { recRace[selTrk] = raceT; }
                     }
@@ -322,19 +332,11 @@ function updateLap(c) {
 }
 
 // a new personal best: its ring times become the reference for the live
-// delta, and in a time trial its recording becomes the ghost
+// delta. (v8: the ghost is kept per circuit, see lapGhost)
 function keepBestLap() {
     let i = 1;
     while (i <= NSEG) { bsT[i] = csT[i]; i = i + 1; }
     bsT[NSEG + 1] = bestLap;
-    if (gMode == M_TT) {
-        let n = 1;
-        while (n <= grN) {
-            gbX[n] = grX[n]; gbY[n] = grY[n]; gbZ[n] = grZ[n]; gbW[n] = grW[n]; gbS[n] = grS[n];
-            n = n + 1;
-        }
-        gbN = grN;
-    }
 }
 
 // ---- sector splits and the live delta -----------------------------------
@@ -387,7 +389,7 @@ function updateDRS() {
         else {
             if (caDOk[c] < 1) {
                 caDOk[c] = 2;
-                if (gMode == M_TT) { caDOk[c] = 1; }
+                if (gMode >= M_TT) { caDOk[c] = 1; }
                 else if (raceState == ST_RACE) {
                     if (caLap[c] >= 2) {
                         let r = caRank[c];
@@ -431,32 +433,71 @@ function updateGear() {
 }
 
 // ---- ghost --------------------------------------------------------------
-function updateGhost() {
+// v8: every lap the player drives is sampled every GHDT seconds (x, z, yaw).
+// A lap that beats the circuit's best is copied into that circuit's slot of
+// pb* (lapGhost); a time trial races whichever ghost was chosen - the
+// circuit best or the world record (profile.js) - loaded into gh*.
+let ghN = 0;                // samples in the ghost being raced
+let ghTime = 0;             // its lap time
+function ghostRec() {
     if (caLap[1] >= 1) {
-        // record this lap, one sample per GHDT of lap time
         let lt = raceT - caLapT[1];
         while (grN < NGH) {
             if (grN * GHDT > lt) { break; }
             grN = grN + 1;
-            grX[grN] = caX[1]; grY[grN] = caY[1]; grZ[grN] = caZ[1]; grW[grN] = caYaw[1]; grS[grN] = caSeg[1];
+            grX[grN] = caX[1]; grZ[grN] = caZ[1]; grW[grN] = caYaw[1];
         }
-        // and play the best one back
-        ghostOn = 0;
-        if (gbN > 2) {
+    }
+}
+
+// the lap just finished (time lt) is the circuit's new best: keep its ghost
+let lgOk = 0;               // 1: this lap's ghost was kept
+function lapGhost(tk, lt) {
+    lgOk = 0;
+    if (grN > 4) {
+        if (grN <= PBN) {
+            if ((grN + 1) * GHDT >= lt) {
+                let b = (tk - 1) * PBN;
+                let n = 1;
+                while (n <= grN) { pbX[b + n] = grX[n]; pbZ[b + n] = grZ[n]; pbW[b + n] = grW[n]; n = n + 1; }
+                pbN[tk] = grN;
+                lgOk = 1;
+                if (gMode == M_TT) { if (ghSel == 1) { loadPbGhost(tk); } }
+            }
+        }
+    }
+}
+
+function loadPbGhost(tk) {
+    ghN = pbN[tk];
+    ghTime = recLap[tk];
+    let b = (tk - 1) * PBN;
+    let n = 1;
+    while (n <= ghN) { ghX[n] = pbX[b + n]; ghZ[n] = pbZ[b + n]; ghW[n] = pbW[b + n]; n = n + 1; }
+}
+
+function updateGhost() {
+    ghostOn = 0;
+    if (caLap[1] >= 1) {
+        if (ghN > 2) {
+            let lt = raceT - caLapT[1];
             let fi = lt / GHDT;
             let n = Math.floor(fi) + 1;
-            if (n < gbN) {
+            if (n < ghN) {
                 let f = fi - (n - 1);
-                caX[GHOST] = gbX[n] + (gbX[n + 1] - gbX[n]) * f;
-                caY[GHOST] = gbY[n] + (gbY[n + 1] - gbY[n]) * f;
-                caZ[GHOST] = gbZ[n] + (gbZ[n + 1] - gbZ[n]) * f;
-                wrapAng(gbW[n + 1] - gbW[n]);
-                caYaw[GHOST] = gbW[n] + oWrap * f;
-                caSeg[GHOST] = gbS[n];
+                let x = ghX[n] + (ghX[n + 1] - ghX[n]) * f;
+                let z = ghZ[n] + (ghZ[n + 1] - ghZ[n]) * f;
+                wrapAng(ghW[n + 1] - ghW[n]);
+                caYaw[GHOST] = ghW[n] + oWrap * f;
+                sampleTrack(x, z, caSeg[GHOST]);
+                caX[GHOST] = x;
+                caZ[GHOST] = z;
+                caY[GHOST] = sfY;
+                caSeg[GHOST] = sfSeg;
                 ghostOn = 1;
             }
         }
-    } else { ghostOn = 0; }
+    }
 }
 
 function updateRanks() {
@@ -586,6 +627,7 @@ function playerInput() {
     if (rules == R_SIM) { if (key(16)) { ers = 1; } if (key(81)) { ers = 1; } }
     if (caErs[1] <= 0) { ers = 0; }
     caErsOn[1] = ers;
+    if (caErs[1] <= 0) { caErsOn[1] = 0; }
     let go = 0;
     if (raceState == ST_RACE) { go = 1; }
     if (raceState == ST_QUALI) { go = 1; }
@@ -606,6 +648,8 @@ function playerInput() {
     caThr[1] = th;
     caBrk[1] = br;
     caHB[1] = hb;
+    // v8 practice: the brake assist
+    practiceAssist();
 }
 
 // ---- cameras ------------------------------------------------------------
@@ -732,7 +776,7 @@ function stepRace() {
         } else { limT = 0; }
         if (limT > 0.6) {
             if (lapBad < 1) {
-                if (caLap[1] >= 1) { lapBad = 1; setMsg('TRACK LIMITS', 1.6); }
+                if (caLap[1] >= 1) { lapBad = 1; rsClean = 0; setMsg('TRACK LIMITS', 1.6); }
             }
         }
         c = 1;
@@ -745,6 +789,8 @@ function stepRace() {
         c = 2;
         while (c <= nCars) { updateLap(c); c = c + 1; }
     }
+    ghostRec();
+    statsStep();
     if (gMode == M_TT) { updateGhost(); }
     updateRanks();
     if (rules == R_SIM) { simStep(); }

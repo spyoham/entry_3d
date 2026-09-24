@@ -286,6 +286,8 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
             case 'ask': return B('ask_and_wait', [A(0), null]);
             case 'answer': return B('get_canvas_input_value', [null]);
             case 'hideAnswer': return B('set_visible_answer', ['HIDE', null]);
+            // v8: the signed-in player's nickname (a space, or 'guest', when nobody is)
+            case 'nickname': return B('get_nickname', []);
             case 'write': return B('text_write', [A(0), null]);
             case 'textColor': return B('text_change_font_color', [B('color', [String(evalConst(args[0]))]), null]);
             case 'textColorHex': return B('text_change_font_color', [A(0), null]);
@@ -486,7 +488,9 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
     });
 
     const variables = [];
-    for (const [name, g] of globals) variables.push({ name, id: g.id, value: g.init, variableType: 'variable', visible: false, isCloud: false, isRealTime: false, cloudDate: false, object: g.object || null, x: 0, y: 0 });
+    // v8: a global named RT_* is an Entry real-time variable - kept on the
+    // server and shared by everyone who runs the work (online only)
+    for (const [name, g] of globals) variables.push({ name, id: g.id, value: g.init, variableType: 'variable', visible: false, isCloud: false, isRealTime: name.startsWith('RT_'), cloudDate: false, object: g.object || null, x: 0, y: 0 });
     for (const [name, l] of lists) variables.push({ name, id: l.id, value: 0, variableType: 'list', visible: false, isCloud: false, isRealTime: false, cloudDate: false, object: null, x: 0, y: 0, width: 100, height: 120,
         array: l.init.map((v, i) => ({ id: `${l.id}_${i}`, data: v })) });
     variables.sort((a, b) => (use.get(b.id) || 0) - (use.get(a.id) || 0));

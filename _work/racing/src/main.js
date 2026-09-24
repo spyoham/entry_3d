@@ -21,6 +21,7 @@ function pollAction() {
     else if (key(84)) { k = 84; }
     else if (key(86)) { k = 86; }
     else if (key(32)) { k = 32; }
+    else if (key(66)) { k = 66; }
     actKey = 0;
     if (k != keyPrev) {
         keyPrev = k;
@@ -117,6 +118,8 @@ function pickTrack(d) {
 }
 
 // left / right on a menu line
+// v8 rows: 1 start 2 mode 3 rules 4 car 5 tuning 6 circuit 7 ai 8 laps (ghost /
+// assist when alone) 9 weather 10 graphics 11 sound 12 profile 13 editor
 function menuChange(d) {
     if (menuSel == 2) { gMode = mod(gMode - 1 + d + NMODE, NMODE) + 1; }
     else if (menuSel == 3) {
@@ -127,18 +130,22 @@ function menuChange(d) {
         buildTrack(selTrk);
     }
     else if (menuSel == 4) { selCar = mod(selCar - 1 + d + NCARTYPE, NCARTYPE) + 1; }
-    else if (menuSel == 5) { if (gMode != M_CH) { pickTrack(d); } }
-    else if (menuSel == 6) { aiDiff = mod(aiDiff - 1 + d + NDIFF, NDIFF) + 1; }
-    else if (menuSel == 7) { lapSel = mod(lapSel - 1 + d + NLAPO, NLAPO) + 1; }
+    else if (menuSel == 6) { if (gMode != M_CH) { pickTrack(d); } }
+    else if (menuSel == 7) { aiDiff = mod(aiDiff - 1 + d + NDIFF, NDIFF) + 1; }
     else if (menuSel == 8) {
+        if (gMode == M_TT) { ghSel = mod(ghSel - 1 + d + 3, 3) + 1; }
+        else if (gMode == M_PR) { paSel = mod(paSel - 1 + d + 3, 3) + 1; }
+        else { lapSel = mod(lapSel - 1 + d + NLAPO, NLAPO) + 1; }
+    }
+    else if (menuSel == 9) {
         let nw = 2;
         if (rules == R_SIM) { nw = 3; }
         wx = mod(wx - 1 + d + nw, nw) + 1;
         applyWeather();
         buildTrack(selTrk);
     }
-    else if (menuSel == 9) { gfx = mod(gfx - 1 + d + NGFX, NGFX) + 1; buildTrack(selTrk); }
-    else if (menuSel == 10) { sndSel = mod(sndSel - 1 + d + 2, 2) + 1; }
+    else if (menuSel == 10) { gfx = mod(gfx - 1 + d + NGFX, NGFX) + 1; buildTrack(selTrk); }
+    else if (menuSel == 11) { sndSel = mod(sndSel - 1 + d + 2, 2) + 1; }
 }
 
 // the menu's weather as the world shows it: arcade rain is a fixed 80 % grip;
@@ -166,8 +173,10 @@ function menuKeys() {
     else if (actKey == 13) {
         if (menuSel == 1) { startRace(); }
         else if (menuSel == 4) { raceState = ST_CARSEL; }
-        else if (menuSel == 5) { if (gMode != M_CH) { raceState = ST_TRKSEL; } }
-        else if (menuSel == 11) { nCars = 0; raceState = ST_EDIT; edDirty = 1; shShow = 0; }
+        else if (menuSel == 5) { raceState = ST_TUNE; tuRow = 1; }
+        else if (menuSel == 6) { if (gMode != M_CH) { raceState = ST_TRKSEL; } }
+        else if (menuSel == 12) { raceState = ST_PROF; prTab = 1; rankAll(); countAch(); }
+        else if (menuSel == 13) { nCars = 0; raceState = ST_EDIT; edDirty = 1; shShow = 0; }
         else { menuChange(1); }
     }
 }
@@ -196,6 +205,7 @@ function raceKeys() {
         }
     }
     else if (actKey == 13) { if (raceState == ST_QUALI) { endQuali(); } }
+    else if (actKey == 66) { if (gMode == M_PR) { backOnTrack(); } }
     else if (actKey == 76) { showLine = 1 - showLine; setMsg(showLine > 0 ? 'RACING LINE ON' : 'RACING LINE OFF', 1.2); }
     else if (actKey == 80) { prevState = raceState; raceState = ST_PAUSE; drawPausePanel(); }
     else if (actKey == 82) { restartRace(); }
@@ -315,6 +325,16 @@ on('start', 'pen3', function () {
             menuKeys();
             if (raceState == ST_MENU) { menuCam(); renderWorld(); }
             else if (raceState == ST_CARSEL) { showroomCam(); renderWorld(); }
+            else if (raceState == ST_TUNE) { showroomCam(); renderWorld(); }
+        } else if (raceState == ST_TUNE) {
+            tuneKeys();
+            if (raceState == ST_TUNE) { showroomCam(); } else { menuCam(); }
+            renderWorld();
+        } else if (raceState == ST_PROF) {
+            profKeys();
+            nCars = 0;
+            menuCam();
+            renderWorld();
         } else if (raceState == ST_CARSEL) {
             selKeys();
             if (raceState == ST_CARSEL) { showroomCam(); } else { menuCam(); }
@@ -343,7 +363,11 @@ on('start', 'pen3', function () {
             else { menuCam(); renderWorld(); }
         } else if (raceState == ST_DONE) {
             if (actKey == 13) {
-                if (gMode == M_CH) { awardPoints(); raceState = ST_STAND; }
+                if (gMode == M_CH) {
+                    awardPoints();
+                    raceState = ST_STAND;
+                    if (chRound >= NTRK) { if (chOrd[1] == 1) { unlock(14); } }
+                }
                 else { toMenu(); }
             }
             else if (actKey == 82) { restartRace(); }
@@ -369,6 +393,10 @@ on('start', 'pen3', function () {
             }
         }
         engineSound();
+        // v8: the saved game is read once the real-time variables have had
+        // a moment to arrive, then kept up to date
+        if (pLoaded < 1) { if (gt > 1.5) { loadProfile(); } }
+        profileStep();
         updateHud();
     }
 });

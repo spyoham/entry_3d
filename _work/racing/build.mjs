@@ -10,10 +10,10 @@ import url from 'node:url';
 import { compileProgram } from './ejs.mjs';
 import { buildF1 } from './f1tracks.mjs';
 import { f1Car } from './f1car.mjs';
-import { engineWav, REF_RPM, LOOP_SEC } from './enginewav.mjs';
+import { engineWav, aiWav, REF_RPM, LOOP_SEC, AI_RATIOS, AI_LEVELS, AI_LOOP } from './enginewav.mjs';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'rules.js', 'fx.js', 'sound.js', 'share.js', 'editor.js', 'menu.js', 'hud.js', 'main.js'];
+export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'rules.js', 'fx.js', 'sound.js', 'share.js', 'profile.js', 'editor.js', 'menu.js', 'hud.js', 'main.js'];
 
 // ============================================================
 // constants shared with the EJS sources
@@ -40,12 +40,16 @@ export const C = {
     NCARF: 140,         // faces in the car model
     NSCENE: 1500,       // scenery instances placed around a circuit
     GHOST: 9,
-    NTX: 76,            // v6: text slots, one clone of the text object each (v7: 64 -> 76)
+    NTX: 80,            // v6: text slots, one clone of the text object each (v7: 64 -> 76, v8: 80)
     TXW: 1000, TXH: 28, TXF: 20,     // text box: fixed width/height, font px
     TXCW: 0.5,          // monospace advance, em per character
     NMAP: 64,           // centreline samples in the 3D circuit map           // car slot of the time-trial ghost (NCAR + 1)
-    NGH: 3000,          // ghost samples per lap (every GHDT s -> 5 minutes)
-    GHDT: 0.1,          // ghost sample interval, seconds
+    // v8: ghosts at 0.25 s (linear in between): one lap being recorded, the
+    // one being raced, and each circuit's personal best (PBN samples, so a
+    // lap of up to 135 s is kept: 9 circuits x 540 = 4860 list items)
+    NGH: 600,           // samples per recorded lap (150 s)
+    GHDT: 0.25,         // ghost sample interval, seconds
+    PBN: 540,           // samples per circuit in the personal-best store
     RLPASS: 90,         // relaxation passes for the racing line
     NSCNV: 48,          // vertices in the largest scenery model
     NHILLT: 64,         // azimuth buckets in the distant skyline profile
@@ -65,6 +69,13 @@ export const C = {
     PITV: 22.2,         // pit lane speed limit, m/s (80 km/h)
     QLAPS: 2,           // timed laps in qualifying
     NTY: 5,             // tyre compounds
+    // ---- v8 ----
+    NACH: 20,           // achievements
+    NSH: 16,            // save shards (RT_S1..16)
+    SHCAP: 2400,        // characters a save shard is allowed to grow to
+    NRANK: 10,          // ranking entries per circuit
+    LVMAX: 50,
+    UPMAX: 5,           // upgrade steps per part
 };
 // point slots inside a ring
 // ordered so a ring's LOD levels are contiguous prefixes: road edges alone for
@@ -1056,10 +1067,47 @@ export function buildData() {
     lists.aiName = DIFF.map(d => d.n); lists.aiPow = DIFF.map(d => d.pow); lists.aiSkl = DIFF.map(d => d.skl);
 
     // ---- v5 menu options ----
-    lists.modeName = ['GRAND PRIX', 'CHAMPIONSHIP', 'TIME TRIAL'];
-    lists.modeD1 = ['ONE RACE AGAINST 7 AI DRIVERS', 'ALL 8 CIRCUITS, ONE AFTER ANOTHER', 'ALONE ON TRACK, UNLIMITED LAPS'];
-    lists.modeD2 = ['PICK THE CIRCUIT AND THE LAPS', 'POINTS 25-18-15-12-10-8-6-4', 'CHASE YOUR BEST-LAP GHOST'];
-    lists.modeD3 = ['SLIPSTREAM AND DRS FROM LAP 2', 'MOST POINTS AFTER ROUND 8 WINS', 'SECTOR TIMES AND LIVE DELTA'];
+    lists.modeName = ['GRAND PRIX', 'CHAMPIONSHIP', 'TIME TRIAL', 'PRACTICE'];
+    lists.modeD1 = ['ONE RACE AGAINST 7 AI DRIVERS', 'ALL 8 CIRCUITS, ONE AFTER ANOTHER', 'ALONE AGAINST A GHOST, UNLIMITED LAPS', 'ALONE ON TRACK, FREE DRIVING'];
+    lists.modeD2 = ['PICK THE CIRCUIT AND THE LAPS', 'POINTS 25-18-15-12-10-8-6-4', 'YOUR BEST LAP OR THE WORLD RECORD', 'RACING LINE AND BRAKE ASSIST'];
+    lists.modeD3 = ['SLIPSTREAM AND DRS FROM LAP 2', 'MOST POINTS AFTER ROUND 8 WINS', 'SECTOR TIMES AND LIVE DELTA', 'B PUTS YOU BACK ON THE TRACK'];
+    // v8: the LAPS row turns into these in time trial / practice
+    lists.ghName = ['MY BEST', 'WORLD RECORD', 'OFF'];
+    lists.paName = ['LINE + BRAKES', 'LINE ONLY', 'NONE'];
+    // v8 achievements
+    const ACH = [
+        ['FIRST FINISH', 'FINISH A RACE'],
+        ['WINNER', 'WIN A RACE'],
+        ['PODIUM', 'FINISH IN THE TOP THREE'],
+        ['POLE POSITION', 'QUALIFY FIRST (REALISTIC)'],
+        ['COMEBACK', 'WIN FROM 6TH ON THE GRID OR LOWER'],
+        ['CLEAN RACE', 'FINISH WITH NO DELETED LAP OR PENALTY'],
+        ['RAIN MASTER', 'WIN A RACE IN THE WET'],
+        ['PIT PERFECT', 'A PIT STOP UNDER 2.5 SECONDS'],
+        ['DRIFT KING', '5000 DRIFT POINTS IN ONE RUN'],
+        ['TOP SPEED', 'REACH 340 KM/H'],
+        ['GHOSTBUSTER', 'BEAT A GHOST IN TIME TRIAL'],
+        ['WORLD RECORD', 'TOP THE RANKING ON A CIRCUIT'],
+        ['GLOBETROTTER', 'DRIVE ALL 8 CIRCUITS'],
+        ['CHAMPION', 'WIN THE CHAMPIONSHIP'],
+        ['INSANE', 'WIN AGAINST INSANE AI'],
+        ['MARATHON', 'FINISH A 10-LAP RACE'],
+        ['OVERTAKER', 'GAIN 5 PLACES IN ONE RACE'],
+        ['ENGINEER', 'MAX OUT ONE UPGRADE'],
+        ['VETERAN', 'REACH LEVEL 10'],
+        ['ROAD TRIP', 'DRIVE 500 KM IN TOTAL'],
+    ];
+    if (ACH.length !== C.NACH) throw new Error('achievements ' + ACH.length);
+    lists.achName = ACH.map(a => a[0]); lists.achDesc = ACH.map(a => a[1]);
+    // v8 garage: upgrades (bought with level points) and setup sliders (free)
+    lists.upName = ['ENGINE', 'AERO', 'BRAKES', 'TYRES'];
+    lists.upInfo = ['+1.4% POWER, +0.6% TOP SPEED A STEP', '+3% DOWNFORCE A STEP', '+4% BRAKING FORCE A STEP', '+0.8% GRIP, -5% WEAR A STEP'];
+    lists.suName = ['WING', 'GEARING', 'BRAKE BIAS', 'SUSPENSION'];
+    lists.suLo = ['LOW DRAG', 'LONG', 'REAR', 'SOFT'];
+    lists.suHi = ['HIGH DOWNFORCE', 'SHORT', 'FRONT', 'STIFF'];
+    lists.suInfo = ['MORE WING: GRIP IN FAST CORNERS, LESS TOP SPEED', 'SHORTER GEARS: QUICKER PICK-UP, LOWER TOP SPEED',
+        'FORWARD: STABLE UNDER BRAKING, TURNS IN LESS', 'STIFFER: SHARPER ON TARMAC, WORSE OVER CURBS AND GRASS'];
+    lists.prTabN = ['PROFILE', 'RECORDS', 'ACHIEVEMENTS', 'RANKING'];
     lists.aiD = ['FORGIVING - LEARN THE CIRCUITS', 'STEADY PACE, FEW MISTAKES', 'CLOSE RACING AT A REAL PACE', 'FAST AND ON THE LIMIT', 'FASTER THAN THE CARS ALLOW'];
     lists.gfxD = ['FASTEST - FOR PLAIN ENTRY', 'BALANCED - RECOMMENDED', 'EVERYTHING ON - FOR TESSVM'];
     // v7: what each graphics level adds on top of the picture itself
@@ -1082,8 +1130,10 @@ export function buildData() {
     lists.gfFull = [1, 4, 8];           // how many cars may use the full model at once
     // points for P1..P8
     lists.ptsTab = [25, 18, 15, 12, 10, 8, 6, 4];
-    consts.NMODE = 3; consts.NLAPO = 4; consts.NGFX = 3;
-    consts.NMENU = 11;
+    consts.NMODE = 4; consts.NLAPO = 4; consts.NGFX = 3;
+    consts.NMENU = 13;
+    consts.NAIS = AI_RATIOS.length; consts.AI_LOOP = AI_LOOP;
+    lists.aiRat = AI_RATIOS.slice();
     consts.ENG_REF = REF_RPM; consts.ENG_LOOP = LOOP_SEC;
 
     // ---- runtime scratch lists (pre-sized so the hot path never grows a list) ----
@@ -1116,7 +1166,9 @@ export function buildData() {
         'caTy', 'caWear', 'caWK', 'caWR', 'caDmg', 'caErs', 'caErsH', 'caErsOn', 'caPit', 'caPitT', 'caPitN', 'caBox',
         'caStops', 'caPen', 'caTL', 'caTLon', 'caYelT', 'caYelS', 'caMisT', 'caDefT', 'caDefO', 'caPace', 'caHeat',
         'caQT', 'caGrid', 'clsI', 'clsV', 'caLim', 'caWing', 'snX', 'snY', 'snZ', 'snW', 'snS', 'snU', 'snO', 'snF', 'snR', 'snP',
-        'snVX', 'snVZ', 'snSp', 'snB', 'snSt'])
+        'snVX', 'snVZ', 'snSp', 'snB', 'snSt',
+        // v8 tuning multipliers (1 / 0 for the AI): aero, brakes, brake bias, suspension, wear
+        'caAeroK', 'caBrkK', 'caBias', 'caSusp', 'caWearK'])
         lists[k] = zeros(NC + 2);
     // v7 replay: RPN samples x RPC cars, oldest overwritten first
     for (const k of ['rpX', 'rpY', 'rpZ', 'rpW', 'rpS', 'rpV']) lists[k] = zeros(C.RPN * C.RPC);
@@ -1127,7 +1179,15 @@ export function buildData() {
     lists.shLn = new Array(8).fill('\u200B');
     lists.sgPit = zeros(R);
     // ghost: the lap being driven, and the best one, one sample per GHDT
-    for (const k of ['grX', 'grY', 'grZ', 'grW', 'grS', 'gbX', 'gbY', 'gbZ', 'gbW', 'gbS']) lists[k] = zeros(C.NGH + 2);
+    for (const k of ['grX', 'grZ', 'grW', 'ghX', 'ghZ', 'ghW']) lists[k] = zeros(C.NGH + 2);
+    // v8: personal-best ghost of every circuit (editor slot included)
+    for (const k of ['pbX', 'pbZ', 'pbW']) lists[k] = zeros(C.EDTRK * C.PBN);
+    lists.pbN = zeros(C.EDTRK + 1);
+    // v8 profile scratch: parsed save fields, ranking rows, achievements
+    lists.pF = new Array(48).fill(0);
+    lists.rkN = new Array(C.NRANK + 2).fill('-'); lists.rkT = zeros(C.NRANK + 2);
+    lists.achGot = zeros(C.NACH + 1); lists.popQ = zeros(33);
+    lists.recNm = new Array(C.NTRK + 1).fill('-'); lists.recWR = zeros(C.NTRK + 1);
     // time into the lap at each ring: best lap and the current one (live delta)
     lists.bsT = zeros(R + 1); lists.csT = zeros(R + 1);
     lists.sgDRS = zeros(R); lists.sgGrid = zeros(R);
@@ -1194,7 +1254,9 @@ export async function buildEnt(outFile, opts = {}) {
     }));
     // v7: the engine loop rides on the pen object (see sound.js)
     objects.push(O('pen3', 'pen3', { pictures: [{ id: '1', name: 'dot', buf: dot, w: 2, h: 2 }],
-        sounds: [{ id: 'engine', name: 'engine', buf: engineWav(), ext: 'wav', duration: LOOP_SEC }],
+        sounds: [{ id: 'engine', name: 'engine', buf: engineWav(), ext: 'wav', duration: LOOP_SEC },
+            // v8: other cars, ai<ratio><level>: ai11 (low pitch, near) .. ai62 (high, far)
+            ...AI_RATIOS.flatMap((r, i) => AI_LEVELS.map((a, j) => ({ id: `ai${i + 1}${j + 1}`, name: `ai${i + 1}${j + 1}`, buf: aiWav(r, a), ext: 'wav', duration: AI_LOOP })))],
         entity: { x: 0, y: 0, visible: true } }));
     const project = packEnt(outFile, {
         name: 'ENTRY RACING 3D', tmpDir: path.join(HERE, '.pack'),

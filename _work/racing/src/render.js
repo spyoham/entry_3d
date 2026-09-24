@@ -1116,6 +1116,7 @@ function renderWorld() {
                 if (camMode == 1) { if (c == 1) { show = 0; } }
                 // the showroom car goes on top of everything, after the loop
                 if (raceState == ST_CARSEL) { show = 0; }
+                if (raceState == ST_TUNE) { show = 0; }
                 if (show > 0) { drawCarAt(c, near, i, b0, b1, visD[k]); }
             }
             c = c + 1;
@@ -1126,11 +1127,14 @@ function renderWorld() {
         }
         k = k + 1;
     }
-    if (raceState == ST_CARSEL) { drawTurntable(1); drawCar(1, 1); }
+    let room = 0;
+    if (raceState == ST_CARSEL) { room = 1; }
+    if (raceState == ST_TUNE) { room = 1; }
+    if (room > 0) { drawTurntable(1); drawCar(1, 1); }
     if (rainVis > 0.05) { drawRain(); }
     if (raceState == ST_REPLAY) { drawReplayUI(); }
     else {
-        if (nCars > 0) { if (raceState != ST_CARSEL) { drawMinimap(); } }
+        if (nCars > 0) { if (room < 1) { drawMinimap(); } }
         if (raceState == ST_COUNT) { drawLights(); }
         else if (lightsT > 0) { drawLights(); }
         if (raceState == ST_RACE) { drawRev(); }
@@ -1139,6 +1143,7 @@ function renderWorld() {
         if (rules == R_SIM) { drawSimHud(); }
     }
     drawMenuUI();
+    drawPopup();
 }
 
 // ---- rain: slanted streaks in screen space, leaning with the car's speed --
