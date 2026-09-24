@@ -12,6 +12,21 @@
 export const REF_RPM = 7400;
 export const LOOP_SEC = 1.5;
 
+// Online Entry (playentry.org) refuses WAV uploads, so the loops go into the
+// work as MP3: encoded with `lame` (or ffmpeg if there is no lame). An MP3
+// decoder that ignores the LAME gapless header adds 50-80 ms of silence at
+// the ends; sound.js overlaps the restarts by more than that.
+import cp from 'node:child_process';
+export function toMp3(wav, kbps = 64) {
+    try {
+        return cp.execFileSync('lame', ['--silent', '-m', 'm', '-b', String(kbps), '-', '-'], { input: wav, maxBuffer: 1 << 26 });
+    } catch (e) {
+        return cp.execFileSync('ffmpeg', ['-v', 'error', '-f', 'wav', '-i', 'pipe:0', '-ac', '1', '-b:a', kbps + 'k', '-f', 'mp3', 'pipe:1'], { input: wav, maxBuffer: 1 << 26 });
+    }
+}
+export function engineMp3() { return toMp3(engineWav(), 64); }
+export function aiMp3(ratio, amp) { return toMp3(aiWav(ratio, amp), 48); }
+
 // v8: other cars. Entry's sound speed is one setting for every sound and it
 // follows the player's revs, so another car's pitch has to be baked in as a
 // ratio to the player's: AI_RATIOS below, each at two loudness levels (near,

@@ -10,7 +10,7 @@ import url from 'node:url';
 import { compileProgram } from './ejs.mjs';
 import { buildF1 } from './f1tracks.mjs';
 import { f1Car } from './f1car.mjs';
-import { engineWav, aiWav, REF_RPM, LOOP_SEC, AI_RATIOS, AI_LEVELS, AI_LOOP } from './enginewav.mjs';
+import { engineMp3, aiMp3, REF_RPM, LOOP_SEC, AI_RATIOS, AI_LEVELS, AI_LOOP } from './enginewav.mjs';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'rules.js', 'fx.js', 'sound.js', 'share.js', 'profile.js', 'editor.js', 'menu.js', 'hud.js', 'main.js'];
@@ -1254,9 +1254,10 @@ export async function buildEnt(outFile, opts = {}) {
     }));
     // v7: the engine loop rides on the pen object (see sound.js)
     objects.push(O('pen3', 'pen3', { pictures: [{ id: '1', name: 'dot', buf: dot, w: 2, h: 2 }],
-        sounds: [{ id: 'engine', name: 'engine', buf: engineWav(), ext: 'wav', duration: LOOP_SEC },
+        // MP3 only: online Entry will not take WAV
+        sounds: [{ id: 'engine', name: 'engine', buf: engineMp3(), ext: 'mp3', duration: LOOP_SEC },
             // v8: other cars, ai<ratio><level>: ai11 (low pitch, near) .. ai62 (high, far)
-            ...AI_RATIOS.flatMap((r, i) => AI_LEVELS.map((a, j) => ({ id: `ai${i + 1}${j + 1}`, name: `ai${i + 1}${j + 1}`, buf: aiWav(r, a), ext: 'wav', duration: AI_LOOP })))],
+            ...AI_RATIOS.flatMap((r, i) => AI_LEVELS.map((a, j) => ({ id: `ai${i + 1}${j + 1}`, name: `ai${i + 1}${j + 1}`, buf: aiMp3(r, a), ext: 'mp3', duration: AI_LOOP })))],
         entity: { x: 0, y: 0, visible: true } }));
     const project = packEnt(outFile, {
         name: 'ENTRY RACING 3D', tmpDir: path.join(HERE, '.pack'),

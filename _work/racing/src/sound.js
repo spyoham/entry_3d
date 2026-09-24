@@ -42,10 +42,11 @@ function engineSound() {
         if (v != engVol) { engVol = v; volume(v); }
         engRem = engRem - dt * engRate;
         if (engRem < 0 - 0.5) { engRem = 0; }
-        // restart early enough that the next frame is still covered
-        if (engOn < 1 || engRem < dt * engRate * 1.2 + 0.06) {
+        // restart early enough that the next frame is still covered (and
+        // early enough to cover the silence an MP3 decoder may add at the ends)
+        if (engOn < 1 || engRem < dt * engRate * 1.2 + 0.14) {
             sound('engine');
-            if (engOn < 1) { engRem = ENG_LOOP; } else { engRem = engRem + ENG_LOOP - 0.05; }
+            if (engOn < 1) { engRem = ENG_LOOP; } else { engRem = engRem + ENG_LOOP - 0.12; }
             engOn = 1;
         }
         otherCars();
@@ -90,7 +91,7 @@ function otherCars() {
     }
     aiRem = aiRem - dt * engRate;
     if (best > 0) {
-        if (aiRem < dt * engRate * 1.2 + 0.04) {
+        if (aiRem < dt * engRate * 1.2 + 0.10) {
             rpmOf(best);
             let ratio = oRpm / Math.max(3000, caRpm[me]);
             // Doppler from the closing speed along the line between the cars
@@ -111,7 +112,7 @@ function otherCars() {
             if (d > 30) { lv = 2; }
             sound(str('ai', k, lv));
             if (aiRem < 0 - 0.3) { aiRem = 0; }
-            aiRem = aiRem + AI_LOOP - 0.04;
+            aiRem = aiRem + AI_LOOP - 0.09;
         }
     } else if (aiRem < 0) { aiRem = 0; }
 }

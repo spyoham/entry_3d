@@ -37,6 +37,11 @@ v7 소스는 git 기록에 있다(`40a8c73`). 로컬은 sparse-checkout이라 `b
 - tessvm: 13줄 메뉴·차고·프로필·고스트 카드 스크린샷, 다른 차 소리 재생, 싱가포르 ULTRA 아케이드 5.1–5.2 ms / 리얼리스틱 5.9–6.0 ms.
 - **온라인 동기화는 시험하지 못했다**(playentry 업로드·로그인 필요). 실시간 변수 한 개의 최대 길이도 모른다.
 
+## 소리는 MP3 (v8 이후 수정)
+- 온라인 엔트리는 WAV 업로드를 받지 않는다. `enginewav.mjs toMp3()`가 `lame -m m -b 64`(없으면 ffmpeg)로 인코딩한다(엔진 64 kbps, 다른 차 48 kbps).
+- 크롬 decodeAudioData는 LAME 갭리스 헤더를 무시해 앞뒤에 무음이 붙는다(0.5 s → 0.576 s). 그래서 루프 재시작을 엔진 0.14 s, 다른 차 0.10 s 앞당겨 겹친다.
+- 빌드에 `lame` 또는 `ffmpeg`가 필요하다(이 Mac은 homebrew에 둘 다 있음).
+
 ## 주의
 - 시뮬레이터에서 `peek`로 JS를 직접 쓸 때 리스트는 0부터다(`caThr[0]`이 1번 차). 테스트를 쓰다 두 번 틀렸다.
 - 로컬 저장소는 sparse-checkout이다. 루트에 새 파일을 추가하려면 먼저 `git sparse-checkout add '/파일'`.
