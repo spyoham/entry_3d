@@ -12,6 +12,9 @@ const ST_DONE = 5;
 const ST_PAUSE = 6;
 const ST_EDIT = 7;
 const ST_STAND = 8;
+const ST_QUALI = 9;         // v7: qualifying session (realistic)
+const ST_QRES = 10;         // v7: qualifying results
+const ST_REPLAY = 11;       // v7: replay with TV cameras (HIGH / ULTRA)
 
 const M_GP = 1;             // game modes
 const M_CH = 2;
@@ -32,6 +35,8 @@ let selCar = 1;
 let selTrk = 1;
 let camMode = 0;
 let camYawS = 0;
+let camCar = 1;             // v7: the car the race cameras follow (replays follow others)
+let camSeg = 1;             // v7: ring the renderer starts its scan from
 let countT = 0;
 let lightN = 0;             // start lights lit, 0..5
 let lightsOut = 0;          // 1 once they have gone out
@@ -70,61 +75,110 @@ function setBanner(t, secs) { banner = t; bannerT = secs; }
 function setMsg(t, secs) { msg = t; msgT = secs; }
 
 // ---- grid ---------------------------------------------------------------
-function setupRace(tk, ct) {
-    buildTrack(tk);
-    selTrk = tk;
-    nLaps = lapOpt[lapSel];
-    nCars = NCAR;
-    if (gMode == M_TT) { nCars = 1; nLaps = 999; }
-    let pcol = ctCol[ct];
+// v7: split in three so qualifying can use the same pieces - carStats (what
+// a car can do), placeCar (put it somewhere with a clean slate) and
+// initCars (the whole grid, in qualifying order when there was qualifying).
+function carStats(c, ct) {
+    if (c == 1) {
+        caAcc[c] = ctAcc[ct]; caTop[c] = ctTop[ct]; caGrip[c] = ctGrip[ct];
+        caMass[c] = ctMass[ct]; caCol[c] = ctCol[ct]; caSkill[c] = 1; caLine[c] = 0;
+    } else {
+        // opponents: a spread of top speed, grip and commitment, the whole
+        // field scaled by the chosen difficulty; each in a team livery
+        // other than the player's
+        let k = c - 1;
+        let dPow = aiPow[aiDiff];
+        let dSkl = aiSkl[aiDiff];
+        caAcc[c] = (15.0 + mod(k * 7, 5) * 0.55) * dPow;
+        caTop[c] = (76 + mod(k * 5, 7) * 3.0) * dPow;
+        caGrip[c] = (0.90 + mod(k * 3, 6) * 0.040) * dPow;
+        caMass[c] = 1;
+        let lv = k;
+        if (lv >= ctCol[ct]) { lv = lv + 1; }
+        caCol[c] = lv;
+        caSkill[c] = (0.90 + mod(k * 11, 7) * 0.018) * dSkl;
+        caLine[c] = (mod(k * 13, 5) - 2) * 0.8;
+    }
+}
+
+function placeCar(c, seg, off) {
+    caX[c] = sgX[seg] + sgNX[seg] * off;
+    caZ[c] = sgZ[seg] + sgNZ[seg] * off;
+    caY[c] = sgY[seg];
+    atan2d(sgDX[seg], sgDZ[seg]);
+    caYaw[c] = oAtan;
+    caVX[c] = 0; caVZ[c] = 0; caVY[c] = 0; caYR[c] = 0;
+    caSeg[c] = seg; caU[c] = 0; caOff[c] = off; caSurf[c] = 0; caAir[c] = 0;
+    caLap[c] = 0; caCP[c] = nCP; caProg[c] = 0; caRank[c] = c;
+    caThr[c] = 0; caBrk[c] = 0; caSteer[c] = 0; caHB[c] = 0;
+    caRoll[c] = 0; caPitch[c] = 0; caDrift[c] = 0; caSpd[c] = 0;
+    caFin[c] = 0; caOffT[c] = 0; caLapT[c] = 0; caBest[c] = 0 - 1; caStuck[c] = 0;
+    caTow[c] = 0; caDRS[c] = 0; caDOk[c] = 0; caFinT[c] = 0; caGap[c] = 0;
+    caHold[c] = 1;
+    // v7 state
+    caDmg[c] = 0; caWing[c] = 0; caErs[c] = 0.8; caErsH[c] = 0; caErsOn[c] = 0;
+    caPit[c] = 0; caPitT[c] = 0; caPitN[c] = TY_M; caLim[c] = 0; caStops[c] = 0;
+    caPen[c] = 0; caTL[c] = 0; caTLon[c] = 0; caYelT[c] = 0; caYelS[c] = 1;
+    caMisT[c] = 0; caDefT[c] = 0 - 3; caDefO[c] = 0; caPace[c] = 1; caHeat[c] = 0;
+    caBox[c] = mod(pitBox0 - 1 + c - 1, NSEG) + 1;
+    caWK[c] = wetK;
+    caTy[c] = TY_M; caWear[c] = 1; caWR[c] = 0;
+    if (rules == R_SIM) {
+        let t = TY_M;
+        if (c == 1) { t = startTy; }
+        else {
+            if (mod(c, 2) == 0) { t = TY_S; }
+            if (c == NCAR) { t = TY_H; }
+            if (wetL > 0.57) { t = TY_W; } else if (wetL > 0.31) { t = TY_I; }
+        }
+        fitTyre(c, t);
+    }
+}
+
+function initCars(ct) {
     let c = 1;
     while (c <= nCars) {
-        // the player lines up sixth, the others fill the grid round them
+        // the player lines up sixth, the others fill the grid round them;
+        // after qualifying everyone starts where they qualified
         let slot = c;
         if (gMode != M_TT) {
-            if (c == 1) { slot = 6; } else if (c <= 6) { slot = c - 1; }
+            if (qDone > 0) { slot = caGrid[c]; }
+            else if (c == 1) { slot = 6; } else if (c <= 6) { slot = c - 1; }
         }
         let row = idiv(slot - 1, 2);
         let sd = mod(slot - 1, 2) < 1 ? 0 - 1 : 1;
         let seg = mod(NSEG - 3 - row * 3 - 1, NSEG) + 1;
-        let off = sd * sgW[seg] * 0.40;
-        caX[c] = sgX[seg] + sgNX[seg] * off;
-        caZ[c] = sgZ[seg] + sgNZ[seg] * off;
-        caY[c] = sgY[seg];
-        atan2d(sgDX[seg], sgDZ[seg]);
-        caYaw[c] = oAtan;
-        caVX[c] = 0; caVZ[c] = 0; caVY[c] = 0; caYR[c] = 0;
-        caSeg[c] = seg; caU[c] = 0; caOff[c] = off; caSurf[c] = 0; caAir[c] = 0;
-        caLap[c] = 0; caCP[c] = nCP; caProg[c] = 0; caRank[c] = c;
-        caThr[c] = 0; caBrk[c] = 0; caSteer[c] = 0; caHB[c] = 0;
-        caRoll[c] = 0; caPitch[c] = 0; caDrift[c] = 0; caSpd[c] = 0;
-        caFin[c] = 0; caOffT[c] = 0; caLapT[c] = 0; caBest[c] = 0 - 1; caStuck[c] = 0;
-        caTow[c] = 0; caDRS[c] = 0; caDOk[c] = 0; caFinT[c] = 0; caGap[c] = 0;
-        caHold[c] = 1;
-        if (c == 1) {
-            caAcc[c] = ctAcc[ct]; caTop[c] = ctTop[ct]; caGrip[c] = ctGrip[ct];
-            caMass[c] = ctMass[ct]; caCol[c] = pcol; caSkill[c] = 1; caLine[c] = 0;
-        } else {
-            // opponents: a spread of top speed, grip and commitment, the whole
-            // field scaled by the chosen difficulty; each in a team livery
-            // other than the player's
-            let k = c - 1;
-            let dPow = aiPow[aiDiff];
-            let dSkl = aiSkl[aiDiff];
-            caAcc[c] = (15.0 + mod(k * 7, 5) * 0.55) * dPow;
-            caTop[c] = (76 + mod(k * 5, 7) * 3.0) * dPow;
-            caGrip[c] = (0.90 + mod(k * 3, 6) * 0.040) * dPow;
-            caMass[c] = 1;
-            let lv = k;
-            if (lv >= pcol) { lv = lv + 1; }
-            caCol[c] = lv;
-            caSkill[c] = (0.90 + mod(k * 11, 7) * 0.018) * dSkl;
-            caLine[c] = (mod(k * 13, 5) - 2) * 0.8;
-        }
+        carStats(c, ct);
+        placeCar(c, seg, sd * sgW[seg] * 0.40);
         c = c + 1;
     }
+}
+
+function setupRace(tk, ct) {
+    buildTrack(tk);
+    selTrk = tk;
+    nLaps = lapOpt[lapSel];
+    if (gMode == M_TT) { nLaps = 999; }
+    // expected lap, for tyre life, the weather plan and the time of day
+    let gq = 1;
+    if (rules == R_SIM) { gq = tyDry[TY_M]; }
+    speedProfile(ctGrip[ct] * gq, ctTop[ct]);
+    lapIdeal();
+    estLap = oLap * 1.30;
+    raceDur = estLap * Math.max(Math.min(nLaps, 20), 4);
+    wxSetup();
+    startTy = TY_M;
+    if (wetL > 0.57) { startTy = TY_W; }
+    pitNext = startTy;
+    scOn = 0; scCar = 0; scUsed = 0; prevRank = 0; yelHere = 0;
+    radio = BLANK; radioT = 0;
+    qOn = 0;
+    // a restart keeps the grid that was qualified for
+    if (keepGrid < 1) {
+        qDone = 0;
+        if (rules == R_SIM) { if (gMode != M_TT) { qOn = 1; } }
+    }
     // the ghost car wears the pale livery and never touches anything
-    speedProfile(caGrip[1], caTop[1]);
     caCol[GHOST] = GHOST; caRoll[GHOST] = 0; caPitch[GHOST] = 0; caSteer[GHOST] = 0;
     caBrk[GHOST] = 0; caFin[GHOST] = 0;
     ghostOn = 0;
@@ -140,6 +194,22 @@ function setupRace(tk, ct) {
     }
     ghTrk = tk;
     if (gMode != M_TT) { ghTrk = 0 - 1; }
+    raceReset();
+    todReset();
+    if (qOn > 0) { beginQuali(ct); }
+    else { startGrid(ct); }
+}
+
+// R: the same race again (after qualifying, from the same grid)
+let keepGrid = 0;
+function restartRace() {
+    if (raceState != ST_QUALI) { keepGrid = qDone; }
+    setupRace(selTrk, selCar);
+    keepGrid = 0;
+}
+
+// timers, counters and particles every session starts from
+function raceReset() {
     secB1 = 1 + Math.floor(NSEG / 3);
     secB2 = 1 + Math.floor(NSEG * 2 / 3);
     secCur = 0; secMsgT = 0; secMsg = BLANK; lastSegP = 0;
@@ -150,15 +220,33 @@ function setupRace(tk, ct) {
     let k2 = 1;
     while (k2 <= NSMOKE) { smL[k2] = 0; k2 = k2 + 1; }
     smN = 0; smokeHead = 0;
+    k2 = 1;
+    while (k2 <= NSPK) { spL[k2] = 0; k2 = k2 + 1; }
+    spN = 0;
+    towerT = 0;
+    camCar = 1;
+    setBanner(BLANK, 0);
+    setMsg(BLANK, 0);
+}
+
+// the grid and the start lights
+function startGrid(ct) {
+    nLaps = lapOpt[lapSel];
+    nCars = NCAR;
+    if (gMode == M_TT) { nCars = 1; nLaps = 999; }
+    if (qDone > 0) { raceReset(); }
+    initCars(ct);
+    tyreGrip(1);
+    let gk = 1;
+    if (rules == R_SIM) { gk = caWK[1]; }
+    speedProfile(caGrip[1] * gk, caTop[1]);
     lightN = 0; lightsOut = 0; lightsT = 0; countT = 1.0;
     lightHold = rand(0.4, 1.9);
     raceState = ST_COUNT;
     camMode = 0;
     camYawS = caYaw[1];
     camX = caX[1]; camZ = caZ[1]; camY = caY[1] + 3;
-    towerT = 0;
-    setBanner(BLANK, 0);
-    setMsg(BLANK, 0);
+    rpReset();
 }
 
 // ---- laps and checkpoints ----------------------------------------------
@@ -174,6 +262,9 @@ function updateLap(c) {
         caCP[c] = nx;
         if (nx == 1) {
             caLap[c] = caLap[c] + 1;
+            // v7: a new lap of ERS harvesting, and the AI's pace for this lap
+            caErsH[c] = 0;
+            if (c > 1) { caPace[c] = 1 - drvErr[c] * rand(0.0001, 0.012); }
             if (caLap[c] > 1) {
                 let lt = raceT - caLapT[c];
                 if (c == 1) {
@@ -201,6 +292,11 @@ function updateLap(c) {
                 secCur = 1;
                 secT0 = raceT;
                 grN = 0;
+                if (raceState == ST_QUALI) {
+                    if (caLap[1] > QLAPS) { endQuali(); }
+                    else if (caLap[1] == QLAPS) { setBanner('FINAL TIMED LAP', 1.4); }
+                    else { setBanner('TIMED LAP', 1.2); }
+                }
             }
             if (caLap[c] > nLaps) {
                 if (caFin[c] == 0) {
@@ -216,7 +312,8 @@ function updateLap(c) {
                 }
             } else if (c == 1) {
                 if (caLap[c] > 1) {
-                    if (caLap[c] == nLaps) { setBanner('FINAL LAP', 1.5); }
+                    if (raceState == ST_QUALI) { }
+                    else if (caLap[c] == nLaps) { setBanner('FINAL LAP', 1.5); }
                     else { setBanner(str('LAP ', caLap[c]), 1.3); }
                 }
             }
@@ -285,6 +382,7 @@ function updateDRS() {
     let c = 1;
     while (c <= nCars) {
         let z = sgDRS[caSeg[c]];
+        if (scOn > 0) { z = 0; }
         if (z < 1) { caDRS[c] = 0; caDOk[c] = 0; }
         else {
             if (caDOk[c] < 1) {
@@ -414,9 +512,10 @@ function updateGaps() {
 function awardPoints() {
     if (chDone < 1) {
         chDone = 1;
+        classify();
         let i = 1;
         while (i <= nCars) {
-            let o = srtI[i];
+            let o = clsI[i];
             chPts[o] = chPts[o] + ptsTab[i];
             i = i + 1;
         }
@@ -448,7 +547,7 @@ function startChampionship() {
 // ---- off-track recovery -------------------------------------------------
 function checkRecovery(c) {
     let offT = 0;
-    if (caSurf[c] >= 2) { if (caSurf[c] != 5) { offT = 1; } }
+    if (caSurf[c] >= 2) { if (caSurf[c] != 5) { if (caSurf[c] != 6) { offT = 1; } } }
     if (offT > 0) { caOffT[c] = caOffT[c] + dt; } else { caOffT[c] = 0; }
     let far = Math.abs(caOff[c]) > sgW[caSeg[c]] + GRASSW - 2 ? 1 : 0;
     if (caOffT[c] > 3.6 || far > 0) {
@@ -482,7 +581,16 @@ function playerInput() {
     if (key(32)) { hb = 1; }
     drsKey = 0;
     if (key(69)) { drsKey = 1; }
-    if (raceState != ST_RACE) { th = 0; st = 0; hb = 0; br = 0; }
+    // v7 realistic: SHIFT or Q holds the ERS boost on while there is charge
+    let ers = 0;
+    if (rules == R_SIM) { if (key(16)) { ers = 1; } if (key(81)) { ers = 1; } }
+    if (caErs[1] <= 0) { ers = 0; }
+    caErsOn[1] = ers;
+    let go = 0;
+    if (raceState == ST_RACE) { go = 1; }
+    if (raceState == ST_QUALI) { go = 1; }
+    if (go < 1) { th = 0; st = 0; hb = 0; br = 0; caErsOn[1] = 0; }
+    if (caPit[1] == 3) { th = 0; br = 0; }
     if (finished > 0) { th = 0; br = 1; }
     // The wheel is turned at a limited rate rather than jumping to full lock:
     // a tap is a small correction, a held key winds on lock over about half a
@@ -501,65 +609,69 @@ function playerInput() {
 }
 
 // ---- cameras ------------------------------------------------------------
+// v7: every race camera follows camCar (the player, or whoever a replay is
+// watching) instead of car 1.
 function updateCam() {
-    let sp = Math.sqrt(caVX[1] * caVX[1] + caVZ[1] * caVZ[1]);
+    let c = camCar;
+    camSeg = caSeg[c];
+    let sp = Math.sqrt(caVX[c] * caVX[c] + caVZ[c] * caVZ[c]);
     let fovT = 70 + Math.min(1, sp / 62) * 24;
     camFov = camFov + (fovT - camFov) * (2.5 * dt / (1 + 2.5 * dt));
-    let fx = sind(caYaw[1]);
-    let fz = cosd(caYaw[1]);
+    let fx = sind(caYaw[c]);
+    let fz = cosd(caYaw[c]);
     if (camMode == 1) {
         // cockpit: the driver's eye, just behind the halo strut
-        camX = caX[1] - fx * 0.05;
-        camY = caY[1] + 0.92;
-        camZ = caZ[1] - fz * 0.05;
-        camYaw = caYaw[1];
-        camPitch = 0 - 2.5 + caPitch[1] * 0.5;
-        camRoll = caRoll[1] * 0.55 - sgBank[caSeg[1]] * 0.25;
+        camX = caX[c] - fx * 0.05;
+        camY = caY[c] + 0.92;
+        camZ = caZ[c] - fz * 0.05;
+        camYaw = caYaw[c];
+        camPitch = 0 - 2.5 + caPitch[c] * 0.5;
+        camRoll = caRoll[c] * 0.55 - sgBank[caSeg[c]] * 0.25;
     } else if (camMode == 3) {
         // T-cam: on the airbox, looking down the nose over the driver's head
-        camX = caX[1] - fx * 0.35;
-        camY = caY[1] + 1.30;
-        camZ = caZ[1] - fz * 0.35;
-        camYaw = caYaw[1];
-        camPitch = 0 - 4.0 + caPitch[1] * 0.5;
-        camRoll = caRoll[1] * 0.8;
+        camX = caX[c] - fx * 0.35;
+        camY = caY[c] + 1.30;
+        camZ = caZ[c] - fz * 0.35;
+        camYaw = caYaw[c];
+        camPitch = 0 - 4.0 + caPitch[c] * 0.5;
+        camRoll = caRoll[c] * 0.8;
     } else {
         // chase: trails the direction of travel so slides stay readable
         let dist = camMode == 2 ? 15.5 : 9.4;
         let hgt = camMode == 2 ? 6.2 : 3.4;
-        let want = caYaw[1];
+        let want = caYaw[c];
         if (sp > 3) {
-            atan2d(caVX[1], caVZ[1]);
-            wrapAng(oAtan - caYaw[1]);
+            atan2d(caVX[c], caVZ[c]);
+            wrapAng(oAtan - caYaw[c]);
             let sl = oWrap;
             if (sl > 60) { sl = 60; }
             if (sl < 0 - 60) { sl = 0 - 60; }
-            want = caYaw[1] + sl * 0.5 * Math.min(1, sp / 14);
+            want = caYaw[c] + sl * 0.5 * Math.min(1, sp / 14);
         }
         wrapAng(want - camYawS);
         camYawS = camYawS + oWrap * (3.2 * dt / (1 + 3.2 * dt));
         let gx = sind(camYawS);
         let gz = cosd(camYawS);
-        let tx = caX[1] - gx * dist;
-        let tz = caZ[1] - gz * dist;
-        let ty = caY[1] + hgt;
+        let tx = caX[c] - gx * dist;
+        let tz = caZ[c] - gz * dist;
+        let ty = caY[c] + hgt;
         let k = 6.5 * dt / (1 + 6.5 * dt);
         camX = camX + (tx - camX) * k;
         camZ = camZ + (tz - camZ) * k;
         camY = camY + (ty - camY) * k;
         // never let the camera sink through the scenery
-        sampleTrack(camX, camZ, caSeg[1]);
+        sampleTrack(camX, camZ, caSeg[c]);
         if (camY < sfY + 1.1) { camY = sfY + 1.1; }
-        let ax = caX[1] + gx * 7;
-        let ay = caY[1] + 1.0;
-        let az = caZ[1] + gz * 7;
+        let ax = caX[c] + gx * 7;
+        let ay = caY[c] + 1.0;
+        let az = caZ[c] + gz * 7;
         let dx = ax - camX;
         let dz = az - camZ;
         atan2d(dx, dz);
         camYaw = oAtan;
         atan2d(ay - camY, Math.sqrt(dx * dx + dz * dz));
         camPitch = oAtan;
-        camRoll = caRoll[1] * 0.20;
+        camRoll = caRoll[c] * 0.20;
     }
     // collision shake
     if (shakeT > 0) {
@@ -586,6 +698,7 @@ function stepRace() {
     dt = full / sub;
     let c = 2;
     while (c <= nCars) { aiPlan(c); c = c + 1; }
+    if (scCar > 0) { aiPlan(GHOST); }
     dt = full;
     updateTow();
     updateDRS();
@@ -595,19 +708,26 @@ function stepRace() {
         playerInput();
         c = 2;
         while (c <= nCars) { aiDrive(c); c = c + 1; }
+        if (scCar > 0) { aiDrive(GHOST); }
         c = 1;
         while (c <= nCars) { carPhys(c); c = c + 1; }
+        if (scCar > 0) { carPhys(GHOST); }
         carCollisions();
         n = n + 1;
     }
     dt = full;
     c = 1;
     while (c <= nCars) { checkRecovery(c); c = c + 1; }
-    if (raceState == ST_RACE) {
+    let timing = 0;
+    if (raceState == ST_RACE) { timing = 1; }
+    if (raceState == ST_QUALI) { timing = 1; }
+    if (timing > 0) {
         raceT = raceT + dt;
         // track limits: all four wheels past the white line for more than a
         // moment, at racing speed, and this lap will not count
-        if (caSurf[1] >= 2) {
+        let off = 0;
+        if (caSurf[1] >= 2) { if (caSurf[1] != 6) { off = 1; } }
+        if (off > 0) {
             if (Math.abs(caSpd[1]) > 14) { limT = limT + dt; }
         } else { limT = 0; }
         if (limT > 0.6) {
@@ -627,11 +747,14 @@ function stepRace() {
     }
     if (gMode == M_TT) { updateGhost(); }
     updateRanks();
+    if (rules == R_SIM) { simStep(); }
     towerT = towerT - dt;
     if (towerT <= 0) { towerT = 0.3; updateGaps(); }
     updateGear();
     if (lightsT > 0) { lightsT = lightsT - dt; }
     stepSmoke();
+    fxStep();
+    rpRec();
     updateCam();
 }
 

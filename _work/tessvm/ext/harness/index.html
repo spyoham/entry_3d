@@ -12,6 +12,7 @@ window.addEventListener('error', e => window.__errors.push(String(e.message)));
 async function start() {
   const work = await (await fetch('/ent/temp/project.json')).json();
   for (const o of work.objects) for (const p of (o.sprite?.pictures || [])) p.fileurl = '/ent/' + p.fileurl;
+  for (const o of work.objects) for (const p of (o.sprite?.sounds || [])) p.fileurl = '/ent/' + p.fileurl;
   work.id = 'local';
   const t0 = performance.now();
   const built = toTessProject(work);

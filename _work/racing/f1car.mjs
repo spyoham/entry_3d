@@ -25,7 +25,8 @@ export function f1Car() {
     const P = () => { part = []; partCen = null; };
     const pv = (x, y, z) => { const i = v(x, y, z); part.push(i); return i; };
     const faces = [];           // pending faces of this part
-    const face = (a, b, c, d, k, twoSided) => faces.push({ q: [a, b, c, d], k, two: !!twoSided });
+    let wing = 0;               // v7: faces made while this is 1 belong to the front wing
+    const face = (a, b, c, d, k, twoSided) => faces.push({ q: [a, b, c, d], k, two: !!twoSided, w: wing });
     const flush = () => {
         // orient every face so that (c-a)x(d-b) points INTO the part: that is
         // the winding the renderer's screen-space test takes as front-facing
@@ -40,8 +41,8 @@ export function f1Car() {
             const fc = [0, 1, 2].map((j) => (a[j] + b[j] + c[j] + d[j]) / 4);
             let q = f.q;
             if (dot(n, sub(fc, cen)) > 0) q = [q[3], q[2], q[1], q[0]];
-            F.push({ q, k: f.k });
-            if (f.two) F.push({ q: [q[3], q[2], q[1], q[0]], k: f.k });
+            F.push({ q, k: f.k, w: f.w });
+            if (f.two) F.push({ q: [q[3], q[2], q[1], q[0]], k: f.k, w: f.w });
         }
         faces.length = 0;
     };
@@ -128,17 +129,21 @@ export function f1Car() {
     loft(0, { z: 2.35, hw: 0.12, yb: 0.14, yt: 0.30 }, { z: 0.9, hw: 0.32, yb: 0.10, yt: 0.58 }, { top: K_LIV, l: K_LIV, r: K_LIV, front: K_ACC });
     loft(0, { z: 0.9, hw: 0.78, yb: 0.10, yt: 0.52, hwt: 0.34 }, { z: -1.95, hw: 0.30, yb: 0.10, yt: 0.44, hwt: 0.16 }, { top: K_LIV, l: K_LIV, r: K_LIV, back: K_CARB, front: K_CARB });
     loft(0, { z: -2.02, hw: 0.54, yb: 0.80, yt: 0.92 }, { z: -2.42, hw: 0.54, yb: 0.84, yt: 0.98 }, { top: K_ACC, front: K_CARB, back: K_ACC, l: K_LIV, r: K_LIV });
+    wing = 1;
     loft(0, { z: 2.58, hw: 0.95, yb: 0.05, yt: 0.12 }, { z: 2.12, hw: 0.95, yb: 0.05, yt: 0.15 }, { top: K_ACC, front: K_CARB, l: K_LIV, r: K_LIV });
+    wing = 0;
     for (const [sx, cz, R, hw, cx, st] of WHEELS) wheel(sx, cz, R, hw, cx, st, false);
     const vLo = V.length, fLo = F.length;
 
     // ---------------- tier 2: the full car ----------------
     // nose and front wing
     loft(0, { z: 2.36, hw: 0.10, yb: 0.15, yt: 0.29 }, { z: 1.0, hw: 0.29, yb: 0.12, yt: 0.55 }, { top: K_LIV, l: K_LIV, r: K_LIV, front: K_ACC });
+    wing = 1;
     loft(0, { z: 2.60, hw: 0.95, yb: 0.05, yt: 0.11 }, { z: 2.14, hw: 0.95, yb: 0.05, yt: 0.15 }, { top: K_ACC, front: K_CARB, back: K_CARB });
     loft(0, { z: 2.20, hw: 0.93, yb: 0.15, yt: 0.17 }, { z: 2.02, hw: 0.93, yb: 0.17, yt: 0.25 }, { top: K_DARK, back: K_CARB });
     plate(-0.96, 2.66, 2.02, 0.04, 0.30, K_LIV);
     plate(0.96, 2.66, 2.02, 0.04, 0.30, K_LIV);
+    wing = 0;
     // cockpit tub
     loft(0, { z: 1.0, hw: 0.29, yb: 0.10, yt: 0.55 }, { z: -0.55, hw: 0.36, yb: 0.10, yt: 0.62 }, { top: K_LIV, l: K_LIV, r: K_LIV });
     // sidepods: dark intake mouths, accent flanks, tapering towards the back

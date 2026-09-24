@@ -15,7 +15,7 @@ let cardX1 = 236;
 let menuSlide = 0;                  // selected row slides out a little
 let menuPrev = 0;
 
-function rowY(i) { oRowY = 70 - (i - 1) * 17.5; }
+function rowY(i) { oRowY = 74 - (i - 1) * 15.2; }
 let oRowY = 0;
 
 // a bar with slanted ends
@@ -161,7 +161,9 @@ function drawTablePanel() {
 }
 
 function drawPausePanel() {
-    box(0 - 150, 66, 150, 0 - 56, C_PANEL);
+    let y1 = 0 - 56;
+    if (gfx > 1) { y1 = 0 - 74; }
+    box(0 - 150, 66, 150, y1, C_PANEL);
     box(0 - 150, 66, 150, 63, C_RED);
 }
 
@@ -169,17 +171,17 @@ function drawMainMenu() {
     if (menuSel != menuPrev) { menuPrev = menuSel; menuSlide = 0; }
     menuSlide = menuSlide + (1 - menuSlide) * Math.min(1, dt * 10);
     // title
-    skewBar(0 - 250, 0 - 44, 110, 14, 4, C_PANEL);
-    skewBar(0 - 250, 0 - 90, 90, 5.5, 2, C_RED);
+    skewBar(0 - 250, 0 - 44, 112, 14, 4, C_PANEL);
+    skewBar(0 - 250, 0 - 90, 92, 5.5, 2, C_RED);
     // the list
     let i = 1;
-    while (i <= 9) {
+    while (i <= NMENU) {
         rowY(i);
         if (i == menuSel) {
-            skewBar(0 - 250, 0 - 40 + 12 * menuSlide, oRowY, 7.6, 3, C_RED);
-            skewBar(0 - 250, 0 - 236, oRowY, 7.6, 3, '#ffffff');
+            skewBar(0 - 250, 0 - 40 + 12 * menuSlide, oRowY, 6.6, 3, C_RED);
+            skewBar(0 - 250, 0 - 236, oRowY, 6.6, 3, '#ffffff');
         } else {
-            skewBar(0 - 250, 0 - 44, oRowY, 7.6, 3, C_PANEL);
+            skewBar(0 - 250, 0 - 44, oRowY, 6.6, 3, C_PANEL);
         }
         i = i + 1;
     }
@@ -189,15 +191,17 @@ function drawMainMenu() {
     box(0 - 250, 0 - 104, 250, 0 - 132, C_PANEL);
     let m = menuSel;
     if (m == 1) {
-        drawMap3D(121, 40, 44);
+        drawMap3D(121, 50, 34);
     } else if (m == 2) {
+        choiceBoxes(3, gMode);
+    } else if (m == 3) {
         let k = 1;
-        while (k <= 3) {
-            let x0 = cardX0 + 10 + (k - 1) * 74;
-            box(x0, 64, x0 + 68, 42, k == gMode ? C_RED : C_PANEL2);
+        while (k <= 2) {
+            let x0 = cardX0 + 10 + (k - 1) * 112;
+            box(x0, 64, x0 + 102, 42, k == rules ? C_RED : C_PANEL2);
             k = k + 1;
         }
-    } else if (m == 3) {
+    } else if (m == 4) {
         box(cardX0 + 6, 70, cardX1 - 6, 0 - 16, '#121821');
         drawCardCar(121, 24, 34);
         let k = 1;
@@ -206,32 +210,37 @@ function drawMainMenu() {
             meter(cardX0 + 84, cardX1 - 48, 0 - 26 - (k - 1) * 13, oStat, k);
             k = k + 1;
         }
-    } else if (m == 4) {
-        drawMap3D(121, 26, 62);
     } else if (m == 5) {
+        drawMap3D(121, 26, 62);
+    } else if (m == 6) {
         let k = 1;
         while (k <= NDIFF) {
             let x0 = cardX0 + 12 + (k - 1) * 43;
-            box(x0, 60, x0 + 38, 40, k <= aiDiff ? C_RED : C_PANEL2);
+            box(x0, 76, x0 + 38, 70, k <= aiDiff ? C_RED : C_PANEL2);
             k = k + 1;
         }
-    } else if (m == 6) {
+    } else if (m == 7) {
         let k = 1;
         while (k <= NLAPO) {
             let x0 = cardX0 + 12 + (k - 1) * 54;
             box(x0, 26, x0 + 48, 22, k == lapSel ? C_RED : C_PANEL2);
             k = k + 1;
         }
-    } else if (m == 7) {
-        drawWxIcon(121, 46);
     } else if (m == 8) {
-        let k = 1;
-        while (k <= 3) {
-            let x0 = cardX0 + 10 + (k - 1) * 74;
-            box(x0, 64, x0 + 68, 42, k == gfx ? C_RED : C_PANEL2);
+        drawWxIcon(121, 46);
+    } else if (m == 9) {
+        choiceBoxes(3, gfx);
+    } else if (m == 10) {
+        choiceBoxes(2, sndSel);
+        // a little level meter that moves when the sound is on
+        let k = 0;
+        while (k < 16) {
+            let h = 3;
+            if (sndSel > 1) { h = 4 + 14 * Math.abs(sind(gt * 260 + k * 37)) * Math.abs(sind(gt * 90 + k * 11)); }
+            box(cardX0 + 60 + k * 7, 2, cardX0 + 64 + k * 7, 2 + h, sndSel > 1 ? '#3dff6e' : '#2a3240');
             k = k + 1;
         }
-    } else if (m == 9) {
+    } else if (m == 11) {
         // a little node-and-spline sketch
         let k = 0;
         while (k < 8) {
@@ -241,6 +250,17 @@ function drawMainMenu() {
             box(x - 3, y + 3, x + 3, y - 3, k == 0 ? C_RED : '#dfe6f0');
             k = k + 1;
         }
+    }
+}
+
+// n choice boxes across the card, the chosen one red
+function choiceBoxes(n, sel) {
+    let wd = 218 / n;
+    let k = 1;
+    while (k <= n) {
+        let x0 = cardX0 + 10 + (k - 1) * wd;
+        box(x0, 64, x0 + wd - 6, 42, k == sel ? C_RED : C_PANEL2);
+        k = k + 1;
     }
 }
 
@@ -313,11 +333,13 @@ function drawTrkSel() {
 }
 
 // ---- screens: text -----------------------------------------------------------
+// v7 slots: menu labels 24..34, values 35..45; cards 50 (title), 51..71
+// (cardRow r: label 51+r, value 61+r), 72..75 extras.
 function hudMenu() {
-    tx(9, 'ENTRY RACING 3D', 0 - 232, 112, 21, C_WHITE, 1);
-    tx(10, 'F1 EDITION  /  v6', 0 - 232, 92, 8, C_WHITE, 1);
+    tx(9, 'ENTRY RACING 3D', 0 - 232, 114, 21, C_WHITE, 1);
+    tx(10, 'F1 EDITION  /  v7', 0 - 232, 94, 8, C_WHITE, 1);
     let i = 1;
-    while (i <= 9) {
+    while (i <= NMENU) {
         rowY(i);
         let sel = i == menuSel ? 1 : 0;
         let lab = BLANK;
@@ -326,48 +348,76 @@ function hudMenu() {
             lab = 'RACE START';
             if (gMode == M_CH) { lab = 'START CHAMPIONSHIP'; } else if (gMode == M_TT) { lab = 'START TIME TRIAL'; }
         } else if (i == 2) { lab = 'MODE'; val = modeName[gMode]; }
-        else if (i == 3) { lab = 'CAR'; val = ctName[selCar]; }
-        else if (i == 4) { lab = 'CIRCUIT'; val = gMode == M_CH ? 'ALL 8' : trkName[selTrk]; }
-        else if (i == 5) { lab = 'AI LEVEL'; val = gMode == M_TT ? 'NONE' : aiName[aiDiff]; }
-        else if (i == 6) { lab = 'LAPS'; val = gMode == M_TT ? 'FREE' : str(lapOpt[lapSel]); }
-        else if (i == 7) { lab = 'WEATHER'; val = wxName[wx]; }
-        else if (i == 8) { lab = 'GRAPHICS'; val = gfxName[gfx]; }
+        else if (i == 3) { lab = 'RULES'; val = ruleName[rules]; }
+        else if (i == 4) { lab = 'CAR'; val = ctName[selCar]; }
+        else if (i == 5) { lab = 'CIRCUIT'; val = gMode == M_CH ? 'ALL 8' : trkName[selTrk]; }
+        else if (i == 6) { lab = 'AI LEVEL'; val = gMode == M_TT ? 'NONE' : aiName[aiDiff]; }
+        else if (i == 7) { lab = 'LAPS'; val = gMode == M_TT ? 'FREE' : str(lapOpt[lapSel]); }
+        else if (i == 8) { lab = 'WEATHER'; val = wxName[wx]; }
+        else if (i == 9) { lab = 'GRAPHICS'; val = gfxName[gfx]; }
+        else if (i == 10) { lab = 'SOUND'; val = sndName[sndSel]; }
         else { lab = 'TRACK EDITOR'; }
         let x = 0 - 226 + (sel > 0 ? 4 * menuSlide : 0);
-        tx(23 + i, lab, x, oRowY, 10, sel > 0 ? C_WHITE : '#c9d1de', 1);
+        tx(23 + i, lab, x, oRowY, 9, sel > 0 ? C_WHITE : '#c9d1de', 1);
         if (sel > 0) { if (val != BLANK) { if (i > 1) { val = str('< ', val, ' >'); } } }
-        tx(32 + i, val, 0 - 134 + (sel > 0 ? 4 * menuSlide : 0), oRowY, 9, sel > 0 ? C_WHITE : C_DIM, 1);
+        tx(34 + i, val, 0 - 134 + (sel > 0 ? 4 * menuSlide : 0), oRowY, 8, sel > 0 ? C_WHITE : C_DIM, 1);
         i = i + 1;
     }
     tx(12, 'UP/DOWN select   LEFT/RIGHT change   ENTER confirm', 0, 0 - 111, 9, '#c9d1de', 0);
-    tx(11, 'IN RACE:  W/S throttle-brake   A/D steer   E DRS   C camera   L line   P pause', 0, 0 - 123, 8, C_DIM, 0);
+    if (rules == R_SIM) { tx(11, 'IN RACE:  W/S  A/D   E DRS   SHIFT/Q ERS BOOST   T PIT TYRE   C camera   P pause', 0, 0 - 123, 7, C_DIM, 0); }
+    else { tx(11, 'IN RACE:  W/S throttle-brake   A/D steer   E DRS   C camera   L line   P pause', 0, 0 - 123, 8, C_DIM, 0); }
     hudCard();
 }
 
+// a line of card text in slot i
+function cardTx(i, s, y, sz, col) { tx(i, s, cardX0 + 10, y, sz, col, 1); }
+
 function hudCard() {
     let m = menuSel;
-    let y0 = 0 - 4;
     if (m == 1) {
-        tx(42, 'READY TO RACE', cardX0 + 10, 84, 11, C_WHITE, 1);
-        cardRow(1, 'MODE', modeName[gMode], y0 - 0);
+        tx(50, 'READY TO RACE', cardX0 + 10, 84, 11, C_WHITE, 1);
+        let y0 = 4;
+        cardRow(1, 'MODE', str(modeName[gMode], '  /  ', ruleName[rules]), y0);
         cardRow(2, 'CIRCUIT', gMode == M_CH ? str('ALL ', NTRK, ' ROUNDS') : trkName[selTrk], y0 - 13);
         cardRow(3, 'CAR', ctName[selCar], y0 - 26);
         cardRow(4, 'LAPS', gMode == M_TT ? 'UNLIMITED' : str(lapOpt[lapSel]), y0 - 39);
         cardRow(5, 'OPPONENTS', gMode == M_TT ? 'NONE  (GHOST)' : str(NCAR - 1, '  /  ', aiName[aiDiff]), y0 - 52);
         cardRow(6, 'WEATHER', wxName[wx], y0 - 65);
-        tx(43, mod(Math.floor(gt * 2), 2) < 1 ? 'PRESS ENTER' : BLANK, 121, 0 - 84, 10, C_GOLD, 0);
+        let q = BLANK;
+        if (rules == R_SIM) { if (gMode != M_TT) { q = 'QUALIFYING FIRST'; } }
+        tx(72, q, cardX1 - 10, 84, 8, C_GOLD, 2);
+        tx(73, mod(Math.floor(gt * 2), 2) < 1 ? 'PRESS ENTER' : BLANK, 121, 0 - 84, 10, C_GOLD, 0);
     } else if (m == 2) {
-        tx(42, 'GAME MODE', cardX0 + 10, 84, 11, C_WHITE, 1);
-        tx(44, 'GP', cardX0 + 44, 53, 10, gMode == 1 ? C_WHITE : C_DIM, 0);
-        tx(45, 'CHAMP', cardX0 + 118, 53, 10, gMode == 2 ? C_WHITE : C_DIM, 0);
-        tx(46, 'TRIAL', cardX0 + 192, 53, 10, gMode == 3 ? C_WHITE : C_DIM, 0);
-        tx(54, modeName[gMode], cardX0 + 10, 22, 13, C_GOLD, 1);
-        tx(55, modeD1[gMode], cardX0 + 10, 4, 9, C_WHITE, 1);
-        tx(56, modeD2[gMode], cardX0 + 10, 0 - 10, 9, C_WHITE, 1);
-        tx(57, modeD3[gMode], cardX0 + 10, 0 - 24, 9, C_DIM, 1);
+        tx(50, 'GAME MODE', cardX0 + 10, 84, 11, C_WHITE, 1);
+        tx(72, 'GP', cardX0 + 44, 53, 10, gMode == 1 ? C_WHITE : C_DIM, 0);
+        tx(73, 'CHAMP', cardX0 + 118, 53, 10, gMode == 2 ? C_WHITE : C_DIM, 0);
+        tx(74, 'TRIAL', cardX0 + 192, 53, 10, gMode == 3 ? C_WHITE : C_DIM, 0);
+        cardTx(52, modeName[gMode], 22, 13, C_GOLD);
+        cardTx(53, modeD1[gMode], 4, 9, C_WHITE);
+        cardTx(54, modeD2[gMode], 0 - 10, 9, C_WHITE);
+        cardTx(55, modeD3[gMode], 0 - 24, 9, C_DIM);
     } else if (m == 3) {
-        tx(42, ctName[selCar], cardX0 + 10, 84, 11, C_WHITE, 1);
-        tx(43, str(lvName[ctCol[selCar]], '  -  ', ctInfo[selCar]), cardX0 + 10, 0 - 84, 7, C_DIM, 1);
+        tx(50, 'RULES', cardX0 + 10, 84, 11, C_WHITE, 1);
+        tx(72, 'ARCADE', cardX0 + 61, 53, 10, rules == 1 ? C_WHITE : C_DIM, 0);
+        tx(73, 'REALISTIC', cardX0 + 173, 53, 10, rules == 2 ? C_WHITE : C_DIM, 0);
+        cardTx(52, ruleName[rules], 26, 13, C_GOLD);
+        cardTx(53, ruleD1[rules], 8, 8, C_WHITE);
+        cardTx(54, ruleD2[rules], 0 - 5, 8, C_WHITE);
+        cardTx(55, ruleD3[rules], 0 - 18, 8, C_WHITE);
+        if (rules == R_SIM) {
+            cardTx(56, 'SOFT / MEDIUM / HARD / INTER / WET TYRES', 0 - 38, 7, C_DIM);
+            cardTx(57, 'PIT LANE AT 80 km/h  -  T PICKS THE NEXT TYRE', 0 - 50, 7, C_DIM);
+            cardTx(58, 'SHIFT OR Q: ERS BOOST  -  WEATHER: CHANGING', 0 - 62, 7, C_DIM);
+            cardTx(59, 'EVERY 3RD TRACK-LIMITS STRIKE: +5 SEC', 0 - 74, 7, C_DIM);
+        } else {
+            cardTx(56, 'SAME DRIVING AND RACE AS BEFORE', 0 - 38, 7, C_DIM);
+            cardTx(57, 'THE AI DRIVERS NOW ATTACK, DEFEND', 0 - 50, 7, C_DIM);
+            cardTx(58, 'AND MAKE MISTAKES IN THEIR OWN WAY', 0 - 62, 7, C_DIM);
+            txOff(59);
+        }
+    } else if (m == 4) {
+        tx(50, ctName[selCar], cardX0 + 10, 84, 11, C_WHITE, 1);
+        tx(72, str(lvName[ctCol[selCar]], '  -  ', ctInfo[selCar]), cardX0 + 10, 0 - 84, 7, C_DIM, 1);
         let k = 1;
         while (k <= 4) {
             let y = 0 - 26 - (k - 1) * 13;
@@ -375,61 +425,83 @@ function hudCard() {
             if (k == 2) { lab = 'ACCELERATION'; val = str(ct200[selCar], ' s'); }
             else if (k == 3) { lab = 'CORNERING'; val = str(ctGL[selCar], ' g'); }
             else if (k == 4) { lab = 'DOWNFORCE'; val = str(ctGH[selCar], ' g'); }
-            tx(43 + k, lab, cardX0 + 10, y, 8, C_DIM, 1);
-            tx(53 + k, val, cardX1 - 46, y, 8, C_WHITE, 1);
+            tx(51 + k, lab, cardX0 + 10, y, 8, C_DIM, 1);
+            tx(61 + k, val, cardX1 - 46, y, 8, C_WHITE, 1);
             k = k + 1;
         }
-    } else if (m == 4) {
-        tx(42, trkName[selTrk], cardX0 + 10, 84, 11, C_WHITE, 1);
+    } else if (m == 5) {
+        tx(50, trkName[selTrk], cardX0 + 10, 84, 11, C_WHITE, 1);
         fmtTime(recLap[selTrk] > 0 ? recLap[selTrk] : 0 - 1);
         cardRow(1, 'LENGTH', str(Math.round(trkLen / 10) / 100, ' km'), 0 - 50);
         cardRow(2, 'TURNS', str(trkTurns[selTrk], '     DRS ZONES  ', drsN), 0 - 63);
         cardRow(3, 'BEST LAP', oTime, 0 - 76);
-    } else if (m == 5) {
-        tx(42, 'OPPONENTS', cardX0 + 10, 84, 11, C_WHITE, 1);
-        tx(54, aiName[aiDiff], cardX0 + 10, 22, 13, C_GOLD, 1);
-        cardRow(2, 'ENGINE AND GRIP', str(Math.round(aiPow[aiDiff] * 100), ' %'), 0 - 4);
-        cardRow(3, 'RACECRAFT', str(Math.round(aiSkl[aiDiff] * 100), ' %'), 0 - 17);
-        tx(57, aiD[aiDiff], cardX0 + 10, 0 - 40, 8, C_DIM, 1);
-        if (gMode == M_TT) { tx(58, 'NOT USED IN TIME TRIAL', cardX0 + 10, 0 - 60, 8, C_ACC, 1); } else { txOff(58); }
     } else if (m == 6) {
-        tx(42, 'RACE LENGTH', cardX0 + 10, 84, 11, C_WHITE, 1);
-        tx(43, gMode == M_TT ? 'FREE' : str(lapOpt[lapSel]), 121, 54, 34, C_WHITE, 0);
-        tx(44, '1', cardX0 + 36, 12, 9, lapSel == 1 ? C_WHITE : C_DIM, 0);
-        tx(45, '3', cardX0 + 90, 12, 9, lapSel == 2 ? C_WHITE : C_DIM, 0);
-        tx(46, '5', cardX0 + 144, 12, 9, lapSel == 3 ? C_WHITE : C_DIM, 0);
-        tx(47, '10', cardX0 + 198, 12, 9, lapSel == 4 ? C_WHITE : C_DIM, 0);
+        tx(50, 'OPPONENTS', cardX0 + 10, 84, 11, C_WHITE, 1);
+        tx(72, str(aiName[aiDiff], '   ENGINE ', Math.round(aiPow[aiDiff] * 100), '%   RACECRAFT ', Math.round(aiSkl[aiDiff] * 100), '%'), cardX0 + 10, 58, 8, C_GOLD, 1);
+        tx(73, aiD[aiDiff], cardX0 + 10, 44, 7, C_DIM, 1);
+        tx(74, 'THE RIVALS', cardX0 + 10, 28, 8, C_WHITE, 1);
+        let k = 1;
+        while (k <= 7) {
+            cardRow(k, drvName[k + 1], drvTag[k + 1], 14 - (k - 1) * 12);
+            k = k + 1;
+        }
+        if (gMode == M_TT) { tx(75, 'NOT USED IN TIME TRIAL', cardX1 - 10, 84, 8, C_ACC, 2); } else { txOff(75); }
+    } else if (m == 7) {
+        tx(50, 'RACE LENGTH', cardX0 + 10, 84, 11, C_WHITE, 1);
+        tx(72, gMode == M_TT ? 'FREE' : str(lapOpt[lapSel]), 121, 54, 34, C_WHITE, 0);
+        tx(52, '1', cardX0 + 36, 12, 9, lapSel == 1 ? C_WHITE : C_DIM, 0);
+        tx(53, '3', cardX0 + 90, 12, 9, lapSel == 2 ? C_WHITE : C_DIM, 0);
+        tx(54, '5', cardX0 + 144, 12, 9, lapSel == 3 ? C_WHITE : C_DIM, 0);
+        tx(55, '10', cardX0 + 198, 12, 9, lapSel == 4 ? C_WHITE : C_DIM, 0);
         cardRow(5, 'DISTANCE', str(Math.round(trkLen * lapOpt[lapSel] / 100) / 10, ' km'), 0 - 20);
         cardRow(6, 'ABOUT', str(Math.round(trkLen * lapOpt[lapSel] / 55 / 60 * 10) / 10, ' min'), 0 - 33);
-    } else if (m == 7) {
-        tx(42, 'WEATHER', cardX0 + 10, 84, 11, C_WHITE, 1);
-        tx(54, wx > 1 ? 'RAIN' : 'DRY', cardX0 + 10, 0 - 6, 13, wx > 1 ? C_SKY : C_GOLD, 1);
-        cardRow(2, 'TYRE GRIP', wx > 1 ? '80 %' : '100 %', 0 - 26);
-        cardRow(3, 'VISIBILITY', wx > 1 ? 'SPRAY, FOG' : 'CLEAR', 0 - 39);
-        cardRow(4, 'RAIN LIGHTS', wx > 1 ? 'ON' : 'OFF', 0 - 52);
     } else if (m == 8) {
-        tx(42, 'GRAPHICS', cardX0 + 10, 84, 11, C_WHITE, 1);
-        tx(44, 'LOW', cardX0 + 44, 53, 10, gfx == 1 ? C_WHITE : C_DIM, 0);
-        tx(45, 'HIGH', cardX0 + 118, 53, 10, gfx == 2 ? C_WHITE : C_DIM, 0);
-        tx(46, 'ULTRA', cardX0 + 192, 53, 10, gfx == 3 ? C_WHITE : C_DIM, 0);
-        cardRow(4, 'VIEW DISTANCE', str(Math.round(trkFar[selTrk] * gfFog[gfx]), ' m'), 16);
-        cardRow(5, 'SCENERY RANGE', str(gfScn[gfx], ' m'), 3);
-        cardRow(6, 'FULL-DETAIL CARS', str(gfFull[gfx]), 0 - 10);
-        cardRow(7, 'SCENERY DENSITY', gfDen[gfx] > 1 ? 'x1.5' : 'x1', 0 - 23);
-        tx(61, gfxD[gfx], cardX0 + 10, 0 - 50, 8, C_DIM, 1);
+        tx(50, 'WEATHER', cardX0 + 10, 84, 11, C_WHITE, 1);
+        cardTx(72, wxName[wx], 0 - 6, 13, wx == 1 ? C_GOLD : C_SKY);
+        if (wx == 3) {
+            cardTx(73, 'STARTS DRY - RAIN ARRIVES DURING THE RACE', 0 - 26, 7, C_WHITE);
+            cardTx(74, 'AND MAY STOP AGAIN. INTERS AND WETS IN THE PITS', 0 - 38, 7, C_WHITE);
+            cardTx(75, 'THE TRACK SOAKS FAST AND DRIES SLOWLY', 0 - 50, 7, C_DIM);
+            cardRowsOff(2);
+        } else {
+            txOff(73); txOff(74); txOff(75);
+            cardRow(2, 'TYRE GRIP', wx > 1 ? (rules == R_SIM ? 'BY TYRE' : '80 %') : '100 %', 0 - 26);
+            cardRow(3, 'VISIBILITY', wx > 1 ? 'SPRAY, FOG' : 'CLEAR', 0 - 39);
+            cardRow(4, 'RAIN LIGHTS', wx > 1 ? 'ON' : 'OFF', 0 - 52);
+        }
+        if (rules == R_ARC) { tx(58 + 13, 'CHANGING WEATHER: REALISTIC RULES ONLY', cardX0 + 10, 0 - 76, 7, C_DIM, 1); } else { txOff(71); }
+    } else if (m == 9) {
+        tx(50, 'GRAPHICS', cardX0 + 10, 84, 11, C_WHITE, 1);
+        tx(72, 'LOW', cardX0 + 44, 53, 10, gfx == 1 ? C_WHITE : C_DIM, 0);
+        tx(73, 'HIGH', cardX0 + 118, 53, 10, gfx == 2 ? C_WHITE : C_DIM, 0);
+        tx(74, 'ULTRA', cardX0 + 192, 53, 10, gfx == 3 ? C_WHITE : C_DIM, 0);
+        cardRow(4, 'VIEW DISTANCE', str(Math.round(trkFar[selTrk] * gfFog[gfx]), ' m'), 22);
+        cardRow(5, 'SCENERY RANGE', str(gfScn[gfx], ' m'), 9);
+        cardRow(6, 'FULL-DETAIL CARS', str(gfFull[gfx]), 0 - 4);
+        cardRow(7, 'SCENERY DENSITY', gfDen[gfx] > 1 ? 'x1.5' : 'x1', 0 - 17);
+        cardTx(75, gfxFx[gfx], 0 - 40, 7, gfx > 1 ? C_GOLD : C_DIM);
+        cardTx(71, gfxD[gfx], 0 - 56, 8, C_DIM);
+    } else if (m == 10) {
+        tx(50, 'SOUND', cardX0 + 10, 84, 11, C_WHITE, 1);
+        tx(72, 'OFF', cardX0 + 61, 53, 10, sndSel == 1 ? C_WHITE : C_DIM, 0);
+        tx(73, 'ON', cardX0 + 173, 53, 10, sndSel == 2 ? C_WHITE : C_DIM, 0);
+        cardTx(52, 'ENGINE SOUND', 0 - 18, 12, C_GOLD);
+        cardTx(53, 'A V6 TURBO HYBRID THAT FOLLOWS YOUR REVS', 0 - 36, 7, C_WHITE);
+        cardTx(54, 'LOUDER ON THE THROTTLE, ALSO IN REPLAYS', 0 - 48, 7, C_DIM);
     } else {
-        tx(42, 'TRACK EDITOR', cardX0 + 10, 84, 11, C_WHITE, 1);
-        tx(54, 'DRAW YOUR OWN CIRCUIT', cardX0 + 10, 0 - 12, 10, C_GOLD, 1);
-        tx(55, 'DRAG NODES, SET WIDTH AND HEIGHT,', cardX0 + 10, 0 - 30, 8, C_WHITE, 1);
-        tx(56, 'ADD TUNNELS, JUMPS AND BARRIERS,', cardX0 + 10, 0 - 42, 8, C_WHITE, 1);
-        tx(57, 'THEN DRIVE IT.   ENTER TO OPEN', cardX0 + 10, 0 - 54, 8, C_DIM, 1);
+        tx(50, 'TRACK EDITOR', cardX0 + 10, 84, 11, C_WHITE, 1);
+        cardTx(52, 'DRAW YOUR OWN CIRCUIT', 0 - 12, 10, C_GOLD);
+        cardTx(53, 'DRAG NODES, SET WIDTH AND HEIGHT,', 0 - 28, 8, C_WHITE);
+        cardTx(54, 'ADD TUNNELS, JUMPS AND BARRIERS,', 0 - 40, 8, C_WHITE);
+        cardTx(55, 'THEN DRIVE IT.   ENTER TO OPEN', 0 - 52, 8, C_DIM);
+        cardTx(56, 'K: SHARE CODE   I: LOAD A FRIEND\'S CODE', 0 - 68, 8, C_SKY);
     }
 }
 
 function hudCarSel() {
     tx(9, ctName[selCar], 42, 99, 18, C_WHITE, 1);
     tx(10, str(lvName[ctCol[selCar]], ' RACING'), 42, 80, 9, lvHex[ctCol[selCar]], 1);
-    tx(42, ctInfo[selCar], 42, 68, 7, C_DIM, 1);
+    tx(50, ctInfo[selCar], 42, 68, 7, C_DIM, 1);
     let k = 1;
     while (k <= 4) {
         let y = 48 - (k - 1) * 15;
@@ -437,16 +509,16 @@ function hudCarSel() {
         if (k == 2) { lab = 'ACCELERATION'; val = str(ct200[selCar], 's'); }
         else if (k == 3) { lab = 'CORNERING'; val = str(ctGL[selCar], 'g'); }
         else if (k == 4) { lab = 'DOWNFORCE'; val = str(ctGH[selCar], 'g'); }
-        tx(43 + k, lab, 42, y, 7, C_DIM, 1);
-        tx(53 + k, val, 202, y, 8, C_WHITE, 1);
+        tx(51 + k, lab, 42, y, 7, C_DIM, 1);
+        tx(61 + k, val, 202, y, 8, C_WHITE, 1);
         k = k + 1;
     }
-    tx(43, 'SPECIFICATIONS', 42, 0 - 20, 8, C_WHITE, 1);
-    tx(48, 'TOP SPEED', 42, 0 - 35, 8, C_DIM, 1); tx(58, str(ctKmh[selCar], ' km/h'), 150, 0 - 35, 8, C_WHITE, 1);
-    tx(49, '0 - 100 km/h', 42, 0 - 48, 8, C_DIM, 1); tx(59, str(ct100[selCar], ' s'), 150, 0 - 48, 8, C_WHITE, 1);
-    tx(50, '0 - 200 km/h', 42, 0 - 61, 8, C_DIM, 1); tx(60, str(ct200[selCar], ' s'), 150, 0 - 61, 8, C_WHITE, 1);
-    tx(51, 'LATERAL G  100 / 250', 42, 0 - 74, 8, C_DIM, 1); tx(61, str(ctGL[selCar], ' / ', ctGH[selCar]), 150, 0 - 74, 8, C_WHITE, 1);
-    tx(52, 'MASS', 42, 0 - 87, 8, C_DIM, 1); tx(62, str(ctKg[selCar], ' kg'), 150, 0 - 87, 8, C_WHITE, 1);
+    tx(51, 'SPECIFICATIONS', 42, 0 - 20, 8, C_WHITE, 1);
+    tx(56, 'TOP SPEED', 42, 0 - 35, 8, C_DIM, 1); tx(66, str(ctKmh[selCar], ' km/h'), 150, 0 - 35, 8, C_WHITE, 1);
+    tx(57, '0 - 100 km/h', 42, 0 - 48, 8, C_DIM, 1); tx(67, str(ct100[selCar], ' s'), 150, 0 - 48, 8, C_WHITE, 1);
+    tx(58, '0 - 200 km/h', 42, 0 - 61, 8, C_DIM, 1); tx(68, str(ct200[selCar], ' s'), 150, 0 - 61, 8, C_WHITE, 1);
+    tx(59, 'LATERAL G  100 / 250', 42, 0 - 74, 8, C_DIM, 1); tx(69, str(ctGL[selCar], ' / ', ctGH[selCar]), 150, 0 - 74, 8, C_WHITE, 1);
+    tx(60, 'MASS', 42, 0 - 87, 8, C_DIM, 1); tx(70, str(ctKg[selCar], ' kg'), 150, 0 - 87, 8, C_WHITE, 1);
     tx(11, str('<   ', selCar, ' / ', NCARTYPE, '   >'), 0 - 114, 0 - 86, 11, C_WHITE, 0);
     tx(12, 'LEFT/RIGHT change car     ENTER choose     ESC back', 0, 0 - 122, 9, '#c9d1de', 0);
 }
@@ -467,11 +539,63 @@ function hudTrkSel() {
         else if (k == 5) { lab = 'TYPE'; val = trkType[selTrk]; }
         else if (k == 6) { lab = 'BEST LAP'; val = bl; }
         else if (k == 7) { lab = 'BEST RACE'; val = oTime; }
-        tx(43 + k, lab, 14, y, 8, C_DIM, 1);
-        tx(53 + k, val, 124, y, 9, C_WHITE, 1);
+        tx(51 + k, lab, 14, y, 8, C_DIM, 1);
+        tx(61 + k, val, 124, y, 9, C_WHITE, 1);
         k = k + 1;
     }
-    tx(43, str('CIRCUIT ', selTrk, ' OF ', NTRK), 14, 0 - 70, 8, C_GOLD, 1);
+    tx(51, str('CIRCUIT ', selTrk, ' OF ', NTRK), 14, 0 - 70, 8, C_GOLD, 1);
     tx(11, str('<   ', trkName[selTrk], '   >'), 0 - 123, 0 - 86, 9, C_WHITE, 0);
     tx(12, 'LEFT/RIGHT change circuit     ENTER choose     ESC back', 0, 0 - 122, 9, '#c9d1de', 0);
+}
+
+// ---- v7 pen: the realistic HUD (tyre and ERS meters, flag panel) ----------------
+function drawSimHud() {
+    let on = 0;
+    if (raceState == ST_RACE) { on = 1; }
+    if (raceState == ST_COUNT) { on = 1; }
+    if (raceState == ST_QUALI) { on = 1; }
+    if (on > 0) {
+        penAlpha(30);
+        box(96, 72, 238, 0 - 20, '#0d1117');
+        penAlpha(0);
+        // tyre wear bar in the compound's colour
+        let t = caTy[1];
+        box(170, 62, 232, 58, '#232b37');
+        box(170, 62, 170 + 62 * caWear[1], 58, tyHex[t]);
+        // ERS store, green (blue while deploying)
+        box(170, 48, 232, 44, '#232b37');
+        box(170, 48, 170 + 62 * caErs[1], 44, caErsOn[1] > 0 ? '#3aa0ff' : '#3dff6e');
+        // front wing: grey when fine, orange to red with damage
+        if (caDmg[1] > 0.02) {
+            let dc = '#ffb13a';
+            if (caWing[1] > 0) { dc = '#ff3b30'; }
+            box(170, 34, 170 + 62 * caDmg[1], 30, dc);
+        }
+        // flag panel across the top
+        let fc = BLANK;
+        if (scOn > 0) { fc = '#ff8a00'; }
+        else if (yelHere > 0) { fc = '#ffd21f'; }
+        if (fc != BLANK) {
+            if (raceState == ST_RACE) {
+                box(0 - 78, 128, 78, 106, fc);
+                box(0 - 76, 126, 76, 108, '#10151d');
+            }
+        }
+    }
+}
+
+// ---- v7 pen: replay bars -------------------------------------------------------
+function drawReplayUI() {
+    penAlpha(25);
+    box(0 - 250, 136, 250, 104, '#0d1117');
+    box(0 - 250, 0 - 110, 250, 0 - 136, '#0d1117');
+    penAlpha(0);
+    box(0 - 250, 104, 250, 102, C_RED);
+    // a blinking red dot while playing
+    if (rpPause < 1) { if (mod(Math.floor(gt * 2), 2) < 1) { fillOct(0 - 224, 120, 5, C_RED); } }
+    // position in the buffer
+    let f = 0;
+    if (rpN > 1) { f = rpT / ((rpN - 1) * RPDT); }
+    box(0 - 150, 0 - 102, 150, 0 - 105, '#2a3240');
+    box(0 - 150, 0 - 102, 0 - 150 + 300 * f, 0 - 105, C_RED);
 }

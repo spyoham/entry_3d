@@ -106,6 +106,7 @@ function carPhys(c) {
     if (surf == 1) { gripMul = 0.88; rollRes = 0.09; topMul = 0.95; }
     else if (surf == 4) { gripMul = 0.42; rollRes = 0.85; topMul = 0.32; }    // gravel trap
     else if (surf == 5) { gripMul = 0.84; rollRes = 0.22; topMul = 0.55; }    // abrasive tarmac run-off
+    else if (surf == 6) { }                                                     // v7: pit lane, plain tarmac
     else if (surf >= 2) { gripMul = 0.52; rollRes = 0.30; topMul = 0.55; }    // grass
     if (caAir[c] > 0) { gripMul = 0; rollRes = 0.004; }
 
@@ -114,7 +115,9 @@ function carPhys(c) {
     // cut drag: a higher top speed and a harder pull towards it
     let tow = caTow[c];
     let drs = caDRS[c];
-    let top = caTop[c] * topMul * (1 + 0.035 * tow + 0.05 * drs);
+    let top = caTop[c] * topMul * (1 + 0.035 * tow + 0.05 * drs + 0.02 * caErsOn[c]);
+    // v7: the pit lane limiter
+    if (caLim[c] > 0) { if (top > PITV) { top = PITV; } }
     let acc = 0;
     if (caHold[c] > 0) {
         // held on the grid: no drive, no roll-back
@@ -126,6 +129,8 @@ function carPhys(c) {
             if (vLong > 0) { f = 1 - vLong / top; }
             if (f < 0) { f = 0; }
             acc = caAcc[c] * caThr[c] * (0.18 + 0.82 * f * (0.45 + 0.55 * f));
+            // v7: ERS boost
+            acc = acc + ERS_ACC * caErsOn[c] * caThr[c] * (f > 0 ? 1 : 0);
         }
         if (caBrk[c] > 0) {
             if (vLong > 0.6) { acc = acc - 34 * caBrk[c]; }
@@ -151,7 +156,10 @@ function carPhys(c) {
     // Total lateral grip in m/s^2: mechanical grip plus downforce that grows
     // with the square of speed, so a fast sweeper can be taken flat while a
     // hairpin cannot. The two axles share it.
-    let mu = caGrip[c] * gripMul * wetK * (GRIP0 + AERO * spA * spA * (1 - 0.25 * drs));
+    // v7: caWK is the weather (arcade) or the tyre on this track (realistic);
+    // damage costs downforce
+    let dmg = caDmg[c];
+    let mu = caGrip[c] * gripMul * caWK[c] * (GRIP0 + AERO * spA * spA * (1 - 0.25 * drs) * (1 - 0.35 * dmg));
     // friction circle: tyres that are braking hard have less left for turning
     if (caBrk[c] > 0) { if (vLong > 0.6) { mu = mu * (1 - 0.40 * caBrk[c]); } }
     if (caAir[c] == 0) { if (caThr[c] > 0.9) { if (spA < 30) { mu = mu * 0.94; } } }
@@ -162,7 +170,8 @@ function carPhys(c) {
     let slipF = oAtan - steer;
     atan2d(vLat - yrRad * WBR, vRef);
     let slipR = oAtan;
-    let gripF = mu * 0.50;
+    let gripF = mu * 0.50 * (1 - 0.28 * dmg);
+    if (caWing[c] > 0) { gripF = gripF * 0.86; }
     let gripR = mu * 0.53;
     if (caHB[c] > 0) { gripR = mu * 0.16; }
     if (caThr[c] > 0.9) { if (spA < 22) { gripR = gripR * 0.86; } }   // power oversteer
@@ -227,6 +236,12 @@ function carPhys(c) {
         if (da > 90) { da = 0; }
     }
     caDrift[c] = da;
+    // v7: tyre wear and the ERS store (realistic); brake heat for the glow
+    if (rules == R_SIM) { if (caHold[c] < 1) { simCarStep(c, aLat, mu, da); } }
+    let ht = caHeat[c] + (caBrk[c] * spA * 0.028 - 0.30) * dt;
+    if (ht < 0) { ht = 0; }
+    if (ht > 1) { ht = 1; }
+    caHeat[c] = ht;
 
     // ---- vertical ----
     sampleTrack(caX[c], caZ[c], caSeg[c]);
@@ -240,7 +255,7 @@ function carPhys(c) {
         caY[c] = caY[c] + caVY[c] * dt;
         if (caY[c] <= gy) {
             caY[c] = gy;
-            if (caVY[c] < 0 - 6) { addShake(Math.min(7, 0 - caVY[c] * 0.4)); }
+            if (caVY[c] < 0 - 6) { if (c == 1) { addShake(Math.min(7, 0 - caVY[c] * 0.4)); } sparkBurst(caX[c], caY[c], caZ[c], caVX[c], caVZ[c], caSeg[c], 6); }
             caVY[c] = 0;
             caAir[c] = 0;
         }
@@ -268,6 +283,10 @@ function carPhys(c) {
             caX[c] = caX[c] - sgNX[s] * hit;
             caZ[c] = caZ[c] - sgNZ[s] * hit;
             let vn = caVX[c] * sgNX[s] + caVZ[c] * sgNZ[s];
+            // v7: a real hit damages the car (realistic) and throws sparks
+            let avn = Math.abs(vn);
+            if (avn > 6) { addDamage(c, (avn - 6) * 0.075); }
+            if (avn > 2.5) { sparkBurst(caX[c] + sgNX[s] * (hit > 0 ? 0.9 : 0 - 0.9), caY[c], caZ[c] + sgNZ[s] * (hit > 0 ? 0.9 : 0 - 0.9), caVX[c], caVZ[c], s, 3); }
             caVX[c] = caVX[c] - sgNX[s] * vn * 1.35;
             caVZ[c] = caVZ[c] - sgNZ[s] * vn * 1.35;
             // scraping the wall costs speed, and a real hit costs a lot of it,
@@ -315,8 +334,8 @@ function carPhys(c) {
         if (mod(frameId, 2) < 1) {
             emitSmoke(caX[c] - fx * 1.7, caY[c], caZ[c] - fz * 1.7, caSeg[c]);
         }
-        if (wx < 2) { addMark(caSeg[c], caOff[c], caU[c], Math.min(1, da / 35 + caHB[c] * 0.5)); }
-    } else if (wx > 1) {
+        if (wetL < 0.3) { addMark(caSeg[c], caOff[c], caU[c], Math.min(1, da / 35 + caHB[c] * 0.5)); }
+    } else if (wetL > 0.45) {
         // rain: a plume of spray off the rear tyres at speed, only for the
         // cars near enough to the camera to see it
         if (sp > 20) {
@@ -326,6 +345,34 @@ function carPhys(c) {
                 if (ddx * ddx + ddz * ddz < 14400) {
                     emitSmoke(caX[c] - fx * 2.6, caY[c] + 0.2, caZ[c] - fz * 2.6, caSeg[c]);
                 }
+            }
+        }
+    }
+}
+
+// ---- v7: sparks off the plank and the skid blocks ------------------------------
+// At racing speed over a dip or a crest the floor touches down; a car that has
+// lost its front wing scrapes the nose. Only for cars close to the camera.
+function carSparks(c) {
+    let sp = Math.abs(caSpd[c]);
+    if (sp > 20) {
+        let ddx = caX[c] - camX;
+        let ddz = caZ[c] - camZ;
+        if (ddx * ddx + ddz * ddz < 6400) {
+            let s = caSeg[c];
+            let p = mod(s - 2 + NSEG, NSEG) + 1;
+            let q = mod(s, NSEG) + 1;
+            let bend = (sgY[q] - sgY[s]) - (sgY[s] - sgY[p]);
+            let ch = 0;
+            if (sp > 58) { ch = 0.10; }
+            if (bend > 0.03) { if (sp > 45) { ch = 0.7; } }
+            if (caWing[c] > 0) { ch = ch + 0.35; }
+            if (rand(0.0001, 0.9999) < ch) {
+                let fx = sind(caYaw[c]);
+                let fz = cosd(caYaw[c]);
+                let ofs = 0 - 1.6;
+                if (caWing[c] > 0) { ofs = 2.3; }
+                sparkBurst(caX[c] + fx * ofs, caY[c] + 0.05, caZ[c] + fz * ofs, caVX[c], caVZ[c], s, 2);
             }
         }
     }
@@ -371,6 +418,19 @@ function carCollisions() {
                         caZ[b] = caZ[b] + nz * pen;
                         let rel = (caVX[b] - caVX[a]) * nx + (caVZ[b] - caVZ[a]) * nz;
                         if (rel < 0) {
+                            // v7: a hard nose-to-tail hit breaks the front wing of
+                            // the car behind; a side touch costs both a little
+                            let hv = 0 - rel;
+                            if (pl < pw) {
+                                if (hv > 4.5) {
+                                    if (lon > 0) { addDamage(a, (hv - 4.5) * 0.09); }
+                                    else { addDamage(b, (hv - 4.5) * 0.09); }
+                                }
+                            } else if (hv > 6) {
+                                addDamage(a, (hv - 6) * 0.03);
+                                addDamage(b, (hv - 6) * 0.03);
+                            }
+                            if (hv > 2.5) { sparkBurst((caX[a] + caX[b]) / 2, (caY[a] + caY[b]) / 2 + 0.2, (caZ[a] + caZ[b]) / 2, caVX[a], caVZ[a], caSeg[a], 3); }
                             let j = rel * 0.75;
                             caVX[a] = caVX[a] + nx * j;
                             caVZ[a] = caVZ[a] + nz * j;

@@ -1,0 +1,33 @@
+// v7: text slots rewritten on every frame of a static screen (slot collisions)
+import { createSim } from '../sim.mjs';
+const s = createSim({ fps: 10 });
+const g = (e) => s.peek(e);
+for (let i = 0; i < 3; i++) s.frame();
+const check = (label) => {
+    for (let i = 0; i < 12; i++) s.frame();
+    const v0 = g('txV').slice();
+    for (let i = 0; i < 4; i++) s.frame();
+    const v1 = g('txV');
+    const hot = [];
+    v1.forEach((v, i) => { if (v - v0[i] >= 4) hot.push(i + 1 + ':' + g('txS')[i]); });
+    console.log(label.padEnd(14), hot.length ? 'REWRITTEN EVERY FRAME ' + hot.join(', ') : 'ok');
+};
+for (const r of [1, 2]) {
+    g(`rules = ${r}`);
+    for (let m = 1; m <= 11; m++) { g(`menuSel = ${m}`); check(`r${r} menu ${m}`); }
+}
+g('wx = 3'); g('menuSel = 8'); check('menu 8 wx3');
+g('wx = 1');
+g('raceState = ST_CARSEL'); check('carsel');
+g('raceState = ST_TRKSEL'); check('trksel');
+g('raceState = ST_EDIT'); check('editor');
+g('shEncode(); shShow = 1'); check('editor code');
+g('shShow = 0; menuSel = 1; raceState = ST_MENU; rules = 2; gfx = 2;');
+g('startRace()'); g(`playerInput = function(){ aiPlan(1); aiDrive(1); }`);
+check('quali');
+g('endQuali()'); check('quali result');
+g('startGrid(1)'); check('count');
+for (let i = 0; i < 90; i++) s.frame();
+check('race');
+g('prevState = raceState; raceState = ST_PAUSE; drawPausePanel();'); check('pause');
+g('raceState = prevState; enterReplay()'); check('replay');

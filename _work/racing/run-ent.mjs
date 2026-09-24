@@ -3,7 +3,7 @@
 // usage: node run-ent.mjs <file.ent> [--ms 5000] [--vars a,b,c] [--shot out.png] [--script steps.json]
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
-const require = createRequire('C:/Users/spyoh/entry_3d/entry-vibe-coding/package.json');
+const require = createRequire(new URL('../../entry-vibe-coding/package.json', import.meta.url));
 const { chromium } = require('@playwright/test');
 
 const args = process.argv.slice(2);

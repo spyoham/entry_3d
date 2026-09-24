@@ -60,6 +60,7 @@ const mmTrack = '#b4bcc8';
 const mmStart = '#ffe05a';
 const mmYou = '#ffffff';
 let colOff = 0;             // colTab base, folded: colTab[colOff + mat * NFOG + fog]
+let penTr = 0;              // v7: pen transparency last set (see-through smoke, ghost, sparks)
 let qHex = '#000000';       // quad(..., mat < 0) fills with this colour instead
 // graphics level (1 LOW = v4, 2 HIGH, 3 ULTRA): how far the LOD bands, the
 // scenery and the detailed car models reach. Set from the gf* tables.
@@ -394,7 +395,7 @@ function drawHills() {
 // ---- segment culling + depth sort --------------------------------------
 function cullSegments() {
     nVis = 0;
-    let s0 = caSeg[1];
+    let s0 = camSeg;
     let k = cullAhead;
     while (k > 0 - CULLBACK) {
         // one draw unit spans 1, 2 or 3 rings depending on how far down the
@@ -479,6 +480,7 @@ function drawSeg(i, b0, b1, lvl) {
         }
         if (i == 1) { drawStartLine(b0, b1); }
         if (sgGrid[i] > 0) { drawGrid(i, b0, b1); }
+        if (sgPit[i] == 2) { drawPitBox(i, b0, b1); }
     }
     if (lvl > 0) {
         if (gfx > 1) { drawEdgeLines(i, b0, b1); }
@@ -583,6 +585,36 @@ function drawGrid(i, b0, b1) {
                 quadS(p0x + q0x * t0, p0y + q0y * t0, p0x + q0x * t1, p0y + q0y * t1,
                     p1x + q1x * t1, p1y + q1y * t1, p1x + q1x * t0, p1y + q1y * t0, M_startA, dep);
                 sd = sd + 1;
+            }
+        }
+    }
+}
+
+// v7: a team's box in the pit lane, painted in its livery
+function drawPitBox(i, b0, b1) {
+    if (pvZ[b0 + P_OL] > NEARZ) {
+        if (pvZ[b1 + P_L] > NEARZ) {
+            let c = mod(i - pitBox0 + NSEG, NSEG) + 1;
+            let ax = psX[b0 + P_OL]; let ay = psY[b0 + P_OL];
+            let bx = psX[b0 + P_L] - ax; let by = psY[b0 + P_L] - ay;
+            let cx = psX[b1 + P_OL]; let cy = psY[b1 + P_OL];
+            let dx = psX[b1 + P_L] - cx; let dy = psY[b1 + P_L] - cy;
+            let t0 = 0.22; let t1 = 0.62;
+            let u0 = 0.15; let u1 = 0.85;
+            let p0x = ax + (cx - ax) * u0; let p0y = ay + (cy - ay) * u0;
+            let q0x = bx + (dx - bx) * u0; let q0y = by + (dy - by) * u0;
+            let p1x = ax + (cx - ax) * u1; let p1y = ay + (cy - ay) * u1;
+            let q1x = bx + (dx - bx) * u1; let q1y = by + (dy - by) * u1;
+            let col = '#d8d8d8';
+            if (c <= nCars) { col = lvHex[caCol[c]]; }
+            let x1 = Math.round(p0x + q0x * t0); let y1 = Math.round(p0y + q0y * t0);
+            let x2 = Math.round(p0x + q0x * t1); let y2 = Math.round(p0y + q0y * t1);
+            let x3 = Math.round(p1x + q1x * t1); let y3 = Math.round(p1y + q1y * t1);
+            let x4 = Math.round(p1x + q1x * t0); let y4 = Math.round(p1y + q1y * t0);
+            let ar = (x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1) + (x3 - x1) * (y4 - y1) - (y3 - y1) * (x4 - x1);
+            if (ar > 0) {
+                fill4(x1 / QS, y1 / QS, x2 / QS, y2 / QS, x3 / QS, y3 / QS, x4 / QS, y4 / QS, col);
+                drawnQuads = drawnQuads + 1;
             }
         }
     }
@@ -717,8 +749,10 @@ function drawCar(c, tier) {
         if (t < 0) { t = 0; }
         let kf = 1 - t;
         // face light = (0.44 + 0.56 * sun) * kf, folded per car
-        let kA = 0.44 * kf;
-        let kB = 0.56 * kf;
+        // v7 ULTRA: the light fades with the afternoon
+        let dk = 1 - 0.32 * todK;
+        let kA = 0.44 * kf * dk;
+        let kB = 0.56 * kf * dk;
         let fr = skyR * t;
         let fg = skyG * t;
         let fb = skyB * t;
@@ -764,7 +798,14 @@ function drawCar(c, tier) {
         let lR = lvR[col]; let lG = lvG[col]; let lB = lvB[col];
         let lit = 0;
         if (caBrk[c] > 0.05) { lit = 1; }
-        if (wx > 1) { lit = 1; }
+        if (rainVis > 0.3) { lit = 1; }
+        // v7: a knocked-off front wing is not drawn; ULTRA brake discs glow
+        // with heat; on HIGH and up the time-trial ghost is see-through
+        let noWing = caWing[c];
+        let heat = 0;
+        if (gfx > 2) { heat = caHeat[c]; }
+        let see = 0;
+        if (c == GHOST) { if (gfx > 1) { if (scCar < 1) { see = 45; penTr = see; penAlpha(see); } } }
         let k = 1;
         while (k <= fn) {
             let f = 0;
@@ -775,6 +816,9 @@ function drawCar(c, tier) {
             // a face turned clearly away is skipped before any colour work
             // (the margin covers the steered front wheels); quad() makes the
             // exact call on the rest
+            let skip = 0;
+            if (noWing > 0) { if (cfW[f] > 0) { skip = 1; } }
+            if (skip < 1) {
             if (nx * lci + ny * lcj + nz * lck - cfP[f] > 0 - 307200) {
                 let kd = cfK[f];
                 let r = 30; let g = 31; let b = 35;
@@ -791,6 +835,12 @@ function drawCar(c, tier) {
                     l = kf;
                     if (lit > 0) { r = 255; g = 64; b = 52; } else { r = 96; g = 24; b = 24; }
                 }
+                if (kd == 4) {
+                    if (heat > 0.05) {
+                        r = r + (255 - r) * heat; g = g + (92 - g) * heat; b = b + (30 - b) * heat;
+                        l = l + (kf - l) * heat;
+                    }
+                }
                 // Entry's rgb() packs with (r << 16) + (g << 8) + b: the shifts
                 // truncate red and green, but a fractional blue would leak into a
                 // hex string with a decimal point in it, so only blue is floored
@@ -798,8 +848,10 @@ function drawCar(c, tier) {
                 let a = CARBASE + cfA[f];
                 quad(a, CARBASE + cfB[f], CARBASE + cfC[f], CARBASE + cfD[f], 0 - 1);
             }
+            }
             k = k + 1;
         }
+        if (see > 0) { penTr = 0; penAlpha(0); }
     }
 }
 
@@ -966,12 +1018,23 @@ function drawSmokeIn(i) {
                     let x = psX[s];
                     let y = psY[s];
                     let m = smL[k] > 0.55 ? M_smoke : M_smokeD;
-                    quadS(x, y - r, x + r, y, x, y + r, x - r, y, m, pvZ[s]);
+                    if (gfx > 1) {
+                        // v7: a see-through puff that thins out as it fades
+                        // (the pen's transparency applies to fills as well)
+                        let fl = Math.floor(pvZ[s] * fogK);
+                        if (fl > NFOG - 1) { fl = NFOG - 1; }
+                        let tr = 30 + Math.round((1 - smL[k]) * 12) * 5;
+                        if (tr != penTr) { penTr = tr; penAlpha(tr); }
+                        let r2 = r * 1.25;
+                        fill4(x / QS, (y - r2) / QS, (x + r2) / QS, y / QS, x / QS, (y + r2) / QS, (x - r2) / QS, y / QS, colTab[colOff + M_smoke * NFOG + fl]);
+                        drawnQuads = drawnQuads + 1;
+                    } else { quadS(x, y - r, x + r, y, x, y + r, x - r, y, m, pvZ[s]); }
                 }
             }
         }
         k = k + 1;
     }
+    if (penTr > 0) { penTr = 0; penAlpha(0); }
 }
 
 // ---- minimap ------------------------------------------------------------
@@ -989,6 +1052,11 @@ function drawMinimap() {
     }
     // start line, two samples wide so it reads at this size
     fill4(mmLX[1], mmLY[1], mmRX[1], mmRY[1], mmRX[3], mmRY[3], mmLX[3], mmLY[3], mmStart);
+    if (scCar > 0) {
+        let sx = MMX + (caX[GHOST] - mmCx) * mmS;
+        let sy = MMY + (caZ[GHOST] - mmCz) * mmS;
+        fill4(sx, sy - 3.4, sx + 3.4, sy, sx, sy + 3.4, sx - 3.4, sy, '#ff8a00');
+    }
     let c = nCars;
     while (c >= 1) {
         let x = MMX + (caX[c] - mmCx) * mmS;
@@ -1029,7 +1097,9 @@ function renderWorld() {
         }
         // the time-trial ghost rides along in the same unit as any car,
         // drawn first so it never hides the real car it is racing
-        if (ghostOn > 0) {
+        let g9 = ghostOn;
+        if (scCar > 0) { g9 = 1; }
+        if (g9 > 0) {
             let rg = caSeg[GHOST] - i;
             if (rg < 0) { rg = rg + NSEG; }
             if (rg < st) { drawCarAt(GHOST, near, i, b0, b1, visD[k]); }
@@ -1052,22 +1122,28 @@ function renderWorld() {
         }
         if (near > 0) {
             if (smN > 0) { drawSmokeIn(i); }
+            if (spN > 0) { drawSparksIn(i); }
         }
         k = k + 1;
     }
     if (raceState == ST_CARSEL) { drawTurntable(1); drawCar(1, 1); }
-    if (wx > 1) { drawRain(); }
-    if (nCars > 0) { if (raceState != ST_CARSEL) { drawMinimap(); } }
-    if (raceState == ST_COUNT) { drawLights(); }
-    else if (lightsT > 0) { drawLights(); }
-    if (raceState == ST_RACE) { drawRev(); }
-    else if (raceState == ST_COUNT) { drawRev(); }
+    if (rainVis > 0.05) { drawRain(); }
+    if (raceState == ST_REPLAY) { drawReplayUI(); }
+    else {
+        if (nCars > 0) { if (raceState != ST_CARSEL) { drawMinimap(); } }
+        if (raceState == ST_COUNT) { drawLights(); }
+        else if (lightsT > 0) { drawLights(); }
+        if (raceState == ST_RACE) { drawRev(); }
+        else if (raceState == ST_COUNT) { drawRev(); }
+        else if (raceState == ST_QUALI) { drawRev(); }
+        if (rules == R_SIM) { drawSimHud(); }
+    }
     drawMenuUI();
 }
 
 // ---- rain: slanted streaks in screen space, leaning with the car's speed --
 function drawRain() {
-    let n = 18 + gfx * 14;
+    let n = Math.round((18 + gfx * 14) * rainVis);
     let lean = 0.35 + Math.abs(caSpd[1]) * 0.012;
     if (nCars < 1) { lean = 0.35; }
     let k = 0;

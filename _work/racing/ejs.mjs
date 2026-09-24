@@ -16,7 +16,7 @@
 // Lists are 1-based: A[1] is the first item.
 // && and || do NOT short-circuit (Entry evaluates both operands).
 import { createRequire } from 'node:module';
-const require = createRequire('C:/Users/spyoh/entry_3d/entry-vibe-coding/package.json');
+const require = createRequire(new URL('../../entry-vibe-coding/package.json', import.meta.url));
 const acorn = require('acorn');
 
 const ALPHA = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -280,6 +280,12 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
             case 'sound': return B('sound_something_with_block', [A(0), null]);
             case 'stopSounds': return B('sound_silent_all', ['all', null]);
             case 'volume': return B('sound_volume_set', [A(0), null]);
+            // v7: playback rate of every sound (Entry and tessvm clamp it to 0.5 .. 2)
+            case 'soundSpeed': return B('sound_speed_set', [A(0), null]);
+            // v7: ask and wait for a typed answer (the track share code)
+            case 'ask': return B('ask_and_wait', [A(0), null]);
+            case 'answer': return B('get_canvas_input_value', [null]);
+            case 'hideAnswer': return B('set_visible_answer', ['HIDE', null]);
             case 'write': return B('text_write', [A(0), null]);
             case 'textColor': return B('text_change_font_color', [B('color', [String(evalConst(args[0]))]), null]);
             case 'textColorHex': return B('text_change_font_color', [A(0), null]);
@@ -297,6 +303,8 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
             case 'fillStart': return B('start_fill', [null]);
             case 'fillStop': return B('stop_fill', [null]);
             case 'penSize': return B('set_thickness', [A(0), null]);
+            // v7: transparency of everything the pen draws next, 0 (solid) .. 100 %
+            case 'penAlpha': return B('set_brush_tranparency', [A(0), null]);
             case 'stopAll': return B('stop_object', ['all', null]);
             case 'stopThread': return B('stop_object', ['thisThread', null]);
             case 'waitSec': return B('wait_second', [A(0), null]);

@@ -40,9 +40,9 @@ const RUNV = 3;            // plain grass verge
 // NFOG steps. Built once per track load; one rgb() per entry.
 function loadPalette() {
     // rain: everything a shade darker and a little greyer, the road darkest
-    let wk = 1;
-    let wg = 0;
-    if (wx > 1) { wk = 0.74; wg = 14; }
+    // v7: by how wet it looks (0..1), and darker still towards dusk (ULTRA)
+    let wk = 1 - 0.26 * wetVis - 0.30 * todK;
+    let wg = 14 * wetVis;
     let i = 1;
     let m = 1;
     while (m <= NMAT) {
@@ -76,26 +76,42 @@ function shadeOf(nx, ny, nz) {
     if (oShade < 0) { oShade = 0; }
 }
 
+// v7: sky, fog, far hills and the fogged palette for the current circuit, by
+// how wet it looks (wetVis) and how late in the day it is (todK). Called at
+// track build and again, in steps, as the weather or the light changes.
+function refreshAtmos() {
+    atmoW = wetVis;
+    atmoT = todK;
+    let tk = curTrk;
+    let r = trkSkyR[tk];
+    let g = trkSkyG[tk];
+    let b = trkSkyB[tk];
+    if (todK > 0) {
+        r = r + (trkDuskR[tk] - r) * todK;
+        g = g + (trkDuskG[tk] - g) * todK;
+        b = b + (trkDuskB[tk] - b) * todK;
+    }
+    // an overcast, wet day: a low grey sky and the far field lost in spray
+    let w = wetVis;
+    skyR = Math.round(r + (r * 0.32 + 88 - r) * w);
+    skyG = Math.round(g + (g * 0.32 + 92 - g) * w);
+    skyB = Math.round(b + (b * 0.32 + 100 - b) * w);
+    fogFar = trkFar[tk] * gfFog[gfx] * (1 - 0.38 * w);
+    rainCol = rgb(Math.round(skyR * 0.6 + 90), Math.round(skyG * 0.6 + 96), Math.round(skyB * 0.6 + 108));
+    hillA = rgb(Math.round(skyR * 0.80 + 14), Math.round(skyG * 0.80 + 16), Math.round(skyB * 0.84 + 22));
+    hillB = rgb(Math.round(skyR * 0.62 + 10), Math.round(skyG * 0.63 + 12), Math.round(skyB * 0.70 + 18));
+    loadPalette();
+}
+
 function buildTrack(tk) {
     curTrk = tk;
-    skyR = trkSkyR[tk]; skyG = trkSkyG[tk]; skyB = trkSkyB[tk];
-    fogFar = trkFar[tk] * gfFog[gfx];
-    if (wx > 1) {
-        // an overcast, wet day: a low grey sky and the far field lost in spray
-        skyR = Math.round(skyR * 0.32 + 88);
-        skyG = Math.round(skyG * 0.32 + 92);
-        skyB = Math.round(skyB * 0.32 + 100);
-        fogFar = fogFar * 0.62;
-        rainCol = rgb(Math.round(skyR * 0.6 + 90), Math.round(skyG * 0.6 + 96), Math.round(skyB * 0.6 + 108));
-    }
-    loadPalette();
+    todK = 0;
+    refreshAtmos();
     gmatBase = trkGnd[tk];
     roadBase = trkRoad[tk];
     runStyle = trkRun[tk];
     hillK = trkHillK[tk];
     hillT = trkHillT[tk];
-    hillA = rgb(Math.round(skyR * 0.80 + 14), Math.round(skyG * 0.80 + 16), Math.round(skyB * 0.84 + 22));
-    hillB = rgb(Math.round(skyR * 0.62 + 10), Math.round(skyG * 0.63 + 12), Math.round(skyB * 0.70 + 18));
 
     let off = ctlOff[tk];
     let n = ctlCnt[tk];
@@ -296,6 +312,8 @@ function buildTrack(tk) {
         if (sgHW[i] > 0) { sgRWL[i] = 0; sgRWR[i] = 0; }
         i = i + 1;
     }
+    // v7 realistic: the pit lane down the left of the main straight
+    buildPitLane();
 
     // ---- 5) vertex buffer + materials ----
     i = 1;
@@ -370,6 +388,7 @@ function buildTrack(tk) {
         else if (sgRTL[i] == 1) { sgRML[i] = M_runT0 + (mod(i, 8) < 4 ? 5 : 6); }
         if (sgRTR[i] == 2) { sgRMR[i] = M_grav0 + (mod(i, 4) < 2 ? 6 : 7); }
         else if (sgRTR[i] == 1) { sgRMR[i] = M_runT0 + (mod(i, 8) < 4 ? 5 : 6); }
+        if (sgRTL[i] == 6) { sgRML[i] = roadBase + 4; }
         // curbs on anything tighter than a gentle bend
         let ac = sgCurv[i];
         if (ac < 0) { ac = 0 - ac; }
@@ -552,6 +571,9 @@ function buildTrack(tk) {
 
     // ---- 11) scenery ----
     placeScenery(tk);
+
+    // ---- 12) v7 trackside TV cameras for replays ----
+    buildTvCams();
 }
 
 // ---- racing line -----------------------------------------------------
@@ -838,7 +860,7 @@ function placeScenery(tk) {
         if (brg < 1) {
         // --- tyre walls along the back of every gravel trap and run-off ---
         if (mod(i, 3) == 0) {
-            if (sgRTL[i] > 0) { scPutFacing(i, 0 - 1, sgW[i] + sgRWL[i] + 2.2, SC_TYRES, 1, 0, 1); }
+            if (sgRTL[i] > 0) { if (sgRTL[i] < 6) { scPutFacing(i, 0 - 1, sgW[i] + sgRWL[i] + 2.2, SC_TYRES, 1, 0, 1); } }
             if (sgRTR[i] > 0) { scPutFacing(i, 1, sgW[i] + sgRWR[i] + 2.2, SC_TYRES, 1, 0, 1); }
         }
         // --- sponsor hoardings on the inside of the quicker corners ---
@@ -992,7 +1014,7 @@ function sampleTrack(x, z, hint) {
         if (at <= w + rw) {
             sfY = edgeY - 0.04;
             sfSurf = 2;
-            if (rt == 2) { sfSurf = 4; } else if (rt == 1) { sfSurf = 5; }
+            if (rt == 2) { sfSurf = 4; } else if (rt == 1) { sfSurf = 5; } else if (rt == 6) { sfSurf = 6; }
         } else {
             sfSurf = 2;
             let drop = (at - w - rw) / 2;

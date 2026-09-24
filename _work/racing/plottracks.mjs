@@ -2,7 +2,7 @@
 // tunnel/wall/bridge colouring) so the layouts can be eyeballed.
 import { buildF1 } from './f1tracks.mjs';
 import { createRequire } from 'node:module';
-const require = createRequire('C:/Users/spyoh/entry_3d/entry-vibe-coding/package.json');
+const require = createRequire(new URL('../../entry-vibe-coding/package.json', import.meta.url));
 const sharp = require('sharp');
 const T = buildF1();
 const CW = 520, CH = 420, cols = 4, rows = Math.ceil(T.length / cols);

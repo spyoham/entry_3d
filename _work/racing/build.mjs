@@ -10,9 +10,10 @@ import url from 'node:url';
 import { compileProgram } from './ejs.mjs';
 import { buildF1 } from './f1tracks.mjs';
 import { f1Car } from './f1car.mjs';
+import { engineWav, REF_RPM, LOOP_SEC } from './enginewav.mjs';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'editor.js', 'menu.js', 'hud.js', 'main.js'];
+export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'rules.js', 'fx.js', 'sound.js', 'share.js', 'editor.js', 'menu.js', 'hud.js', 'main.js'];
 
 // ============================================================
 // constants shared with the EJS sources
@@ -39,7 +40,7 @@ export const C = {
     NCARF: 140,         // faces in the car model
     NSCENE: 1500,       // scenery instances placed around a circuit
     GHOST: 9,
-    NTX: 64,            // v6: text slots, one clone of the text object each
+    NTX: 76,            // v6: text slots, one clone of the text object each (v7: 64 -> 76)
     TXW: 1000, TXH: 28, TXF: 20,     // text box: fixed width/height, font px
     TXCW: 0.5,          // monospace advance, em per character
     NMAP: 64,           // centreline samples in the 3D circuit map           // car slot of the time-trial ghost (NCAR + 1)
@@ -54,6 +55,16 @@ export const C = {
     MMR: 42,            // half the size of the box it is fitted into
     MMW: 1.9,           // half the width of the drawn ribbon, in pixels
     SCRW: 240, SCRH: 135,
+    // ---- v7 ----
+    RPN: 550,           // replay samples kept (a ring buffer: the last RPN * RPDT s)
+    RPDT: 0.1,          // replay sample interval, seconds
+    RPC: 9,             // cars per replay sample: the field plus the safety car
+    NSPK: 40,           // spark particles
+    NTV: 48,            // trackside TV cameras per circuit, at most
+    PITW: 11,           // pit lane width beside the main straight, metres
+    PITV: 22.2,         // pit lane speed limit, m/s (80 km/h)
+    QLAPS: 2,           // timed laps in qualifying
+    NTY: 5,             // tyre compounds
 };
 // point slots inside a ring
 // ordered so a ring's LOD levels are contiguous prefixes: road edges alone for
@@ -846,6 +857,12 @@ export function buildData() {
     lists.trkTheme = TT.map(t => t.theme);
     lists.trkTurns = TT.map(t => t.turnsN || 0);
     lists.trkType = TT.map(t => (t === ED ? 'YOUR DESIGN' : t.walls ? 'STREET CIRCUIT' : 'PERMANENT'));
+    // v7 ULTRA: the sky the race runs towards as the afternoon wears on
+    // (a night race only gets darker)
+    const DUSK = (s) => (s[0] + s[1] + s[2] < 200 ? [8, 10, 26] : [Math.min(255, s[0] * 0.55 + 118), s[1] * 0.50 + 40, s[2] * 0.42 + 34]);
+    lists.trkDuskR = TT.map(t => Math.round(DUSK(t.sky)[0]));
+    lists.trkDuskG = TT.map(t => Math.round(DUSK(t.sky)[1]));
+    lists.trkDuskB = TT.map(t => Math.round(DUSK(t.sky)[2]));
 
     // Palette. The fogged colour table is built at track load from these
     // three lists (NMAT x NFOG rgb() calls, once), which keeps eight skies'
@@ -900,6 +917,8 @@ export function buildData() {
     lists.cvP = CM.PIV.map(p => p[0]); lists.cvPX = CM.PIV.map(p => mm(p[1])); lists.cvPZ = CM.PIV.map(p => mm(p[2]));
     lists.cfA = CM.F.map(f => f.q[0]); lists.cfB = CM.F.map(f => f.q[1]); lists.cfC = CM.F.map(f => f.q[2]); lists.cfD = CM.F.map(f => f.q[3]);
     lists.cfK = CM.F.map(f => f.k);
+    // v7: 1 on the faces of the front wing (they go when it is knocked off)
+    lists.cfW = CM.F.map(f => (f.w ? 1 : 0));
     // normals x1024, plane offsets in mm x1024
     lists.cnX = CM.N.map(n => Math.round(n[0] * 1024)); lists.cnY = CM.N.map(n => Math.round(n[1] * 1024)); lists.cnZ = CM.N.map(n => Math.round(n[2] * 1024));
     // plane offset of each face along its normal: the camera is in front of
@@ -917,6 +936,8 @@ export function buildData() {
         { n: 'ARGENTO', a: [196, 200, 210], b: [16, 176, 160], h: [30, 30, 36] },
         { n: 'NERO', a: [42, 46, 56], b: [226, 176, 56], h: [226, 50, 50] },
         { n: 'GHOST', a: [176, 214, 250], b: [226, 238, 255], h: [226, 238, 255] },
+        // v7: slot 10, the safety car (it drives in the ghost's car slot)
+        { n: 'SAFETY', a: [206, 210, 218], b: [255, 138, 0], h: [255, 138, 0] },
     ];
     for (const [k, f] of [['lvR', (l) => l.a[0]], ['lvG', (l) => l.a[1]], ['lvB', (l) => l.a[2]],
         ['lvR2', (l) => l.b[0]], ['lvG2', (l) => l.b[1]], ['lvB2', (l) => l.b[2]],
@@ -926,6 +947,31 @@ export function buildData() {
     // the field: the player is car 1, the rest have names
     lists.drvName = ['YOU', 'M. ROSSI', 'K. TANAKA', 'L. BERG', 'A. SILVA', 'J. NOWAK', 'D. MORENO', 'S. PARK'];
     lists.drvShort = ['YOU', 'ROSSI', 'TANAKA', 'BERG', 'SILVA', 'NOWAK', 'MORENO', 'PARK'];
+    // v7 AI personalities (both rule sets): aggression - how early and how
+    // tightly a driver goes for a gap and how late it brakes; defence - how
+    // readily it covers the inside against a car behind; error - how often it
+    // gets a corner wrong. Index 1 (the player) is unused.
+    const PERS = [
+        { t: '-', a: 0, d: 0, e: 0 },
+        { t: 'ATTACKER', a: 0.90, d: 0.40, e: 0.45 },
+        { t: 'STEADY', a: 0.40, d: 0.50, e: 0.12 },
+        { t: 'DEFENDER', a: 0.35, d: 0.95, e: 0.25 },
+        { t: 'WILD CARD', a: 0.95, d: 0.60, e: 0.85 },
+        { t: 'SMOOTH', a: 0.50, d: 0.35, e: 0.08 },
+        { t: 'LATE BRAKER', a: 0.75, d: 0.55, e: 0.55 },
+        { t: 'TACTICIAN', a: 0.60, d: 0.75, e: 0.20 },
+    ];
+    lists.drvTag = PERS.map(p => p.t); lists.drvAgg = PERS.map(p => p.a);
+    lists.drvDef = PERS.map(p => p.d); lists.drvErr = PERS.map(p => p.e);
+    // tyre compounds: dry grip, grip on a fully wet track (both as a factor on
+    // the car's grip), and life as a fraction of the race distance
+    lists.tyName = ['SOFT', 'MEDIUM', 'HARD', 'INTER', 'WET'];
+    lists.tyShort = ['S', 'M', 'H', 'I', 'W'];
+    lists.tyHex = ['#ff3b30', '#ffd21f', '#f4f4f4', '#2fd05a', '#3a8dff'];
+    lists.tyDry = [1.06, 1.00, 0.955, 0.90, 0.82];
+    lists.tyWet = [0.56, 0.54, 0.52, 0.78, 0.84];
+    lists.tyLife = [0.42, 0.62, 0.88, 0.75, 0.80];
+
 
     // ---- scenery models: one flat vertex/face pool, indexed per type ----
     const SM = sceneryModels();
@@ -1016,8 +1062,15 @@ export function buildData() {
     lists.modeD3 = ['SLIPSTREAM AND DRS FROM LAP 2', 'MOST POINTS AFTER ROUND 8 WINS', 'SECTOR TIMES AND LIVE DELTA'];
     lists.aiD = ['FORGIVING - LEARN THE CIRCUITS', 'STEADY PACE, FEW MISTAKES', 'CLOSE RACING AT A REAL PACE', 'FAST AND ON THE LIMIT', 'FASTER THAN THE CARS ALLOW'];
     lists.gfxD = ['FASTEST - FOR PLAIN ENTRY', 'BALANCED - RECOMMENDED', 'EVERYTHING ON - FOR TESSVM'];
+    // v7: what each graphics level adds on top of the picture itself
+    lists.gfxFx = ['NO EXTRA EFFECTS', 'REPLAY + TV CAMERAS, SPARKS, SEE-THROUGH SMOKE', 'ALL: + BRAKE GLOW, SUNSET, DEBRIS'];
     lists.lapOpt = [1, 3, 5, 10];
-    lists.wxName = ['DRY', 'RAIN'];
+    lists.wxName = ['DRY', 'RAIN', 'CHANGING'];
+    lists.ruleName = ['ARCADE', 'REALISTIC'];
+    lists.ruleD1 = ['THE CLASSIC GAME: JUMP IN AND RACE', 'TYRES, PIT STOPS, DAMAGE AND ERS BOOST'];
+    lists.ruleD2 = ['RIVALS WITH THEIR OWN PERSONALITIES', 'QUALIFYING SETS THE GRID'];
+    lists.ruleD3 = ['NO WEAR, NO DAMAGE, NO PENALTIES', 'FLAGS, SAFETY CAR, PENALTIES, WEATHER'];
+    lists.sndName = ['OFF', 'ON'];
     lists.gfxName = ['LOW', 'HIGH', 'ULTRA'];
     // graphics levels: LOD band distances (m), scenery draw distance (m),
     // scenery full-model radius (m), full car radius (m), mid car radius (m),
@@ -1030,6 +1083,8 @@ export function buildData() {
     // points for P1..P8
     lists.ptsTab = [25, 18, 15, 12, 10, 8, 6, 4];
     consts.NMODE = 3; consts.NLAPO = 4; consts.NGFX = 3;
+    consts.NMENU = 11;
+    consts.ENG_REF = REF_RPM; consts.ENG_LOOP = LOOP_SEC;
 
     // ---- runtime scratch lists (pre-sized so the hot path never grows a list) ----
     const N = C.NSEG, R = N + 1;
@@ -1053,11 +1108,24 @@ export function buildData() {
     // cars
     const NC = C.NCAR;
     for (const k of ['caX', 'caY', 'caZ', 'caYaw', 'caVX', 'caVZ', 'caVY', 'caYR', 'caSeg', 'caLap', 'caCP', 'caProg', 'caRank',
-        'aiVlim', 'aiWorst', 'aiWsign', 'aiNear',
+        'aiVlim', 'aiWorst', 'aiWsign', 'aiNear', 'aiYel',
         'caCol', 'caAcc', 'caTop', 'caGrip', 'caMass', 'caSteer', 'caThr', 'caBrk', 'caHB', 'caHold', 'caSurf', 'caAir', 'caOff',
         'caSkill', 'caLine', 'caDrift', 'caOffT', 'caLapT', 'caBest', 'caFin', 'caRoll', 'caPitch', 'caU', 'caStuck', 'caSpd',
-        'caTow', 'caDRS', 'caDOk', 'caFinT', 'caGear', 'caRpm', 'chPts', 'chOrd', 'caGap', 'caD2', 'caTr'])
+        'caTow', 'caDRS', 'caDOk', 'caFinT', 'caGear', 'caRpm', 'chPts', 'chOrd', 'caGap', 'caD2', 'caTr',
+        // v7: tyres, damage, ERS, pit stops, penalties, flags, personality state, fx
+        'caTy', 'caWear', 'caWK', 'caWR', 'caDmg', 'caErs', 'caErsH', 'caErsOn', 'caPit', 'caPitT', 'caPitN', 'caBox',
+        'caStops', 'caPen', 'caTL', 'caTLon', 'caYelT', 'caYelS', 'caMisT', 'caDefT', 'caDefO', 'caPace', 'caHeat',
+        'caQT', 'caGrid', 'clsI', 'clsV', 'caLim', 'caWing', 'snX', 'snY', 'snZ', 'snW', 'snS', 'snU', 'snO', 'snF', 'snR', 'snP',
+        'snVX', 'snVZ', 'snSp', 'snB', 'snSt'])
         lists[k] = zeros(NC + 2);
+    // v7 replay: RPN samples x RPC cars, oldest overwritten first
+    for (const k of ['rpX', 'rpY', 'rpZ', 'rpW', 'rpS', 'rpV']) lists[k] = zeros(C.RPN * C.RPC);
+    // v7 sparks, TV cameras, share-code scratch
+    for (const k of ['spX', 'spY', 'spZ', 'spVX', 'spVY', 'spVZ', 'spL', 'spSeg', 'spC']) lists[k] = zeros(C.NSPK + 1);
+    for (const k of ['tvS', 'tvO', 'tvH']) lists[k] = zeros(C.NTV + 1);
+    lists.shV = zeros(5 * C.MAXCTL + 8);
+    lists.shLn = new Array(8).fill('\u200B');
+    lists.sgPit = zeros(R);
     // ghost: the lap being driven, and the best one, one sample per GHDT
     for (const k of ['grX', 'grY', 'grZ', 'grW', 'grS', 'gbX', 'gbY', 'gbZ', 'gbW', 'gbS']) lists[k] = zeros(C.NGH + 2);
     // time into the lap at each ring: best lap and the current one (live delta)
@@ -1124,7 +1192,10 @@ export async function buildEnt(outFile, opts = {}) {
         entity: { x: 0, y: 0, colour: '#ffffff', bgColor: 'transparent', font: TEXTBOX.font, textAlign: 1, lineBreak: true, bold: true, underLine: false, strike: false, italic: false,
             fontSize: D.consts.TXF, width: D.consts.TXW, height: D.consts.TXH, visible: false },
     }));
-    objects.push(O('pen3', 'pen3', { pictures: [{ id: '1', name: 'dot', buf: dot, w: 2, h: 2 }], entity: { x: 0, y: 0, visible: true } }));
+    // v7: the engine loop rides on the pen object (see sound.js)
+    objects.push(O('pen3', 'pen3', { pictures: [{ id: '1', name: 'dot', buf: dot, w: 2, h: 2 }],
+        sounds: [{ id: 'engine', name: 'engine', buf: engineWav(), ext: 'wav', duration: LOOP_SEC }],
+        entity: { x: 0, y: 0, visible: true } }));
     const project = packEnt(outFile, {
         name: 'ENTRY RACING 3D', tmpDir: path.join(HERE, '.pack'),
         variables: orderVariables(prog.variables), functions: prog.functions, messages: prog.messages, objects, speed: 60,

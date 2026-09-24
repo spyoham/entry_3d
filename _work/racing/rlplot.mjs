@@ -1,7 +1,7 @@
 // top-down plot of every circuit's racing line, coloured by the speed profile
 import { createSim } from './sim.mjs';
 import { createRequire } from 'node:module';
-const require = createRequire('C:/Users/spyoh/entry_3d/entry-vibe-coding/package.json');
+const require = createRequire(new URL('../../entry-vibe-coding/package.json', import.meta.url));
 const sharp = require('sharp');
 const s = createSim({ fps: 5 });
 const g = (e) => s.peek(e);

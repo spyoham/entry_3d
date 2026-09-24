@@ -18,6 +18,9 @@ function pollAction() {
     else if (key(77)) { k = 77; }
     else if (key(67)) { k = 67; }
     else if (key(76)) { k = 76; }
+    else if (key(84)) { k = 84; }
+    else if (key(86)) { k = 86; }
+    else if (key(32)) { k = 32; }
     actKey = 0;
     if (k != keyPrev) {
         keyPrev = k;
@@ -67,6 +70,7 @@ function menuCam() {
     camRoll = 1.2 * sind(gt * 6);
     camFov = 78;
     caSeg[1] = s;
+    camSeg = s;
 }
 
 // Showroom: the car turns on a turntable at the start line; the camera
@@ -100,6 +104,7 @@ function showroomCam() {
     camPitch = oAtan;
     camRoll = 0;
     camFov = 52;
+    camSeg = s;
     mcInit = 0;
 }
 
@@ -114,34 +119,55 @@ function pickTrack(d) {
 // left / right on a menu line
 function menuChange(d) {
     if (menuSel == 2) { gMode = mod(gMode - 1 + d + NMODE, NMODE) + 1; }
-    else if (menuSel == 3) { selCar = mod(selCar - 1 + d + NCARTYPE, NCARTYPE) + 1; }
-    else if (menuSel == 4) { if (gMode != M_CH) { pickTrack(d); } }
-    else if (menuSel == 5) { aiDiff = mod(aiDiff - 1 + d + NDIFF, NDIFF) + 1; }
-    else if (menuSel == 6) { lapSel = mod(lapSel - 1 + d + NLAPO, NLAPO) + 1; }
-    else if (menuSel == 7) { wx = mod(wx - 1 + d + 2, 2) + 1; applyWeather(); buildTrack(selTrk); }
-    else if (menuSel == 8) { gfx = mod(gfx - 1 + d + NGFX, NGFX) + 1; buildTrack(selTrk); }
+    else if (menuSel == 3) {
+        rules = mod(rules - 1 + d + 2, 2) + 1;
+        // changing weather needs the realistic rules
+        if (rules == R_ARC) { if (wx > 2) { wx = 1; } }
+        applyWeather();
+        buildTrack(selTrk);
+    }
+    else if (menuSel == 4) { selCar = mod(selCar - 1 + d + NCARTYPE, NCARTYPE) + 1; }
+    else if (menuSel == 5) { if (gMode != M_CH) { pickTrack(d); } }
+    else if (menuSel == 6) { aiDiff = mod(aiDiff - 1 + d + NDIFF, NDIFF) + 1; }
+    else if (menuSel == 7) { lapSel = mod(lapSel - 1 + d + NLAPO, NLAPO) + 1; }
+    else if (menuSel == 8) {
+        let nw = 2;
+        if (rules == R_SIM) { nw = 3; }
+        wx = mod(wx - 1 + d + nw, nw) + 1;
+        applyWeather();
+        buildTrack(selTrk);
+    }
+    else if (menuSel == 9) { gfx = mod(gfx - 1 + d + NGFX, NGFX) + 1; buildTrack(selTrk); }
+    else if (menuSel == 10) { sndSel = mod(sndSel - 1 + d + 2, 2) + 1; }
 }
 
+// the menu's weather as the world shows it: arcade rain is a fixed 80 % grip;
+// realistic grip comes from the tyres (rules.js), so wetK stays 1 there
 function applyWeather() {
     wetK = 1;
-    if (wx > 1) { wetK = 0.80; }
+    if (rules == R_ARC) { if (wx > 1) { wetK = 0.80; } }
+    wetL = 0;
+    if (wx == 2) { wetL = 1; }
+    rainI = wetL;
+    rainVis = wetL;
+    wetVis = wetL;
 }
 
 function startRace() {
     if (gMode == M_CH) { startChampionship(); }
-    else { setupRace(selTrk, selCar); }
+    else { restartRace(); }
 }
 
 function menuKeys() {
-    if (actKey == 40) { menuSel = mod(menuSel, 9) + 1; }
-    else if (actKey == 38) { menuSel = mod(menuSel + 7, 9) + 1; }
+    if (actKey == 40) { menuSel = mod(menuSel, NMENU) + 1; }
+    else if (actKey == 38) { menuSel = mod(menuSel + NMENU - 2, NMENU) + 1; }
     else if (actKey == 37) { menuChange(0 - 1); }
     else if (actKey == 39) { menuChange(1); }
     else if (actKey == 13) {
         if (menuSel == 1) { startRace(); }
-        else if (menuSel == 3) { raceState = ST_CARSEL; }
-        else if (menuSel == 4) { if (gMode != M_CH) { raceState = ST_TRKSEL; } }
-        else if (menuSel == 9) { nCars = 0; raceState = ST_EDIT; edDirty = 1; }
+        else if (menuSel == 4) { raceState = ST_CARSEL; }
+        else if (menuSel == 5) { if (gMode != M_CH) { raceState = ST_TRKSEL; } }
+        else if (menuSel == 11) { nCars = 0; raceState = ST_EDIT; edDirty = 1; shShow = 0; }
         else { menuChange(1); }
     }
 }
@@ -162,16 +188,27 @@ function selKeys() {
 
 function raceKeys() {
     if (actKey == 67) { camMode = mod(camMode + 1, 4); }
+    else if (actKey == 84) {
+        // v7 realistic: T picks the tyre (fitted on the grid, else for the next stop)
+        if (rules == R_SIM) {
+            if (raceState == ST_COUNT) { fitTyre(1, mod(caTy[1], NTY) + 1); setMsg(str('START ON ', tyName[caTy[1]]), 1.2); }
+            else { pitNext = mod(pitNext, NTY) + 1; setMsg(str('NEXT STOP: ', tyName[pitNext]), 1.2); }
+        }
+    }
+    else if (actKey == 13) { if (raceState == ST_QUALI) { endQuali(); } }
     else if (actKey == 76) { showLine = 1 - showLine; setMsg(showLine > 0 ? 'RACING LINE ON' : 'RACING LINE OFF', 1.2); }
     else if (actKey == 80) { prevState = raceState; raceState = ST_PAUSE; drawPausePanel(); }
-    else if (actKey == 82) { setupRace(selTrk, selCar); }
+    else if (actKey == 82) { restartRace(); }
     else if (actKey == 27) { prevState = raceState; raceState = ST_PAUSE; drawPausePanel(); }
 }
 
 function toMenu() {
     nCars = 0;
     ghostOn = 0;
+    scCar = 0;
+    scOn = 0;
     raceState = ST_MENU;
+    applyWeather();
     buildTrack(selTrk);
 }
 
@@ -182,6 +219,7 @@ function initGame() {
     selCar = 1;
     menuSel = 1;
     camFov = 78;
+    hideAnswer();
     applyWeather();
     buildTrack(1);
     raceState = ST_MENU;
@@ -239,6 +277,20 @@ function frameClock() {
     gt = gt + dt;
 }
 
+// v7: the editor's own keys - K shows the share code, I loads one
+let edKey2 = 0;
+function editKeys() {
+    let k = 0;
+    if (key(75)) { k = 75; }
+    else if (key(73)) { k = 73; }
+    if (k != edKey2) {
+        edKey2 = k;
+        if (k == 75) {
+            if (shShow > 0) { shShow = 0; } else { shEncode(); shShow = 1; }
+        } else if (k == 73) { shImport(); }
+    }
+}
+
 on('start', 'pen3', function () {
     hide();
     penSize(1);
@@ -255,7 +307,8 @@ on('start', 'pen3', function () {
             else if (actKey == 13) {
                 if (ctlCnt[EDTRK] >= 5) { selTrk = EDTRK; if (gMode == M_CH) { gMode = M_GP; } setupRace(EDTRK, selCar); }
             } else {
-                edInput();
+                editKeys();
+                if (shShow < 1) { edInput(); }
                 drawEditor();
             }
         } else if (raceState == ST_MENU) {
@@ -274,14 +327,27 @@ on('start', 'pen3', function () {
         } else if (raceState == ST_PAUSE) {
             if (actKey == 80) { raceState = prevState; }
             else if (actKey == 27) { raceState = prevState; }
-            else if (actKey == 82) { setupRace(selTrk, selCar); }
+            else if (actKey == 82) { restartRace(); }
             else if (actKey == 77) { toMenu(); }
+            else if (actKey == 86) { enterReplay(); }
+        } else if (raceState == ST_REPLAY) {
+            if (actKey == 13) { exitReplay(); }
+            else if (actKey == 27) { exitReplay(); }
+            else if (actKey == 86) { exitReplay(); }
+            else {
+                replayStep();
+                renderWorld();
+            }
+        } else if (raceState == ST_QRES) {
+            if (actKey == 13) { startGrid(selCar); }
+            else { menuCam(); renderWorld(); }
         } else if (raceState == ST_DONE) {
             if (actKey == 13) {
                 if (gMode == M_CH) { awardPoints(); raceState = ST_STAND; }
                 else { toMenu(); }
             }
-            else if (actKey == 82) { setupRace(selTrk, selCar); }
+            else if (actKey == 82) { restartRace(); }
+            else if (actKey == 86) { enterReplay(); }
             else { stepRace(); renderWorld(); }
         } else if (raceState == ST_STAND) {
             if (actKey == 13) {
@@ -297,8 +363,12 @@ on('start', 'pen3', function () {
             } else if (raceState == ST_RACE) {
                 stepRace();
                 renderWorld();
+            } else if (raceState == ST_QUALI) {
+                stepRace();
+                if (raceState == ST_QUALI) { renderWorld(); }
             }
         }
+        engineSound();
         updateHud();
     }
 });

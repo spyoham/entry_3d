@@ -2,6 +2,12 @@
 // ai.js - waypoint driver. Each opponent follows the centreline offset onto
 // a racing line, lifts and brakes before a corner according to the grip it
 // can actually use, and moves off line to pass slower cars.
+// v7: every driver has a personality (drvAgg / drvDef / drvErr, both rule
+// sets): attackers go for gaps earlier and brake later, defenders cover the
+// inside, and the error-prone ones now and then get a corner wrong. In
+// realistic mode the AI also uses ERS, comes into the pits, obeys yellow
+// flags and queues behind the safety car (which is driven by this code too,
+// in car slot GHOST).
 // ============================================================
 // Reading the road ahead - which is most of the AI's cost - depends only on
 // where the car is on the track, and that barely moves inside one frame. So
@@ -23,11 +29,19 @@ function aiPlan(c) {
     if (look > 40) { look = 40; }
     let vlim = caTop[c] * skill;
     // The tyres give caGrip * (GRIP0 + AERO * v * v); solving v*v = mu / curvature
-    // for v gives the corner speed. AIMARG keeps a margin under the real limit.
-    let gk = caGrip[c] * AIMARG * skill * wetK;
+    // for v gives the corner speed. AIMARG keeps a margin under the real limit
+    // (an attacker keeps a thinner one).
+    let marg = AIMARG;
+    if (c <= NCAR) { marg = AIMARG + 0.012 * drvAgg[c]; }
+    let gk = caGrip[c] * marg * skill * caWK[c];
+    // a damaged front end turns in less: drive to what is left of it
+    if (caDmg[c] > 0) { gk = gk * (1 - 0.30 * caDmg[c]); if (caWing[c] > 0) { gk = gk * 0.90; } }
+    let bk2 = 1;
+    // a mistake: too much speed into the next corner and a late, soft stop
+    if (caMisT[c] > 0) { gk = gk * 1.07; bk2 = 0.85; }
     let g0 = gk * GRIP0;
     let ga = gk * AERO;
-    let bdec = 2 * 15 * skill * wetK * segStep;
+    let bdec = 2 * 15 * skill * caWK[c] * segStep * bk2;
     let worst = 0;
     let wsign = 0;
     let nearCv = 0;
@@ -54,10 +68,32 @@ function aiPlan(c) {
         if (k <= 8) { if (av > nearCv) { nearCv = av; } }
         k = k + 1;
     }
+    // v7: personality - lap-to-lap pace, and now and then a mistake
+    if (c <= NCAR) {
+        vlim = vlim * caPace[c];
+        if (caMisT[c] > 0) { caMisT[c] = caMisT[c] - dt; }
+        else if (worst > 0.004) {
+            if (sp > 25) {
+                if (rand(0.0001, 0.9999) < drvErr[c] * 0.016 * dt / skill) { caMisT[c] = 1.2; }
+            }
+        }
+    } else {
+        // the safety car: a brisk but safe pace
+        vlim = vlim * 0.60;
+    }
+    // v7: is this car in a yellow-flag zone (checked once a frame)
+    aiYel[c] = 0;
+    if (rules == R_SIM) { if (c <= NCAR) { yellowAt(s); aiYel[c] = oYel; } }
     aiVlim[c] = vlim;
     aiWorst[c] = worst;
     aiWsign[c] = wsign;
     aiNear[c] = nearCv;
+}
+
+// distance along the track from car a forward to car b, metres (0 .. lap)
+let oGap = 0;
+function trackGap(a, b) {
+    oGap = mod(caSeg[b] + caU[b] - caSeg[a] - caU[a], NSEG) * segStep;
 }
 
 function aiDrive(c) {
@@ -68,6 +104,15 @@ function aiDrive(c) {
     let worst = aiWorst[c];
     let wsign = aiWsign[c];
     let nearCv = aiNear[c];
+    let agg = 0.5;
+    let def = 0.5;
+    if (c <= NCAR) { agg = drvAgg[c]; def = drvDef[c]; }
+    let isSC = c > NCAR ? 1 : 0;
+    // no passing under a yellow flag or behind the safety car
+    let noPass = 0;
+    if (scOn > 0) { noPass = 1; }
+    if (aiYel[c] > 0) { noPass = 1; vlim = vlim * 0.94; }
+    let inPit = caPit[c];
 
     // ---- racing line: hug the inside of the coming corner ----
     let w = sgW[s];
@@ -82,31 +127,127 @@ function aiDrive(c) {
         }
         tgtOff = tgtOff + caLine[c];
     }
+    // v7 defending: once per approach, cover the inside of the coming corner
+    if (caDefT[c] > 0 - 3) { caDefT[c] = caDefT[c] - dt; }
+    if (caDefT[c] > 0) { tgtOff = caDefO[c]; }
 
     // ---- overtaking: shift away from a car just ahead ----
     let fx = sind(caYaw[c]);
     let fz = cosd(caYaw[c]);
+    let passD = 17 + 14 * agg;
+    let gapW = 3.6 - 0.6 * agg;
     let o = 1;
     while (o <= nCars) {
         if (o != c) {
             let dx = caX[o] - caX[c];
             let dz = caZ[o] - caZ[c];
             let ahead = dx * fx + dz * fz;
+            let side = dx * fz - dz * fx;
             if (ahead > 0) {
-                if (ahead < 17) {
-                    let side = dx * fz - dz * fx;
+                if (ahead < passD) {
                     if (Math.abs(side) < 3.4) {
-                        tgtOff = caOff[o] + (side > 0 ? 0 - 3.6 : 3.6);
+                        let vo = Math.abs(caSpd[o]);
+                        if (noPass > 0) {
+                            // hold station a few car lengths back
+                            if (ahead < 16) { if (vlim > vo - 0.5) { vlim = vo - 0.5; } }
+                            if (ahead < 9) { tgtOff = caOff[o] + (side > 0 ? 0 - 3.6 : 3.6); }
+                        } else if (ahead < 17) {
+                            tgtOff = caOff[o] + (side > 0 ? 0 - gapW : gapW);
+                            // an attacker lunges for the inside of the next corner
+                            if (agg > 0.6) { if (worst > 0.003) { tgtOff = wsign * (w - 2.2); } }
+                        } else if (agg > 0.6) {
+                            // ...and lines up the move from further back
+                            if (vo < sp - 1) { tgtOff = caOff[o] + (side > 0 ? 0 - gapW : gapW); }
+                        }
+                    }
+                }
+            } else if (ahead > 0 - 22) {
+                // a faster car right behind: a defender covers the inside once
+                if (ahead < 0 - 3) {
+                    if (Math.abs(side) < 4) {
+                        if (caDefT[c] <= 0 - 3) {
+                            if (worst > 0.002) {
+                                if (Math.abs(caSpd[o]) > sp - 1) {
+                                    if (def > 0.5) {
+                                        if (noPass < 1) {
+                                            caDefO[c] = wsign * (w - 2.4);
+                                            caDefT[c] = 1.2 + 1.8 * def;
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
         o = o + 1;
     }
-    if (caSurf[c] >= 2) { tgtOff = 0; }
+    let offT = caSurf[c] >= 2 ? 1 : 0;
+    if (caSurf[c] == 6) { offT = 0; }
+    if (offT > 0) { tgtOff = 0; }
     let lim = w - 1.3;
     if (tgtOff > lim) { tgtOff = lim; }
     if (tgtOff < 0 - lim) { tgtOff = 0 - lim; }
+
+    // ---- v7 pit stops: into the lane on the left, 80 km/h, stop at the box ----
+    if (inPit > 0) {
+        let dIn = mod(pitA - s, NSEG);
+        let inZone = sgPit[s];
+        if (inPit <= 2) {
+            if (inZone > 0) {
+                tgtOff = 0 - (w + sgRWL[s] * 0.5);
+                if (vlim > PITV - 1) { vlim = PITV - 1; }
+                if (inPit == 2) {
+                    let db = mod(caBox[c] - s, NSEG) * segStep - caU[c] * segStep;
+                    if (db < 120) {
+                        let vb = 2 + Math.sqrt(2 * 9 * Math.max(0, db));
+                        if (vb < vlim) { vlim = vb; }
+                    }
+                }
+            } else if (dIn < 30) {
+                // slow for the limiter line and drift over to the left
+                let vb = Math.sqrt(PITV * PITV + 2 * 14 * dIn * segStep);
+                if (vb < vlim) { vlim = vb; }
+                if (dIn < 6) { tgtOff = 0 - (w - 1.2); }
+            }
+        } else if (inPit == 4) {
+            if (inZone > 0) {
+                let dOut = mod(pitE - s, NSEG);
+                tgtOff = 0 - (w + sgRWL[s] * 0.5);
+                if (dOut < 5) { tgtOff = 0 - (w - 1.5); }
+                if (vlim > PITV - 1) { vlim = PITV - 1; }
+            }
+        }
+    }
+
+    // ---- v7 safety car: queue behind the car ahead, nose to tail ----
+    if (scOn > 0) {
+        if (isSC < 1) {
+            if (inPit == 0) {
+                let r = caRank[c];
+                let a = 0;
+                let j = r - 1;
+                while (j >= 1) {
+                    let q = srtI[j];
+                    if (caPit[q] == 0) { a = q; j = 0; }
+                    j = j - 1;
+                }
+                if (a < 1) { if (scCar > 0) { a = GHOST; } }
+                if (a > 0) {
+                    trackGap(c, a);
+                    if (oGap < 130) {
+                        let vq = Math.abs(caSpd[a]) + (oGap - 13) * 0.35;
+                        if (vq < 0) { vq = 0; }
+                        if (vq < vlim) { vlim = vq; }
+                    } else if (vlim > aiVlim[c] * 0.85) { vlim = aiVlim[c] * 0.85; }
+                } else if (scOn == 3) {
+                    // the leader holds the pack until the line
+                    if (vlim > aiVlim[c] * 0.62) { vlim = aiVlim[c] * 0.62; }
+                }
+            }
+        }
+    }
 
     // ---- aim point ----
     // Aim point. A chord to a point d metres ahead of a corner of radius R
@@ -131,7 +272,7 @@ function aiDrive(c) {
     let err = oWrap - caYR[c] * AILEAD;
 
     // ---- stuck / spun recovery ----
-    if (sp < 2.2) { caStuck[c] = caStuck[c] + dt; } else { caStuck[c] = 0; }
+    if (sp < 2.2) { if (caHold[c] < 1) { caStuck[c] = caStuck[c] + dt; } } else { caStuck[c] = 0; }
     if (caStuck[c] > 1.6) {
         caThr[c] = 0;
         caBrk[c] = 1;
@@ -155,13 +296,35 @@ function aiDrive(c) {
         if (caSteer[c] > need) { caSteer[c] = need; }
         if (caSteer[c] < 0 - need) { caSteer[c] = 0 - need; }
         let vmax = vlim;
-        if (caSurf[c] >= 2) { vmax = vmax * 0.82; }
+        if (offT > 0) { vmax = vmax * 0.82; }
         if (sp < vmax - 1.2) { caThr[c] = 1; caBrk[c] = 0; }
         else if (sp > vmax + 1.0) { caThr[c] = 0; caBrk[c] = Math.min(1, (sp - vmax) / 2.2); }
         else { caThr[c] = 0.45; caBrk[c] = 0; }
         // a flick of handbrake in the very tightest stuff
         caHB[c] = 0;
         // (no handbrake: with the rear grip it now leaves, it only spins them)
+    }
+    // ---- v7 ERS: on the straights, when attacking or defending, or when full ----
+    caErsOn[c] = 0;
+    if (rules == R_SIM) {
+        if (isSC < 1) {
+            if (caErs[c] > 0.2) {
+                if (sp > 35) {
+                    if (nearCv < 0.0015) {
+                        if (caThr[c] > 0.9) {
+                            if (noPass < 1) {
+                                let use = 0;
+                                if (sgDRS[s] > 0) { use = 1; }
+                                if (caErs[c] > 0.80 - 0.25 * agg) { use = 1; }
+                                if (caDefT[c] > 0) { use = 1; }
+                                if (caTow[c] > 0.3) { use = 1; }
+                                caErsOn[c] = use;
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
     if (raceState == ST_COUNT) { caThr[c] = 0; caBrk[c] = 1; caSteer[c] = 0; caHB[c] = 0; }
     if (caFin[c] > 0) { caThr[c] = caThr[c] * 0.5; }

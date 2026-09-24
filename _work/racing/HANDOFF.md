@@ -1,3 +1,103 @@
+# ENTRY RACING 3D — 작업 인계 메모 (2026-09-24, v7)
+
+산출물: `3D 레이싱 v7.ent` (980 KB) ← 최신 (v1–v6 보존), 설명서 `3D 레이싱 v7 설명서.md`
+빌드: `node build.mjs racing7.ent` → `globals 264, lists 382, functions 205, handlers 3`
+v6 소스 백업: `build.v6.mjs`, `src.v6bak/`, `f1car.v6.mjs`
+작업 환경이 macOS로 바뀜. 경로가 Windows에 묶여 있던 곳을 저장소 상대 경로로 바꿨다(아래 "환경").
+
+## 요청 (사용자)
+"리얼리스틱 모드로 게임플레이 기능을 다 넣고, 아케이드 모드는 캐주얼하게 AI 성격만 넣고 지금 게임플레이 유지.
+연출은 ULTRA 또는 HIGH에서만 일부/전체를 켜고, 트랙 공유 코드와 엔진 사운드까지."
+
+## 새 소스 파일 (SRC_FILES 순서: util track render phys ai game **rules fx sound share** editor menu hud main)
+| 파일 | 내용 |
+|---|---|
+| `src/rules.js` | 리얼리스틱: 날씨(wxSetup/wxStep), 타이어(tyreGrip/fitTyre/pickTyre/simCarStep), 데미지(addDamage), 피트 레인(buildPitLane/pitStep/pitStop/aiStrategy), 페널티·트랙 리밋(limitsStep/penalise), 황색기(incident/yellowAt/flagsStep), 세이프티카(maybeSC/deploySC/scStep), 예선(aiQualiTimes/beginQuali/endQuali), 최종 순위(classify) |
+| `src/fx.js` | 불꽃·파편(sparkBurst/debris/stepSparks/drawSparksIn), 해 질 녘(todStep), 리플레이(rpRec/enterReplay/replayPose/replayStep/exitReplay), TV 카메라(buildTvCams/tvFind/tvCam) |
+| `src/sound.js` | 엔진음 루프(engineSound) |
+| `src/share.js` | 공유 코드(shEncode/shDecode/shImport) |
+| `enginewav.mjs` | 엔진 WAV 합성(빌드 때, 7400 rpm 기준 1.5 s 루프, 22 kHz mono) |
+
+## 구조 변경
+- 상태 추가: `ST_QUALI 9`, `ST_QRES 10`, `ST_REPLAY 11`. `rules` 1 ARCADE / 2 REALISTIC(`R_ARC/R_SIM`).
+- `setupRace`를 `carStats`(성능) / `placeCar`(배치·상태 초기화) / `initCars`(그리드, 예선 순서면 `caGrid`) / `raceReset` / `startGrid`로 나눔.
+  리얼리스틱 GP·챔피언십은 `setupRace → beginQuali`(혼자, nCars 1) → `endQuali`(ST_QRES 표) → ENTER → `startGrid`.
+  `restartRace()`는 예선 그리드를 유지한다(`keepGrid`).
+- 카메라는 `camCar`를 따라간다(리플레이용). 렌더러의 링 스캔 시작점은 `caSeg[1]`이 아니라 `camSeg`(모든 카메라 함수가 설정).
+- 그립: `wetK` 대신 차마다 `caWK[c]`. 아케이드는 `caWK = wetK`(비 0.8), 리얼리스틱은 `wetK = 1`이고 `caWK`가 타이어×노면×마모.
+  AI(`aiPlan`)와 `speedProfile`도 이 값을 쓴다(아케이드에서 speedProfile에 caWK를 넘기면 wetK가 두 번 곱해지니 주의).
+- 날씨는 `wetL`(노면, 그립) / `rainI`(비) / `rainVis`·`wetVis`(그림). 아케이드는 `applyWeather`가 wx로 고정 설정.
+  `buildTrack`의 하늘·안개·팔레트는 `refreshAtmos()`로 분리 — 젖음(`wetVis`)과 해 질 녘(`todK`)이 0.06–0.08 바뀔 때마다 다시 굽는다.
+- 노면 코드 6 = 피트 레인(`sgRTL = 6`, 폭 `sgRWL`, 왼쪽). `sgPit` 1 레인 / 2 박스(차 c의 박스 = `pitBox0 + c - 1`).
+  레인 구간은 벽을 없앤다(시가지). 타이어 배리어는 레인 옆에 놓지 않는다. 피트 건물은 `scClear`가 알아서 밀어낸다.
+- 차 슬롯 9(`GHOST`)는 타임트라이얼 고스트 **또는** 세이프티카(`scCar`, 도색 10 `SAFETY`). 렌더러는 `ghostOn || scCar`면 슬롯 9를 그린다.
+- 차 모델의 앞날개 면에 `cfW = 1`(f1car.mjs의 `wing` 플래그). `caWing[c] > 0`이면 그 면을 건너뛴다.
+- 텍스트 슬롯 `NTX 64 → 76`. 메뉴 라벨 24–34, 값 35–45, 카드 50–75(`cardRow r`: 51+r / 61+r). 레이스 리얼리스틱 패널 24–31.
+  에디터 공유 코드 28–35. 검사: `node t7/slots.mjs`(11줄 메뉴 × 두 규칙 + 예선·결과·리플레이·에디터).
+
+## 리얼리스틱 수치 (조정한 값과 근거)
+- 타이어(`tyDry / tyWet / tyLife`): S 1.06/0.56/0.42, M 1.00/0.54/0.62, H 0.955/0.52/0.88, I 0.90/0.78/0.75, W 0.82/0.84/0.80.
+  교차점: 젖음 0.31에서 슬릭=INTER, 0.57에서 INTER=WET. 마모 그립 = `0.80 + 0.20·w`, w < 0.25면 ×`(0.85 + 0.6·w)`.
+- 마모율 `caWR = WEARK / (tyLife · raceDur)`, `WEARK 1.0`, `raceDur = estLap · max(min(laps, 20), 4)`, `estLap = 이상적 랩 × 1.30`.
+  평균 부하가 약 0.6이라 1.0. 10랩 실버스톤 실측: 소프트 출발 6–7랩에 미디엄, 미디엄 출발 9랩에 소프트(1스톱).
+- AI 예선 `QK 1.33` = 실측 (AI 최고 랩 / 이상적 랩) × 스킬, 서킷 1·2·4·6에서 1.29–1.36 (`node t7/qcal.mjs trk secs`).
+- AI 성격: 여유 `AIMARG + 0.012·agg`, 실수 확률 `err·0.016/s`(코너 앞, 1.2 s 동안 그립 과대평가 ×1.07), 랩 페이스 `1 − err·U(0, 0.012)`.
+  처음 값(0.025 / 0.035 / ×1.10)은 트랙 리밋 위반이 3랩에 12회 → 지금 2회(아케이드), 0–1회(리얼리스틱).
+- 트랙 리밋: 차 중심이 흰 선 밖 1 m 이상, 0.6 s 이상, 첫 랩 제외. AI 데미지도 코너 속도 계산에 반영한다(안 하면 위반이 13회).
+- 접촉 데미지: 추돌 `(hv − 4.5)·0.09`, 옆 `(hv − 6)·0.03`(첫 랩 혼전에서 0.1–0.3대). 벽 `(|vn| − 6)·0.075`.
+  0.3 넘는 한 방이면 황색기 + 세이프티카 확률 `min(0.8, (d − 0.3)·1.6)`, 레이스당 1회, 3랩 이상, 마지막 랩 제외.
+- 세이프티카: `aiVlim × 0.60`, 대열은 앞차와 `(gap − 13)·0.35` 속도 조절, `max(28 s, estLap·0.85)` 뒤 IN THIS LAP,
+  피트 입구에서 사라진 뒤 선두가 결승선을 지나면 그린(`t7/sim2.mjs sc`: 대열 순위 변동 0).
+- 피트: 리미터 22.2 m/s, 정차 2.2–2.8 s + 데미지 수리 `2 + 4·dmg`. AI는 입구 30–6링 전에서 결정한다(`aiStrategy`).
+- ERS: 가속 +2.4 m/s², 최고속 +2%, 소모 0.13/s, 충전 `0.17·brake/s`(랩당 0.62까지).
+
+## 연출 (gfx 2 HIGH / 3 ULTRA)
+- **반투명은 `#rrggbbaa`가 아니라 붓 투명도 블록(`penAlpha` = `set_brush_tranparency`)**으로 한다.
+  tessvm(과 엔트리)의 `set_fill_color`는 `#rrggbb`로 정규화하고 8자리는 검정으로 만든다. 붓 투명도는 채우기에도 걸리고,
+  펜 그룹 순서가 유지되니 화가 알고리즘 깊이 순서도 맞는다. 쓴 뒤에는 꼭 `penAlpha(0)` (render.js `penTr`로 추적).
+- 도장(stamp)은 tessvm에서 모든 펜 그림 **위**에 따로 얹혀서 깊이 순서가 깨진다 — 연기에 쓰지 않았다.
+- 리플레이: `RPN 550 × RPC 9` 링 버퍼(`rpX/Y/Z/W/S/V`, 4950칸), 0.1 s 간격. 들어갈 때 `rpSnap(1)`으로 실제 상태를 저장, 나올 때 복원.
+  재생 중 안 보이는 차는 `caFin = 9`(렌더러가 caFin ≥ 2를 숨김). TV 카메라는 `tvCam`이 `camSeg`를 차보다 30링 뒤에서 시작하게 둔다(카메라가 뒤를 봄).
+- 불꽃·파편 풀 `NSPK 40`, 스크래치 슬롯 `SCRBASE + 3/4`. 브레이크 열 `caHeat`(phys)은 ULTRA에서만 휠(kind 4)을 주황으로.
+- 해 질 녘: `todK = raceT / (estLap·laps·1.1) · 0.85`, 하늘은 `trkDusk*`로, 팔레트·차 조명 ×(1 − 0.3·todK).
+
+## 사운드
+- `sound_speed_set`(엔트리·tessvm 모두 0.5–2로 자름, 모든 소리에 즉시 적용)으로 음높이 = rpm / 7400.
+- 루프 재시작: 남은 루프 시간(`engRem`, 재생 속도로 줄어듦)이 다음 프레임분보다 적으면 다시 재생 → 끝부분이 겹쳐 끊김이 없다.
+  WAV 양 끝 50 ms 페이드. 볼륨(전역)은 스로틀로 48–90 %.
+- tessvm 확인: 버퍼 디코딩 1, AudioContext running, 재생 중 2개 겹침, 속도 1.4–1.6 (`/tmp` 스크립트로 `vm.audio` 훅).
+
+## 공유 코드
+- `R` + 노드 수 2자리 + 노드당 7자리(x, z 각 2자리 4 m 격자 ±2 km / y 1자리 2 m / 폭 1자리 0.5 m / 플래그 1자리) + 체크섬 2자리, Crockford base32.
+- 입력은 `ask_and_wait` / `get_canvas_input_value`(ejs: `ask()`, `answer()`, 시작할 때 `hideAnswer()`).
+  묻는 동안 메인 루프가 멈추므로 끝나면 프레임 시계(`lastT`, `rtK`)를 초기화한다. 왕복 테스트: `node t7/share.mjs`.
+
+## 테스트 도구 (v7)
+- `node t7/race.mjs trk rules secs [wx] [gfx] [lapSel] [mode]` — 레이스 스모크(플레이어도 AI), 예선 → 그리드 자동.
+- `node t7/sim2.mjs sc|rain|pits trk secs` — 세이프티카 강제 / 비 강제(40 s) / 10랩 전략.
+- `node t7/ppit.mjs trk` — 플레이어 피트 스톱 흐름. `t7/tl.mjs`, `t7/tl_arc.mjs` — 트랙 리밋 위반 추적(NOPERS=1이면 성격 끔).
+- `node t7/dmg.mjs trk secs forceSC` — 데미지 발생 추적. `t7/tod.mjs` — 해 질 녘 스크린샷. `t7/qcal.mjs` — 예선 계수.
+- `node t7/mkt.mjs out.json '{json}'` — tessvm 키 스크립트(11줄 메뉴: rules/trk/wx/gfx/laps/mode, menuShots, extraFile).
+- `trun.mjs`에 `type`(문자열 입력)과 `press` 스텝 추가, 하네스가 소리 파일 경로도 `/ent/`로 바꾼다.
+- 주의: 시뮬레이터의 `peek('식')`은 리스트를 **0부터** 읽는 JS 배열로 본다(`caGrip[0]`이 1번 차).
+- 주의: 엔트리 `rand(a, b)`는 둘 다 정수면 정수만 준다. 확률은 `rand(0.0001, 0.9999)`로(시뮬레이터도 이제 같게 동작).
+
+## 환경 (macOS로 옮기며)
+- `ejs.mjs / sim.mjs / run-ent.mjs / carpreview.mjs / plottracks.mjs / rlplot.mjs / tessvm/trun.mjs`의
+  `createRequire('C:/Users/spyoh/...')` → `createRequire(new URL('../../entry-vibe-coding/package.json', import.meta.url))`.
+- `entry-vibe-coding`은 저장소 루트에 clone(무시됨) 후 `npm install`, 헤드리스는 `npx playwright install chromium`.
+- tessvm 확장은 위의 CRX 명령으로 `_work/tessvm/ext/`에 풀었다(버전 0.3.9).
+- 순정 엔트리 러너(`run-ent.mjs`)는 이번에 돌리지 못했다: `npm run setup`이 디스크 부족(ENOSPC)으로 실패. 새 블록은 모두 엔트리 기본 블록
+  (`sound_speed_set`, `ask_and_wait`, `get_canvas_input_value`, `set_visible_answer`, `set_brush_tranparency`)이다.
+
+## 남은 아이디어
+1. 순정 엔트리에서 v7 확인(붓 투명도가 채우기에 걸리는지, 소리 재생 속도).
+2. 세이프티카 도색이 F1 모델이다(로드카 모델이 버퍼에 없음). 차 정점 버퍼 여유가 없어서 두 번째 모델은 어렵다.
+3. 리플레이를 레이스 전체로 늘리려면 샘플 간격을 늘리거나 차별 리스트로 나눠야 한다(리스트 5000칸 제한).
+4. 2인 분할 화면, 커리어 모드(v6 아이디어 목록에서 이번에 안 한 것).
+
+---
+
 # ENTRY RACING 3D — 작업 인계 메모 (2026-09-24, v6)
 
 산출물: `C:\Users\spyoh\entry_3d\3D 레이싱 v6.ent` (734 KB) ← 최신 (v1–v5 보존), 설명서 `3D 레이싱 v6 설명서.md`

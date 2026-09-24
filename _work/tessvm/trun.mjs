@@ -3,7 +3,7 @@
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
-const require = createRequire('C:/Users/spyoh/entry_3d/entry-vibe-coding/package.json');
+const require = createRequire(new URL('../../entry-vibe-coding/package.json', import.meta.url));
 const { chromium } = require('@playwright/test');
 const args = process.argv.slice(2);
 const file = path.resolve(args[0]);
@@ -51,6 +51,8 @@ for (const st of steps) {
     if (st.up) await key('keyup', st.up);
     if (st.fps) { const P = await page.evaluate(() => { const P = { ...window.__prof }; Object.assign(window.__prof, { tick: 0, n: 0, flush: 0, nf: 0, max: 0 }); return P; });
         console.log('fps', st.fps, await fpsNow(), 'tick ms', (P.tick / P.n).toFixed(2), 'max', P.max.toFixed(1), 'flush ms', (P.flush / P.nf).toFixed(2)); }
+    if (st.type) await page.keyboard.type(st.type, { delay: 5 });
+    if (st.press) await page.keyboard.press(st.press);
     if (st.shot) await shot(st.shot);
     if (st.vars) console.log(JSON.stringify(await readVars()));
     if (st.profStart) { globalThis.__cdp = await page.context().newCDPSession(page); await __cdp.send('Profiler.enable'); await __cdp.send('Profiler.setSamplingInterval', { interval: 200 }); await __cdp.send('Profiler.start'); }

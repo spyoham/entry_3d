@@ -2,7 +2,7 @@
 // same per-direction face order, back-face rule and sun lighting as the game.
 import { createRequire } from 'node:module';
 import { f1Car } from './f1car.mjs';
-const require = createRequire('C:/Users/spyoh/entry_3d/entry-vibe-coding/package.json');
+const require = createRequire(new URL('../../entry-vibe-coding/package.json', import.meta.url));
 const { chromium } = require('@playwright/test');
 const out = process.argv[2] || 'carprev.png';
 const M = f1Car();

@@ -289,4 +289,10 @@ function drawEditor() {
         edBox(edSX, edSY, 4, c);
         i = i + 1;
     }
+    // v7: the share code sits on a panel of its own
+    if (shShow > 0) {
+        let y1 = 76 - shLines * 16 - 24;
+        fill4(0 - 226, 102, 226, 102, 226, y1, 0 - 226, y1, '#0b0f18');
+        fill4(0 - 226, 102, 226, 102, 226, 100, 0 - 226, 100, '#e8322a');
+    }
 }
