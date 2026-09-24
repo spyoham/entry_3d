@@ -9,6 +9,13 @@
 - `menu.js`: "(NOT SAVED)", "SAVE IS READ-ONLY" 안내 삭제, 버전 표시 v10.
 - 아래 v8 절의 "tessvm에서 저장 안 됨 — 게임 대응"은 이제 지난 이야기다. tessvm만(보정 확장 없이) 쓰면 저장 확인이 실패해 재시도가 이어진다.
 - 시험: `t7/multi.mjs` A–G PASS (JIT=300 포함). 실제 서버 + tessvm + 보정 확장은 미확인.
+### 실제 서버 확인 (2026-09-25) — 새로고침하면 날아가는 진짜 원인
+- 작품 `6aaf887a12df6ed51464f910`(v10)과 편집기에서 직접 만든 테스트 작품 `6ab545a367a7268f142237bf` **둘 다**
+  GraphQL `SELECT_PROJECT`의 `hasRealTimeVariable: null`, `realTimeVariable: null`, `/cv` 소켓 welcome의 `variables: []`.
+  작품 JSON의 변수에는 `isRealTime: true`가 정상으로 있다(레이싱 33개, 테스트 1개).
+- 사이트 `setCloudServer`는 `hasRealTimeVariable`일 때만 `Entry.cloudVariable.connect()` → **순정 엔트리도 접속하지 않는다**.
+  tessvm을 끄고 테스트 작품에서 3번 클릭(값 3) → 새로고침 → 0. tessvm은 서버 `_id`가 없어 `sendAction`을 보내지도 않는다.
+- entryjs에는 서버에 실시간 변수를 등록하는 호출이 없다(`cloudVariable.create` 호출자 없음) → 등록은 서버 쪽 조건. 엔트리에 문의 필요.
 
 ---
 
