@@ -377,6 +377,35 @@ function hudSim() {
     }
     tx(30, fl, 0, 117, 12, fcol, 0);
     tx(31, radio, 0, 0 - 44, 10, '#9fe0ff', 0);
+    // v2.6 the four tyres beside the little car (the pen draws the wheels):
+    // temperature and what is left of each
+    let k = 1;
+    while (k <= 4) {
+        let x = 0 - 213;
+        let al = 1;
+        if (mod(k, 2) == 0) { x = 0 - 145; al = 2; }
+        let y = 0 - 31;
+        if (k >= 3) { y = 0 - 51; }
+        tx(39 + k, str(Math.round(whT[k]), '° ', Math.round(whW[k] * 100), '%'), x, y, 7, whStC[whSt[k]], al);
+        k = k + 1;
+    }
+    // ...and the check panel (I)
+    if (whShow > 0) {
+        let t = caTy[1];
+        tx(44, str('TYRE CHECK  -  ', tyName[t], '   WINDOW ', tyTlo[t], '-', tyThi[t], '°C'), 0 - 112, 48, 8, C_WHITE, 1);
+        k = 1;
+        while (k <= 4) {
+            let gp = Math.round(whG[k] * 100);
+            tx(44 + k, str(whName[k], '   ', Math.round(whT[k]), '°C   WEAR ', Math.round(whW[k] * 100), '%   GRIP ', gp, '%   ', whStN[whSt[k]]), 0 - 112, 34 - (k - 1) * 13, 8, whStC[whSt[k]], 1);
+            k = k + 1;
+        }
+        tx(49, whAdv, 0, 0 - 20, 7, whAdvC, 0);
+        tx(39, 'I  CLOSE', 0, 0 - 32, 7, C_DIM, 0);
+    } else {
+        k = 44;
+        while (k <= 49) { txOff(k); k = k + 1; }
+        tx(39, 'I  TYRE CHECK', 0 - 177, 0 - 67, 6, C_DIM, 0);
+    }
 }
 
 // ---- v7 replay HUD ------------------------------------------------------------

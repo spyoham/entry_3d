@@ -175,6 +175,9 @@ function carPhys(c) {
     let gripF = mu * 0.50 * (1 - 0.28 * dmg);
     if (caWing[c] > 0) { gripF = gripF * 0.86; }
     let gripR = mu * 0.53;
+    // v2.6 realistic: the axles' own tyres (heat and wear per wheel, rules.js)
+    gripF = gripF * (1 + caAxF[c]);
+    gripR = gripR * (1 + caAxR[c]);
     // v8 setup: brake bias forward steadies the rear on the brakes and costs turn-in
     if (caBrk[c] > 0.1) { if (vLong > 0.6) { gripF = gripF * (1 - 0.025 * caBias[c]); gripR = gripR * (1 + 0.025 * caBias[c]); } }
     if (caHB[c] > 0) { gripR = mu * 0.16; }
@@ -240,8 +243,8 @@ function carPhys(c) {
         if (da > 90) { da = 0; }
     }
     caDrift[c] = da;
-    // v7: tyre wear and the ERS store (realistic); brake heat for the glow
-    if (rules == R_SIM) { if (caHold[c] < 1) { simCarStep(c, aLat, mu, da); } }
+    // v7: tyre wear and the ERS store (realistic, v2.6: per wheel); brake heat for the glow
+    if (rules == R_SIM) { if (caHold[c] < 1) { phSlF = aF; phSlR = aR; simCarStep(c, aLat, mu, da); } }
     let ht = caHeat[c] + (caBrk[c] * spA * 0.028 - 0.30) * dt;
     if (ht < 0) { ht = 0; }
     if (ht > 1) { ht = 1; }
@@ -340,14 +343,44 @@ function carPhys(c) {
     }
 
     // ---- body attitude (visual) ----
-    let tgtRoll = 0 - aLat * 0.16 - sgBank[caSeg[c]] * 0.9;
-    let tgtPitch = acc * 0.10;
-    if (caAir[c] > 0) { tgtPitch = caVY[c] * 0.5; tgtRoll = 0; }
+    // v2.6: the body follows the ground under it - the slope along the track
+    // and the banking across it, both seen along the car's own heading, so a
+    // car climbing a hill points its nose up, one crossing a banked turn at
+    // an angle leans both ways, and one parked sideways on a hill rolls.
+    // On top of that the dynamic part, now the right way round: the body
+    // rolls out of a corner, dives under braking and squats under power.
+    // (Positive roll lifts the right side, positive pitch drops the nose.)
+    let gs = caSeg[c];
+    let gn = gs + 1;
+    if (gn > NSEG) { gn = 1; }
+    let gp = gs - 1;
+    if (gp < 1) { gp = NSEG; }
+    let slope = (sgY[gn] - sgY[gp]) / (2 * segStep);
+    let tb = 0;
+    if (Math.abs(caOff[c]) < sgW[gs]) { tb = tand(sgBank[gs] + (sgBank[gn] - sgBank[gs]) * caU[c]); }
+    let fD = fx * sgDX[gs] + fz * sgDZ[gs];
+    let fN = fx * sgNX[gs] + fz * sgNZ[gs];
+    let rD = fz * sgDX[gs] - fx * sgDZ[gs];
+    let rN = fz * sgNX[gs] - fx * sgNZ[gs];
+    atan2d(slope * fD - tb * fN, 1);
+    let grPitch = 0 - oAtan;
+    atan2d(slope * rD - tb * rN, 1);
+    let grRoll = oAtan;
+    let tgtRoll = aLat * 0.16;
+    let tgtPitch = 0 - acc * 0.10;
     if (tgtRoll > 9) { tgtRoll = 9; }
     if (tgtRoll < 0 - 9) { tgtRoll = 0 - 9; }
     if (tgtPitch > 7) { tgtPitch = 7; }
     if (tgtPitch < 0 - 7) { tgtPitch = 0 - 7; }
-    let kk = 5 * dt / (1 + 5 * dt);
+    tgtRoll = tgtRoll + grRoll;
+    tgtPitch = tgtPitch + grPitch;
+    // in the air: the nose follows the flight path, the roll it left with
+    if (caAir[c] > 0) {
+        atan2d(caVY[c], Math.max(8, spA));
+        tgtPitch = 0 - oAtan * 0.7;
+        tgtRoll = caRoll[c];
+    }
+    let kk = 6 * dt / (1 + 6 * dt);
     caRoll[c] = caRoll[c] + (tgtRoll - caRoll[c]) * kk;
     caPitch[c] = caPitch[c] + (tgtPitch - caPitch[c]) * kk;
 

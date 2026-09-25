@@ -1,3 +1,42 @@
+# ENTRY RACING 3D — 작업 인계 메모 (2026-09-25, v2.6)
+
+산출물: `3D 레이싱 v2.6.ent` ← 최신, 설명서 `3D 레이싱 v2.6 설명서.md` (v12는 루트 `old/`로)
+빌드: `node build.mjs racing26.ent` → `globals 387, lists 425, functions 276, handlers 3`
+버전 이름: 사용자가 "버전 2.6으로 저장"을 요청해서 v12 다음을 **v2.6**으로 했다(메뉴 표시 `F1 EDITION / v2.6`).
+
+## 요청과 한 것
+"경사에서 차가 기울어지는 것을 구현하고(좌우,전후로 모두), 리얼리스틱에서 각 바퀴 상태 점검을 만들어줘
+(레이싱카 운용에 따라 바퀴 온도,마모등의 상태가 달라지게) 그리고 이는 버전 2.6으로 저장해줘"
+- **차체 기울기** (`phys.js` body attitude): 구간 경사 `(sgY[s+1]−sgY[s−1])/(2·segStep)`와 뱅크 `tand(bank)`(도로 위일 때만, caU로 보간)를
+  차의 앞(fx,fz)·오른쪽(fz,−fx) 방향 성분으로 나눠 `grPitch = −atan(경사·fD − tb·fN)`, `grRoll = atan(경사·rD − tb·rN)`.
+  부호: caPitch +는 코 숙임, caRoll +는 오른쪽이 올라감(`render.js` drawCar). 동적 항의 부호가 거꾸로였다
+  (코너 안쪽으로 기울고, 가속에 코가 숙여졌다). 이제 `roll = aLat·0.16`, `pitch = −acc·0.10`(±9/±7 제한), 그 위에 지면 각도를 더한다.
+  공중에서는 비행 경로 각도 0.7배, 롤 유지. 필터 `6·dt`. 콕핏/T캠 `camPitch = −2.5/−4 − caPitch·0.9`, 콕핏 `camRoll = caRoll·0.8`
+  (카메라 피치는 +가 위를 봄 — 차와 반대).
+- **바퀴별 타이어** (`rules.js`): `whT/whW/whG[(c−1)·4+k]`(k 1 FL, 2 FR, 3 RL, 4 RR), 컴파운드별 `tyTlo/tyThi/tyTbl`.
+  `simCarStep`에서 차마다 0.1초 시계 `caWhT`(placeCar에서 엇갈림)로 갱신. 일 = 가로 하중(u=aLat/(mu+0.5), aLat>0 우코너 → 왼쪽이 바깥),
+  브레이크(앞 1.4/뒤 0.6, 브레이크 바이어스 반영), 저속 트랙션(뒤), 슬립(phys가 넘기는 `phSlF/phSlR`, 드리프트), 잠김, 연석.
+  온도 `+1.15·(0.30·spf + 1.25·√일)·tread − 0.012·(1+v/150)·(1+1.5·wetL)·(T−amb)`(잔디 냉각 ×1.6, amb = 34 − 18·wetL).
+  √로 서킷 간 차이를 줄였다(선형일 때 몬자 80°C, 인테를라고스 앞 140°C).
+  마모 use = 예전 차 전체 식을 바퀴별로 나눈 것 × (T>hi면 `1+(T−hi)/12`, T<lo−8이면 `1+(lo−8−T)/40`). 마모는 ST_RACE에서만.
+  `tyreGrip`: 바퀴 그립 = 마모(예전 곡선) × 저온(`0.006/°C`, 최대 −15%) × 고온(`0.006/°C`, 최대 −15%).
+  `caWK` = 컴파운드·날씨 × 평균, `caAxF/caAxR` = 축 평균/전체 평균 − 1(**0이 중립** — 세이프티카·아케이드는 0),
+  phys에서 `gripF·(1+caAxF)`, `gripR·(1+caAxR)`. `caWear` = **가장 닳은 바퀴**(AI 피트 판단 30%, HUD 막대).
+  `oTyG` = 온도·마모 없는 컴파운드 값(startGrid 레이싱 라인 속도 프로파일용). 세이프티카(caTy 0)는 건너뜀.
+- **점검** (`whCheck`, simStep마다): `whSt` 1 OK, 2 WARMING, 3 COLD, 4 HOT, 5 OVERHEAT, 6 WORN. 우선순위는 `whRank`.
+  조언 `whAdv/whAdvC`. 과열·다 닳음은 처음 한 번 무전(`whRadT` 12초).
+  HUD: 왼쪽 아래 작은 차 그림(menu.js drawSimHud 펜, 슬롯 40–43 온도/%, 39 안내), **I**(73, pollAction·raceKeys)로
+  점검 창 `whShow`(펜 패널 + 슬롯 44–49).
+- 시험
+  - `node t7/tilt.mjs`: 8개 서킷의 가장 가파른 곳과 가장 기운 뱅크, 0/90/45/30°. 앞뒤·좌우 1 m 노면 샘플과 비교해 전부 1° 안.
+  - `node t7/whcal.mjs [secs]` (`WX=2`는 비, `WH="..."`로 값 덮어쓰기): 서킷별 바퀴 평균 온도. 미디엄 87–103°C, 웻 43–48°C.
+  - `node t7/wheels.mjs trk secs`: 한 경기 동안 바퀴 로그.
+  - `node t7/sign.mjs`: 조향·롤·피치 부호.
+  - 기존 테스트 race·sim2·ppit·dmg·tl·wall·multi·prof·drivetest2는 이전과 같다. 최고 랩은 v12와 1% 안.
+  - tessvm(`_work/tessvm/wh26.json`, 예선에서 W, I): 오류 0, 57.6 fps, 화면 확인.
+
+---
+
 # ENTRY RACING 3D — 작업 인계 메모 (2026-09-25, v12)
 
 산출물: `3D 레이싱 v12.ent` ← 최신, 설명서 `3D 레이싱 v12 설명서.md` (v11은 루트 `old/`로)

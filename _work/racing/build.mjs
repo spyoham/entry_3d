@@ -986,6 +986,18 @@ export function buildData() {
     lists.tyDry = [1.06, 1.00, 0.955, 0.90, 0.82];
     lists.tyWet = [0.56, 0.54, 0.52, 0.78, 0.84];
     lists.tyLife = [0.42, 0.62, 0.88, 0.75, 0.80];
+    // v2.6 per-wheel tyre state: the working window of each compound (deg C,
+    // grip is full between the two) and the temperature a set goes on at
+    // (dry sets come off the blankets, treaded ones are fitted cooler)
+    lists.tyTlo = [85, 90, 96, 55, 42];
+    lists.tyThi = [106, 112, 122, 82, 68];
+    lists.tyTbl = [72, 72, 72, 48, 42];
+    lists.whName = ['FL', 'FR', 'RL', 'RR'];
+    lists.whLong = ['FRONT LEFT', 'FRONT RIGHT', 'REAR LEFT', 'REAR RIGHT'];
+    lists.whStN = ['OK', 'WARMING', 'COLD', 'HOT', 'OVERHEAT', 'WORN'];
+    lists.whStC = ['#3dff6e', '#7fd0ff', '#3a8dff', '#ffb13a', '#ff3b30', '#b0b6c2'];
+    lists.whRank = [0, 1, 2, 3, 5, 4];
+    lists.whSt = [1, 1, 1, 1];
 
 
     // ---- scenery models: one flat vertex/face pool, indexed per type ----
@@ -1172,8 +1184,12 @@ export function buildData() {
         'caQT', 'caGrid', 'clsI', 'clsV', 'caLim', 'caWing', 'snX', 'snY', 'snZ', 'snW', 'snS', 'snU', 'snO', 'snF', 'snR', 'snP',
         'snVX', 'snVZ', 'snSp', 'snB', 'snSt',
         // v8 tuning multipliers (1 / 0 for the AI): aero, brakes, brake bias, suspension, wear
-        'caAeroK', 'caBrkK', 'caBias', 'caSusp', 'caWearK'])
+        'caAeroK', 'caBrkK', 'caBias', 'caSusp', 'caWearK',
+        // v2.6: grip of the front / rear axle against the four-wheel mean, wheel clock
+        'caAxF', 'caAxR', 'caWhT'])
         lists[k] = zeros(NC + 2);
+    // v2.6: four wheels per car (FL FR RL RR): temperature, wear left, grip
+    for (const k of ['whT', 'whW', 'whG']) lists[k] = zeros(4 * (NC + 2));
     // v7 replay: RPN samples x RPC cars, oldest overwritten first
     for (const k of ['rpX', 'rpY', 'rpZ', 'rpW', 'rpS', 'rpV']) lists[k] = zeros(C.RPN * C.RPC);
     // v7 sparks, TV cameras, share-code scratch

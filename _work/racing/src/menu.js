@@ -373,7 +373,7 @@ function drawTrkSel() {
 // (cardRow r: label 51+r, value 61+r), 72..76 extras; 77..79 pop-ups.
 function hudMenu() {
     tx(9, 'ENTRY RACING 3D', 0 - 232, 116, 21, C_WHITE, 1);
-    tx(10, 'F1 EDITION  /  v12', 0 - 232, 96, 8, C_WHITE, 1);
+    tx(10, 'F1 EDITION  /  v2.6', 0 - 232, 96, 8, C_WHITE, 1);
     let lvl = pLoaded > 0 ? str('LV ', pLv, '  ', pNick) : 'LOADING SAVE...';
     tx(13, lvl, 0 - 80, 96, 8, C_GOLD, 1);
     let crumb = 'MAIN MENU';
@@ -689,6 +689,37 @@ function drawSimHud() {
             let dc = '#ffb13a';
             if (caWing[1] > 0) { dc = '#ff3b30'; }
             box(170, 34, 170 + 62 * caDmg[1], 30, dc);
+        }
+        // v2.6 the four tyres: a little car from above, each wheel filled up
+        // to what is left of it in the colour of its temperature
+        penAlpha(30);
+        box(0 - 232, 0 - 22, 0 - 122, 0 - 74, '#0d1117');
+        penAlpha(0);
+        box(0 - 180, 0 - 25, 0 - 174, 0 - 61, '#39424f');
+        box(0 - 216, 0 - 32, 0 - 138, 0 - 34, '#39424f');
+        box(0 - 216, 0 - 52, 0 - 138, 0 - 54, '#39424f');
+        let k = 1;
+        while (k <= 4) {
+            let x0 = 0 - 227;
+            if (mod(k, 2) == 0) { x0 = 0 - 137; }
+            let y0 = 0 - 26;
+            if (k >= 3) { y0 = 0 - 46; }
+            box(x0, y0, x0 + 10, y0 - 14, '#232b37');
+            box(x0, y0 - 14 + 14 * whW[k], x0 + 10, y0 - 14, whStC[whSt[k]]);
+            k = k + 1;
+        }
+        // the check panel (I): a swatch per wheel beside its line
+        if (whShow > 0) {
+            penAlpha(15);
+            box(0 - 122, 58, 122, 0 - 38, '#0d1117');
+            penAlpha(0);
+            box(0 - 122, 58, 122, 56, C_RED);
+            k = 1;
+            while (k <= 4) {
+                let yy = 34 - (k - 1) * 13;
+                box(0 - 119, yy + 4, 0 - 115, yy - 4, whStC[whSt[k]]);
+                k = k + 1;
+            }
         }
         // flag panel across the top
         let fc = BLANK;

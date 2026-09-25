@@ -22,6 +22,7 @@ function pollAction() {
     else if (key(86)) { k = 86; }
     else if (key(32)) { k = 32; }
     else if (key(66)) { k = 66; }
+    else if (key(73)) { k = 73; }
     actKey = 0;
     if (k != keyPrev) {
         keyPrev = k;
@@ -236,6 +237,10 @@ function raceKeys() {
             if (raceState == ST_COUNT) { fitTyre(1, mod(caTy[1], NTY) + 1); setMsg(str('START ON ', tyName[caTy[1]]), 1.2); }
             else { pitNext = mod(pitNext, NTY) + 1; setMsg(str('NEXT STOP: ', tyName[pitNext]), 1.2); }
         }
+    }
+    else if (actKey == 73) {
+        // v2.6 realistic: I opens / closes the tyre check
+        if (rules == R_SIM) { whShow = 1 - whShow; }
     }
     else if (actKey == 13) { if (raceState == ST_QUALI) { endQuali(); } }
     else if (actKey == 66) { if (gMode == M_PR) { backOnTrack(); } }

@@ -128,6 +128,10 @@ function placeCar(c, seg, off) {
     caBox[c] = mod(pitBox0 - 1 + c - 1, NSEG) + 1;
     caWK[c] = wetK;
     caTy[c] = TY_M; caWear[c] = 1; caWR[c] = 0;
+    caAxF[c] = 0; caAxR[c] = 0; caWhT[c] = c * 0.012;
+    let wb = (c - 1) * 4;
+    let wk = 1;
+    while (wk <= 4) { whW[wb + wk] = 1; whT[wb + wk] = tyTbl[TY_M]; whG[wb + wk] = 1; wk = wk + 1; }
     if (rules == R_SIM) {
         let t = TY_M;
         if (c == 1) { t = startTy; }
@@ -242,7 +246,7 @@ function startGrid(ct) {
     initCars(ct);
     tyreGrip(1);
     let gk = 1;
-    if (rules == R_SIM) { gk = caWK[1]; }
+    if (rules == R_SIM) { gk = oTyG; }
     speedProfile(caGrip[1] * gk, caTop[1]);
     lightN = 0; lightsOut = 0; lightsT = 0; countT = 1.0;
     lightHold = rand(0.4, 1.9);
@@ -669,15 +673,17 @@ function updateCam() {
         camY = caY[c] + 0.92;
         camZ = caZ[c] - fz * 0.05;
         camYaw = caYaw[c];
-        camPitch = 0 - 2.5 + caPitch[c] * 0.5;
-        camRoll = caRoll[c] * 0.55 - sgBank[caSeg[c]] * 0.25;
+        // v2.6: the eye rides with the body, hills and banking included
+        // (the camera's pitch is positive looking up, the car's nose-down)
+        camPitch = 0 - 2.5 - caPitch[c] * 0.9;
+        camRoll = caRoll[c] * 0.8;
     } else if (camMode == 3) {
         // T-cam: on the airbox, looking down the nose over the driver's head
         camX = caX[c] - fx * 0.35;
         camY = caY[c] + 1.30;
         camZ = caZ[c] - fz * 0.35;
         camYaw = caYaw[c];
-        camPitch = 0 - 4.0 + caPitch[c] * 0.5;
+        camPitch = 0 - 4.0 - caPitch[c] * 0.9;
         camRoll = caRoll[c] * 0.8;
     } else {
         // chase: trails the direction of travel so slides stay readable

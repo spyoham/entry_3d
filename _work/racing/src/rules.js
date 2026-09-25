@@ -104,21 +104,108 @@ function wxStep() {
 // ---- tyres -----------------------------------------------------------------
 // Grip multiplier for car c: its compound on this much water, then wear - a
 // gentle fade, and a cliff once the set is nearly gone.
+// v2.6: each of the four wheels (1 FL, 2 FR, 3 RL, 4 RR; whT/whW/whG at
+// (c - 1) * 4 + k) has its own temperature and wear, and so its own grip:
+// full inside the compound's window, less when cold, less again (and
+// wearing faster) when overheated, and falling away as the rubber goes.
+// caWK is the car's mean, caWear its most worn wheel; caAxF / caAxR say how much better or worse the
+// front and rear axles are than that mean, so worn or cooked fronts push
+// the car wide and tired rears let it step out.
+let oTyG = 1;               // the compound in these conditions, before heat and wear
 function tyreGrip(c) {
     let t = caTy[c];
     let g = tyDry[t] + (tyWet[t] - tyDry[t]) * wetL;
-    let w = caWear[c];
-    let k = 0.80 + 0.20 * w;
-    if (w < 0.25) { k = k * (0.85 + 0.6 * w); }
-    caWK[c] = g * k;
+    oTyG = g;
+    let b = (c - 1) * 4;
+    let lo = tyTlo[t];
+    let hi = tyThi[t];
+    let k = 1;
+    let sum = 0;
+    while (k <= 4) {
+        let w = whW[b + k];
+        let f = 0.80 + 0.20 * w;
+        if (w < 0.25) { f = f * (0.85 + 0.6 * w); }
+        let tt = whT[b + k];
+        if (tt < lo) { f = f * (1 - Math.min(0.15, (lo - tt) * 0.006)); }
+        if (tt > hi) { f = f * (1 - Math.min(0.15, (tt - hi) * 0.006)); }
+        whG[b + k] = f;
+        sum = sum + f;
+        k = k + 1;
+    }
+    let m = sum / 4;
+    caWK[c] = g * m;
+    caAxF[c] = (whG[b + 1] + whG[b + 2]) / (2 * m) - 1;
+    caAxR[c] = (whG[b + 3] + whG[b + 4]) / (2 * m) - 1;
+    // the most worn wheel is what the set has left (pit calls, the HUD bar)
+    caWear[c] = Math.min(whW[b + 1], whW[b + 2], whW[b + 3], whW[b + 4]);
 }
 
 function fitTyre(c, t) {
     caTy[c] = t;
-    caWear[c] = 1;
+    let b = (c - 1) * 4;
+    let k = 1;
+    while (k <= 4) { whW[b + k] = 1; whT[b + k] = tyTbl[t]; k = k + 1; }
     caWR[c] = WEARK / (tyLife[t] * raceDur);
     if (gMode >= M_TT) { caWR[c] = 0; }
     tyreGrip(c);
+}
+
+// ---- v2.6: the player's tyre check ------------------------------------------------
+// A status per wheel (whSt: 1 OK, 2 WARMING, 3 COLD, 4 HOT, 5 OVERHEAT, 6 WORN,
+// names and colours in whStN / whStC), one line of advice for the check
+// panel (I), and a word on the radio when a wheel first gets into trouble.
+let whShow = 0;             // the check panel is open
+let whAdv = 'OK';
+let whAdvC = '#ffffff';
+let whWorst = 1;            // the worst status last time, for the radio
+let whRadT = 0;
+function whCheck() {
+    let t = caTy[1];
+    let lo = tyTlo[t];
+    let hi = tyThi[t];
+    let k = 1;
+    let worst = 1;
+    let wk = 1;
+    let nCold = 0;
+    while (k <= 4) {
+        let tt = whT[k];
+        let st = 1;
+        if (tt < lo - 8) { st = 3; } else if (tt < lo) { st = 2; }
+        if (tt > hi + 12) { st = 5; } else if (tt > hi) { st = 4; }
+        if (whW[k] < 0.25) { if (st != 5) { st = 6; } }
+        if (st >= 2) { if (st <= 3) { nCold = nCold + 1; } }
+        whSt[k] = st;
+        // worst first: overheating, then worn, hot, cold, warming
+        if (whRank[st] > whRank[worst]) { worst = st; wk = k; }
+        k = k + 1;
+    }
+    whAdv = 'ALL FOUR TYRES IN THE WINDOW';
+    whAdvC = '#3dff6e';
+    if (worst == 5) {
+        whAdvC = '#ff6a5a';
+        if (wk <= 2) { whAdv = str(whLong[wk], ' OVERHEATING - BRAKE EARLIER, LESS STEERING'); }
+        else { whAdv = str(whLong[wk], ' OVERHEATING - GENTLER ON THE THROTTLE'); }
+    } else if (worst == 6) {
+        whAdv = str(whLong[wk], ' WORN OUT - BOX THIS LAP');
+        whAdvC = '#ff6a5a';
+    } else if (worst == 4) {
+        whAdv = str(whLong[wk], ' RUNNING HOT - LOOK AFTER IT');
+        whAdvC = '#ffb13a';
+    } else if (worst >= 2) {
+        whAdv = 'TYRES BELOW THE WINDOW - PUSH TO WARM THEM';
+        if (nCold < 4) { whAdv = str(whLong[wk], ' COLD - WORK IT HARDER'); }
+        whAdvC = '#7fd0ff';
+    }
+    if (whRadT > 0) { whRadT = whRadT - dt; }
+    if (raceState == ST_RACE) {
+        if (worst != whWorst) {
+            if (whRadT <= 0) {
+                if (worst == 5) { setRadio(str(whLong[wk], ' TYRE OVERHEATING'), 3); whRadT = 12; }
+                if (worst == 6) { setRadio(str(whLong[wk], ' TYRE IS GONE - BOX, BOX'), 3.5); whRadT = 12; }
+            }
+        }
+    }
+    whWorst = worst;
 }
 
 // the right tyre for the conditions and the laps left
@@ -135,19 +222,89 @@ function pickTyre(c, lapsLeft) {
     }
 }
 
-// wear, and the ERS store, for one physics step of car c
+// v2.6: the four tyres, and the ERS store, for one physics step of car c.
+// The tyres are worked out ten times a second (staggered between cars) from
+// what the car is doing at that moment:
+//   * cornering loads the outside wheels (aLat > 0 is a right-hander, so the
+//     left ones), braking the fronts, traction out of slow corners the rears
+//   * a washing-out front or a sliding / drifting rear scrubs its axle, and
+//     a locked brake flat-spots the fronts
+//   * that work heats the tyre (as its square root, so every circuit ends up
+//     near the window - t7/whcal.mjs - while hard use still shows); the
+//     air cools it, faster at speed, much faster on a wet track and on grass
+//   * wear follows the same work, much faster above the window, a little
+//     faster when cold (graining)
+// phSlF / phSlR are the front and rear slip angles phys.js last saw.
+let phSlF = 0;
+let phSlR = 0;
 function simCarStep(c, aLat, mu, da) {
-    if (raceState == ST_RACE) {
-        let u = Math.abs(aLat) / (mu + 0.5);
+    let wt = caWhT[c] + dt;
+    // (the safety car has no tyres to look after)
+    if (caTy[c] < 1) { wt = 0; }
+    if (wt >= 0.1) {
+        caWhT[c] = 0;
+        let sp = Math.abs(caSpd[c]);
+        let u = aLat / (mu + 0.5);
         if (u > 1.2) { u = 1.2; }
-        let use = 0.30 + 0.70 * u;
-        if (da > 8) { use = use + 0.8; }
-        if (caBrk[c] > 0.5) { if (caSpd[c] > 30) { use = use + 0.25; } }
+        if (u < 0 - 1.2) { u = 0 - 1.2; }
+        let au = Math.abs(u);
+        let sL = 1 + 0.9 * u;
+        if (sL < 0.1) { sL = 0.1; }
+        let sR = 1 - 0.9 * u;
+        if (sR < 0.1) { sR = 0.1; }
+        let br = 0;
+        if (sp > 12) { br = caBrk[c]; }
+        let trac = caThr[c] * (1 - Math.min(1, sp / 55));
+        let slF = Math.min(1, Math.max(0, (phSlF - SLIPPK) / 10));
+        let slR = Math.min(1.5, Math.max(0, (phSlR - SLIPPK) / 10, (da - 6) / 20));
+        let lock = 0;
+        if (br > 0.9) { if (sp > 15) { if (phSlF > SLIPPK) { lock = 1; } } }
+        let spf = 0.3 + 0.7 * Math.min(1, sp / 50);
+        let amb = 34 - 18 * wetL;
+        let cool = 0.012 * (1 + sp / 150) * (1 + 1.5 * wetL);
+        if (caSurf[c] >= 2) { cool = cool * 1.6; }
+        let t = caTy[c];
+        let lo = tyTlo[t];
+        let hi = tyThi[t];
         // treaded tyres cook on a drying track
-        if (caTy[c] >= TY_I) { if (wetL < 0.35) { use = use * (1 + 5 * (0.35 - wetL)); } }
-        let w = caWear[c] - caWR[c] * caWearK[c] * use * dt;
-        if (w < 0) { w = 0; }
-        caWear[c] = w;
+        let tread = 1;
+        if (t >= TY_I) { if (wetL < 0.35) { tread = 1 + 5 * (0.35 - wetL); } }
+        let wear = 0;
+        if (raceState == ST_RACE) { wear = caWR[c] * caWearK[c]; }
+        let fb = 0.05 * caBias[c];
+        let b = (c - 1) * 4;
+        let k = 1;
+        while (k <= 4) {
+            let side = sL;
+            if (k == 2) { side = sR; }
+            if (k == 4) { side = sR; }
+            let lat = au * side;
+            let wk = 0;
+            let use = 0.30 + 0.70 * lat;
+            if (k <= 2) {
+                wk = (lat * 1.05 + 0.9 * br * (1.4 + fb) + 2.5 * slF + 2 * lock) * spf;
+                use = use + 0.25 * br * (1.5 + fb) + 0.8 * slF + 0.6 * lock;
+                if (da > 8) { use = use + 0.4; }
+            } else {
+                wk = (lat * 0.95 + 0.9 * br * (0.6 - fb) + 0.8 * trac + 2.5 * slR) * spf;
+                use = use + 0.25 * br * (0.5 - fb) + 0.3 * trac + 0.6 * slR;
+                if (da > 8) { use = use + 1.2; }
+            }
+            if (caSurf[c] == 1) { wk = wk + 0.3; }
+            let tt = whT[b + k];
+            tt = tt + (1.15 * (0.30 * spf + 1.25 * Math.sqrt(wk)) * tread - cool * (tt - amb)) * wt;
+            whT[b + k] = tt;
+            if (wear > 0) {
+                if (tt > hi) { use = use * (1 + (tt - hi) / 12); }
+                else if (tt < lo - 8) { use = use * (1 + (lo - 8 - tt) / 40); }
+                let w = whW[b + k] - wear * use * tread * wt;
+                if (w < 0) { w = 0; }
+                whW[b + k] = w;
+            }
+            k = k + 1;
+        }
+    } else {
+        caWhT[c] = wt;
     }
     // ERS: harvested under braking (up to a share per lap), spent on demand
     let e = caErs[c];
@@ -524,6 +681,7 @@ function simStep() {
         c = 2;
         while (c <= nCars) { aiStrategy(c); c = c + 1; }
     }
+    whCheck();
     if (radioT > 0) { radioT = radioT - dt; if (radioT <= 0) { radio = BLANK; } }
 }
 
