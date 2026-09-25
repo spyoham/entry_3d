@@ -325,11 +325,12 @@ function aiDrive(c) {
     // off the road, so checkRecovery never helps): after 6 s of going
     // nowhere in the race it is put back on the road and sent on its way
     let pinned = 0;
-    if (sp < 2.5) { if (raceState == ST_RACE) { if (caHold[c] < 1) { if (caPit[c] == 0) { if (caDNF[c] < 1) { if (caFin[c] < 1) { pinned = 1; } } } } } }
+    // (v3.3: scraping along a wall at walking pace counts too)
+    if (sp < 4.5) { if (raceState == ST_RACE) { if (caHold[c] < 1) { if (caPit[c] == 0) { if (caDNF[c] < 1) { if (caFin[c] < 1) { pinned = 1; } } } } } }
     // (leaving the pits it gets longer: the lane can queue behind a stop)
     let lim6 = 6;
     if (sp < 2.5) { if (raceState == ST_RACE) { if (caHold[c] < 1) { if (caPit[c] == 4) { pinned = 1; lim6 = 15; } } } }
-    if (pinned > 0) { caStkT[c] = caStkT[c] + dt; } else if (sp > 6) { caStkT[c] = 0; }
+    if (pinned > 0) { caStkT[c] = caStkT[c] + dt; } else if (sp > 8) { caStkT[c] = 0; }
     if (caStkT[c] > lim6) { if (caPit[c] == 4) { caPit[c] = 0; caLim[c] = 0; } aiRescue(c); }
     if (caStuck[c] > 1.6) {
         caThr[c] = 0;
@@ -359,7 +360,9 @@ function aiDrive(c) {
             caThr[c] = 1; caBrk[c] = 0;
             // v3.0 lift and coast: short of fuel, it rolls into the braking
             // zone off the throttle instead of accelerating up to it
-            if (caLC[c] > 0) { if (vmax < sp + 9) { if (worst > 0.002) { caThr[c] = 0; } } }
+            // (v3.3: only at speed, into a braking zone - below that it used
+            // to leave a slow car crawling through a slow section for good)
+            if (caLC[c] > 0) { if (sp > 28) { if (vmax < sp + 9) { if (worst > 0.002) { caThr[c] = 0; } } } }
         }
         else if (sp > vmax + 1.0) { caThr[c] = 0; caBrk[c] = Math.min(1, (sp - vmax) / 2.2); }
         else { caThr[c] = 0.45; caBrk[c] = 0; }

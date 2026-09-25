@@ -370,6 +370,8 @@ function editKeys() {
 }
 
 on('start', 'pen3', function () {
+    // v3.3: the zero-filled work buffers are made here, not stored in the work
+    allocLists();
     hide();
     penSize(1);
     initGame();

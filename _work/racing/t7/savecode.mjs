@@ -15,6 +15,7 @@ const check = (name, ok, detail = '') => {
 function player(nick) {
     const s = createSim();
     s.R.nick = nick;
+    s.peek('allocLists()');     // (v3.3: what the start script does first)
     s.peek('whoAmI()');
     s.poke('pLoaded', 1);
     return s;

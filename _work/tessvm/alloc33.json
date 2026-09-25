@@ -1,0 +1,5 @@
+[{"wait":300,"eval":"(()=>{const vm=window.__vm; const L=n=>{const v=vm.variables.find(v=>v.name===n); return v && (v.value||v.array||[]).length}; return {t:performance.now()-window.__t0, rpX:L('rpX'), pvX:L('pvX'), sgX:L('sgX'), rs:(vm.variables.find(v=>v.name==='raceState')||{}).value}})()"},
+{"wait":700,"eval":"(()=>{const vm=window.__vm; const L=n=>{const v=vm.variables.find(v=>v.name===n); return v && (v.value||v.array||[]).length}; return {t:performance.now()-window.__t0, rpX:L('rpX'), pvX:L('pvX'), sgX:L('sgX')}})()"},
+{"wait":3000,"fps":"menu","shot":"a33.png"},
+{"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":150},{"up":{"code":"Enter","key":"Enter","keyCode":13}},
+{"wait":6000},{"down":{"code":"KeyW","key":"w","keyCode":87}},{"wait":6000,"fps":"race","shot":"a33r.png"}]

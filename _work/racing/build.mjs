@@ -1275,10 +1275,32 @@ export function buildData() {
         if (NO_JITTER.has(k)) continue;
         lists[k] = lists[k].map(longTail);
     }
-    return { lists, consts, mats, idx };
+    // v3.3: online Entry would not save the work any more (the project had
+    // grown past what the site stores, t7/entsize.mjs). A quarter of it was
+    // lists that start as nothing but zeros - buffers the game fills as it
+    // runs (replay, vertices, the circuit's rings, marks, ghosts...). They go
+    // into the work empty and allocLists() (declPrelude) fills them to the
+    // same length first thing at the start. The text slots stay as they are:
+    // the text object reads them from its own start script.
+    const alloc = {};
+    for (const [k, v] of Object.entries(lists)) {
+        if (v.length >= ALLOCMIN && !k.startsWith('tx') && v.every(x => x === 0)) {
+            (alloc[v.length] = alloc[v.length] || []).push(k);
+            lists[k] = [];
+        }
+    }
+    return { lists, consts, mats, idx, alloc };
 }
 
-export function declPrelude(D) { return Object.keys(D.lists).map(k => 'let ' + k + ' = [];').join('\n'); }
+const ALLOCMIN = 64;         // v3.3: all-zero lists this long are filled at run time
+export function declPrelude(D) {
+    const decl = Object.keys(D.lists).map(k => 'let ' + k + ' = [];').join('\n');
+    // one loop per length, pushing onto every list of that length (only up to
+    // the length, should Entry have kept a list's contents from a last run)
+    const loops = Object.entries(D.alloc || {}).map(([n, ks]) =>
+        `    let i${n} = ${ks[0]}.length;\n    while (i${n} < ${n}) { ${ks.map(k => k + '.push(0);').join(' ')} i${n} = i${n} + 1; }`).join('\n');
+    return decl + '\nfunction allocLists() {\n' + (loops || '    let n = 0;') + '\n}';
+}
 export function sources() { return SRC_FILES.map(f => fs.readFileSync(path.join(HERE, 'src', f), 'utf8')); }
 
 export const FUNC_WEIGHTS = { projectRing: 40, quad: 60, drawSeg: 20, carPhys: 8, aiDrive: 8 };
