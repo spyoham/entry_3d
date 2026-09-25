@@ -782,9 +782,12 @@ function scClear(o) {
     let px = scX[o]; let pz = scZ[o];
     oClr = 999;
     let j = 1;
+    let h = 0;              // v4.0: close by, the road between the rings as well
     while (j <= NSEG) {
-        let dx = sgX[j] - px;
-        let dz = sgZ[j] - pz;
+        let jn = j + 1;
+        if (jn > NSEG) { jn = 1; }
+        let dx = sgX[j] + (sgX[jn] - sgX[j]) * h - px;
+        let dz = sgZ[j] + (sgZ[jn] - sgZ[j]) * h - pz;
         let lx = cy * dx - sy * dz;
         let lz = sy * dx + cy * dz;
         let ex = 0;
@@ -794,13 +797,17 @@ function scClear(o) {
         let d = Math.sqrt(ex * ex + ez * ez);
         let need = sgW[j] + 0.8;
         if (sgHW[j] < 1) {
-            if ((px - sgX[j]) * sgNX[j] + (pz - sgZ[j]) * sgNZ[j] < 0) { need = need + sgRWL[j]; }
-            else { need = need + sgRWR[j]; }
+            // (the wider of the two rings' run-off: it widens between them)
+            if ((px - sgX[j]) * sgNX[j] + (pz - sgZ[j]) * sgNZ[j] < 0) { need = need + Math.max(sgRWL[j], sgRWL[jn]); }
+            else { need = need + Math.max(sgRWR[j], sgRWR[jn]); }
         }
         let m = d - need;
         if (m < oClr) { oClr = m; }
         let skip = Math.floor((d - 30) / segStep);
-        if (skip < 1) { skip = 1; }
+        if (skip < 1) {
+            // close by: every quarter of the way to the next ring too
+            if (h < 0.7) { h = h + 0.25; skip = 0; } else { h = 0; skip = 1; }
+        } else { h = 0; }
         j = j + skip;
         if (oClr < 0) { j = NSEG + 1; }
     }

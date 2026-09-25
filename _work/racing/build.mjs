@@ -1253,6 +1253,8 @@ export function buildData() {
     lists.gfScn = [270, 420, 600]; lists.gfScnHi = [60, 140, 260];
     // v4.0: how far an object is drawn, in its own bounding radii
     lists.gfScnSz = [45, 60, 90];
+    // v4.0: how close the rest of the lap has to come to be drawn as well
+    lists.gfSide = [180, 300, 450];
     lists.gfCar = [40, 90, 150]; lists.gfCarM = [80, 260, 420];
     lists.gfFog = [1.0, 1.15, 1.35]; lists.gfDen = [1, 1, 2];
     lists.gfFull = [1, 4, 8];           // how many cars may use the full model at once

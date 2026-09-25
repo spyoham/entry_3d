@@ -431,8 +431,49 @@ function cullSegments() {
             }
         }
     }
+    // v4.0: the rest of the lap where it comes back close by - the other side
+    // of a hairpin, a parallel straight, the other road at a crossing. It is
+    // not ahead down the road, so the walk above never reaches it. A ring
+    // can only be one ring's length closer than the last, so far off the
+    // scan jumps ahead by the distance.
+    let sideR = gfSide[gfx];
+    if (sideR > fogFar) { sideR = fogFar; }
+    let sideR2 = sideR * sideR;
+    let kk = cullAhead + 1;
+    let kEnd = NSEG - CULLBACK;
+    while (kk < kEnd) {
+        let i = mod(s0 - 1 + kk + NSEG, NSEG) + 1;
+        let dx = sgX[i] - camX;
+        let dz = sgZ[i] - camZ;
+        let d2 = dx * dx + dz * dz;
+        let st = 1;
+        if (d2 < sideR2) {
+            if (d2 > gfLod3[gfx] * gfLod3[gfx] * 0.25) { st = 3; } else if (d2 > gfLod2[gfx] * gfLod2[gfx] * 0.25) { st = 2; }
+            if (kk + st > kEnd) { st = kEnd - kk; }
+            let fd = dx * chX + dz * chZ;
+            let margin = sgW[i] + GRASSW + 6 + st * segStep;
+            if (fd > 0 - margin) {
+                let sd = dx * csX + dz * csZ;
+                let lim = fd * tanHalf + margin + SCNM;
+                if (sd < lim) {
+                    if (sd > 0 - lim) {
+                        nVis = nVis + 1;
+                        visI[nVis] = i;
+                        visD[nVis] = d2;
+                        visS[nVis] = st;
+                    }
+                }
+            }
+            kk = kk + st;
+        } else {
+            let jump = Math.floor((Math.sqrt(d2) - sideR) / segStep);
+            if (jump < 1) { jump = 1; }
+            kk = kk + jump;
+        }
+    }
     // the walk already came out farthest-first, so this insertion pass only
     // has to repair the odd hairpin where ring order and depth order disagree
+    // (v4.0: and slot the rings from elsewhere on the lap in)
     let i2 = 2;
     while (i2 <= nVis) {
         let ki = visI[i2];

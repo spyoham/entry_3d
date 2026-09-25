@@ -660,8 +660,17 @@ for (const C of CIRCUITS) {
         let col = cols[Math.floor(hash01(o.e.id, 'c') * cols.length)];
         if (tall && M.glass != null && hash01(o.e.id, 'g') < 0.7) col = M.glass;
         const sink = 5;
-        const dy = dyAt(o.b.cx, o.b.cz, o.i, o.d) + o.mh - sink;
-        push({ t: 'block', i: o.i, x: o.b.cx, z: o.b.cz, dy, yaw, sx: Math.max(2 * o.b.hu, 2), sy: o.h - o.mh + sink, sz: Math.max(2 * o.b.hv, 2), m: col * 4, tier, chk: o.overTun ? 0 : 1 });
+        let dy = dyAt(o.b.cx, o.b.cz, o.i, o.d) + o.mh - sink;
+        let sy = o.h - o.mh + sink;
+        if (o.overTun) {
+            // over the tunnel: it starts on the tunnel roof (7 m, track.js
+            // TUNH, + the 1 m the ground sits below the road), not on the road
+            const roof = 8.3;
+            const top = dy + sy;
+            dy = Math.max(dy, roof);
+            sy = Math.max(top - dy, 4);
+        }
+        push({ t: 'block', i: o.i, x: o.b.cx, z: o.b.cz, dy, yaw, sx: Math.max(2 * o.b.hu, 2), sy, sz: Math.max(2 * o.b.hv, 2), m: col * 4, tier, chk: o.overTun ? 0 : 1 });
     });
 
     // -- water: sea (right of the coastline), lakes, rivers, harbours --
