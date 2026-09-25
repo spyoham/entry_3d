@@ -1215,7 +1215,9 @@ export function buildData() {
         // (every one of them 0 = neutral, so the ghost / safety car slot needs no setting)
         'caBrT', 'caBrD', 'caFuel', 'caFuelR', 'caFuel0', 'caFuelL', 'caMix', 'caLock', 'caLockR', 'caPowD', 'caTopD', 'caMassD',
         'caFail', 'caFailT', 'caDNF', 'caBlue', 'caBlueBy', 'caWet', 'caFWb', 'caDiff', 'caPres',
-        'caGSeg', 'caGOff', 'caFormD', 'caFormOk', 'caQ1', 'caQ2', 'caQ3', 'caQOut', 'qIn', 'caLC', 'caStrat', 'caUcL', 'caMisK'])
+        'caGSeg', 'caGOff', 'caFormD', 'caFormOk', 'caQ1', 'caQ2', 'caQ3', 'caQOut', 'qIn', 'caLC', 'caStrat', 'caUcL', 'caMisK',
+        // v3.1: how long an AI car has been unable to get going
+        'caStkT'])
         lists[k] = zeros(NC + 2);
     // v2.6: four wheels per car (FL FR RL RR): temperature, wear left, grip
     for (const k of ['whT', 'whW', 'whG', 'whFS']) lists[k] = zeros(4 * (NC + 2));

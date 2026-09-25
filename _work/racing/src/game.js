@@ -143,6 +143,7 @@ function placeCar(c, seg, off) {
     caBrT[c] = 180; caBrD[c] = 0; caLock[c] = 0; caLockR[c] = 0; caPowD[c] = 0; caTopD[c] = 0;
     caFail[c] = 0; caFailT[c] = 0; caDNF[c] = 0; caBlue[c] = 0; caBlueBy[c] = 0; caWet[c] = wetL;
     caLC[c] = 0; caStrat[c] = 0; caUcL[c] = 0; caMisK[c] = 0; caFormOk[c] = 1; caFormD[c] = 0;
+    caStkT[c] = 0;
     fuelUp(c);
     if (rules == R_SIM) {
         let t = TY_M;

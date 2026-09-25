@@ -321,6 +321,16 @@ function aiDrive(c) {
 
     // ---- stuck / spun recovery ----
     if (sp < 2.2) { if (caHold[c] < 1) { caStuck[c] = caStuck[c] + dt; } } else { caStuck[c] = 0; }
+    // v3.1: pinned against a wall (reversing gets it nowhere, and it is not
+    // off the road, so checkRecovery never helps): after 6 s of going
+    // nowhere in the race it is put back on the road and sent on its way
+    let pinned = 0;
+    if (sp < 2.5) { if (raceState == ST_RACE) { if (caHold[c] < 1) { if (caPit[c] == 0) { if (caDNF[c] < 1) { if (caFin[c] < 1) { pinned = 1; } } } } } }
+    // (leaving the pits it gets longer: the lane can queue behind a stop)
+    let lim6 = 6;
+    if (sp < 2.5) { if (raceState == ST_RACE) { if (caHold[c] < 1) { if (caPit[c] == 4) { pinned = 1; lim6 = 15; } } } }
+    if (pinned > 0) { caStkT[c] = caStkT[c] + dt; } else if (sp > 6) { caStkT[c] = 0; }
+    if (caStkT[c] > lim6) { if (caPit[c] == 4) { caPit[c] = 0; caLim[c] = 0; } aiRescue(c); }
     if (caStuck[c] > 1.6) {
         caThr[c] = 0;
         caBrk[c] = 1;
@@ -384,3 +394,24 @@ function aiDrive(c) {
     if (caDNF[c] > 0) { caErsOn[c] = 0; if (caHold[c] > 0) { caThr[c] = 0; caBrk[c] = 1; caSteer[c] = 0; } }
     if (caFin[c] > 0) { caThr[c] = caThr[c] * 0.5; }
 }
+
+// v3.1: back onto the road, pointing the right way, rolling
+function aiRescue(c) {
+    let s = caSeg[c];
+    let w = sgW[s];
+    let off = caOff[c] * 0.3;
+    if (off > w - 2.5) { off = w - 2.5; }
+    if (off < 0 - (w - 2.5)) { off = 0 - (w - 2.5); }
+    caX[c] = sgX[s] + sgNX[s] * off;
+    caZ[c] = sgZ[s] + sgNZ[s] * off;
+    caY[c] = sgY[s];
+    atan2d(sgDX[s], sgDZ[s]);
+    caYaw[c] = oAtan;
+    caVX[c] = sgDX[s] * 6;
+    caVZ[c] = sgDZ[s] * 6;
+    caVY[c] = 0; caYR[c] = 0; caAir[c] = 0; caOffT[c] = 0;
+    caSteer[c] = 0;
+    caStuck[c] = 0;
+    caStkT[c] = 0;
+}
+
