@@ -143,6 +143,10 @@ function buildTrack(tk) {
         tsY[i] = ctlY[a] * w0 + ctlY[b] * w1 + ctlY[c] * w2 + ctlY[d] * w3;
         tsZ[i] = ctlZ[a] * w0 + ctlZ[b] * w1 + ctlZ[c] * w2 + ctlZ[d] * w3;
         tsW[i] = ctlW[b] + (ctlW[c] - ctlW[b]) * f;
+        tsGL[i] = ctlGL[b] + (ctlGL[c] - ctlGL[b]) * f;
+        tsGR[i] = ctlGR[b] + (ctlGR[c] - ctlGR[b]) * f;
+        tsSL[i] = ctlSL[b] + (ctlSL[c] - ctlSL[b]) * f;
+        tsSR[i] = ctlSR[b] + (ctlSR[c] - ctlSR[b]) * f;
         tsF[i] = f < 0.5 ? ctlF[b] : ctlF[c];
     }
 
@@ -181,6 +185,11 @@ function buildTrack(tk) {
         sgY[i] = tsY[si] + (tsY[sn] - tsY[si]) * f;
         sgZ[i] = tsZ[si] + (tsZ[sn] - tsZ[si]) * f;
         sgW[i] = tsW[si] + (tsW[sn] - tsW[si]) * f;
+        sgGL[i] = tsGL[si] + (tsGL[sn] - tsGL[si]) * f;
+        sgGR[i] = tsGR[si] + (tsGR[sn] - tsGR[si]) * f;
+        // v4.2: the grass strip stops short of another part of the lap
+        sgSL[i] = Math.min(tsSL[si], tsSL[sn]);
+        sgSR[i] = Math.min(tsSR[si], tsSR[sn]);
         sgF[i] = tsF[si];
         sgArc[i] = target;
         sgLen[i] = segStep;
@@ -188,6 +197,8 @@ function buildTrack(tk) {
     }
     sgX[NSEG + 1] = sgX[1]; sgY[NSEG + 1] = sgY[1]; sgZ[NSEG + 1] = sgZ[1];
     sgW[NSEG + 1] = sgW[1]; sgF[NSEG + 1] = sgF[1];
+    sgGL[NSEG + 1] = sgGL[1]; sgGR[NSEG + 1] = sgGR[1];
+    sgSL[NSEG + 1] = sgSL[1]; sgSR[NSEG + 1] = sgSR[1];
     sgArc[NSEG + 1] = total; sgLen[NSEG + 1] = segStep;
 
     // ---- 4) tangents, right normals, curvature, banking ----
@@ -277,6 +288,19 @@ function buildTrack(tk) {
         sgTun[i] = mod(fl, 2) >= 1 ? 1 : 0;
         sgJmp[i] = mod(idiv(fl, 2), 2) >= 1 ? 1 : 0;
         sgHW[i] = 0;
+        // v4.2: 32 a bridge deck (no grass beside it: its sides and underside
+        // instead), 128 the road that passes under one
+        sgBrg[i] = mod(idiv(fl, 32), 2);
+        sgUnd[i] = mod(idiv(fl, 128), 2);
+        // where the grass strip's outer edge sits (m from the road edge,
+        // default a metre down): on the land at ULTRA, down an embankment (64)
+        // at every level
+        sgGA[i] = 0 - GRASSD;
+        sgGB[i] = 0 - GRASSD;
+        let land = 0;
+        if (gfx > 2) { if (trkReal[curTrk] > 0) { land = 1; } }
+        if (mod(idiv(fl, 64), 2) >= 1) { land = 1; }
+        if (land > 0) { sgGA[i] = sgGL[i]; sgGB[i] = sgGR[i]; }
         if (sgTun[i] > 0) { sgHW[i] = 1; }
         if (mod(idiv(fl, 4), 2) >= 1) { sgHW[i] = 1; }
         i = i + 1;
@@ -346,6 +370,9 @@ function buildTrack(tk) {
         sgRWL[i] = tl == 2 ? RUNG : (tl == 1 ? RUNT : RUNV);
         sgRWR[i] = tr == 2 ? RUNG : (tr == 1 ? RUNT : RUNV);
         if (sgHW[i] > 0) { sgRWL[i] = 0; sgRWR[i] = 0; }
+        // v4.2: nor may the run-off reach another part of the lap
+        if (sgRWL[i] > sgSL[i] - 1) { sgRWL[i] = Math.max(0, sgSL[i] - 1); }
+        if (sgRWR[i] > sgSR[i] - 1) { sgRWR[i] = Math.max(0, sgSR[i] - 1); }
         i = i + 1;
     }
     // v7 realistic: the pit lane down the left of the main straight
@@ -374,10 +401,20 @@ function buildTrack(tk) {
         let orr = w + sgRWR[i];
         wvX[base + P_OL] = x - nx * ol; wvY[base + P_OL] = yL - 0.04; wvZ[base + P_OL] = z - nz * ol;
         wvX[base + P_OR] = x + nx * orr; wvY[base + P_OR] = yR - 0.04; wvZ[base + P_OR] = z + nz * orr;
-        // grass skirt
-        let gw = w + GRASSW;
-        wvX[base + P_GL] = x - nx * gw; wvY[base + P_GL] = yL - GRASSD; wvZ[base + P_GL] = z - nz * gw;
-        wvX[base + P_GR] = x + nx * gw; wvY[base + P_GR] = yR - GRASSD; wvZ[base + P_GR] = z + nz * gw;
+        // grass skirt (v4.2: its outer edge on the land, sgGA/sgGB)
+        // (v4.2: only as wide as it can go without reaching another part of
+        // the lap; its drop scaled to what is left of it)
+        let gwl = w + sgSL[i];
+        let gwr = w + sgSR[i];
+        wvX[base + P_GL] = x - nx * gwl; wvY[base + P_GL] = yL + (sgGA[i] + GRASSD) * sgSL[i] / GRASSW - GRASSD; wvZ[base + P_GL] = z - nz * gwl;
+        wvX[base + P_GR] = x + nx * gwr; wvY[base + P_GR] = yR + (sgGB[i] + GRASSD) * sgSR[i] / GRASSW - GRASSD; wvZ[base + P_GR] = z + nz * gwr;
+        // v4.2: on a bridge deck the 'skirt' points go under the road edges,
+        // so the skirt quads become the deck's sides and the far-level skirt
+        // quad its underside
+        if (sgBrg[i] > 0) {
+            wvX[base + P_GL] = wvX[base + P_L]; wvY[base + P_GL] = yL - 1.3; wvZ[base + P_GL] = wvZ[base + P_L];
+            wvX[base + P_GR] = wvX[base + P_R]; wvY[base + P_GR] = yR - 1.3; wvZ[base + P_GR] = wvZ[base + P_R];
+        }
         // wall / tunnel tops stand on the road edge
         let fl = sgF[i];
         let wh = WALLH;
@@ -417,6 +454,8 @@ function buildTrack(tk) {
         sgMat[i] = roadBase + oShade;
         // grass: flat, with a two-tone banding so it is not a dead sheet
         sgGMat[i] = gmatBase + (mod(i, 6) < 3 ? 6 : 7);
+        // v4.2: a bridge deck's sides and underside are concrete
+        if (sgBrg[i] > 0) { sgGMat[i] = M_deck + 3; }
         // run-off bands: striped gravel, painted tarmac, or just more grass
         sgRML[i] = sgGMat[i];
         sgRMR[i] = sgGMat[i];
@@ -607,6 +646,8 @@ function buildTrack(tk) {
 
     // ---- 11) scenery ----
     placeScenery(tk);
+    // ---- 11b) v4.2 the land round the circuit ----
+    loadLand(tk);
 
     // ---- 12) v7 trackside TV cameras for replays ----
     buildTvCams();
@@ -927,6 +968,108 @@ function placeReal(tk) {
     }
 }
 
+// ---- v4.2: the land round a real circuit ----------------------------------
+// A height grid over the mapped area (real/prep.mjs: the real lie of the
+// land, meeting the ground the lap runs on) and a land cover per cell. The
+// cells in play at this graphics level (tier: 2 round the Suzuka crossover
+// from HIGH, 3 everywhere on ULTRA) are grouped in 3 x 3 patches, each drawn
+// as its own unit in the depth sort (render.js drawLand).
+let tpN = 0;               // patches on this circuit
+let tgNXc = 0;             // this circuit's grid: cells across, down, size, origin
+let tgNZc = 0;
+let tgCc = 0;
+let tgX0c = 0;
+let tgZ0c = 0;
+function loadLand(tk) {
+    tpN = 0;
+    tgNXc = tgNX[tk];
+    tgNZc = tgNZ[tk];
+    tgCc = tgC[tk];
+    tgX0c = tgX0[tk];
+    tgZ0c = tgZ0[tk];
+    let on = 0;
+    if (gfx > 1) { if (tgNXc > 0) { on = 1; } }
+    if (on > 0) {
+        let nv = (tgNXc + 1) * (tgNZc + 1);
+        let v = 0;
+        let ch = 0 - 1;
+        while (v < nv) {
+            let cc = idiv(v, 1500);
+            if (cc != ch) { ch = cc; rsP = tgHD[tgHO[tk] + cc + 1]; }
+            rsNum(mod(v, 1500) * 2 + 1, 2);
+            tgH[v + 1] = oD / 4 - 512;
+            v = v + 1;
+        }
+        let nc = tgNXc * tgNZc;
+        let q = 0;
+        ch = 0 - 1;
+        while (q < nc) {
+            let cc = idiv(q, 3000);
+            if (cc != ch) { ch = cc; rsP = tgCD[tgCO[tk] + cc + 1]; }
+            rsNum(mod(q, 3000) + 1, 1);
+            let k = oD;
+            // in play at this level? then its colour: the land cover, lit by
+            // the slope of the cell
+            let kind = mod(k, 4);
+            if (idiv(k, 4) > gfx) { kind = 0; }
+            tgK[q + 1] = kind;
+            if (kind > 0) {
+                let ci = mod(q, tgNXc);
+                let cj = idiv(q, tgNXc);
+                let a = cj * (tgNXc + 1) + ci + 1;
+                let h00 = tgH[a]; let h10 = tgH[a + 1];
+                let h01 = tgH[a + tgNXc + 1]; let h11 = tgH[a + tgNXc + 2];
+                let gx = (h10 + h11 - h00 - h01) / (2 * tgCc);
+                let gz = (h01 + h11 - h00 - h10) / (2 * tgCc);
+                let ln = Math.sqrt(gx * gx + 1 + gz * gz);
+                shadeOf(0 - gx / ln, 1 / ln, 0 - gz / ln);
+                let mb = gmatBase;
+                if (kind == 2) { mb = M_forest; } else if (kind == 3) { mb = M_pave; }
+                tgM[q + 1] = mb + oShade;
+            }
+            q = q + 1;
+        }
+        // the patches: every 3 x 3 block with a cell in play
+        let pj = 0;
+        while (pj < tgNZc) {
+            let pi = 0;
+            while (pi < tgNXc) {
+                let n = 0;
+                let ys = 0;
+                let a = 0;
+                while (a < 3) {
+                    let b = 0;
+                    while (b < 3) {
+                        let ci = pi + b;
+                        let cj = pj + a;
+                        if (ci < tgNXc) { if (cj < tgNZc) {
+                            if (tgK[cj * tgNXc + ci + 1] > 0) { n = n + 1; ys = ys + tgH[cj * (tgNXc + 1) + ci + 1]; }
+                        } }
+                        b = b + 1;
+                    }
+                    a = a + 1;
+                }
+                if (n > 0) {
+                    if (tpN < NTP) {
+                        tpN = tpN + 1;
+                        tpI[tpN] = pi;
+                        tpJ[tpN] = pj;
+                        tpX[tpN] = tgX0c + (pi + 1.5) * tgCc;
+                        tpZ[tpN] = tgZ0c + (pj + 1.5) * tgCc;
+                        tpY[tpN] = ys / n;
+                        tpF[tpN] = n == 9 ? 1 : 0;
+                        let cm = (pj + 1) * tgNXc + pi + 2;
+                        if (pj + 1 >= tgNZc) { cm = pj * tgNXc + pi + 1; }
+                        tpM[tpN] = tgM[cm];
+                    }
+                }
+                pi = pi + 3;
+            }
+            pj = pj + 3;
+        }
+    }
+}
+
 function placeScenery(tk) {
     scN = 0;
     scSeed = 4177 + tk * 9137;
@@ -1102,6 +1245,11 @@ function sampleTrack(x, z, hint) {
             let drop = (at - w - rw) / 2;
             if (drop > 1) { drop = 1; }
             sfY = edgeY - 0.04 - (GRASSD - 0.04) * drop;
+            // v4.2: the strip slopes on to the land (an embankment, a hillside)
+            let ga = sfT > 0 ? sgGB[best] : sgGA[best];
+            let tt = (at - w) / GRASSW;
+            if (tt > 1) { tt = 1; }
+            sfY = sfY + (ga + GRASSD) * tt;
             if (at > w + GRASSW) { sfSurf = 3; }
         }
     }

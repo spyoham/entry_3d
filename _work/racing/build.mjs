@@ -26,7 +26,7 @@ export const C = {
     NSEG: 460,          // centreline rings per circuit (ring NSEG+1 == ring 1)
     PPR: 10,            // points per ring in the vertex buffer
     NCAR: 8,            // cars on track (1 player + 7 AI)
-    NMAT: 264,          // materials in the palette (v4.0: 240 -> 264, colTab 4224)
+    NMAT: 280,          // materials in the palette (v4.0: 240 -> 264, v4.2: 280, colTab 4480)
     NFOG: 16,           // fog levels baked per material
     NTRK: 8,            // built-in circuits
     EDTRK: 9,           // slot of the editor's own circuit
@@ -39,6 +39,7 @@ export const C = {
     NCARV: 272,         // vertices in the car model (both LOD tiers)
     NCARF: 140,         // faces in the car model
     NSCENE: 1500,       // scenery instances placed around a circuit
+    NTP: 640,           // v4.2: patches of land (3 x 3 cells) round a circuit, at most
     GHOST: 9,
     NTX: 80,            // v6: text slots, one clone of the text object each (v7: 64 -> 76, v8: 80)
     TXW: 1000, TXH: 28, TXF: 20,     // text box: fixed width/height, font px
@@ -95,12 +96,14 @@ export const P = { L: 1, R: 2, GL: 3, GR: 4, OL: 5, OR: 6, WL: 7, WR: 8, CL: 9, 
 // ============================================================
 // families that get 8 shade levels (index = family base + shade 0..7)
 const SHADED = ['road', 'grass', 'curbA', 'curbB', 'wall', 'tunnel', 'dirt', 'dark',
-    'roadS', 'pave', 'grav', 'runT', 'sand'];
+    'roadS', 'pave', 'grav', 'runT', 'sand', 'forest', 'deck'];
 const BASE = {
     road: [80, 82, 88], grass: [70, 138, 64], curbA: [212, 50, 46], curbB: [236, 236, 240],
     wall: [170, 172, 180], tunnel: [96, 94, 104],
     dirt: [156, 138, 92], dark: [40, 46, 56],
     roadS: [62, 62, 68], pave: [150, 146, 138], grav: [196, 176, 132], runT: [104, 108, 124], sand: [196, 170, 124],
+    // v4.2: woods on the land round the circuit, and a bridge deck's concrete
+    forest: [48, 96, 52], deck: [168, 166, 160],
 };
 const CARCOL = [
     [222, 54, 48], [46, 122, 226], [246, 190, 40], [54, 196, 120], [232, 120, 40], [178, 86, 226], [232, 232, 238], [70, 78, 92],
@@ -885,14 +888,15 @@ export function buildData() {
     consts.NCTLTOT = TRACKS.reduce((a, t) => a + t.pts.length, 0) + C.MAXCTL;
 
     // control points of the built-in circuits, then MAXCTL slots for the editor track
-    const cx = [], cy = [], cz = [], cw = [], cf = [], off = [], cnt = [];
+    const cx = [], cy = [], cz = [], cw = [], cf = [], off = [], cnt = [], gl = [], gr = [], sl = [], sr = [];
     for (const t of TRACKS) {
         off.push(cx.length); cnt.push(t.pts.length);
-        for (const p of t.pts) { cx.push(+p.x.toFixed(2)); cy.push(+p.y.toFixed(2)); cz.push(+p.z.toFixed(2)); cw.push(+p.w.toFixed(2)); cf.push(p.f); }
+        for (const p of t.pts) { cx.push(+p.x.toFixed(2)); cy.push(+p.y.toFixed(2)); cz.push(+p.z.toFixed(2)); cw.push(+p.w.toFixed(2)); cf.push(p.f); gl.push(p.gl ?? 0); gr.push(p.gr ?? 0); sl.push(p.sl ?? 40); sr.push(p.sr ?? 40); }
     }
     off.push(cx.length); cnt.push(0);                 // slot EDTRK = editor track
-    for (let i = 0; i < C.MAXCTL; i++) { cx.push(0); cy.push(0); cz.push(0); cw.push(9); cf.push(0); }
-    Object.assign(lists, { ctlX: cx, ctlY: cy, ctlZ: cz, ctlW: cw, ctlF: cf, ctlOff: off, ctlCnt: cnt });
+    for (let i = 0; i < C.MAXCTL; i++) { cx.push(0); cy.push(0); cz.push(0); cw.push(9); cf.push(0); gl.push(0); gr.push(0); sl.push(40); sr.push(40); }
+    // v4.2: where the grass strip's outer edge meets the land (m, from the road)
+    Object.assign(lists, { ctlX: cx, ctlY: cy, ctlZ: cz, ctlW: cw, ctlF: cf, ctlOff: off, ctlCnt: cnt, ctlGL: gl, ctlGR: gr, ctlSL: sl, ctlSR: sr });
     // per-circuit look; the editor's circuit (slot EDTRK) borrows an English airfield
     const ED = { name: 'MY CIRCUIT', info: 'TRACK EDITOR', sky: [182, 200, 222], fogFar: 440, ground: 'grass', road: 'road', runoff: 2, hill: [0.8, 0], theme: 4 };
     const TT = [...TRACKS, ED];
@@ -996,6 +1000,22 @@ export function buildData() {
     lists.rsD = rsD.length ? rsD : [''];
     lists.rsOff = rsOff; lists.rsCh = rsCh; lists.rsN = rsN;
     lists.trkReal = TT.map(t => (t.real ? 1 : 0));
+    // v4.2: the land round each circuit: a height grid (2 characters a corner,
+    // 0.25 m, +512 m, row by row) and a character a cell (0 none, else land
+    // cover 1 ground / 2 woods / 3 town + 4 x the detail tier), in chunks
+    const tgHD = [], tgCD = [], tgHO = [], tgCO = [];
+    for (const k of ['tgX0', 'tgZ0', 'tgC', 'tgNX', 'tgNZ']) lists[k] = [];
+    for (const T of TT) {
+        const G = T.real && T.real.terrain;
+        tgHO.push(tgHD.length); tgCO.push(tgCD.length);
+        lists.tgX0.push(G ? G.x0 : 0); lists.tgZ0.push(G ? G.z0 : 0); lists.tgC.push(G ? G.c : 0);
+        lists.tgNX.push(G ? G.nx : 0); lists.tgNZ.push(G ? G.nz : 0);
+        if (!G) continue;
+        if ((G.nx + 1) * (G.nz + 1) > 4900 || G.nx * G.nz > 4900) throw new Error(T.name + ': land grid too big');
+        for (let a = 0; a < G.h.length; a += 1500) tgHD.push(G.h.slice(a, a + 1500).map(h => enc(cl((h + 512) * 4, 0, 4095), 2)).join(''));
+        for (let a = 0; a < G.cells.length; a += 3000) tgCD.push(G.cells.slice(a, a + 3000).map(k => RSA[k]).join(''));
+    }
+    Object.assign(lists, { tgHD: tgHD.length ? tgHD : [''], tgCD: tgCD.length ? tgCD : [''], tgHO, tgCO });
     // the skyline seen from the circuit: tangent of the horizon's height, per
     // 6 degrees of bearing, for the near hills and the far ones
     lists.hlN = TT.flatMap(t => (t.real ? t.real.hN : new Array(60).fill(0)));
@@ -1254,7 +1274,7 @@ export function buildData() {
     // v4.0: how far an object is drawn, in its own bounding radii
     lists.gfScnSz = [45, 60, 90];
     // v4.0: how close the rest of the lap has to come to be drawn as well
-    lists.gfSide = [180, 300, 450];
+    lists.gfSide = [180, 300, 300];
     lists.gfCar = [40, 90, 150]; lists.gfCarM = [80, 260, 420];
     lists.gfFog = [1.0, 1.15, 1.35]; lists.gfDen = [1, 1, 2];
     lists.gfFull = [1, 4, 8];           // how many cars may use the full model at once
@@ -1269,7 +1289,7 @@ export function buildData() {
     // ---- runtime scratch lists (pre-sized so the hot path never grows a list) ----
     const N = C.NSEG, R = N + 1;
     const zeros = (n) => new Array(n).fill(0);
-    const segL = ['sgX', 'sgY', 'sgZ', 'sgDX', 'sgDZ', 'sgNX', 'sgNZ', 'sgW', 'sgLen', 'sgArc', 'sgCurv', 'sgCurvA', 'sgF', 'sgBank', 'sgMat', 'sgGMat', 'sgCurb', 'sgWMat', 'sgCM', 'sgHW', 'sgTun', 'sgJmp', 'sgGate',
+    const segL = ['sgX', 'sgY', 'sgZ', 'sgDX', 'sgDZ', 'sgNX', 'sgNZ', 'sgW', 'sgLen', 'sgArc', 'sgCurv', 'sgCurvA', 'sgGL', 'sgGR', 'sgGA', 'sgGB', 'sgSL', 'sgSR', 'sgBrg', 'sgUnd', 'sgF', 'sgBank', 'sgMat', 'sgGMat', 'sgCurb', 'sgWMat', 'sgCM', 'sgHW', 'sgTun', 'sgJmp', 'sgGate',
         'sgRWL', 'sgRWR', 'sgRTL', 'sgRTR', 'sgRML', 'sgRMR'];
     for (const k of segL) lists[k] = zeros(R);
     const NSLOT = R * C.PPR + C.NCARV + 8 + C.NSCNV;   // rings, car verts, scratch, scenery
@@ -1280,7 +1300,13 @@ export function buildData() {
     lists.pvE = zeros(N + 2);                    // ...and how many of its points are
     lists.clipX = zeros(10); lists.clipY = zeros(10);
     for (const k of ['tsX', 'tsY', 'tsZ', 'tsW', 'tsF', 'tsA']) lists[k] = zeros(NSAMP_MAX + 2);
-    lists.visI = zeros(N + 8); lists.visD = zeros(N + 8); lists.visS = zeros(N + 8);
+    // (v4.2: + the patches of land in view)
+    lists.visI = zeros(N + 8 + C.NTP); lists.visD = zeros(N + 8 + C.NTP); lists.visS = zeros(N + 8 + C.NTP);
+    lists.tsGL = zeros(NSAMP_MAX + 2); lists.tsGR = zeros(NSAMP_MAX + 2); lists.tsSL = zeros(NSAMP_MAX + 2); lists.tsSR = zeros(NSAMP_MAX + 2);
+    // v4.2 the land: corner heights, cell kinds and colours, and 3x3-cell patches
+    for (const k of ['tgH']) lists[k] = zeros(4902);
+    for (const k of ['tgK', 'tgM']) lists[k] = zeros(4902);
+    for (const k of ['tpI', 'tpJ', 'tpX', 'tpY', 'tpZ', 'tpT', 'tpF', 'tpM']) lists[k] = zeros(C.NTP + 2);
     // v6 text slots (hud.js) and the relief map (menu.js)
     for (const k of ['txS', 'txX', 'txY', 'txZ', 'txC', 'txV']) lists[k] = zeros(C.NTX + 1);
     for (const k of ['mpX', 'mpY', 'mpZ', 'mpNX', 'mpNZ']) lists[k] = zeros(C.NMAP + 1);

@@ -330,10 +330,32 @@ function drawSky() {
     let dy = 0 - sr * 900;
     let nx = sr;
     let ny = cr;
-    // ground haze: everything below the horizon, in the fogged grass tone
-    fill4(hx - dx, hy - dy, hx + dx, hy + dy,
-        hx + dx - nx * 900, hy + dy - ny * 900, hx - dx - nx * 900, hy - dy - ny * 900,
-        colTab[colOff + (gmatBase + 5) * NFOG + NFOG - 2]);
+    // ground haze: everything below the horizon, in the fogged grass tone.
+    // v4.2: in bands - a line o below the horizon is ground about h / o
+    // (x camScale) away for an eye h above it, so the lower bands are less
+    // fogged: from a bridge or a hillside the ground under the land reads
+    // as ground, not as sky
+    let hc = camY - sgY[camSeg] + GRASSD;
+    let ga = sgGA[camSeg];
+    if (sgGB[camSeg] < ga) { ga = sgGB[camSeg]; }
+    if (ga < 0 - GRASSD) { hc = hc - ga - GRASSD; }
+    if (hc < 1) { hc = 1; }
+    let gb = 0;
+    let g0 = 0;
+    while (gb < 6) {
+        let g1 = 900;
+        if (gb == 0) { g1 = 4; } else if (gb == 1) { g1 = 10; } else if (gb == 2) { g1 = 22; } else if (gb == 3) { g1 = 45; } else if (gb == 4) { g1 = 90; }
+        let fl = NFOG - 2;
+        if (gb > 0) {
+            fl = Math.floor(hc * camScale / g0 * fogK);
+            if (fl > NFOG - 2) { fl = NFOG - 2; }
+        }
+        fill4(hx - dx - nx * g0, hy - dy - ny * g0, hx + dx - nx * g0, hy + dy - ny * g0,
+            hx + dx - nx * g1, hy + dy - ny * g1, hx - dx - nx * g1, hy - dy - ny * g1,
+            colTab[colOff + (gmatBase + 5) * NFOG + fl]);
+        g0 = g1;
+        gb = gb + 1;
+    }
     // sky: bands from the horizon colour up to a deeper tone
     let b = 0;
     while (b < 14) {
@@ -411,6 +433,16 @@ function cullSegments() {
         if (k > lodF3) { st = 3; } else if (k > lodF2) { st = 2; }
         k = k - st;
         let i = mod(s0 - 1 + k + NSEG, NSEG) + 1;
+        // v4.2: a bridge deck and the rings either side are drawn a ring at a
+        // time: a unit reaching from the deck on to the land stretches the
+        // deck's sides out over the fields
+        if (st > 1) {
+            if (sgBrg[i] + sgBrg[mod(i - 1 + st, NSEG) + 1] + sgBrg[mod(i - 1 + st + 1, NSEG) + 1] > 0) {
+                k = k + st - 1;
+                st = 1;
+                i = mod(s0 - 1 + k + NSEG, NSEG) + 1;
+            }
+        }
         let dx = sgX[i] - camX;
         let dz = sgZ[i] - camZ;
         let d2 = dx * dx + dz * dz;
@@ -450,6 +482,7 @@ function cullSegments() {
         if (d2 < sideR2) {
             if (d2 > gfLod3[gfx] * gfLod3[gfx] * 0.25) { st = 3; } else if (d2 > gfLod2[gfx] * gfLod2[gfx] * 0.25) { st = 2; }
             if (kk + st > kEnd) { st = kEnd - kk; }
+            if (st > 1) { if (sgBrg[i] + sgBrg[mod(i - 1 + st, NSEG) + 1] + sgBrg[mod(i - 1 + st + 1, NSEG) + 1] > 0) { st = 1; } }
             let fd = dx * chX + dz * chZ;
             let margin = sgW[i] + GRASSW + 6 + st * segStep;
             if (fd > 0 - margin) {
@@ -470,6 +503,41 @@ function cullSegments() {
             if (jump < 1) { jump = 1; }
             kk = kk + jump;
         }
+    }
+    // v4.2: patches of land in view, each a unit of its own (visI < 0);
+    // close ones cell by cell, the rest one quad (visS 1 / 0)
+    if (tpN > 0) {
+        let pr = tgCc * 2.2;
+        let near2 = tgCc * tgCc * 16;
+        let p = 1;
+        while (p <= tpN) {
+            let dx = tpX[p] - camX;
+            let dz = tpZ[p] - camZ;
+            let d2 = dx * dx + dz * dz;
+            if (d2 < farCull2) {
+                let fd = dx * chX + dz * chZ;
+                if (fd > 0 - pr) {
+                    let sd = dx * csX + dz * csZ;
+                    let lim = fd * tanHalf + pr;
+                    if (sd < lim) {
+                        if (sd > 0 - lim) {
+                            nVis = nVis + 1;
+                            visI[nVis] = 0 - p;
+                            visD[nVis] = d2;
+                            visS[nVis] = d2 < near2 ? 1 : 0;
+                        }
+                    }
+                }
+            }
+            p = p + 1;
+        }
+    }
+    // v4.2: at a crossing the road underneath goes down first, so the deck
+    // above is always painted over it
+    let v = 1;
+    while (v <= nVis) {
+        if (visI[v] > 0) { if (sgUnd[visI[v]] > 0) { visD[v] = visD[v] * 1.25 + 400; } }
+        v = v + 1;
     }
     // the walk already came out farthest-first, so this insertion pass only
     // has to repair the odd hairpin where ring order and depth order disagree
@@ -496,7 +564,11 @@ function cullSegments() {
 
 // ---- one track segment --------------------------------------------------
 function drawSeg(i, b0, b1, lvl) {
-    if (lvl < 1) {
+    if (sgBrg[i] > 0) {
+        // v4.2: a bridge deck: its underside, seen from the road below (not
+        // on the last ring, whose next ring is the embankment)
+        if (sgBrg[idiv(b1, PPR) + 1] > 0) { quad(b0 + P_GR, b0 + P_GL, b1 + P_GL, b1 + P_GR, M_deck + 1); }
+    } else if (lvl < 1) {
         quad(b0 + P_GL, b0 + P_GR, b1 + P_GR, b1 + P_GL, sgGMat[i]);
     }
     // road surface: the one quad every unit draws
@@ -961,6 +1033,61 @@ function pickCarDetail() {
     if (caD2[GHOST] < carLod2) { caTr[GHOST] = 2; }
 }
 
+// ---- v4.2: a patch of land ------------------------------------------------
+// 3 x 3 cells of the height grid (track.js loadLand): its 16 corners go
+// through the scenery model's vertex slots, then a quad per cell in play.
+// Far off, a whole patch is one quad over its four outer corners.
+function landCorner(sl, ii, jj) {
+    let ci = ii;
+    let cj = jj;
+    if (ci > tgNXc) { ci = tgNXc; }
+    if (cj > tgNZc) { cj = tgNZc; }
+    wvX[sl] = Math.round((tgX0c + ci * tgCc) * WU);
+    wvY[sl] = Math.round(tgH[cj * (tgNXc + 1) + ci + 1] * WU);
+    wvZ[sl] = Math.round((tgZ0c + cj * tgCc) * WU);
+}
+function drawLand(p, full) {
+    let i0 = tpI[p];
+    let j0 = tpJ[p];
+    if (full < 1) { if (tpF[p] < 1) { full = 1; } }
+    if (full < 1) {
+        landCorner(SCNBASE + 1, i0, j0);
+        landCorner(SCNBASE + 2, i0 + 3, j0);
+        landCorner(SCNBASE + 3, i0 + 3, j0 + 3);
+        landCorner(SCNBASE + 4, i0, j0 + 3);
+        projSlots(SCNBASE + 1, SCNBASE + 4);
+        quad(SCNBASE + 1, SCNBASE + 2, SCNBASE + 3, SCNBASE + 4, tpM[p]);
+    } else {
+        let a = 0;
+        while (a <= 3) {
+            let b = 0;
+            while (b <= 3) {
+                landCorner(SCNBASE + 1 + a * 4 + b, i0 + b, j0 + a);
+                b = b + 1;
+            }
+            a = a + 1;
+        }
+        projSlots(SCNBASE + 1, SCNBASE + 16);
+        a = 0;
+        while (a < 3) {
+            let b = 0;
+            while (b < 3) {
+                let ci = i0 + b;
+                let cj = j0 + a;
+                if (ci < tgNXc) { if (cj < tgNZc) {
+                    let c = cj * tgNXc + ci + 1;
+                    if (tgK[c] > 0) {
+                        let s = SCNBASE + 1 + a * 4 + b;
+                        quad(s, s + 1, s + 5, s + 4, tgM[c]);
+                    }
+                } }
+                b = b + 1;
+            }
+            a = a + 1;
+        }
+    }
+}
+
 // ---- scenery ------------------------------------------------------------
 // One instance of one model: spin its template vertices into the world, run
 // them through the same projection the track uses, then hand every face to
@@ -1151,6 +1278,7 @@ function renderWorld() {
     let k = 1;
     while (k <= nVis) {
         let i = visI[k];
+        if (i < 0) { drawLand(0 - i, visS[k]); } else {
         let st = visS[k];
         let j = i + st;                     // the ring that closes this unit
         if (j > NSEG + 1) { j = j - NSEG; }
@@ -1193,6 +1321,7 @@ function renderWorld() {
         if (near > 0) {
             if (smN > 0) { drawSmokeIn(i); }
             if (spN > 0) { drawSparksIn(i); }
+        }
         }
         k = k + 1;
     }

@@ -1,3 +1,27 @@
+# ENTRY RACING 3D — 작업 인계 메모 (2026-09-25, v4.2)
+
+산출물: `3D 레이싱 v4.2.ent` ← 최신, 설명서 `3D 레이싱 v4.2 설명서.md` (v4.1은 루트 `old/`로)
+빌드: `node real/prep.mjs && node build.mjs racing42.ent` → `globals 427, lists 531, functions 309, handlers 3`, .ent 0.88 MB
+
+## 요청과 한 것
+"다리 같은데에서는 옆에 잔디를 그리면 안되고 주변 도로가 보이게" → 예상 보고 뒤 "하이 전용으로 B(교차로 주변 지형), 울트라 전용으로 C(전체 지형), 주변지형이 어느정도 현실적으로"
++ 도중 제보: 모나코(페어몬트 헤어핀)에서 옆 구간의 잔디/포장 띠가 도로를 덮는 현상(모든 그래픽).
+- 다리(`F_BRIDGE` 32): P_GL/GR을 도로 끝 −1.3 m로 → 잔디 사각형이 옆면(`M_deck`), 밑면은 다음 링도 다리일 때. 제방 `F_EMB` 64(윗길 ±130점),
+  다리 아래 `F_UNDER` 128(아랫길 ±15점, 정렬 거리 ×1.25+400). `cullSegments`: 다리가 낀 단위는 st=1(아니면 옆면이 들판으로 늘어나 하늘에 가는 선).
+- 지형: prep `Tat`(흐린 DEM × terrain + 근처 랩 eyAbs 가중 평균), 격자(`terrain` → build `tgHD/tgCD` 문자열, `tgX0/Z0/C/NX/NZ`), 칸 = 종류 + 4×등급.
+  제외: 도로에서 40 m + 0.2칸 안, 물, 건물 35% 이상(모나코 483, 싱가포르 652, 바쿠 651칸). 런타임 `loadLand`(buildTrack 11b) → `tgH/tgK/tgM`, 3×3 조각 `tp*`(NTP 640).
+  `cullSegments`가 조각을 visI 음수로 넣고 `renderWorld`가 `drawLand`. 가까운 조각(4칸 = tgC×4 안)만 칸마다.
+  팔레트 `forest`, `deck` 가족(NMAT 280). 물체 dy도 Tat 기준(도로 14→90 m 램프, −40..160).
+- 잔디 띠: ctl `gl/gr`(띠 끝 땅 높이, ULTRA와 F_EMB에서 사용), `sl/sr`(다른 구간에 닿기 전까지의 폭) → `sgSL/SR`, 런오프도 그 안.
+  띠 끝 45 m 안에 더 낮은 구간 → gl을 그 높이로 + F_EMB(모든 그래픽). sampleTrack도 띠 경사를 따른다.
+- `drawSky`: 지평선 아래 땅 색을 6단(카메라 높이/화면 거리로 안개 단계).
+- `gfSide` ULTRA 450 → 300 m.
+- 측정(tessvm): 스즈카 HIGH 58–60, 스파 ULTRA 59–60(tick 4.6–5.1), 스즈카 ULTRA 58–60(5.6–7.4), 모나코 ULTRA 52–60(v4.1 47–59).
+  sim에서 프레임당: 스즈카 ULTRA 링 51·조각 30·풍경 193·면 646. 주의: sim의 `s.png`는 다시 그리지 않는다(`renderWorld()`를 부른 뒤 저장).
+- 테스트: v30 10/10, keys, tilt, pinned, alloc, intrude(도로/런오프) PASS, AI 큰 이탈 0.
+
+---
+
 # ENTRY RACING 3D — 작업 인계 메모 (2026-09-25, v4.1)
 
 산출물: `3D 레이싱 v4.1.ent` ← 최신, 설명서 `3D 레이싱 v4.1 설명서.md` (v4.0은 루트 `old/`로)

@@ -21,7 +21,7 @@ import { area, centroid, obb, clipHalf, inside, PointIndex, hash01 } from './geo
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const CACHE = path.join(HERE, 'cache');
-const F_TUN = 1, F_WALL = 4, F_BRIDGE = 32;
+const F_TUN = 1, F_WALL = 4, F_BRIDGE = 32, F_EMB = 64, F_UNDER = 128;
 
 // Per circuit: half width of the road, walls (street circuit), the height
 // range of the lap as published (SRTM is rescaled to it; 0 keeps SRTM),
@@ -386,6 +386,10 @@ for (const C of CIRCUITS) {
             }
         }
         for (let k = -22; k <= 22; k++) flag[(up + k + N) % N] |= F_WALL | F_BRIDGE;
+        // v4.2: the upper road's embankment (the grass beside it slopes down to
+        // the ground at every graphics level) and the lower road under the deck
+        for (let k = -130; k <= 130; k++) flag[(up + k + N) % N] |= F_EMB;
+        for (let k = -15; k <= 15; k++) flag[(lo + k + N) % N] |= F_UNDER;
         const nx = F[(up + 2) % N], px = F[(up - 2 + N) % N];
         const yaw = Math.atan2(nx[0] - px[0], nx[1] - px[1]) * 180 / Math.PI;
         bridgeAt = { lo, up, yaw, gap: ey[up] - ey[lo], miss: best.d };
@@ -450,11 +454,77 @@ for (const C of CIRCUITS) {
     const objs = [];
     const trackNear = (x, z, r = 600) => tidx.near(x, z, r);
     const edgeD = (x, z) => { const r = trackNear(x, z); return r.i < 0 ? { i: -1, d: 1e9 } : { i: r.i, d: r.d - wds[r.i] }; };
-    const dyAt = (x, z, i, d) => {
-        if (!M.terrain) return 0;
-        const g = dem(x, z) - eyAbs[i];
-        return M.terrain * k0 * clamp(g, -10, 34) * smoothstep(14, 90, d);
+    // v4.2: the lie of the land in game heights. The height grid (blurred,
+    // it is a surface model: woods and roofs read as hills, so only
+    // M.terrain of it counts) against the ground the lap runs on nearby,
+    // weighted by distance - so it never jumps between two parts of the lap
+    // (the ground under the lifted Suzuka road is the ground, not the road).
+    const tf = M.terrain || 0;
+    const demS = (x, z) => { let a = 0; for (const [u, v] of [[0, 0], [30, 0], [-30, 0], [0, 30], [0, -30]]) a += dem(x + u, z + v); return a / 5; };
+    const TK = [];
+    for (let i = 0; i < N; i += 5) TK.push(i);
+    const Tat = (x, z) => {
+        let sw = 0, sa = 0;
+        for (const k of TK) {
+            const d2 = (F[k][0] - x) ** 2 + (F[k][1] - z) ** 2;
+            const w = 1 / (d2 + 900);
+            sw += w; sa += w * eyAbs[k];
+        }
+        const base = sa / sw;
+        return (tf * demS(x, z) + (1 - tf) * base - mn) * k0 - y0;
     };
+    // an object's height over the ground beside the road (its ring's road - 1 m):
+    // the terrain, from 14 m off the road (on the grass strip nearer in)
+    const dyAt = (x, z, i, d) => {
+        if (!tf) return 0;
+        return clamp(Tat(x, z) - (ey[i] - 1), -40, 160) * smoothstep(14, 90, d);
+    };
+    // v4.2: where the grass strip's outer edge (road edge + 40 m) meets the
+    // land, left and right, relative to the road: the embankments at every
+    // graphics level, everywhere at ULTRA (track.js)
+    // v4.2: how far the grass strip may reach out on each side before it
+    // meets another part of the lap (the other leg of a hairpin, a parallel
+    // straight): it must stop short of that road, or it is painted over it
+    const reach = (i, nx, nz, sg) => {
+        for (let d = wds[i] + 2; d <= wds[i] + 40; d += 2) {
+            const x = F[i][0] + nx * d * sg, z = F[i][1] + nz * d * sg;
+            const r = tidx.near(x, z, 60);
+            if (r.i < 0) continue;
+            let di = Math.abs(r.i - i); di = Math.min(di, N - di);
+            if (di * 2 < 70) continue;                   // this stretch itself
+            if (r.d < wds[r.i] + 4) return Math.max(2, d - wds[i] - 4);
+        }
+        return 40;
+    };
+    ctl.forEach((i, k) => {
+        const a = F[(i - 1 + N) % N], b = F[(i + 1) % N];
+        const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+        const nx = (b[1] - a[1]) / L, nz = -(b[0] - a[0]) / L;
+        pts[k].sl = reach(i, nx, nz, -1);
+        pts[k].sr = reach(i, nx, nz, 1);
+        const e = wds[i] + 40;
+        const g = (sg) => clamp(Tat(F[i][0] + nx * e * sg, F[i][1] + nz * e * sg) - ey[i], -30, 15);
+        // a lower part of the lap within reach of the strip's edge (a hillside
+        // with the road coming back below): the strip slopes down to it at
+        // every graphics level, or it hangs in the air as a shelf
+        const below = (sg, sw) => {
+            const ex = F[i][0] + nx * (wds[i] + sw) * sg, ez = F[i][1] + nz * (wds[i] + sw) * sg;
+            let best = null;
+            for (let q = 0; q < N; q += 2) {
+                let di = Math.abs(q - i); di = Math.min(di, N - di);
+                if (di * 2 < 70) continue;
+                const d = Math.hypot(F[q][0] - ex, F[q][1] - ez) - wds[q];
+                if (d < 45 && ey[q] < ey[i] - 2 && (!best || ey[q] < best)) best = ey[q];
+            }
+            return best === null ? null : clamp(best - 1.2 - ey[i], -30, 0);
+        };
+        let gl = g(-1), gr = g(1);
+        const bl2 = below(-1, pts[k].sl), br2 = below(1, pts[k].sr);
+        if (bl2 !== null) { gl = Math.min(gl, bl2); pts[k].f |= F_EMB; }
+        if (br2 !== null) { gr = Math.min(gr, br2); pts[k].f |= F_EMB; }
+        pts[k].gl = +gl.toFixed(2);
+        pts[k].gr = +gr.toFixed(2);
+    });
     const push = (o) => objs.push(o);
     const used = new Set();       // building ids given a special model
 
@@ -809,6 +879,71 @@ for (const C of CIRCUITS) {
         push({ t: 'bridge', i: bridgeAt.lo, x: q[0], z: q[1], dy: ey[bridgeAt.up] - 0.25 - 11 - ey[bridgeAt.lo] + 1 + 1.0, yaw: bridgeAt.yaw, sx: 1, sy: 1, sz: 1, m: 0, tier: 1, chk: 0, why: 'bridge' });
     }
 
+    // ---------------- v4.2 the land round the circuit ----------------
+    // A height grid over the mapped area, cells as fine as fit 4900 corners
+    // (30 m at least). A cell is drawn where it is beyond the grass strip
+    // and not water; its colour is the land cover (woods, town, else the
+    // circuit's ground). Tier 2 (HIGH) round the Suzuka crossover, else 3.
+    let terrain = null;
+    {
+        const [a0, b0, a1, b1] = GR.bbox;
+        const [gx0, gz0] = P.fwd(b0, a0), [gx1, gz1] = P.fwd(b1, a1);
+        const Wd = gx1 - gx0, Hd = gz1 - gz0;
+        let c = 30;
+        while ((Math.ceil(Wd / c) + 1) * (Math.ceil(Hd / c) + 1) > 4900) c += 5;
+        const nx = Math.ceil(Wd / c), nz = Math.ceil(Hd / c);
+        const h = [];
+        for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) h.push(+Tat(gx0 + i * c, gz0 + j * c).toFixed(2));
+        const woods = tpol.filter((t) => t.sp === 13).map((t) => t.p);
+        const towns = [];
+        for (const e of OSM.elements) {
+            const t = e.tags || {};
+            if (/^(residential|commercial|industrial|retail|construction|railway)$/.test(t.landuse || '')) for (const p of polysOf(e, P)) towns.push(p);
+        }
+        const bb = (L) => L.map((p) => { let q0 = 1e9, q1 = -1e9, r0 = 1e9, r1 = -1e9; for (const q of p) { q0 = Math.min(q0, q[0]); q1 = Math.max(q1, q[0]); r0 = Math.min(r0, q[1]); r1 = Math.max(r1, q[1]); } return [q0, q1, r0, r1]; });
+        const wB = bb(woods), tB = bb(towns), qB = bb(wpolys);
+        const inAny = (L, B, x, z) => { for (let k = 0; k < L.length; k++) { const q = B[k]; if (x >= q[0] && x <= q[1] && z >= q[2] && z <= q[3] && inside(L[k], x, z)) return true; } return false; };
+        const bI = bridgeAt ? [F[bridgeAt.lo], F[bridgeAt.up]] : null;
+        // where buildings stand wall to wall the land between them is never
+        // seen: a cell 35 % built over is left out (Monaco is mostly that)
+        const built = new PointIndex(bl.map((o) => [o.b.cx, o.b.cz]), 60);
+        const coverage = (x0c, z0c) => {
+            let hit = 0;
+            const near = [];
+            const gx = Math.floor((x0c + c / 2) / 60), gz = Math.floor((z0c + c / 2) / 60);
+            for (let a = -2; a <= 2; a++) for (let b = -2; b <= 2; b++) for (const k of built.m.get((gx + a) + ',' + (gz + b)) || []) near.push(bl[k].b);
+            if (!near.length) return 0;
+            for (let a = 0; a < 5; a++) for (let b = 0; b < 5; b++) {
+                const x = x0c + (a + 0.5) * c / 5, z = z0c + (b + 0.5) * c / 5;
+                for (const o of near) {
+                    const ux = Math.cos(o.ang), uz = Math.sin(o.ang);
+                    const lx = (x - o.cx) * ux + (z - o.cz) * uz, lz = -(x - o.cx) * uz + (z - o.cz) * ux;
+                    if (Math.abs(lx) <= o.hu && Math.abs(lz) <= o.hv) { hit++; break; }
+                }
+            }
+            return hit / 25;
+        };
+        let builtOut = 0;
+        const cells = [];
+        let n = 0;
+        for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+            const x = gx0 + (i + 0.5) * c, z = gz0 + (j + 0.5) * c;
+            const r = edgeD(x, z);
+            let k = 0;
+            let ok = r.i >= 0 && r.d > 40 + c * 0.2 && !inAny(wpolys, qB, x, z) && !(M.sea && coastSegs.length && seaSide(x, z));
+            if (ok && coverage(gx0 + i * c, gz0 + j * c) >= 0.35) { ok = false; builtOut++; }
+            if (ok) {
+                k = inAny(woods, wB, x, z) ? 2 : inAny(towns, tB, x, z) ? 3 : 1;
+                const near = bI && Math.min(Math.hypot(x - bI[0][0], z - bI[0][1]), Math.hypot(x - bI[1][0], z - bI[1][1])) < 380;
+                k += 4 * (near ? 2 : 3);
+                n++;
+            }
+            cells.push(k);
+        }
+        terrain = { x0: +gx0.toFixed(1), z0: +gz0.toFixed(1), c, nx, nz, h, cells, n };
+        M._terrain = `${nx}x${nz} of ${c} m, ${n} cells (${builtOut} built over)`;
+    }
+
     // ---------------- the skyline ----------------
     const ref = eyAbs.reduce((a, b) => a + b, 0) / N;
     const eye = 1.6;
@@ -836,14 +971,14 @@ for (const C of CIRCUITS) {
         id: C.id, name: LN.props.Name, len: +len.toFixed(1), official: LN.props.length, pit: pitInfo,
         pts, bridgeAt: bridgeAt ? { u: bridgeAt.lo / N, yaw: +bridgeAt.yaw.toFixed(2), gap: +bridgeAt.gap.toFixed(2), miss: +bridgeAt.miss.toFixed(2) } : null,
         objs: objs.map((o) => ({ ...o, u: +(((o.i % N) + N) % N / N).toFixed(5) })),
-        hN: b60(nearT), hF: b60(farT),
+        hN: b60(nearT), hF: b60(farT), terrain,
         range: +(Math.max(...ey) - Math.min(...ey)).toFixed(1), srtmRange: +(mx - mn).toFixed(1),
     };
     const cnt = {}; for (const o of objs) cnt[o.t] = (cnt[o.t] || 0) + 1;
     const tiers = [1, 2, 3].map((t) => objs.filter((o) => o.tier <= t).length);
     console.log(`${C.id} ${LN.props.Name}: ${len.toFixed(0)} m (official ${LN.props.length}), ${pts.length} ctl, snapped ${M._snap || '-'} rough ${M._rough}, start: ${pitInfo}, ` +
         `height ${out[C.slot].range} m (SRTM ${out[C.slot].srtmRange}), tunnel ${tun.reduce((a, b) => a + b, 0) * 2} m` +
-        (M._narrow ? `, narrow ${M._narrow}` : '') + (bridgeAt ? `, bridge gap ${bridgeAt.gap.toFixed(1)} m (miss ${bridgeAt.miss.toFixed(1)} m)` : ''));
+        (M._narrow ? `, narrow ${M._narrow}` : '') + (M._terrain ? `, land ${M._terrain}` : '') + (bridgeAt ? `, bridge gap ${bridgeAt.gap.toFixed(1)} m (miss ${bridgeAt.miss.toFixed(1)} m)` : ''));
     console.log('   objects', JSON.stringify(cnt), M._merged ? `merged ${M._merged}` : '', 'by tier', tiers.join('/'), 'sights', sights.map((s) => s.kind + ':' + nameOf(s.e)).join(', '));
 }
 const prev = fs.existsSync(path.join(HERE, 'circuits.json')) ? JSON.parse(fs.readFileSync(path.join(HERE, 'circuits.json'), 'utf8')) : {};
