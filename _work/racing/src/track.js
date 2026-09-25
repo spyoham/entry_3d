@@ -651,6 +651,53 @@ function buildTrack(tk) {
 
     // ---- 12) v7 trackside TV cameras for replays ----
     buildTvCams();
+
+    // ---- 13) v4.4 arithmetic the fast way ----
+    ringFast();
+}
+
+// v4.4: tessvm reproduces Entry's decimal arithmetic, and a number with a
+// short decimal tail (7.2, -305.5) sends every sum and product it is in
+// down a slow path. The rings are interpolated from control points with two
+// decimals, so many are like that. Nudged by pi parts in 10^10 (well under
+// a millimetre; a round factor like 1.0000000003 would leave 5 m as
+// 5.0000000015, still short) their tails are long and the fast path takes them. And the
+// renderer's per-frame checks get whole-number copies: centre in cm, normal
+// x1024, half width + 1 m in cm x1024, and the edge lines' place across the
+// road x4096.
+const LONGK = 1.0000000003141593;
+let segStepI = 0;
+function ringFast() {
+    segStepI = Math.round(segStep * WU * 1024);
+    let i = 1;
+    while (i <= NSEG + 1) {
+        sgX[i] = sgX[i] * LONGK; sgY[i] = sgY[i] * LONGK; sgZ[i] = sgZ[i] * LONGK;
+        sgDX[i] = sgDX[i] * LONGK; sgDZ[i] = sgDZ[i] * LONGK;
+        sgNX[i] = sgNX[i] * LONGK; sgNZ[i] = sgNZ[i] * LONGK;
+        sgW[i] = sgW[i] * LONGK;
+        sgXi[i] = Math.round(sgX[i] * WU);
+        sgZi[i] = Math.round(sgZ[i] * WU);
+        sgNXi[i] = Math.round(sgNX[i] * 1024);
+        sgNZi[i] = Math.round(sgNZ[i] * 1024);
+        sgWi[i] = Math.round((sgW[i] + 1) * WU * 1024);
+        let w2 = 2 * sgW[i];
+        let e0 = 0.30 / w2;
+        let e1 = 0.50 / w2;
+        if (sgCurb[i] > 0) { e0 = 1.14 / w2; e1 = 1.34 / w2; }
+        sgE0[i] = Math.round(e0 * 4096);
+        sgE1[i] = Math.round(e1 * 4096);
+        // the ring scan's side margin, cm x1024 (render.js cullSegments)
+        sgMgi[i] = Math.round((sgW[i] + GRASSW + 6) * WU * 1024);
+        i = i + 1;
+    }
+    // the scenery where the renderer wants it, in whole centimetres
+    let o = 1;
+    while (o <= scN) {
+        scXi[o] = Math.round(scX[o] * WU);
+        scYi[o] = Math.round(scY[o] * WU);
+        scZi[o] = Math.round(scZ[o] * WU);
+        o = o + 1;
+    }
 }
 
 // ---- racing line -----------------------------------------------------
@@ -809,6 +856,7 @@ function scPut(i, side, dist, type, scale, matOff, lod) {
 function scFile(i, o) {
     let off = (scX[o] - sgX[i]) * sgNX[i] + (scZ[o] - sgZ[i]) * sgNZ[i];
     scOf[o] = off;
+    scOfS[o] = off < 0 ? 0 - 1 : 1;
     // the rings beside the ends of its footprint (model x/z box, turned)
     let t = scT[o];
     let hx = (gtX1[t] - gtX0[t]) * scK[o] / 2;

@@ -1,3 +1,24 @@
+# ENTRY RACING 3D — 작업 인계 메모 (2026-09-26, v5.1)
+
+산출물: `3D 레이싱 v5.1.ent` ← 최신, 설명서 `3D 레이싱 v5.1 설명서.md` (v5.0은 루트 `old/`로)
+빌드: `node build.mjs racing51.ent` → `globals 449, lists 553, functions 314, handlers 3`
+
+## 요청과 한 것
+"연산블록 관련해서 최적화 할게 있을까?" → "진행해줘"
+- 측정: tessvm `cast.js`(엔트리 BigNumber 흉내)에 임시 계수기를 달아(`trun.mjs` castStart/castStop; 끝나면 원본 복구) 느린 길(snap→toFixed,
+  decimalsBelow) 호출 위치를 셈. 모나코 HIGH 프레임당 toFixed 5.6천·decimalsBelow 1.4만. CPU 프로파일로는 cast.js 함수 전체가 게임 틱의 약 절반.
+- 알아낸 것: 느린 길의 주범은 "짧은 소수"보다 **상쇄 뺄셈**(비슷한 두 소수의 차, 결과의 자릿수 격자 안에 피연산자 꼬리가 다 들어감).
+  꼬리를 길게 해도(LONGK) 뺄셈은 그대로 느림 → 정수화만이 해법. 정수끼리는 Number.isInteger 뒤 바로 반환.
+- 바꾼 것: `drawEdgeLines`(링별 `sgE0/sgE1` ×4096, idiv), `drawStartLine`(1/8을 정수로), `cullSegments` 앞쪽·옆 훑기
+  (`sgXi/sgZi` cm, `chXi/csXi/tanHalfI` ×1024, `sgMgi`, `segStepI`, `farCull2i`, `SCNMI`; visD는 m²로 되돌려 저장),
+  `drawScnIn`(`sgNXi/sgNZi/sgWi`, `scOfS`, `rgD` cm²), `drawScn`(`scXi/scYi/scZi`, ringFast에서 계산), aiPlan 가중 상수,
+  `ringFast()`(buildTrack 13단계: 위 정수 사본 + sgX/Y/Z/DX/DZ/NX/NZ/W에 LONGK 1.0000000003141593).
+- 결과(tessvm HIGH, 번갈아 3회 평균 tick): 모나코 5.51→5.32, 멜버른 4.53→4.34, 스파 3.90→3.74 ms(약 4%). 화면 픽셀 비교 최대 54px.
+- 더 할 수 있는 것: sampleTrack·aiPlan·aiDrive·updateTow·carPhys의 위치 차(상쇄 뺄셈)를 mm 정수로, quad의 안개 단계를 정수로
+  (단, pvZ를 쓰는 모든 경로—drawScn·drawCar·projSlots—가 정수 깊이도 써야 함).
+
+---
+
 # ENTRY RACING 3D — 작업 인계 메모 (2026-09-25, v5.0)
 
 산출물: `3D 레이싱 v5.0.ent` ← 최신, 설명서 `3D 레이싱 v5.0 설명서.md` (v4.3은 루트 `old/`로)

@@ -1148,7 +1148,7 @@ export function buildData() {
     SM.T.forEach((t, i) => { consts['SC_' + t.name.toUpperCase()] = i + 1; });
 
     // ---- scenery instances: filled in at track build time ----
-    for (const k of ['scT', 'scX', 'scY', 'scZ', 'scC', 'scS', 'scK', 'scKY', 'scKZ', 'scKR', 'scOf', 'scRa', 'scRb', 'scM', 'scLod', 'scNext'])
+    for (const k of ['scT', 'scX', 'scY', 'scZ', 'scC', 'scS', 'scK', 'scKY', 'scKZ', 'scKR', 'scOf', 'scOfS', 'scXi', 'scYi', 'scZi', 'scRa', 'scRb', 'scM', 'scLod', 'scNext'])
         lists[k] = new Array(C.NSCENE + 1).fill(0);
     for (const k of ['scnO', 'scnN']) lists[k] = new Array(2 * C.NSCENE + 2).fill(0);
     // v4.3: scenery list nodes (an object can be filed under two rings) and
@@ -1294,7 +1294,7 @@ export function buildData() {
     // ---- runtime scratch lists (pre-sized so the hot path never grows a list) ----
     const N = C.NSEG, R = N + 1;
     const zeros = (n) => new Array(n).fill(0);
-    const segL = ['sgX', 'sgY', 'sgZ', 'sgDX', 'sgDZ', 'sgNX', 'sgNZ', 'sgW', 'sgLen', 'sgArc', 'sgCurv', 'sgCurvA', 'sgGL', 'sgGR', 'sgGA', 'sgGB', 'sgSL', 'sgSR', 'sgBrg', 'sgUnd', 'sgF', 'sgBank', 'sgMat', 'sgGMat', 'sgCurb', 'sgWMat', 'sgCM', 'sgHW', 'sgTun', 'sgJmp', 'sgGate',
+    const segL = ['sgX', 'sgY', 'sgZ', 'sgDX', 'sgDZ', 'sgNX', 'sgNZ', 'sgW', 'sgLen', 'sgArc', 'sgCurv', 'sgCurvA', 'sgGL', 'sgGR', 'sgGA', 'sgGB', 'sgSL', 'sgSR', 'sgXi', 'sgZi', 'sgNXi', 'sgNZi', 'sgWi', 'sgE0', 'sgE1', 'sgMgi', 'sgBrg', 'sgUnd', 'sgF', 'sgBank', 'sgMat', 'sgGMat', 'sgCurb', 'sgWMat', 'sgCM', 'sgHW', 'sgTun', 'sgJmp', 'sgGate',
         'sgRWL', 'sgRWR', 'sgRTL', 'sgRTR', 'sgRML', 'sgRMR'];
     for (const k of segL) lists[k] = zeros(R);
     const NSLOT = R * C.PPR + C.NCARV + 8 + C.NSCNV;   // rings, car verts, scratch, scenery

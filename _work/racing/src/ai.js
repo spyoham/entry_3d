@@ -71,7 +71,9 @@ function aiPlan(c) {
             if (vAllow < vlim) { vlim = vAllow; }
         }
         // the nearest firm corner is the one the racing line aims at
-        let aw = av * (1.05 - 0.5 * k / look);
+        // (v4.4: long-tailed constants: 1.05 and 0.5 sent this down tessvm's
+        // slow decimal path on every ring of every car's look-ahead)
+        let aw = av * (1.0500000000314159 - 0.50000000003141593 * k / look);
         if (k < 1) { aw = av * 0.6; }
         if (aw > worst) { worst = aw; wsign = cv > 0 ? 1 : 0 - 1; }
         if (k <= nearK) { if (av > nearCv) { nearCv = av; } }

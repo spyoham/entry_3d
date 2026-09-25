@@ -53,6 +53,11 @@ let frFX = 1; let frFY = 1;                           // their sphere-test facto
 let fogK2 = 0.019;          // fogK / 2, for the mean of two depths
 let camFov = 74;
 let tanHalf = 0.8;
+let farCull2i = 0;         // v4.4: the ring scan in whole numbers (setupCam)
+let chXi = 0; let chZi = 1024;
+let csXi = 1024; let csZi = 0;
+let tanHalfI = 819;
+const SCNMI = SCNM * 100 * 1024;
 let farCull2 = 160000;
 let fogK = 0.0375;
 const mmPanel = '#141820';
@@ -102,6 +107,11 @@ function setupCam() {
     frKX = 250 / camScale; frKY = 145 / camScale;
     frFX = Math.sqrt(1 + frKX * frKX); frFY = Math.sqrt(1 + frKY * frKY);
     farCull2 = fogFar * fogFar;
+    // v4.4: whole-number copies for the ring scan (cm, and x1024)
+    farCull2i = Math.round(farCull2 * WU * WU);
+    chXi = Math.round(chX * 1024); chZi = Math.round(chZ * 1024);
+    csXi = Math.round(csX * 1024); csZi = Math.round(csZ * 1024);
+    tanHalfI = Math.round(tanHalf * 1024);
     fogK = (NFOG - 1) / fogFar;
     fogK2 = fogK / 2;
     colOff = 1 - NFOG;
@@ -443,20 +453,22 @@ function cullSegments() {
                 i = mod(s0 - 1 + k + NSEG, NSEG) + 1;
             }
         }
-        let dx = sgX[i] - camX;
-        let dz = sgZ[i] - camZ;
+        // (v4.4: whole numbers - cm, and cm x1024 along the view - since
+        // tessvm's decimal arithmetic costs several times more than integer)
+        let dx = sgXi[i] - camXi;
+        let dz = sgZi[i] - camZi;
         let d2 = dx * dx + dz * dz;
-        if (d2 < farCull2) {
-            let fd = dx * chX + dz * chZ;
-            let margin = sgW[i] + GRASSW + 6 + st * segStep;
+        if (d2 < farCull2i) {
+            let fd = dx * chXi + dz * chZi;
+            let margin = sgMgi[i] + st * segStepI;
             if (fd > 0 - margin) {
-                let sd = dx * csX + dz * csZ;
-                let lim = fd * tanHalf + margin + SCNM;
+                let sd = dx * csXi + dz * csZi;
+                let lim = idiv(fd * tanHalfI, 1024) + margin + SCNMI;
                 if (sd < lim) {
                     if (sd > 0 - lim) {
                         nVis = nVis + 1;
                         visI[nVis] = i;
-                        visD[nVis] = d2;
+                        visD[nVis] = d2 / 10000;
                         visS[nVis] = st;
                     }
                 }
@@ -475,19 +487,19 @@ function cullSegments() {
     let kEnd = NSEG - CULLBACK;
     while (kk < kEnd) {
         let i = mod(s0 - 1 + kk + NSEG, NSEG) + 1;
-        let dx = sgX[i] - camX;
-        let dz = sgZ[i] - camZ;
-        let d2 = dx * dx + dz * dz;
+        let dxc = sgXi[i] - camXi;
+        let dzc = sgZi[i] - camZi;
+        let d2 = (dxc * dxc + dzc * dzc) / 10000;
         let st = 1;
         if (d2 < sideR2) {
             if (d2 > gfLod3[gfx] * gfLod3[gfx] * 0.25) { st = 3; } else if (d2 > gfLod2[gfx] * gfLod2[gfx] * 0.25) { st = 2; }
             if (kk + st > kEnd) { st = kEnd - kk; }
             if (st > 1) { if (sgBrg[i] + sgBrg[mod(i - 1 + st, NSEG) + 1] + sgBrg[mod(i - 1 + st + 1, NSEG) + 1] > 0) { st = 1; } }
-            let fd = dx * chX + dz * chZ;
-            let margin = sgW[i] + GRASSW + 6 + st * segStep;
+            let fd = dxc * chXi + dzc * chZi;
+            let margin = sgMgi[i] + st * segStepI;
             if (fd > 0 - margin) {
-                let sd = dx * csX + dz * csZ;
-                let lim = fd * tanHalf + margin + SCNM;
+                let sd = dxc * csXi + dzc * csZi;
+                let lim = idiv(fd * tanHalfI, 1024) + margin + SCNMI;
                 if (sd < lim) {
                     if (sd > 0 - lim) {
                         nVis = nVis + 1;
@@ -541,8 +553,9 @@ function cullSegments() {
             while (q < visS[v]) {
                 let r = mod(visI[v] - 1 + q, NSEG) + 1;
                 rgF[r] = frameId;
-                let dx = sgX[r] - camX;
-                let dz = sgZ[r] - camZ;
+                // (whole centimetres: v4.4)
+                let dx = sgXi[r] - camXi;
+                let dz = sgZi[r] - camZi;
                 rgD[r] = dx * dx + dz * dz;
                 q = q + 1;
             }
@@ -643,13 +656,12 @@ function drawStartLine(b0, b1) {
             let cx = psX[b1 + P_L]; let cy = psY[b1 + P_L];
             let dx = psX[b1 + P_R]; let dy = psY[b1 + P_R];
             let dep = pvZ[b0 + P_L];
+            // (v4.4: eighths in whole numbers)
             let k = 0;
             while (k < 8) {
-                let t0 = k / 8;
-                let t1 = t0 + 0.125;
                 let m = mod(k, 2) < 1 ? M_startA : M_startB;
-                quadS(ax + (bx - ax) * t0, ay + (by - ay) * t0, ax + (bx - ax) * t1, ay + (by - ay) * t1,
-                    cx + (dx - cx) * t1, cy + (dy - cy) * t1, cx + (dx - cx) * t0, cy + (dy - cy) * t0, m, dep);
+                quadS(ax + idiv((bx - ax) * k, 8), ay + idiv((by - ay) * k, 8), ax + idiv((bx - ax) * (k + 1), 8), ay + idiv((by - ay) * (k + 1), 8),
+                    cx + idiv((dx - cx) * (k + 1), 8), cy + idiv((dy - cy) * (k + 1), 8), cx + idiv((dx - cx) * k, 8), cy + idiv((dy - cy) * k, 8), m, dep);
                 k = k + 1;
             }
         }
@@ -661,21 +673,22 @@ function drawStartLine(b0, b1) {
 function drawEdgeLines(i, b0, b1) {
     if (pvZ[b0 + P_L] > NEARZ) {
         if (pvZ[b1 + P_R] > NEARZ) {
-            let w2 = 2 * sgW[i];
-            let e0 = 0.30 / w2;
-            let e1 = 0.50 / w2;
-            if (sgCurb[i] > 0) { e0 = 1.14 / w2; e1 = 1.34 / w2; }
+            // (v4.4: the line's place across the road as a fraction x4096,
+            // so everything below is whole numbers: tessvm adds and
+            // multiplies short decimals the slow way)
+            let e0 = sgE0[i];
+            let e1 = sgE1[i];
             let ax = psX[b0 + P_L]; let ay = psY[b0 + P_L];
             let bx = psX[b0 + P_R] - ax; let by = psY[b0 + P_R] - ay;
             let cx = psX[b1 + P_L]; let cy = psY[b1 + P_L];
             let dx = psX[b1 + P_R] - cx; let dy = psY[b1 + P_R] - cy;
             let dep = pvZ[b0 + P_L];
-            quadS(ax + bx * e0, ay + by * e0, ax + bx * e1, ay + by * e1,
-                cx + dx * e1, cy + dy * e1, cx + dx * e0, cy + dy * e0, M_startA, dep);
-            let f0 = 1 - e1;
-            let f1 = 1 - e0;
-            quadS(ax + bx * f0, ay + by * f0, ax + bx * f1, ay + by * f1,
-                cx + dx * f1, cy + dy * f1, cx + dx * f0, cy + dy * f0, M_startA, dep);
+            quadS(ax + idiv(bx * e0, 4096), ay + idiv(by * e0, 4096), ax + idiv(bx * e1, 4096), ay + idiv(by * e1, 4096),
+                cx + idiv(dx * e1, 4096), cy + idiv(dy * e1, 4096), cx + idiv(dx * e0, 4096), cy + idiv(dy * e0, 4096), M_startA, dep);
+            let f0 = 4096 - e1;
+            let f1 = 4096 - e0;
+            quadS(ax + idiv(bx * f0, 4096), ay + idiv(by * f0, 4096), ax + idiv(bx * f1, 4096), ay + idiv(by * f1, 4096),
+                cx + idiv(dx * f1, 4096), cy + idiv(dy * f1, 4096), cx + idiv(dx * f0, 4096), cy + idiv(dy * f0, 4096), M_startA, dep);
         }
     }
 }
@@ -1136,9 +1149,9 @@ function drawScn(o, hi) {
     let sk = scK[o];
     let ky = scKY[o];
     let kz = scKZ[o];
-    let dxi = Math.round(scX[o] * WU) - camXi;
-    let dyi = Math.round(scY[o] * WU) - camYi;
-    let dzi = Math.round(scZ[o] * WU) - camZi;
+    let dxi = scXi[o] - camXi;
+    let dyi = scYi[o] - camYi;
+    let dzi = scZi[o] - camZi;
     // bounding sphere against the view frustum: an object wholly off screen
     // costs a handful of operations instead of a model's worth of vertices
     let rr = gtR[t] * scKR[o] * BS;
@@ -1219,9 +1232,10 @@ function drawScnIn(i, st, lvl, d2, pass) {
     while (q < st) {
         let sg = i + q;
         if (sg > NSEG) { sg = sg - NSEG; }
-        let co = (camX - sgX[sg]) * sgNX[sg] + (camZ - sgZ[sg]) * sgNZ[sg];
+        // (whole numbers: cm x the normal x1024, against the half width)
+        let co = (camXi - sgXi[sg]) * sgNXi[sg] + (camZi - sgZi[sg]) * sgNZi[sg];
         let out = 0;
-        if (co > sgW[sg] + 1) { out = 1; } else if (co < 0 - sgW[sg] - 1) { out = 0 - 1; }
+        if (co > sgWi[sg]) { out = 1; } else if (co < 0 - sgWi[sg]) { out = 0 - 1; }
         let n = scHead[sg];
         // (from on this road nothing is in front of it: no second walk)
         if (pass > 1) { if (out == 0) { n = 0; } }
@@ -1240,7 +1254,7 @@ function drawScnIn(i, st, lvl, d2, pass) {
                 if (ok > 0) {
                     if (out == 0) { drawScn(o, hi); }
                     else {
-                        let front = out * scOf[o] > 0 ? 2 : 1;
+                        let front = out * scOfS[o] > 0 ? 2 : 1;
                         if (front == pass) { drawScn(o, hi); }
                     }
                 }
