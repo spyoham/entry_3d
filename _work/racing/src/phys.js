@@ -291,15 +291,39 @@ function carPhys(c) {
             let avn = Math.abs(vn);
             if (avn > 6) { addDamage(c, (avn - 6) * 0.075); }
             if (avn > 2.5) { sparkBurst(caX[c] + sgNX[s] * (hit > 0 ? 0.9 : 0 - 0.9), caY[c], caZ[c] + sgNZ[s] * (hit > 0 ? 0.9 : 0 - 0.9), caVX[c], caVZ[c], s, 3); }
-            caVX[c] = caVX[c] - sgNX[s] * vn * 1.35;
-            caVZ[c] = caVZ[c] - sgNZ[s] * vn * 1.35;
-            // scraping the wall costs speed, and a real hit costs a lot of it,
-            // so riding the barriers round a corner is never the quick way
-            let loss = 0.84;
-            if (Math.abs(vn) > 5) { loss = 0.66; }
-            caVX[c] = caVX[c] * loss;
-            caVZ[c] = caVZ[c] * loss;
-            caYR[c] = caYR[c] * 0.4;
+            // v12: what a wall costs depends on how hard it is hit, not on
+            // touching it. (Before, every physics step in contact took 16 %
+            // off the speed: a glancing touch at 216 km/h was down to 6 km/h
+            // a second later at 60 fps, and less at a lower frame rate.)
+            // Only the velocity going INTO the wall is removed, with a small
+            // bounce; the speed along it is cut by friction in proportion to
+            // that impact; a real hit costs extra; and scraping along costs a
+            // little per second of contact.
+            let into = 0;
+            if (hit > 0) { if (vn > 0) { into = vn; } }
+            if (hit < 0) { if (vn < 0) { into = 0 - vn; } }
+            if (into > 0) {
+                caVX[c] = caVX[c] - sgNX[s] * vn * 1.25;
+                caVZ[c] = caVZ[c] - sgNZ[s] * vn * 1.25;
+                let vt = caVX[c] * sgDX[s] + caVZ[c] * sgDZ[s];
+                let avt = Math.abs(vt);
+                if (avt > 0.01) {
+                    let cut = 0.35 * into * 1.25;
+                    if (cut > avt) { cut = avt; }
+                    let k = (avt - cut) / avt;
+                    caVX[c] = caVX[c] - sgDX[s] * vt * (1 - k);
+                    caVZ[c] = caVZ[c] - sgDZ[s] * vt * (1 - k);
+                }
+                if (into > 5) {
+                    let hard = 1 - Math.min(0.3, (into - 5) * 0.02);
+                    caVX[c] = caVX[c] * hard;
+                    caVZ[c] = caVZ[c] * hard;
+                    caYR[c] = caYR[c] * 0.4;
+                }
+            }
+            let scrape = 1 - 0.25 * dt;
+            caVX[c] = caVX[c] * scrape;
+            caVZ[c] = caVZ[c] * scrape;
             if (c == 1) {
                 if (Math.abs(vn) > 3) { addShake(Math.min(9, Math.abs(vn) * 0.7)); lastHit = gt; }
             }
