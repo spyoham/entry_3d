@@ -532,9 +532,26 @@ function cullSegments() {
             p = p + 1;
         }
     }
+    // v4.3: stamp the rings being drawn this frame (long scenery goes with
+    // the further of its two end rings, if that one is drawn)
+    let v = 1;
+    while (v <= nVis) {
+        if (visI[v] > 0) {
+            let q = 0;
+            while (q < visS[v]) {
+                let r = mod(visI[v] - 1 + q, NSEG) + 1;
+                rgF[r] = frameId;
+                let dx = sgX[r] - camX;
+                let dz = sgZ[r] - camZ;
+                rgD[r] = dx * dx + dz * dz;
+                q = q + 1;
+            }
+        }
+        v = v + 1;
+    }
     // v4.2: at a crossing the road underneath goes down first, so the deck
     // above is always painted over it
-    let v = 1;
+    v = 1;
     while (v <= nVis) {
         if (visI[v] > 0) { if (sgUnd[visI[v]] > 0) { visD[v] = visD[v] * 1.25 + 400; } }
         v = v + 1;
@@ -563,7 +580,9 @@ function cullSegments() {
 }
 
 // ---- one track segment --------------------------------------------------
-function drawSeg(i, b0, b1, lvl) {
+// v4.3: a unit's ground (grass strip, run-off, a deck's underside) is drawn
+// before the scenery that stands on it, and the road with its walls after
+function drawSegGround(i, b0, b1, lvl) {
     if (sgBrg[i] > 0) {
         // v4.2: a bridge deck: its underside, seen from the road below (not
         // on the last ring, whose next ring is the embankment)
@@ -571,8 +590,6 @@ function drawSeg(i, b0, b1, lvl) {
     } else if (lvl < 1) {
         quad(b0 + P_GL, b0 + P_GR, b1 + P_GR, b1 + P_GL, sgGMat[i]);
     }
-    // road surface: the one quad every unit draws
-    quad(b0 + P_L, b0 + P_R, b1 + P_R, b1 + P_L, sgMat[i]);
     if (lvl > 0) {
         if (sgHW[i] > 0) {
             quad(b0 + P_GL, b0 + P_L, b1 + P_L, b1 + P_GL, sgGMat[i]);
@@ -584,6 +601,13 @@ function drawSeg(i, b0, b1, lvl) {
             quad(b0 + P_R, b0 + P_OR, b1 + P_OR, b1 + P_R, sgRMR[i]);
             quad(b0 + P_OR, b0 + P_GR, b1 + P_GR, b1 + P_OR, sgGMat[i]);
         }
+    }
+}
+
+function drawSeg(i, b0, b1, lvl) {
+    // road surface: the one quad every unit draws
+    quad(b0 + P_L, b0 + P_R, b1 + P_R, b1 + P_L, sgMat[i]);
+    if (lvl > 0) {
         if (sgHW[i] > 0) {
             quad(b0 + P_L, b1 + P_L, b1 + P_WL, b0 + P_WL, sgWMat[i]);
             quad(b0 + P_R, b0 + P_WR, b1 + P_WR, b1 + P_R, sgCM[i]);
@@ -1182,7 +1206,12 @@ function drawScn(o, hi) {
 }
 
 // every object filed against the rings this draw unit spans
-function drawScnIn(i, st, lvl, d2) {
+// v4.3: in two passes round the road. Pass 1, before the road and its walls:
+// everything behind them - which, from a camera on the road, is all of it.
+// Pass 2, after the road and the cars on it: what stands between the camera
+// and this road (the camera is off it, on the object's side: the other leg
+// of a hairpin, a parallel straight).
+function drawScnIn(i, st, lvl, d2, pass) {
     // full models only close in; how close depends on the graphics level
     let hi = lvl > 1 ? 1 : 0;
     if (gfx > 1) { hi = d2 < scnHi2 ? 1 : 0; }
@@ -1190,10 +1219,33 @@ function drawScnIn(i, st, lvl, d2) {
     while (q < st) {
         let sg = i + q;
         if (sg > NSEG) { sg = sg - NSEG; }
-        let o = scHead[sg];
-        while (o > 0) {
-            if (scLod[o] <= lvl) { drawScn(o, hi); }
-            o = scNext[o];
+        let co = (camX - sgX[sg]) * sgNX[sg] + (camZ - sgZ[sg]) * sgNZ[sg];
+        let out = 0;
+        if (co > sgW[sg] + 1) { out = 1; } else if (co < 0 - sgW[sg] - 1) { out = 0 - 1; }
+        let n = scHead[sg];
+        // (from on this road nothing is in front of it: no second walk)
+        if (pass > 1) { if (out == 0) { n = 0; } }
+        let dsg = rgD[sg];
+        while (n > 0) {
+            let o = scnO[n];
+            if (scLod[o] <= lvl) {
+                // a long object: only with the end ring further from the
+                // camera (if that ring is being drawn this frame)
+                let ok = 1;
+                let ra = scRa[o];
+                if (ra != scRb[o]) {
+                    let ot = ra == sg ? scRb[o] : ra;
+                    if (rgF[ot] == frameId) { if (rgD[ot] > dsg) { ok = 0; } }
+                }
+                if (ok > 0) {
+                    if (out == 0) { drawScn(o, hi); }
+                    else {
+                        let front = out * scOf[o] > 0 ? 2 : 1;
+                        if (front == pass) { drawScn(o, hi); }
+                    }
+                }
+            }
+            n = scnN[n];
         }
         q = q + 1;
     }
@@ -1288,10 +1340,12 @@ function renderWorld() {
         projRing(j, lvl);
         let b0 = (i - 1) * PPR;
         let b1 = (j - 1) * PPR;
+        // (v4.3: ground, the scenery behind the road, then the road and walls)
+        drawSegGround(i, b0, b1, lvl);
+        let scnOn = 0;
+        if (scN > 0) { if (visD[k] < scnFar2) { scnOn = 1; } }
+        if (scnOn > 0) { drawScnIn(i, st, lvl, visD[k], 1); }
         drawSeg(i, b0, b1, lvl);
-        if (scN > 0) {
-            if (visD[k] < scnFar2) { drawScnIn(i, st, lvl, visD[k]); }
-        }
         // the time-trial ghost rides along in the same unit as any car,
         // drawn first so it never hides the real car it is racing
         let g9 = ghostOn;
@@ -1318,6 +1372,8 @@ function renderWorld() {
             }
             c = c + 1;
         }
+        // v4.3: what stands between the camera and this road, over its cars
+        if (scnOn > 0) { drawScnIn(i, st, lvl, visD[k], 2); }
         if (near > 0) {
             if (smN > 0) { drawSmokeIn(i); }
             if (spN > 0) { drawSparksIn(i); }

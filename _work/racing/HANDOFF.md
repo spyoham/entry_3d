@@ -1,3 +1,23 @@
+# ENTRY RACING 3D — 작업 인계 메모 (2026-09-25, v4.3)
+
+산출물: `3D 레이싱 v4.3.ent` ← 최신, 설명서 `3D 레이싱 v4.3 설명서.md` (v4.2는 루트 `old/`로)
+빌드: `node build.mjs racing43.ent` → `globals 428, lists 538, functions 312, handlers 3`
+
+## 요청과 한 것
+"모든 맵에서 폴리곤 정렬에 약간씩 버그가 있어. 예를들면 건물 폴리곤이 트랙 벽보다 나중에 그려진다거나."
+- 원인 1: 단위 안에서 drawSeg(도로·벽·터널) 뒤에 drawScnIn → 벽 뒤 건물이 벽을 덮음(터널 위 건물도 천장을 덮음).
+- 원인 2: 풍경은 가까운 링 하나에만 매달림 → 긴 건물의 먼 끝이 더 먼 링의 벽을 덮음.
+- `render.js`: drawSeg를 `drawSegGround`(띠·런오프·교량 밑면)와 `drawSeg`(도로·연석·벽·터널·선)로 나눔. renderWorld 단위 순서:
+  땅 → drawScnIn pass 1 → drawSeg → 고스트·차 → drawScnIn pass 2(카메라가 도로 밖, 물체와 같은 쪽일 때만; 아니면 리스트를 안 돈다) → 연기·불꽃.
+  cullSegments가 그 프레임에 그리는 링을 `rgF`(frameId)와 `rgD`(거리²)로 찍고, 긴 물체는 다른 끝 링이 더 멀고 그려지면 여기서 건너뜀.
+- `track.js scFile/snLink`: `scOf`(링 법선 방향 오프셋), `scRa/scRb`(바닥 네 모서리가 걸친 링, ±12), 노드 풀 `scnO/scnN`(2×NSCENE), 링 리스트는 |scOf| 큰 것부터.
+  (이름 `snO`는 리플레이 스냅샷 리스트와 겹쳐서 scnO.)
+- 확인: sim 콕핏 카메라로 링 12개마다 렌더(옛/새 비교, `placeCar` → `updateCam` → `renderWorld`; sim `peek`에서 리스트 대입은 안 먹는다),
+  모나코·바쿠에서 벽을 덮던 건물이 벽 뒤로. 테스트 v30 10/10, keys, tilt, pinned, alloc, intrude PASS.
+  tessvm 모나코 ULTRA: 처음엔 tick +1.5 ms(drawScnIn 5.5%) → 링 거리 미리 계산, 2차 순회 생략으로 v4.2와 오차 범위.
+
+---
+
 # ENTRY RACING 3D — 작업 인계 메모 (2026-09-25, v4.2)
 
 산출물: `3D 레이싱 v4.2.ent` ← 최신, 설명서 `3D 레이싱 v4.2 설명서.md` (v4.1은 루트 `old/`로)

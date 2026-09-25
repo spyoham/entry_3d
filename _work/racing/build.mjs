@@ -1148,8 +1148,13 @@ export function buildData() {
     SM.T.forEach((t, i) => { consts['SC_' + t.name.toUpperCase()] = i + 1; });
 
     // ---- scenery instances: filled in at track build time ----
-    for (const k of ['scT', 'scX', 'scY', 'scZ', 'scC', 'scS', 'scK', 'scKY', 'scKZ', 'scKR', 'scM', 'scLod', 'scNext'])
+    for (const k of ['scT', 'scX', 'scY', 'scZ', 'scC', 'scS', 'scK', 'scKY', 'scKZ', 'scKR', 'scOf', 'scRa', 'scRb', 'scM', 'scLod', 'scNext'])
         lists[k] = new Array(C.NSCENE + 1).fill(0);
+    for (const k of ['scnO', 'scnN']) lists[k] = new Array(2 * C.NSCENE + 2).fill(0);
+    // v4.3: scenery list nodes (an object can be filed under two rings) and
+    // the frame each ring was last drawn in
+    lists.rgF = new Array(C.NSEG + 2).fill(0);
+    lists.rgD = new Array(C.NSEG + 2).fill(0);
     lists.scHead = new Array(C.NSEG + 2).fill(0);
     for (const k of ['mmLX', 'mmLY', 'mmRX', 'mmRY'])
         lists[k] = new Array(C.NMM + 2).fill(0);

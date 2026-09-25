@@ -795,12 +795,62 @@ function scPut(i, side, dist, type, scale, matOff, lod) {
             }
             if (oClr < 0) { scN = scN - 1; oPut = 0; }
         }
-        if (oPut > 0) {
-            scNext[scN] = scHead[i];
-            scHead[i] = scN;
-        }
+        if (oPut > 0) { scFile(i, scN); }
     }
 }
+
+// v4.3: file object o under ring i, remembering which side of the road it
+// stands and how far out (scOf). A long object is filed under the ring at
+// each end of the stretch it stands beside (scRa..scRb); the renderer draws
+// it with whichever of the two is further from the camera, so the walls of
+// the rings in between are painted over it, not under it. Each ring's list
+// is kept farthest out first: seen from the road, an object further out is
+// behind a nearer one. List nodes: scnO (object), scnN (next).
+function scFile(i, o) {
+    let off = (scX[o] - sgX[i]) * sgNX[i] + (scZ[o] - sgZ[i]) * sgNZ[i];
+    scOf[o] = off;
+    // the rings beside the ends of its footprint (model x/z box, turned)
+    let t = scT[o];
+    let hx = (gtX1[t] - gtX0[t]) * scK[o] / 2;
+    let hz = (gtZ1[t] - gtZ0[t]) * scKZ[o] / 2;
+    let ra = 0;
+    let rb = 0;
+    let c = 0;
+    while (c < 4) {
+        let ax = c < 2 ? hx : 0 - hx;
+        let az = mod(c, 2) < 1 ? hz : 0 - hz;
+        let px = scX[o] + ax * scC[o] + az * scS[o];
+        let pz = scZ[o] - ax * scS[o] + az * scC[o];
+        // along the road from ring i
+        let u = ((px - sgX[i]) * sgDX[i] + (pz - sgZ[i]) * sgDZ[i]) / segStep;
+        let r = Math.round(u);
+        if (r > 12) { r = 12; }
+        if (r < 0 - 12) { r = 0 - 12; }
+        if (r < ra) { ra = r; }
+        if (r > rb) { rb = r; }
+        c = c + 1;
+    }
+    scRa[o] = mod(i - 1 + ra + NSEG, NSEG) + 1;
+    scRb[o] = mod(i - 1 + rb + NSEG, NSEG) + 1;
+    snLink(scRa[o], o);
+    if (scRb[o] != scRa[o]) { snLink(scRb[o], o); }
+}
+function snLink(i, o) {
+    snC = snC + 1;
+    let n = snC;
+    scnO[n] = o;
+    let ao = Math.abs(scOf[o]);
+    let p = 0;
+    let q = scHead[i];
+    while (q > 0) {
+        if (Math.abs(scOf[scnO[q]]) < ao) { break; }
+        p = q;
+        q = scnN[q];
+    }
+    scnN[n] = q;
+    if (p > 0) { scnN[p] = n; } else { scHead[i] = n; }
+}
+let snC = 0;
 
 // same, but turned to face the road
 function scPutFacing(i, side, dist, type, scale, matOff, lod) {
@@ -956,10 +1006,7 @@ function placeReal(tk) {
                         }
                         if (oClr < 0) { scN = scN - 1; oPut = 0; }
                     }
-                    if (oPut > 0) {
-                        scNext[scN] = scHead[i];
-                        scHead[i] = scN;
-                    }
+                    if (oPut > 0) { scFile(i, scN); }
                 }
             }
             k = k + RSW;
@@ -1075,6 +1122,7 @@ function placeScenery(tk) {
     scSeed = 4177 + tk * 9137;
     let i = 1;
     while (i <= NSEG + 1) { scHead[i] = 0; i = i + 1; }
+    snC = 0;
     let theme = trkTheme[tk];
     let real = trkReal[tk];
     placeLandmarks(tk);
