@@ -14,23 +14,24 @@
 // '|nick,field,field,...' records. Saving re-reads the shard, swaps the
 // player's own record for the new one (moving it to the end) and drops the
 // oldest records once the shard passes SHCAP characters. Rankings are
-// RT_K1..8 ('|nick,ms' x 10, fastest first) and the world-record ghosts
-// RT_G1..8. Offline, or signed out, they behave as ordinary variables:
+// RT_L1..8 ('|nick,ms' x 10, fastest first) and the world-record ghosts
+// RT_W1..8. Offline, or signed out, they behave as ordinary variables:
 // everything works for the session and nothing is written for a guest.
 // ============================================================
 let RT_S1 = '|'; let RT_S2 = '|'; let RT_S3 = '|'; let RT_S4 = '|';
 let RT_S5 = '|'; let RT_S6 = '|'; let RT_S7 = '|'; let RT_S8 = '|';
 let RT_S9 = '|'; let RT_S10 = '|'; let RT_S11 = '|'; let RT_S12 = '|';
 let RT_S13 = '|'; let RT_S14 = '|'; let RT_S15 = '|'; let RT_S16 = '|';
-let RT_K1 = '|'; let RT_K2 = '|'; let RT_K3 = '|'; let RT_K4 = '|';
-let RT_K5 = '|'; let RT_K6 = '|'; let RT_K7 = '|'; let RT_K8 = '|';
-let RT_G1 = '|'; let RT_G2 = '|'; let RT_G3 = '|'; let RT_G4 = '|';
-let RT_G5 = '|'; let RT_G6 = '|'; let RT_G7 = '|'; let RT_G8 = '|';
+let RT_L1 = '|'; let RT_L2 = '|'; let RT_L3 = '|'; let RT_L4 = '|';
+let RT_L5 = '|'; let RT_L6 = '|'; let RT_L7 = '|'; let RT_L8 = '|';
+let RT_W1 = '|'; let RT_W2 = '|'; let RT_W3 = '|'; let RT_W4 = '|';
+let RT_W5 = '|'; let RT_W6 = '|'; let RT_W7 = '|'; let RT_W8 = '|';
 // set to 'ok' by the first save ever: seeing it means the server's values
 // have arrived (Entry sends them a moment after the work starts)
 let RT_SYNC = '-';
 
 const HCH = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-.';
+const TRKV = 4;             // v4.0: circuits version written with the times
 let oRT = '|';
 
 // Entry reads a variable by a fixed id, so the shard / circuit number picks
@@ -48,20 +49,20 @@ function rtSetS(i, v) {
     else if (i == 13) { RT_S13 = v; } else if (i == 14) { RT_S14 = v; } else if (i == 15) { RT_S15 = v; } else { RT_S16 = v; }
 }
 function rtGetK(i) {
-    if (i == 1) { oRT = RT_K1; } else if (i == 2) { oRT = RT_K2; } else if (i == 3) { oRT = RT_K3; } else if (i == 4) { oRT = RT_K4; }
-    else if (i == 5) { oRT = RT_K5; } else if (i == 6) { oRT = RT_K6; } else if (i == 7) { oRT = RT_K7; } else { oRT = RT_K8; }
+    if (i == 1) { oRT = RT_L1; } else if (i == 2) { oRT = RT_L2; } else if (i == 3) { oRT = RT_L3; } else if (i == 4) { oRT = RT_L4; }
+    else if (i == 5) { oRT = RT_L5; } else if (i == 6) { oRT = RT_L6; } else if (i == 7) { oRT = RT_L7; } else { oRT = RT_L8; }
 }
 function rtSetK(i, v) {
-    if (i == 1) { RT_K1 = v; } else if (i == 2) { RT_K2 = v; } else if (i == 3) { RT_K3 = v; } else if (i == 4) { RT_K4 = v; }
-    else if (i == 5) { RT_K5 = v; } else if (i == 6) { RT_K6 = v; } else if (i == 7) { RT_K7 = v; } else { RT_K8 = v; }
+    if (i == 1) { RT_L1 = v; } else if (i == 2) { RT_L2 = v; } else if (i == 3) { RT_L3 = v; } else if (i == 4) { RT_L4 = v; }
+    else if (i == 5) { RT_L5 = v; } else if (i == 6) { RT_L6 = v; } else if (i == 7) { RT_L7 = v; } else { RT_L8 = v; }
 }
 function rtGetG(i) {
-    if (i == 1) { oRT = RT_G1; } else if (i == 2) { oRT = RT_G2; } else if (i == 3) { oRT = RT_G3; } else if (i == 4) { oRT = RT_G4; }
-    else if (i == 5) { oRT = RT_G5; } else if (i == 6) { oRT = RT_G6; } else if (i == 7) { oRT = RT_G7; } else { oRT = RT_G8; }
+    if (i == 1) { oRT = RT_W1; } else if (i == 2) { oRT = RT_W2; } else if (i == 3) { oRT = RT_W3; } else if (i == 4) { oRT = RT_W4; }
+    else if (i == 5) { oRT = RT_W5; } else if (i == 6) { oRT = RT_W6; } else if (i == 7) { oRT = RT_W7; } else { oRT = RT_W8; }
 }
 function rtSetG(i, v) {
-    if (i == 1) { RT_G1 = v; } else if (i == 2) { RT_G2 = v; } else if (i == 3) { RT_G3 = v; } else if (i == 4) { RT_G4 = v; }
-    else if (i == 5) { RT_G5 = v; } else if (i == 6) { RT_G6 = v; } else if (i == 7) { RT_G7 = v; } else { RT_G8 = v; }
+    if (i == 1) { RT_W1 = v; } else if (i == 2) { RT_W2 = v; } else if (i == 3) { RT_W3 = v; } else if (i == 4) { RT_W4 = v; }
+    else if (i == 5) { RT_W5 = v; } else if (i == 6) { RT_W6 = v; } else if (i == 7) { RT_W7 = v; } else { RT_W8 = v; }
 }
 
 // ---- the player -------------------------------------------------------------
@@ -311,6 +312,8 @@ function buildRec() {
     while (t <= NTRK) { pRec = str(pRec, ',', recRace[t] > 0 ? Math.round(recRace[t] * 1000) : 0); t = t + 1; }
     // v3.0: fields 33-35 (an older game reads the first 32 and ignores these)
     pRec = str(pRec, ',', suF + 3, ',', suD + 3, ',', suP + 3);
+    // v4.0: field 36, the circuits the lap and race times were set on
+    pRec = str(pRec, ',', TRKV);
 }
 
 // split the record starting at character `from` of s into pF[1..nF]
@@ -366,7 +369,12 @@ function mergeRec(addMode) {
             b = b * 2;
             k = k + 1;
         }
+        // v4.0: times set on the old hand-drawn circuits do not count on the
+        // real ones (a record without field 36 is from before)
         let t = 1;
+        let same = 0;
+        if (nF >= 36) { if (pF[36] * 1 >= TRKV) { same = 1; } }
+        if (same < 1) { t = NTRK + 1; }
         while (t <= NTRK) {
             let a = pF[16 + t] / 1000;
             if (a > 0) { if (recLap[t] <= 0) { recLap[t] = a; } else if (a < recLap[t]) { recLap[t] = a; } }

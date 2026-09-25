@@ -11,6 +11,9 @@
 //     (s3 = start of straight 3, c3 = apex of corner 3, e3 = exit of corner 3)
 //     so they can be keyed to corners instead of guessed fractions.
 // ============================================================
+import fs from 'node:fs';
+import path from 'node:path';
+import url from 'node:url';
 const D2R = Math.PI / 180;
 
 // flags: 1 tunnel, 2 jump ramp, 4 barrier walls, 32 no run-off (bridge deck)
@@ -483,8 +486,18 @@ export const F1 = [
     },
 ];
 
+// v4.0: the real circuits (real/prep.mjs from OpenStreetMap, SRTM and
+// bacinger/f1-circuits). Each slot takes the real lap, scenery and skyline
+// when real/circuits.json has it; the hand-drawn layout above stays as the
+// fallback (and for the tests that still want it: REALTRK=0).
+const REAL = path.join(path.dirname(url.fileURLToPath(import.meta.url)), 'real', 'circuits.json');
+// corners as the circuits count them
+const TURNS = [19, 19, 18, 18, 11, 19, 15, 20];
 export function buildF1() {
-    return F1.map((d) => {
+    const R = process.env.REALTRK !== '0' && fs.existsSync(REAL) ? JSON.parse(fs.readFileSync(REAL, 'utf8')) : {};
+    return F1.map((d, k) => {
+        const r = R[k + 1];
+        if (r) return { ...d, real: r, pts: r.pts, len: r.len, marks: {}, landmarks: [], bridgeAt: null, turnsN: TURNS[k] };
         const c = circuit(d);
         return { ...d, pts: c.pts, len: c.len, marks: c.marks, landmarks: c.landmarks, bridgeAt: c.bridgeAt, turnsN: (d.segs || d.verts).length };
     });

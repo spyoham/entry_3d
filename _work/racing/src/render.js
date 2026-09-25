@@ -59,6 +59,7 @@ const mmPanel = '#141820';
 const mmTrack = '#b4bcc8';
 const mmStart = '#ffe05a';
 const mmYou = '#ffffff';
+let scnSz = 70;             // v4.0: an object is drawn while its radius x this > its distance
 let colOff = 0;             // colTab base, folded: colTab[colOff + mat * NFOG + fog]
 let penTr = 0;              // v7: pen transparency last set (see-through smoke, ghost, sparks)
 let qHex = '#000000';       // quad(..., mat < 0) fills with this colour instead
@@ -110,6 +111,7 @@ function setupCam() {
     lodF3 = Math.floor(gfLod3[gfx] / segStep) + 1;
     scnFar2 = gfScn[gfx] * gfScn[gfx];
     scnHi2 = gfScnHi[gfx] * gfScnHi[gfx];
+    scnSz = gfScnSz[gfx];
     carLod2 = gfCar[gfx] * gfCar[gfx];
     carLodM2 = gfCarM[gfx] * gfCarM[gfx];
     cullAhead = Math.floor(fogFar / segStep) + 2;
@@ -373,6 +375,11 @@ function drawHills() {
             if (t1 > camScale * 1.9) { t1 = camScale * 1.9; }
             let idx = mod(Math.floor(az / 6) + b * 31 + 1440, NHILLT) + 1;
             let y1 = hillH[idx] * hs * hillK * camScale;
+            if (hlOn > 0) {
+                // v4.0: the real hills, far ones behind, near ones in front
+                let ri = hlOff + mod(Math.floor(az / 6), 60) + 1;
+                y1 = (b > 0 ? hlN[ri] : hlF[ri]) * hillK * camScale;
+            }
             if (hillT > 0) {
                 // city: flat-topped blocks, each slice its own height
                 y1 = hillC[idx] * hs * hillK * camScale;
@@ -932,18 +939,25 @@ function drawScn(o, hi) {
     }
     let cy = scC[o];
     let sy = scS[o];
+    // v4.0: sized along each of its own axes (a real building is a unit box
+    // stretched to its footprint and height)
     let sk = scK[o];
+    let ky = scKY[o];
+    let kz = scKZ[o];
     let dxi = Math.round(scX[o] * WU) - camXi;
     let dyi = Math.round(scY[o] * WU) - camYi;
     let dzi = Math.round(scZ[o] * WU) - camZi;
     // bounding sphere against the view frustum: an object wholly off screen
     // costs a handful of operations instead of a model's worth of vertices
-    let rr = gtR[t] * sk * BS;
+    let rr = gtR[t] * scKR[o] * BS;
     let i2 = dxi * cfXi + dyi * cfYi + dzi * cfZi;
     let i0 = dxi * crXi + dyi * crYi + dzi * crZi;
     let i1 = dxi * cuXi + dyi * cuYi + dzi * cuZi;
     let vis = 1;
     if (i2 < 0 - rr) { vis = 0; }
+    // v4.0: too small to matter - a few pixels across at this distance (the
+    // real circuits have hundreds of houses and trees far off)
+    if (rr * scnSz < i2) { vis = 0; }
     if (i0 - frKX * i2 > rr * frFX) { vis = 0; }
     if (0 - i0 - frKX * i2 > rr * frFX) { vis = 0; }
     if (i1 - frKY * i2 > rr * frFY) { vis = 0; }
@@ -951,9 +965,9 @@ function drawScn(o, hi) {
     if (vis > 0) {
         // model (whole cm) straight to view space (1/ZU m): model x runs along
         // (cy, 0, -sy) in the world, z along (sy, 0, cy)
-        let m00 = Math.round(sk * (crXi * cy - crZi * sy)); let m01 = Math.round(sk * crYi); let m02 = Math.round(sk * (crXi * sy + crZi * cy));
-        let m10 = Math.round(sk * (cuXi * cy - cuZi * sy)); let m11 = Math.round(sk * cuYi); let m12 = Math.round(sk * (cuXi * sy + cuZi * cy));
-        let m20 = Math.round(sk * (cfXi * cy - cfZi * sy)); let m21 = Math.round(sk * cfYi); let m22 = Math.round(sk * (cfXi * sy + cfZi * cy));
+        let m00 = Math.round(sk * (crXi * cy - crZi * sy)); let m01 = Math.round(ky * crYi); let m02 = Math.round(kz * (crXi * sy + crZi * cy));
+        let m10 = Math.round(sk * (cuXi * cy - cuZi * sy)); let m11 = Math.round(ky * cuYi); let m12 = Math.round(kz * (cuXi * sy + cuZi * cy));
+        let m20 = Math.round(sk * (cfXi * cy - cfZi * sy)); let m21 = Math.round(ky * cfYi); let m22 = Math.round(kz * (cfXi * sy + cfZi * cy));
         let v = 1;
         while (v <= vn) {
             let g = v0 + v;
@@ -976,11 +990,25 @@ function drawScn(o, hi) {
         }
         let mb = gtMat[t] + scM[o];
         let f0 = gtF0[t];
+        if (t == SC_BLOCK) {
+            // v4.0: a box shows the camera at most two walls and its roof;
+            // which ones is plain from where the camera stands in the box's
+            // own frame, so the rest never reach quad()
+            let lx = dzi * sy - dxi * cy;
+            let lz = 0 - dxi * sy - dzi * cy;
+            let g = f0 + fA - 1;
+            if (lz > kz * 50) { quad(SCNBASE + gfA[g + 1], SCNBASE + gfB[g + 1], SCNBASE + gfC[g + 1], SCNBASE + gfD[g + 1], mb + gfM[g + 1]); }
+            if (lx > sk * 50) { quad(SCNBASE + gfA[g + 2], SCNBASE + gfB[g + 2], SCNBASE + gfC[g + 2], SCNBASE + gfD[g + 2], mb + gfM[g + 2]); }
+            if (lz < 0 - kz * 50) { quad(SCNBASE + gfA[g + 3], SCNBASE + gfB[g + 3], SCNBASE + gfC[g + 3], SCNBASE + gfD[g + 3], mb + gfM[g + 3]); }
+            if (lx < 0 - sk * 50) { quad(SCNBASE + gfA[g + 4], SCNBASE + gfB[g + 4], SCNBASE + gfC[g + 4], SCNBASE + gfD[g + 4], mb + gfM[g + 4]); }
+            if (0 - dyi > ky * 100) { quad(SCNBASE + gfA[g + 5], SCNBASE + gfB[g + 5], SCNBASE + gfC[g + 5], SCNBASE + gfD[g + 5], mb + gfM[g + 5]); }
+        } else {
         let f = fA;
         while (f <= fB) {
             let g = f0 + f;
             quad(SCNBASE + gfA[g], SCNBASE + gfB[g], SCNBASE + gfC[g], SCNBASE + gfD[g], mb + gfM[g]);
             f = f + 1;
+        }
         }
     }
 }

@@ -13,6 +13,10 @@
 // where the car is on the track, and that barely moves inside one frame. So
 // the survey runs once a frame and the driving runs on every physics slice.
 const AIMARG = 0.84;
+// v4.0: the AI was tuned on rings about 8.5 m apart. The real circuits have
+// them up to 15 m apart (a longer lap, the same ring count), so what it looks
+// ahead to is measured in metres of that reference, not in rings.
+const AIREF = 8.5;
 const AILEAD = 0;
 // 1: follow the racing line. Measured over 100 s on all 8 circuits it was
 // slower on four and ran wide more often, so the v4 line stays.
@@ -25,8 +29,10 @@ function aiPlan(c) {
     // fast we may still be travelling now and stop in time. Taking the minimum
     // of those lets the car stay flat out until the real braking point, rather
     // than crawling at the speed of the tightest bend anywhere in sight.
-    let look = 8 + Math.floor(sp * 0.46);
+    let rq = AIREF / segStep;
+    let look = Math.floor((8 + sp * 0.46) * rq);
     if (look > 40) { look = 40; }
+    let nearK = Math.floor(8 * rq + 0.5);
     let vlim = caTop[c] * skill;
     // The tyres give caGrip * (GRIP0 + AERO * v * v); solving v*v = mu / curvature
     // for v gives the corner speed. AIMARG keeps a margin under the real limit
@@ -54,9 +60,11 @@ function aiPlan(c) {
         let cv = sgCurv[i];
         let av = cv;
         if (av < 0) { av = 0 - av; }
-        if (av > 0.00040) {
+        // (v4.0: the corner speed from the tightest point of the ring)
+        let ap = sgCurvA[i];
+        if (ap > 0.00040) {
             let vc2 = 99999;
-            if (av > ga + 0.00005) { vc2 = g0 / (av - ga); }
+            if (ap > ga + 0.00005) { vc2 = g0 / (ap - ga); }
             let bk = k - 1;
             if (bk < 0) { bk = 0; }
             let vAllow = Math.sqrt(vc2 + bdec * bk);
@@ -66,7 +74,7 @@ function aiPlan(c) {
         let aw = av * (1.05 - 0.5 * k / look);
         if (k < 1) { aw = av * 0.6; }
         if (aw > worst) { worst = aw; wsign = cv > 0 ? 1 : 0 - 1; }
-        if (k <= 8) { if (av > nearCv) { nearCv = av; } }
+        if (k <= nearK) { if (av > nearCv) { nearCv = av; } }
         k = k + 1;
     }
     // v7: personality - lap-to-lap pace, and now and then a mistake
@@ -137,8 +145,12 @@ function aiDrive(c) {
     let tgtOff = 0;
     if (AIRL > 0) {
         // v5: follow the precomputed racing line a little way ahead
-        let la = mod(s - 1 + 3, NSEG) + 1;
-        tgtOff = rlO[la] * 0.9 + caLine[c] * 0.5;
+        // (v4.0: 3 reference rings, between two rings if need be)
+        let lf = caU[c] + 3 * AIREF / segStep;
+        let lk = Math.floor(lf);
+        let la = mod(s - 1 + lk, NSEG) + 1;
+        let lb = mod(la, NSEG) + 1;
+        tgtOff = (rlO[la] + (rlO[lb] - rlO[la]) * (lf - lk)) * 0.9 + caLine[c] * 0.5;
     } else {
         if (worst > 0.0016) {
             tgtOff = wsign * (w - 3.5) * 0.55;
@@ -302,16 +314,22 @@ function aiDrive(c) {
     // cuts inside the arc by about d*d/(8R), so a far aim point simply drives
     // the car off the inside of a tight corner. Cap d so that sag stays on
     // the road, which is what keeps the AI between the white lines at all.
-    let ah = 3 + Math.floor(sp * 0.13);
-    if (ah > 14) { ah = 14; }
+    // (v4.0: in metres, and between rings: at 15 m a ring either way is a
+    // big step in where the car points)
+    let da = (3 + Math.floor(sp * 0.13)) * AIREF;
+    if (da > 14 * AIREF) { da = 14 * AIREF; }
     if (nearCv > 0.0003) {
-        let dm = Math.floor(Math.sqrt(14 / nearCv) / segStep);
-        if (dm < 2) { dm = 2; }
-        if (ah > dm) { ah = dm; }
+        let dm = Math.floor(Math.sqrt(14 / nearCv) / AIREF) * AIREF;
+        if (dm < 2 * AIREF) { dm = 2 * AIREF; }
+        if (da > dm) { da = dm; }
     }
-    let ti = mod(s - 1 + ah, NSEG) + 1;
-    let tx = sgX[ti] + sgNX[ti] * tgtOff;
-    let tz = sgZ[ti] + sgNZ[ti] * tgtOff;
+    let af = caU[c] + da / segStep;
+    let ak = Math.floor(af);
+    let afr = af - ak;
+    let ti = mod(s - 1 + ak, NSEG) + 1;
+    let tj = mod(ti, NSEG) + 1;
+    let tx = sgX[ti] + sgNX[ti] * tgtOff + (sgX[tj] + sgNX[tj] * tgtOff - sgX[ti] - sgNX[ti] * tgtOff) * afr;
+    let tz = sgZ[ti] + sgNZ[ti] * tgtOff + (sgZ[tj] + sgNZ[tj] * tgtOff - sgZ[ti] - sgNZ[ti] * tgtOff) * afr;
     atan2d(tx - caX[c], tz - caZ[c]);
     wrapAng(oAtan - caYaw[c]);
     // steer on where the nose will be a moment from now, not where it is:

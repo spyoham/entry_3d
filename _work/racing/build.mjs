@@ -26,7 +26,7 @@ export const C = {
     NSEG: 460,          // centreline rings per circuit (ring NSEG+1 == ring 1)
     PPR: 10,            // points per ring in the vertex buffer
     NCAR: 8,            // cars on track (1 player + 7 AI)
-    NMAT: 240,          // materials in the palette
+    NMAT: 264,          // materials in the palette (v4.0: 240 -> 264, colTab 4224)
     NFOG: 16,           // fog levels baked per material
     NTRK: 8,            // built-in circuits
     EDTRK: 9,           // slot of the editor's own circuit
@@ -44,11 +44,12 @@ export const C = {
     TXW: 1000, TXH: 28, TXF: 20,     // text box: fixed width/height, font px
     TXCW: 0.5,          // monospace advance, em per character
     NMAP: 64,           // centreline samples in the 3D circuit map           // car slot of the time-trial ghost (NCAR + 1)
-    // v8: ghosts at 0.25 s (linear in between): one lap being recorded, the
-    // one being raced, and each circuit's personal best (PBN samples, so a
-    // lap of up to 135 s is kept: 9 circuits x 540 = 4860 list items)
-    NGH: 600,           // samples per recorded lap (150 s)
-    GHDT: 0.25,         // ghost sample interval, seconds
+    // v8: ghosts at GHDT (linear in between): one lap being recorded, the
+    // one being raced, and each circuit's personal best (PBN samples:
+    // 9 circuits x 540 = 4860 list items). v4.0: 0.25 -> 0.4 s, the real Spa
+    // takes the AI about 170 s, so a lap of up to 216 s is kept.
+    NGH: 600,           // samples per recorded lap (240 s)
+    GHDT: 0.4,          // ghost sample interval, seconds
     PBN: 540,           // samples per circuit in the personal-best store
     RLPASS: 90,         // relaxation passes for the racing line
     NSCNV: 48,          // vertices in the largest scenery model
@@ -142,7 +143,11 @@ export function buildPalette() {
     push('leafC', [76, 150, 76]);
     // buildings: 4 colourways x (sunlit wall, shaded wall, roof, glass)
     idx.bld = mats.length + 1;
-    for (const c of [[196, 188, 172], [170, 150, 134], [148, 160, 176], [124, 128, 142]]) {
+    // v4.0: + eight more for the real circuits' blocks: 4 Riviera pink, 5 ochre,
+    // 6 white, 7 terracotta, 8 glass tower, 9 Baku sandstone, 10 brick, 11 light grey
+    for (const c of [[196, 188, 172], [170, 150, 134], [148, 160, 176], [124, 128, 142],
+        [222, 176, 156], [226, 192, 124], [232, 232, 226], [188, 112, 82],
+        [104, 142, 176], [216, 186, 138], [150, 80, 62], [182, 186, 192]]) {
         push('', [c[0], c[1], c[2]]);
         push('', [c[0] * 0.70, c[1] * 0.70, c[2] * 0.70]);
         push('', [c[0] * 0.52 + 22, c[1] * 0.50 + 18, c[2] * 0.48 + 16]);
@@ -754,6 +759,35 @@ export function sceneryModels() {
     for (const x of [-8, 0, 8]) drumAt(x, 0, 1.4, 1.6, 7, 8.6, 1, 0, 1, 2);
     end('citywall', 0);
 
+    // v4.0: 29 block - a unit box (1 m square, 1 m high) the real circuits'
+    // buildings are stretched out of, base idx.bld + colourway*4. Near and far
+    // tiers share the eight corners: the near tier just lists the faces again.
+    begin();
+    {
+        const b1 = vert(-0.5, 0, 0.5), b2 = vert(0.5, 0, 0.5), b3 = vert(0.5, 0, -0.5), b4 = vert(-0.5, 0, -0.5);
+        const t1 = vert(-0.5, 1, 0.5), t2 = vert(0.5, 1, 0.5), t3 = vert(0.5, 1, -0.5), t4 = vert(-0.5, 1, -0.5);
+        const box = () => {
+            face(b1, b2, t2, t1, 0); face(b2, b3, t3, t2, 1);
+            face(b3, b4, t4, t3, 0); face(b4, b1, t1, t4, 1);
+            face(t1, t2, t3, t4, 2);
+        };
+        box();
+        mark();
+        box();
+    }
+    end('block', 0);
+
+    // 30 sheet - a unit square of water, flat, facing up (wound like the top
+    // of drum()), the same face in both tiers
+    begin();
+    {
+        const a = vert(-0.5, 0, 0.5), b = vert(0.5, 0, 0.5), c = vert(0.5, 0, -0.5), d = vert(-0.5, 0, -0.5);
+        face(a, b, c, d, 0);
+        mark();
+        face(a, b, c, d, 0);
+    }
+    end('sheet', 0);
+
     // listed clockwise from outside; the renderer wants counter-clockwise
     return { V, F: F.map((f) => [f[3], f[2], f[1], f[0], f[4]]), T };
 }
@@ -764,7 +798,7 @@ export function sceneryBases(idx) {
         idx.rock, idx.tent, idx.water, idx.conc, idx.hedge,
         idx.bld, idx.bld, idx.conc, idx.conc,
         idx.tyre, idx.palm, idx.yacht, idx.wheel, idx.mbs, idx.flame, idx.casino, idx.stone,
-        idx.ad, idx.conc, idx.conc, idx.mbs, idx.steel, idx.stone];
+        idx.ad, idx.conc, idx.conc, idx.mbs, idx.steel, idx.stone, idx.bld, idx.water];
 }
 
 // ============================================================
@@ -872,8 +906,10 @@ export function buildData() {
     lists.trkGnd = TT.map(t => GROUND[t.ground]);
     lists.trkRoad = TT.map(t => idx[t.road]);
     lists.trkRun = TT.map(t => t.runoff);
-    lists.trkHillK = TT.map(t => t.hill[0]);
-    lists.trkHillT = TT.map(t => t.hill[1]);
+    // v4.0: a real circuit's skyline is the real one (a touch taller, it reads
+    // small at 240 px); only Singapore keeps the city-block profile
+    lists.trkHillK = TT.map(t => (t.real ? 1.15 : t.hill[0]));
+    lists.trkHillT = TT.map(t => (t.real ? (t.real.id === 'sg-2008' ? 1 : 0) : t.hill[1]));
     lists.trkTheme = TT.map(t => t.theme);
     lists.trkTurns = TT.map(t => t.turnsN || 0);
     lists.trkType = TT.map(t => (t === ED ? 'YOUR DESIGN' : t.walls ? 'STREET CIRCUIT' : 'PERMANENT'));
@@ -915,6 +951,55 @@ export function buildData() {
     }
     Object.assign(lists, lm, { lmOff, lmCnt });
     for (const k of Object.keys(lm)) if (!lists[k].length) lists[k] = [0];
+
+    // ---- v4.0 the real circuits: scenery records and the skyline ----
+    // Each circuit's scenery is a run of fixed-width records in base 64, a
+    // few strings per circuit (a list of numbers would need a dozen lists of
+    // 5000). Record, RSW characters: model 1, place round the lap 2 (x4096),
+    // x 3 and z 3 (0.25 m, +32768 m), height offset 2 (0.1 m, +204.8 m),
+    // yaw 2 (x4096 per turn), size x/y/z 2 each (in the model's gtQ units),
+    // colourway 1, flags 1 (tier 1-3 + 4 x wall check).
+    const SMN = sceneryModels().T.map(m => m.name);
+    lists.gtQ = SMN.map(n => (n === 'block' || n === 'sheet' ? 0.1 : 0.01));
+    const RSA = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-';
+    consts.RSA = RSA; consts.RSW = 21;
+    const enc = (v, n) => {
+        v = Math.round(v);
+        if (v < 0 || v >= 64 ** n) throw new Error('scenery record field out of range: ' + v + ' in ' + n);
+        let o = '';
+        for (let i = 0; i < n; i++) { o = RSA[v % 64] + o; v = Math.floor(v / 64); }
+        return o;
+    };
+    const cl = (v, a, b) => Math.max(a, Math.min(b, v));
+    const rsD = [], rsOff = [], rsCh = [], rsN = [];
+    for (const T of TT) {
+        rsOff.push(rsD.length);
+        const objs = T.real ? T.real.objs : [];
+        if (objs.length > C.NSCENE - 200) throw new Error(T.name + ': ' + objs.length + ' scenery records leave no room');
+        let chunk = '', c = 0;
+        for (const o of objs) {
+            const ti = SMN.indexOf(o.t) + 1;
+            if (ti < 1) throw new Error('no scenery model ' + o.t);
+            const q = lists.gtQ[ti - 1];
+            const yaw = ((o.yaw % 360) + 360) % 360;
+            chunk += RSA[ti] + enc(Math.round(o.u * 4096) % 4096, 2) + enc((o.x + 32768) * 4, 3) + enc((o.z + 32768) * 4, 3)
+                + enc(cl(o.dy * 10 + 2048, 0, 4095), 2) + enc(Math.round(yaw / 360 * 4096) % 4096, 2)
+                + enc(cl(o.sx / q, 1, 4095), 2) + enc(cl(o.sy / q, 1, 4095), 2) + enc(cl(o.sz / q, 1, 4095), 2)
+                + RSA[o.m] + RSA[o.tier + 4 * o.chk];
+            c++;
+            if (c % 150 === 0) { rsD.push(chunk); chunk = ''; }
+        }
+        if (chunk) rsD.push(chunk);
+        rsCh.push(rsD.length - rsOff[rsOff.length - 1]);
+        rsN.push(objs.length);
+    }
+    lists.rsD = rsD.length ? rsD : [''];
+    lists.rsOff = rsOff; lists.rsCh = rsCh; lists.rsN = rsN;
+    lists.trkReal = TT.map(t => (t.real ? 1 : 0));
+    // the skyline seen from the circuit: tangent of the horizon's height, per
+    // 6 degrees of bearing, for the near hills and the far ones
+    lists.hlN = TT.flatMap(t => (t.real ? t.real.hN : new Array(60).fill(0)));
+    lists.hlF = TT.flatMap(t => (t.real ? t.real.hF : new Array(60).fill(0)));
     // a blocky city skyline for the street circuits, beside the ridge profile
     lists.hillC = Array.from({ length: C.NHILLT }, (_, i) => {
         const r = Math.sin(i * 12.9898 + 4.1) * 43758.5453;
@@ -1043,7 +1128,7 @@ export function buildData() {
     SM.T.forEach((t, i) => { consts['SC_' + t.name.toUpperCase()] = i + 1; });
 
     // ---- scenery instances: filled in at track build time ----
-    for (const k of ['scT', 'scX', 'scY', 'scZ', 'scC', 'scS', 'scK', 'scM', 'scLod', 'scNext'])
+    for (const k of ['scT', 'scX', 'scY', 'scZ', 'scC', 'scS', 'scK', 'scKY', 'scKZ', 'scKR', 'scM', 'scLod', 'scNext'])
         lists[k] = new Array(C.NSCENE + 1).fill(0);
     lists.scHead = new Array(C.NSEG + 2).fill(0);
     for (const k of ['mmLX', 'mmLY', 'mmRX', 'mmRY'])
@@ -1166,6 +1251,8 @@ export function buildData() {
     // fog distance scale, scenery density (1 = v4)
     lists.gfLod2 = [62, 110, 170]; lists.gfLod3 = [155, 280, 420];
     lists.gfScn = [270, 420, 600]; lists.gfScnHi = [60, 140, 260];
+    // v4.0: how far an object is drawn, in its own bounding radii
+    lists.gfScnSz = [45, 60, 90];
     lists.gfCar = [40, 90, 150]; lists.gfCarM = [80, 260, 420];
     lists.gfFog = [1.0, 1.15, 1.35]; lists.gfDen = [1, 1, 2];
     lists.gfFull = [1, 4, 8];           // how many cars may use the full model at once
@@ -1180,7 +1267,7 @@ export function buildData() {
     // ---- runtime scratch lists (pre-sized so the hot path never grows a list) ----
     const N = C.NSEG, R = N + 1;
     const zeros = (n) => new Array(n).fill(0);
-    const segL = ['sgX', 'sgY', 'sgZ', 'sgDX', 'sgDZ', 'sgNX', 'sgNZ', 'sgW', 'sgLen', 'sgArc', 'sgCurv', 'sgF', 'sgBank', 'sgMat', 'sgGMat', 'sgCurb', 'sgWMat', 'sgCM', 'sgHW', 'sgTun', 'sgJmp', 'sgGate',
+    const segL = ['sgX', 'sgY', 'sgZ', 'sgDX', 'sgDZ', 'sgNX', 'sgNZ', 'sgW', 'sgLen', 'sgArc', 'sgCurv', 'sgCurvA', 'sgF', 'sgBank', 'sgMat', 'sgGMat', 'sgCurb', 'sgWMat', 'sgCM', 'sgHW', 'sgTun', 'sgJmp', 'sgGate',
         'sgRWL', 'sgRWR', 'sgRTL', 'sgRTR', 'sgRML', 'sgRMR'];
     for (const k of segL) lists[k] = zeros(R);
     const NSLOT = R * C.PPR + C.NCARV + 8 + C.NSCNV;   // rings, car verts, scratch, scenery

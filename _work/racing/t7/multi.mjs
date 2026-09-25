@@ -58,7 +58,7 @@ const ok = (c, m) => console.log((c ? 'PASS ' : 'FAIL ') + m);
 console.log(`latency ${LAT * 1000} ms, welcome after ${WELCOME} s`);
 
 const idle = (srv, cs, secs) => run(srv, cs, secs);
-const rkHas = (srv, tk, nick) => String(srv.vals['RT_K' + tk]).includes('|' + nick + ',');
+const rkHas = (srv, tk, nick) => String(srv.vals['RT_L' + tk]).includes('|' + nick + ',');
 
 // ---- A: a returning player whose saved game arrives late ----------------------
 {
@@ -103,7 +103,7 @@ const rkHas = (srv, tk, nick) => String(srv.vals['RT_K' + tk]).includes('|' + ni
     cs.forEach((c, i) => c.g(`pendRk[4] = ${80 + i}; pendG[4] = 0;`));
     idle(srv, cs, 20);
     const n = ['alice', 'bob', 'carol'].filter((x) => rkHas(srv, 5, x)).length;
-    ok(n === 3, `C same-moment ranking entries: ${n} of 3 kept: ${srv.vals.RT_K5}`);
+    ok(n === 3, `C same-moment ranking entries: ${n} of 3 kept: ${srv.vals.RT_L5}`);
 }
 
 // ---- D: a lap time set before the ranking has arrived ------------------------------
@@ -119,7 +119,7 @@ const rkHas = (srv, tk, nick) => String(srv.vals['RT_K' + tk]).includes('|' + ni
     idle(srv, [a], 1);
     a.g('pendRk[4] = 75; pendG[4] = 0;');            // a lap finished before the welcome
     idle(srv, [a], WELCOME + 8);
-    ok(rkHas(srv, 5, 'zed') && rkHas(srv, 5, 'amy'), `D ranking with a lap set before the welcome: ${srv.vals.RT_K5}`);
+    ok(rkHas(srv, 5, 'zed') && rkHas(srv, 5, 'amy'), `D ranking with a lap set before the welcome: ${srv.vals.RT_L5}`);
 }
 
 // ---- E: four players, a minute of random saves and laps --------------------------------
@@ -138,7 +138,7 @@ const rkHas = (srv, tk, nick) => String(srv.vals['RT_K' + tk]).includes('|' + ni
     idle(srv, cs, 20);
     const saved = cs.filter((c) => recOf(srv, c.nick) === +c.g('pXP')).length;
     if (process.env.DBG) { for (const c of cs) console.log(c.nick, 'xp', c.g('pXP'), 'srv', recOf(srv, c.nick), 'verT', c.g('pVerT'), 'dirty', c.g('pDirty'), 'saveT', (+c.g('pSaveT')).toFixed(2), 'verN', c.g('pVerN'), 'sh', c.g('pSh'), 'rkT', c.g('pRkT'), 'st', c.g('raceState')); console.log(srv.vals.RT_S3); }
-    const ranked = Object.keys(best).filter((n) => { const m = String(srv.vals.RT_K3).match(new RegExp('\\|' + n + ',(\\d+)')); return m && Math.abs(+m[1] - Math.round(best[n] * 1000)) <= 1; }).length;
+    const ranked = Object.keys(best).filter((n) => { const m = String(srv.vals.RT_L3).match(new RegExp('\\|' + n + ',(\\d+)')); return m && Math.abs(+m[1] - Math.round(best[n] * 1000)) <= 1; }).length;
     ok(saved === 4 && ranked === Object.keys(best).length, `E 4 players, one slot, 60 s: ${saved}/4 saves current, ${ranked}/${Object.keys(best).length} best laps ranked; ${srv.writes} server writes`);
 }
 
@@ -176,7 +176,7 @@ const rkHas = (srv, tk, nick) => String(srv.vals['RT_K' + tk]).includes('|' + ni
         // bob's write lands first in odd rounds, alice's in even ones
         if (round % 2) { idle(srv, [b], 0.1); }
         idle(srv, [a, b], 20);
-        const k = String(srv.vals.RT_K4), gst = String(srv.vals.RT_G4);
+        const k = String(srv.vals.RT_L4), gst = String(srv.vals.RT_W4);
         const p1 = (k.match(/\|\|?([^,|]+),(\d+)/) || [])[1];
         if (process.env.DBG) console.log("K", k, "G", gst.slice(0, 30), "pendG", a.g("pendG[3]"), b.g("pendG[3]"), "pbN", b.g("pbN[3]"), "rkT", b.g("rkT[0]"));
         if (p1 !== 'bob' || !gst.startsWith('bob,79250,')) bad++;

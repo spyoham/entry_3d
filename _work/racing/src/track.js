@@ -30,6 +30,8 @@ let roadBase = 0;          // asphalt family for this circuit
 let runStyle = 0;          // 0 walled, 1 gravel, 2 tarmac, 3 gravel slow / tarmac fast
 let hillK = 1;             // distant skyline height
 let hillT = 0;             // ...and kind: 0 ridges, 1 city blocks
+let hlOn = 0;              // v4.0: 1 = the real skyline (hlN / hlF from hlOff)
+let hlOff = 0;
 let drsN = 0;              // v6 menu facts, filled by buildTrack
 let trkElev = 0;
 let mapTop = 1;
@@ -112,6 +114,8 @@ function buildTrack(tk) {
     runStyle = trkRun[tk];
     hillK = trkHillK[tk];
     hillT = trkHillT[tk];
+    hlOn = trkReal[tk];
+    hlOff = (tk - 1) * 60;
 
     let off = ctlOff[tk];
     let n = ctlCnt[tk];
@@ -220,6 +224,38 @@ function buildTrack(tk) {
         i = i + 1;
     }
     sgCurv[NSEG + 1] = sgCurv[1]; sgBank[NSEG + 1] = sgBank[1];
+    // v4.0: the tightest bend inside each ring's span, from the fine spline
+    // samples. sgCurv is an average over two rings (30 m on the real Spa),
+    // which reads a short hairpin as gentler than it is; the AI's corner
+    // speeds use this instead.
+    i = 1;
+    while (i <= NSEG) { sgCurvA[i] = 0; i = i + 1; }
+    let q = 2;
+    while (q < ns) {
+        let ax = tsX[q] - tsX[q - 1]; let az = tsZ[q] - tsZ[q - 1];
+        let bx = tsX[q + 1] - tsX[q]; let bz = tsZ[q + 1] - tsZ[q];
+        let la = Math.sqrt(ax * ax + az * az);
+        let lb = Math.sqrt(bx * bx + bz * bz);
+        if (la * lb > 0.0001) {
+            let cr = (ax * bz - az * bx) / (la * lb);
+            let k = Math.abs(cr) * 2 / (la + lb);
+            let r = 1 + Math.floor(tsA[q] / segStep);
+            if (r > NSEG) { r = NSEG; }
+            if (k > sgCurvA[r]) { sgCurvA[r] = k; }
+        }
+        q = q + 1;
+    }
+    // never gentler than the average, and a spline wobble is not a hairpin
+    i = 1;
+    while (i <= NSEG) {
+        let a = Math.abs(sgCurv[i]);
+        let k = sgCurvA[i];
+        if (k < a) { k = a; }
+        if (k > a * 1.6 + 0.002) { k = a * 1.6 + 0.002; }
+        sgCurvA[i] = k;
+        i = i + 1;
+    }
+    sgCurvA[NSEG + 1] = sgCurvA[1];
     // smooth the banking so curbs/edges do not jitter
     i = 1;
     while (i <= NSEG) {
@@ -692,6 +728,9 @@ function scPut(i, side, dist, type, scale, matOff, lod) {
         scY[scN] = sgY[i] - GRASSD;
         scT[scN] = type;
         scK[scN] = scale;
+        scKY[scN] = scale;
+        scKZ[scN] = scale;
+        scKR[scN] = scale;
         scM[scN] = matOff;
         scLod[scN] = lod;
         // stood square to the track by default
@@ -736,8 +775,9 @@ function scPutFacing(i, side, dist, type, scale, matOff, lod) {
 function scClear(o) {
     let t = scT[o];
     let k = scK[o];
+    let kz = scKZ[o];
     let x0 = gtX0[t] * k; let x1 = gtX1[t] * k;
-    let z0 = gtZ0[t] * k; let z1 = gtZ1[t] * k;
+    let z0 = gtZ0[t] * kz; let z1 = gtZ1[t] * kz;
     let cy = scC[o]; let sy = scS[o];
     let px = scX[o]; let pz = scZ[o];
     oClr = 999;
@@ -791,49 +831,92 @@ function placeLandmarks(tk) {
     }
 }
 
-// one piece of the theme's filler at distance d on the given side
+// one piece of the filler at distance d on the given side. v4.0: the eight
+// circuits have their real surroundings; only the editor's circuit (an
+// English airfield, theme 4) still gets the scatter: hedges, hospitality
+// tents, a few trees and sheds.
 function scFill(theme, i, side, d, roll, sc, near) {
-    if (theme == 1) {
-        // Monaco: apartment blocks in cream and ochre, palms along the front
-        if (roll < 0.42) { scPut(i, side, d, SC_TOWER, 0.7 + sc * 0.5, 4 * mod(i, 2), 0); }
-        else if (roll < 0.70) { scPut(i, side, d, SC_SHED, sc * 1.5, 4 * mod(i + 1, 2), 0); }
-        else if (roll < 0.86) { scPut(i, side, near, SC_PALM, sc, 0, 1); }
-    } else if (theme == 2) {
-        // Spa: the Ardennes - pine forest right up to the circuit
-        if (roll < 0.66) { scPut(i, side, d, SC_PINE, sc * 1.15, 0, 1); }
-        else if (roll < 0.84) { scPut(i, side, d, SC_OAK, sc, 0, 1); }
-        else if (roll < 0.90) { scPut(i, side, d, SC_ROCK, sc, 0, 1); }
-    } else if (theme == 3) {
-        // Suzuka: trees, hedged fields and the odd farmhouse
-        if (roll < 0.40) { scPut(i, side, d, SC_OAK, sc, 0, 1); }
-        else if (roll < 0.62) { scPut(i, side, d, SC_PINE, sc, 0, 1); }
-        else if (roll < 0.74) { scPutFacing(i, side, d, SC_HEDGE, 1, 0, 1); }
-        else if (roll < 0.84) { scPut(i, side, d + 30, SC_SHED, sc * 0.8, 4 * mod(i, 4), 0); }
-    } else if (theme == 4) {
-        // Silverstone: an open airfield - hedges, hospitality tents, a few trees
-        if (roll < 0.22) { scPutFacing(i, side, d, SC_HEDGE, 1.2, 0, 1); }
-        else if (roll < 0.40) { scPut(i, side, d + 20, SC_TENT, sc * 1.3, 0, 1); }
-        else if (roll < 0.58) { scPut(i, side, d + 20, SC_OAK, sc, 0, 1); }
-        else if (roll < 0.64) { scPut(i, side, d + 60, SC_SHED, sc, 8, 0); }
-    } else if (theme == 5) {
-        // Monza: the royal park, tall broadleaf trees everywhere
-        if (roll < 0.74) { scPut(i, side, d, SC_OAK, sc * 1.25, 0, 1); }
-        else if (roll < 0.86) { scPut(i, side, d, SC_PINE, sc * 1.2, 0, 1); }
-    } else if (theme == 6) {
-        // Singapore: glass towers and palms
-        if (roll < 0.52) { scPut(i, side, d + 10, SC_TOWER, 1.1 + sc * 1.1, 8 + 4 * mod(i, 2), 0); }
-        else if (roll < 0.66) { scPut(i, side, d, SC_SHED, sc * 1.6, 8 + 4 * mod(i + 1, 2), 0); }
-        else if (roll < 0.86) { scPut(i, side, near, SC_PALM, sc, 0, 1); }
-    } else if (theme == 7) {
-        // Interlagos: Sao Paulo houses packed up the hillsides
-        if (roll < 0.56) { scPut(i, side, d, SC_SHED, 0.45 + sc * 0.3, 4 * mod(i * 3 + 1, 4), 0); }
-        else if (roll < 0.70) { scPut(i, side, d + 40, SC_TOWER, 0.6 + sc * 0.5, 4 * mod(i, 4), 0); }
-        else if (roll < 0.84) { scPut(i, side, d, SC_OAK, sc, 0, 1); }
-    } else {
-        // Baku: sandstone blocks, palms on the boulevard
-        if (roll < 0.40) { scPut(i, side, d, SC_SHED, sc * 1.4, 4 * mod(i, 2), 0); }
-        else if (roll < 0.58) { scPut(i, side, d + 12, SC_TOWER, 0.8 + sc * 0.7, 4 * mod(i + 1, 2), 0); }
-        else if (roll < 0.80) { scPut(i, side, near, SC_PALM, sc, 0, 1); }
+    if (roll < 0.22) { scPutFacing(i, side, d, SC_HEDGE, 1.2, 0, 1); }
+    else if (roll < 0.40) { scPut(i, side, d + 20, SC_TENT, sc * 1.3, 0, 1); }
+    else if (roll < 0.58) { scPut(i, side, d + 20, SC_OAK, sc, 0, 1); }
+    else if (roll < 0.64) { scPut(i, side, d + 60, SC_SHED, sc, 8, 0); }
+}
+
+// ---- v4.0: the real circuits' scenery ----------------------------------
+// Built from the map (real/prep.mjs): every record is one object at its real
+// place, filed under the ring it stands beside. Records carry a detail tier;
+// LOW places tier 1, HIGH 1-2, ULTRA all. One that the check finds on the
+// road (the map and the racing line are a few metres apart here and there)
+// is walked straight away from the ring, or dropped.
+let rsP = '';
+function rsNum(k, n) {
+    oD = 0;
+    let i = 0;
+    while (i < n) { oD = oD * 64 + indexOf(RSA, charAt(rsP, k + i)) - 1; i = i + 1; }
+}
+function placeReal(tk) {
+    let c = rsOff[tk] + 1;
+    let ce = rsOff[tk] + rsCh[tk];
+    while (c <= ce) {
+        rsP = rsD[c];
+        let L = strlen(rsP);
+        let k = 1;
+        while (k < L) {
+            rsNum(k + 20, 1);
+            let fl = oD;
+            if (mod(fl, 4) <= gfx) {
+                if (scN < NSCENE) {
+                    rsNum(k, 1);
+                    let t = oD;
+                    let q = gtQ[t];
+                    rsNum(k + 1, 2);
+                    let i = 1 + Math.floor(oD * NSEG / 4096);
+                    if (i > NSEG) { i = NSEG; }
+                    scN = scN + 1;
+                    scT[scN] = t;
+                    rsNum(k + 3, 3); scX[scN] = oD / 4 - 32768;
+                    rsNum(k + 6, 3); scZ[scN] = oD / 4 - 32768;
+                    rsNum(k + 9, 2); scY[scN] = sgY[i] - GRASSD + (oD - 2048) / 10;
+                    rsNum(k + 11, 2);
+                    let yaw = oD * 360 / 4096;
+                    scC[scN] = cosd(yaw);
+                    scS[scN] = sind(yaw);
+                    rsNum(k + 13, 2); scK[scN] = oD * q;
+                    rsNum(k + 15, 2); scKY[scN] = oD * q;
+                    rsNum(k + 17, 2); scKZ[scN] = oD * q;
+                    let kr = scK[scN];
+                    if (scKY[scN] > kr) { kr = scKY[scN]; }
+                    if (scKZ[scN] > kr) { kr = scKZ[scN]; }
+                    scKR[scN] = kr;
+                    rsNum(k + 19, 1); scM[scN] = oD;
+                    scLod[scN] = gtLod[t];
+                    oPut = 1;
+                    if (idiv(fl, 4) > 0) {
+                        scClear(scN);
+                        let dx = scX[scN] - sgX[i];
+                        let dz = scZ[scN] - sgZ[i];
+                        let dl = Math.sqrt(dx * dx + dz * dz);
+                        if (dl < 0.1) { dx = sgNX[i]; dz = sgNZ[i]; dl = 1; }
+                        let tries = 0;
+                        while (oClr < 0) {
+                            if (tries >= 3) { break; }
+                            let mv = 1.5 - oClr;
+                            scX[scN] = scX[scN] + dx / dl * mv;
+                            scZ[scN] = scZ[scN] + dz / dl * mv;
+                            scClear(scN);
+                            tries = tries + 1;
+                        }
+                        if (oClr < 0) { scN = scN - 1; oPut = 0; }
+                    }
+                    if (oPut > 0) {
+                        scNext[scN] = scHead[i];
+                        scHead[i] = scN;
+                    }
+                }
+            }
+            k = k + RSW;
+        }
+        c = c + 1;
     }
 }
 
@@ -843,7 +926,9 @@ function placeScenery(tk) {
     let i = 1;
     while (i <= NSEG + 1) { scHead[i] = 0; i = i + 1; }
     let theme = trkTheme[tk];
+    let real = trkReal[tk];
     placeLandmarks(tk);
+    if (real > 0) { placeReal(tk); }
 
     i = 1;
     while (i <= NSEG) {
@@ -894,7 +979,9 @@ function placeScenery(tk) {
                 scPutFacing(i, sd, sgW[i] + 22, SC_TERRACE, 0.9, 0, 0);
             }
         }
-        // --- the theme: close in on a street circuit, spread out on a park one ---
+        // --- the theme: close in on a street circuit, spread out on a park one
+        //     (v4.0: a real circuit has its real surroundings instead) ---
+        if (real < 1) {
         if (mod(i, 2) == 0) {
             scRnd();
             let side = oRnd < 0.5 ? 1 : 0 - 1;
@@ -935,18 +1022,6 @@ function placeScenery(tk) {
                 scFill(theme, i, side3, d3, r3, s3, sgW[i] + 12);
             }
         }
-        // --- water: the harbour at Monaco, the bay at Singapore, the Caspian ---
-        if (mod(i, 6) == 3) {
-            let u = i / NSEG;
-            let wet = 0;
-            if (theme == 1) { if (u > 0.60) { if (u < 0.93) { wet = 1; } } }
-            else if (theme == 6) { if (u > 0.40) { if (u < 0.62) { wet = 1; } } }
-            else if (theme == 8) { if (u > 0.74) { wet = 1; } }
-            if (wet > 0) { scPut(i, 0 - 1, sgW[i] + 62, SC_WATER, 1, 0, 0); }
-        }
-        // --- Baku: the old city walls along the castle section ---
-        if (theme == 8) {
-            if (sgW[i] < 5) { if (mod(i, 3) == 0) { scPutFacing(i, 1, sgW[i] + 3.5, SC_CITYWALL, 1, 0, 0); } }
         }
         }
         }

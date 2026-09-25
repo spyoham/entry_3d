@@ -122,6 +122,7 @@ function svSane() {
             k = 33;
             while (k <= 35) { if (strlen(pF[k]) < 1) { ok = 0; } else if (pF[k] < 0) { ok = 0; } else if (pF[k] > 6) { ok = 0; } k = k + 1; }
         }
+        if (nF >= 36) { if (strlen(pF[36]) < 1) { ok = 0; } else if (pF[36] < 0) { ok = 0; } else if (pF[36] > 99) { ok = 0; } }
     }
     oSvOk = ok;
 }
@@ -168,6 +169,8 @@ function svDecode(s) {
                 let nOk = 0;
                 if (nF == 32) { nOk = 1; }
                 if (nF == 35) { nOk = 1; }
+                // v4.0 codes: + the circuits version (36)
+                if (nF == 36) { nOk = 1; }
                 if (nOk > 0) {
                     svSane();
                     if (oSvOk > 0) {

@@ -407,7 +407,12 @@ function carPhys(c) {
     if (gn > NSEG) { gn = 1; }
     let gp = gs - 1;
     if (gp < 1) { gp = NSEG; }
-    let slope = (sgY[gn] - sgY[gp]) / (2 * segStep);
+    // (v4.0: the slope where the car is, between this ring's and the next's:
+    // the real circuits' rings are up to 15 m apart, and on a hill whose
+    // grade keeps changing one ring's average is a degree or two out)
+    let gnn = gn + 1;
+    if (gnn > NSEG) { gnn = 1; }
+    let slope = ((sgY[gn] - sgY[gp]) + ((sgY[gnn] - sgY[gs]) - (sgY[gn] - sgY[gp])) * caU[c]) / (2 * segStep);
     let tb = 0;
     if (Math.abs(caOff[c]) < sgW[gs]) { tb = tand(sgBank[gs] + (sgBank[gn] - sgBank[gs]) * caU[c]); }
     let fD = fx * sgDX[gs] + fz * sgDZ[gs];
