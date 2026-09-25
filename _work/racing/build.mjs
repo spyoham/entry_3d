@@ -28,8 +28,8 @@ export const C = {
     NCAR: 8,            // cars on track (1 player + 7 AI)
     NMAT: 280,          // materials in the palette (v4.0: 240 -> 264, v4.2: 280, colTab 4480)
     NFOG: 16,           // fog levels baked per material
-    NTRK: 8,            // built-in circuits
-    EDTRK: 9,           // slot of the editor's own circuit
+    NTRK: 14,           // built-in circuits (v4.4: 8 -> 14)
+    EDTRK: 15,          // slot of the editor's own circuit
     NCP: 4,             // default checkpoints per lap
     NCPMAX: 10,         // upper bound the editor may place
     LAPS: 3,
@@ -47,7 +47,7 @@ export const C = {
     NMAP: 64,           // centreline samples in the 3D circuit map           // car slot of the time-trial ghost (NCAR + 1)
     // v8: ghosts at GHDT (linear in between): one lap being recorded, the
     // one being raced, and each circuit's personal best (PBN samples:
-    // 9 circuits x 540 = 4860 list items). v4.0: 0.25 -> 0.4 s, the real Spa
+    // v4.4: pbX for circuits 1-8, pbX2 for the rest). v4.0: 0.25 -> 0.4 s, the real Spa
     // takes the AI about 170 s, so a lap of up to 216 s is kept.
     NGH: 600,           // samples per recorded lap (240 s)
     GHDT: 0.4,          // ghost sample interval, seconds
@@ -1122,7 +1122,7 @@ export function buildData() {
     lists.mixName = ['LEAN', 'STANDARD', 'RICH'];
     lists.mixPow = [0 - 0.035, 0, 0.025];
     lists.mixBurn = [0.84, 1, 1.13];
-    lists.trkT0 = [38, 26, 31, 29, 37, 33, 41, 35, 30];
+    lists.trkT0 = [38, 26, 31, 29, 37, 33, 41, 35, 42, 30, 33, 30, 26, 36, 30];
     lists.whSt = [1, 1, 1, 1];
 
 
@@ -1358,10 +1358,13 @@ export function buildData() {
     // ghost: the lap being driven, and the best one, one sample per GHDT
     for (const k of ['grX', 'grZ', 'grW', 'ghX', 'ghZ', 'ghW']) lists[k] = zeros(C.NGH + 2);
     // v8: personal-best ghost of every circuit (editor slot included)
-    for (const k of ['pbX', 'pbZ', 'pbW']) lists[k] = zeros(C.EDTRK * C.PBN);
+    // (v4.4: circuits 1-8 in pb*, 9 on - and the editor's - in pb*2: one list
+    // holds 5000 at most)
+    for (const k of ['pbX', 'pbZ', 'pbW']) lists[k] = zeros(8 * C.PBN);
+    for (const k of ['pbX2', 'pbZ2', 'pbW2']) lists[k] = zeros((C.EDTRK - 8) * C.PBN);
     lists.pbN = zeros(C.EDTRK + 1);
     // v8 profile scratch: parsed save fields, ranking rows, achievements
-    lists.pF = new Array(48).fill(0);
+    lists.pF = new Array(64).fill(0);
     lists.svV = zeros(C.SVMAX + 1);
     lists.rkN = new Array(C.NRANK + 2).fill('-'); lists.rkT = zeros(C.NRANK + 2);
     lists.achGot = zeros(C.NACH + 1); lists.popQ = zeros(33);

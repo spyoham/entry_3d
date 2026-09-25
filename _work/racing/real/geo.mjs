@@ -13,6 +13,13 @@ export const CIRCUITS = [
     { slot: 6, id: 'sg-2008', pad: 420 },   // Singapore (Marina Bay)
     { slot: 7, id: 'br-1940', pad: 380 },   // Interlagos
     { slot: 8, id: 'az-2016', pad: 420 },   // Baku
+    // v4.4: six more
+    { slot: 9, id: 'bh-2002', pad: 400 },   // Bahrain (Sakhir)
+    { slot: 10, id: 'au-1953', pad: 400 },  // Melbourne (Albert Park)
+    { slot: 11, id: 'ca-1978', pad: 400 },  // Montreal (Gilles Villeneuve)
+    { slot: 12, id: 'at-1969', pad: 400 },  // Red Bull Ring
+    { slot: 13, id: 'nl-1948', pad: 400 },  // Zandvoort
+    { slot: 14, id: 'us-2012', pad: 400 },  // Circuit of the Americas
 ];
 
 export function makeProj(lon0, lat0) {

@@ -1,3 +1,24 @@
+# ENTRY RACING 3D — 작업 인계 메모 (2026-09-25, v5.0)
+
+산출물: `3D 레이싱 v5.0.ent` ← 최신, 설명서 `3D 레이싱 v5.0 설명서.md` (v4.3은 루트 `old/`로)
+빌드: `node real/prep.mjs && node build.mjs racing50.ent` → `globals 442, lists 541, functions 313, handlers 3`, .ent 1.04 MB
+
+## 요청과 한 것
+"실제로 있는 f1레이싱 맵을 실제와 최대한 비슷하게 5개이상 추가해줘" → 6개: 9 바레인(bh-2002), 10 멜버른(au-1953), 11 몬트리올(ca-1978),
+12 레드불 링(at-1969), 13 잔드보르트(nl-1948), 14 오스틴 COTA(us-2012). 모두 `real/` 파이프라인(geo.mjs CIRCUITS, prep.mjs META).
+- `f1tracks.mjs`: 새 정의(하늘·땅·런오프·폭; 배치는 SQUARE 자리표시자, 실제 자료가 없을 때만), `TURNS` 14개. 멜버른은 hill[1]=1(도심 스카이라인).
+- `prep.mjs` META: 고저차 레드불 65, COTA 41, 멜버른·몬트리올 4, 나머지 SRTM. 멜버른은 OSM에 raceway도 피트 레인도 없어 f1-circuits 첫 점이 출발(피트 직선).
+  대관람차는 트랙에서 1.5 km 안만(멜버른 스타 4 km 제외).
+- 트랙 수: `NTRK 14`, `EDTRK 15`. 고스트 PB 저장은 한 리스트 5000 한도로 `pbX/Z/W`(1-8) + `pbX2/Z2/W2`(9-15), `pbBase(tk)` → `oPB`, `oPB2`.
+  `RT_L9..14`, `RT_W9..14`, rtGet/SetK·G 14갈래. 저장 레코드: 17-24/25-32는 그대로(1-8), 36 TRKV, **37-42 랩·43-48 레이스(9-14)**,
+  mergeRec은 필드가 있으면 읽음. `pF` 48 → 64. 백업 코드 nF 48 허용, 37번 이후 숫자 검사. 도전과제 13은 2^NTRK − 1.
+  프로필 기록 탭 2열 7행(칸 25-38, 최고 레이스 줄은 39로). 챔피언십 14라운드, 메뉴 `ALL 14`. `trkT0` 15개.
+- 테스트: `t7/intrude.mjs`가 NTRK 전체. 새 6개 침범 0(런오프 포함), AI 큰 이탈 0, 랩 103–158 s. v30 10/10, keys, multi(E는 가끔 타이밍으로 실패, 재실행 PASS·옛 코드도 동일),
+  savecode 31, slots, tilt(14), pinned, alloc PASS. tessvm 멜버른 HIGH 59–60, 멜버른·몬트리올 ULTRA 59–60.
+- 남은 것: 몬트리올 바이오스피어, COTA 전망탑 모델 없음. 잔드보르트 바다는 자료 범위(패드 400 m) 밖이라 안 보임.
+
+---
+
 # ENTRY RACING 3D — 작업 인계 메모 (2026-09-25, v4.3)
 
 산출물: `3D 레이싱 v4.3.ent` ← 최신, 설명서 `3D 레이싱 v4.3 설명서.md` (v4.2는 루트 `old/`로)

@@ -373,7 +373,7 @@ function drawTrkSel() {
 // (cardRow r: label 51+r, value 61+r), 72..76 extras; 77..79 pop-ups.
 function hudMenu() {
     tx(9, 'ENTRY RACING 3D', 0 - 232, 116, 21, C_WHITE, 1);
-    tx(10, 'F1 EDITION  /  v4.3', 0 - 232, 96, 8, C_WHITE, 1);
+    tx(10, 'F1 EDITION  /  v5.0', 0 - 232, 96, 8, C_WHITE, 1);
     let lvl = pLoaded > 0 ? str('LV ', pLv, '  ', pNick) : 'LOADING SAVE...';
     tx(13, lvl, 0 - 80, 96, 8, C_GOLD, 1);
     let crumb = 'MAIN MENU';
@@ -403,7 +403,7 @@ function hudMenu() {
         else if (k == 3) { lab = 'RULES'; val = ruleName[rules]; }
         else if (k == 4) { lab = 'CAR'; val = ctName[selCar]; }
         else if (k == 5) { lab = 'GARAGE'; val = pPts > 0 ? str(pPts, ' POINTS TO SPEND') : 'TUNING'; }
-        else if (k == 6) { lab = 'CIRCUIT'; val = gMode == M_CH ? 'ALL 8' : trkName[selTrk]; }
+        else if (k == 6) { lab = 'CIRCUIT'; val = gMode == M_CH ? str('ALL ', NTRK) : trkName[selTrk]; }
         else if (k == 7) { lab = 'AI LEVEL'; val = gMode >= M_TT ? 'NONE' : aiName[aiDiff]; }
         else if (k == 8) {
             lab = 'LAPS'; val = str(lapOpt[lapSel]);
@@ -999,20 +999,22 @@ function hudProf() {
             tx(37, 'TEST  +1000 XP  (X)', 168, 0 - 85, 8, C_GOLD, 0);
         }
     } else if (prTab == 2) {
-        tx(24, 'CIRCUIT            MY BEST LAP     WORLD RECORD', 0 - 220, 88, 8, C_DIM, 1);
+        // (v4.4: fourteen circuits, in two columns of seven)
+        tx(24, 'CIRCUIT        MY BEST    WORLD RECORD', 0 - 228, 88, 7, C_DIM, 1);
         while (i <= NTRK) {
-            padR(trkName[i], 19);
+            padR(trkName[i], 15);
             let nm = oPad;
             fmtTime(recLap[i] > 0 ? recLap[i] : 0 - 1);
-            padR(oTime, 16);
+            padR(oTime, 11);
             let mb = oPad;
             let wr = '-';
-            if (recWR[i] > 0) { fmtTime(recWR[i]); wr = str(oTime, '  ', recNm[i]); }
-            tx(24 + i, str(nm, mb, wr), 0 - 220, 72 - (i - 1) * 16, 8, C_WHITE, 1);
+            if (recWR[i] > 0) { fmtTime(recWR[i]); wr = str(oTime, ' ', recNm[i]); }
+            let cl = idiv(i - 1, 7);
+            tx(24 + i, str(nm, mb, wr), 0 - 228 + cl * 236, 72 - mod(i - 1, 7) * 16, 7, C_WHITE, 1);
             i = i + 1;
         }
         fmtTime(recRace[selTrk] > 0 ? recRace[selTrk] : 0 - 1);
-        tx(33, str('BEST RACE ON ', trkName[selTrk], ':  ', oTime), 0 - 220, 0 - 64, 8, C_DIM, 1);
+        tx(39, str('BEST RACE ON ', trkName[selTrk], ':  ', oTime), 0 - 228, 0 - 64, 8, C_DIM, 1);
     } else if (prTab == 3) {
         while (i <= NACH) {
             let col = idiv(i - 1, 10);

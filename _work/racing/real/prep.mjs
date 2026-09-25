@@ -38,6 +38,13 @@ const META = {
     'it-1922': { width: 7.2, range: 13, terrain: 0.25, trees: ['oak', 'oak', 'oak', 'pine'], cols: [0, 1, 7, 6], glass: 3, defH: 8, nB: 220, nT: 820 },
     'sg-2008': { width: 6.2, walls: true, range: 4, terrain: 0, trees: ['oak', 'palm', 'oak'], cols: [8, 6, 2, 3, 11], glass: 8, defH: 18, nB: 760, nT: 220, sea: true, city: 1 },
     'br-1940': { merge: 1, hi: 0.5, width: 7.0, range: 43, terrain: 0.8, trees: ['oak', 'oak', 'palm'], cols: [6, 5, 7, 4, 1, 0], glass: 8, defH: 7, nB: 600, nT: 420 },
+    // v4.4
+    'bh-2002': { width: 7.5, range: 0, terrain: 0.6, trees: ['palm'], cols: [9, 6, 0, 1], glass: 8, defH: 9, nB: 260, nT: 160 },
+    'au-1953': { width: 7.0, range: 4, terrain: 0.3, trees: ['oak', 'oak', 'palm'], cols: [6, 0, 7, 10, 11], glass: 8, defH: 9, nB: 420, nT: 760 },
+    'ca-1978': { width: 6.8, range: 4, terrain: 0.2, trees: ['oak', 'oak', 'pine'], cols: [11, 6, 2, 3], glass: 8, defH: 8, nB: 220, nT: 760 },
+    'at-1969': { width: 7.2, range: 65, terrain: 0.8, trees: ['pine', 'pine', 'oak'], cols: [0, 6, 11, 7], glass: 8, defH: 8, nB: 260, nT: 700 },
+    'nl-1948': { width: 6.5, range: 0, terrain: 0.6, trees: ['pine', 'oak'], cols: [10, 6, 0, 11], glass: 8, defH: 8, nB: 460, nT: 520, sea: true },
+    'us-2012': { width: 7.5, range: 41, terrain: 0.6, trees: ['oak'], cols: [6, 0, 11, 9], glass: 8, defH: 9, nB: 260, nT: 560 },
     'az-2016': { merge: 1, narrowClimb: [40.36622, 49.83731, 750, 480, 4.2], sightsLL: [['maiden', 40.36622, 49.83731]], width: 6.6, walls: true, range: 24, terrain: 0.8, trees: ['palm', 'palm', 'oak'], cols: [9, 0, 6, 1, 9], glass: 8, defH: 15, nB: 760, nT: 220, sea: true, widthZones: [] },
 };
 // how each built-in model's size is written (build.mjs gtQ): boxes and water
@@ -579,7 +586,7 @@ for (const C of CIRCUITS) {
     for (const s of sights) {
         const r0 = trackNear(s.x, s.z, 3000);
         const r = r0.i < 0 ? r0 : { i: r0.i, d: r0.d - wds[r0.i] };
-        if (r.i < 0 || r.d > 2600) continue;
+        if (r.i < 0 || r.d > (s.kind === 'wheel' ? 1500 : 2600)) continue;
         const toward = F[r.i];
         let yaw = Math.atan2(toward[0] - s.x, toward[1] - s.z) * 180 / Math.PI;
         let k = 1, sx = 1, sz = 1, sy = 1;

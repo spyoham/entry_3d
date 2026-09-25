@@ -493,9 +493,11 @@ function lapGhost(tk, lt) {
     if (grN > 4) {
         if (grN <= PBN) {
             if ((grN + 1) * GHDT >= lt) {
-                let b = (tk - 1) * PBN;
+                pbBase(tk);
+                let b = oPB;
                 let n = 1;
-                while (n <= grN) { pbX[b + n] = grX[n]; pbZ[b + n] = grZ[n]; pbW[b + n] = grW[n]; n = n + 1; }
+                if (oPB2 > 0) { while (n <= grN) { pbX2[b + n] = grX[n]; pbZ2[b + n] = grZ[n]; pbW2[b + n] = grW[n]; n = n + 1; } }
+                else { while (n <= grN) { pbX[b + n] = grX[n]; pbZ[b + n] = grZ[n]; pbW[b + n] = grW[n]; n = n + 1; } }
                 pbN[tk] = grN;
                 lgOk = 1;
                 if (gMode == M_TT) { if (ghSel == 1) { loadPbGhost(tk); } }
@@ -504,12 +506,23 @@ function lapGhost(tk, lt) {
     }
 }
 
+// v4.4: where circuit tk's best-lap ghost lives: pb* for 1-8, pb*2 after
+let oPB = 0;
+let oPB2 = 0;
+function pbBase(tk) {
+    oPB2 = tk > 8 ? 1 : 0;
+    oPB = (tk - 1) * PBN;
+    if (oPB2 > 0) { oPB = (tk - 9) * PBN; }
+}
+
 function loadPbGhost(tk) {
     ghN = pbN[tk];
     ghTime = recLap[tk];
-    let b = (tk - 1) * PBN;
+    pbBase(tk);
+    let b = oPB;
     let n = 1;
-    while (n <= ghN) { ghX[n] = pbX[b + n]; ghZ[n] = pbZ[b + n]; ghW[n] = pbW[b + n]; n = n + 1; }
+    if (oPB2 > 0) { while (n <= ghN) { ghX[n] = pbX2[b + n]; ghZ[n] = pbZ2[b + n]; ghW[n] = pbW2[b + n]; n = n + 1; } }
+    else { while (n <= ghN) { ghX[n] = pbX[b + n]; ghZ[n] = pbZ[b + n]; ghW[n] = pbW[b + n]; n = n + 1; } }
 }
 
 function updateGhost() {

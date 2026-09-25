@@ -224,6 +224,8 @@ function emit(len, h, turn, rad, step) {
 // 2 tarmac run-off, 3 gravel in slow corners and tarmac in fast ones.
 // hill: distant skyline height and kind (0 ridges, 1 city blocks).
 // theme: which scenery set placeScenery() scatters.
+// (a placeholder layout for the circuits that only exist as map data)
+const SQUARE = [[0, 0, 40], [600, 0, 40], [600, 400, 40], [0, 400, 40]];
 export const F1 = [
     {
         name: 'MONACO', info: 'MONTE CARLO  /  STREET  /  TUNNEL',
@@ -484,6 +486,15 @@ export const F1 = [
             { at: 's20', side: 1, dist: 60, type: 'WATER', scale: 1.5 },
         ],
     },
+    // ---- v4.4: six more, built from the map only (real/prep.mjs); the
+    // layout fields above are the fallback for REALTRK=0, so these just
+    // borrow a plain loop ----
+    { name: 'BAHRAIN', info: 'SAKHIR  /  DESERT  /  FLOODLIT', sky: [214, 198, 166], fogFar: 480, ground: 'sand', road: 'road', runoff: 2, hill: [0.6, 0], theme: 4, width: 7.5, scale: 1, verts: SQUARE },
+    { name: 'MELBOURNE', info: 'ALBERT PARK  /  LAKESIDE  /  CITY SKYLINE', sky: [164, 202, 236], fogFar: 460, ground: 'grass', road: 'road', runoff: 3, hill: [0.9, 1], theme: 4, width: 7.0, scale: 1, verts: SQUARE },
+    { name: 'MONTREAL', info: 'ILE NOTRE-DAME  /  WALL OF CHAMPIONS', sky: [172, 202, 232], fogFar: 460, ground: 'grass', road: 'road', runoff: 2, hill: [0.8, 0], theme: 4, width: 6.8, scale: 1, verts: SQUARE },
+    { name: 'RED BULL RING', info: 'SPIELBERG  /  STYRIAN ALPS  /  UPHILL', sky: [176, 206, 236], fogFar: 500, ground: 'grass', road: 'road', runoff: 2, hill: [1.6, 0], theme: 4, width: 7.2, scale: 1, verts: SQUARE },
+    { name: 'ZANDVOORT', info: 'NORTH SEA DUNES  /  BANKED TURNS', sky: [184, 200, 216], fogFar: 440, ground: 'sand', road: 'road', runoff: 1, hill: [0.7, 0], theme: 4, width: 6.5, scale: 1, verts: SQUARE },
+    { name: 'AUSTIN', info: 'CIRCUIT OF THE AMERICAS  /  TURN 1 CLIMB', sky: [192, 208, 228], fogFar: 500, ground: 'grass', road: 'road', runoff: 2, hill: [0.8, 0], theme: 4, width: 7.5, scale: 1, verts: SQUARE },
 ];
 
 // v4.0: the real circuits (real/prep.mjs from OpenStreetMap, SRTM and
@@ -492,7 +503,7 @@ export const F1 = [
 // fallback (and for the tests that still want it: REALTRK=0).
 const REAL = path.join(path.dirname(url.fileURLToPath(import.meta.url)), 'real', 'circuits.json');
 // corners as the circuits count them
-const TURNS = [19, 19, 18, 18, 11, 19, 15, 20];
+const TURNS = [19, 19, 18, 18, 11, 19, 15, 20, 15, 14, 14, 10, 14, 20];
 export function buildF1() {
     const R = process.env.REALTRK !== '0' && fs.existsSync(REAL) ? JSON.parse(fs.readFileSync(REAL, 'utf8')) : {};
     return F1.map((d, k) => {

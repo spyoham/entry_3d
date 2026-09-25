@@ -19,7 +19,7 @@ for (let i = 0; i < 4; i++) s.frame();
 const names = s.peek('trkName');
 const SKIP = new Set(['SC_SHEET', 'SC_BRIDGE', 'SC_GANTRY', 'SC_WATER'].map((k) => s.peek(k)));
 let bad = 0;
-for (const t of trks.length ? trks : [1, 2, 3, 4, 5, 6, 7, 8]) {
+for (const t of trks.length ? trks : Array.from({ length: s.peek("NTRK") }, (_, k) => k + 1)) {
     // RUNOFF=1: realistic rules (the pit lane) and the run-off / gravel count as road
     s.peek(`gfx = 3; rules = ${process.env.RUNOFF ? 2 : 1}; buildTrack(${t})`);
     const N = s.peek('NSEG');

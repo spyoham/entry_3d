@@ -24,8 +24,10 @@ let RT_S9 = '|'; let RT_S10 = '|'; let RT_S11 = '|'; let RT_S12 = '|';
 let RT_S13 = '|'; let RT_S14 = '|'; let RT_S15 = '|'; let RT_S16 = '|';
 let RT_L1 = '|'; let RT_L2 = '|'; let RT_L3 = '|'; let RT_L4 = '|';
 let RT_L5 = '|'; let RT_L6 = '|'; let RT_L7 = '|'; let RT_L8 = '|';
+let RT_L9 = '|'; let RT_L10 = '|'; let RT_L11 = '|'; let RT_L12 = '|'; let RT_L13 = '|'; let RT_L14 = '|';
 let RT_W1 = '|'; let RT_W2 = '|'; let RT_W3 = '|'; let RT_W4 = '|';
 let RT_W5 = '|'; let RT_W6 = '|'; let RT_W7 = '|'; let RT_W8 = '|';
+let RT_W9 = '|'; let RT_W10 = '|'; let RT_W11 = '|'; let RT_W12 = '|'; let RT_W13 = '|'; let RT_W14 = '|';
 // set to 'ok' by the first save ever: seeing it means the server's values
 // have arrived (Entry sends them a moment after the work starts)
 let RT_SYNC = '-';
@@ -50,19 +52,27 @@ function rtSetS(i, v) {
 }
 function rtGetK(i) {
     if (i == 1) { oRT = RT_L1; } else if (i == 2) { oRT = RT_L2; } else if (i == 3) { oRT = RT_L3; } else if (i == 4) { oRT = RT_L4; }
-    else if (i == 5) { oRT = RT_L5; } else if (i == 6) { oRT = RT_L6; } else if (i == 7) { oRT = RT_L7; } else { oRT = RT_L8; }
+    else if (i == 5) { oRT = RT_L5; } else if (i == 6) { oRT = RT_L6; } else if (i == 7) { oRT = RT_L7; } else if (i == 8) { oRT = RT_L8; }
+    else if (i == 9) { oRT = RT_L9; } else if (i == 10) { oRT = RT_L10; } else if (i == 11) { oRT = RT_L11; } else if (i == 12) { oRT = RT_L12; }
+    else if (i == 13) { oRT = RT_L13; } else { oRT = RT_L14; }
 }
 function rtSetK(i, v) {
     if (i == 1) { RT_L1 = v; } else if (i == 2) { RT_L2 = v; } else if (i == 3) { RT_L3 = v; } else if (i == 4) { RT_L4 = v; }
-    else if (i == 5) { RT_L5 = v; } else if (i == 6) { RT_L6 = v; } else if (i == 7) { RT_L7 = v; } else { RT_L8 = v; }
+    else if (i == 5) { RT_L5 = v; } else if (i == 6) { RT_L6 = v; } else if (i == 7) { RT_L7 = v; } else if (i == 8) { RT_L8 = v; }
+    else if (i == 9) { RT_L9 = v; } else if (i == 10) { RT_L10 = v; } else if (i == 11) { RT_L11 = v; } else if (i == 12) { RT_L12 = v; }
+    else if (i == 13) { RT_L13 = v; } else { RT_L14 = v; }
 }
 function rtGetG(i) {
     if (i == 1) { oRT = RT_W1; } else if (i == 2) { oRT = RT_W2; } else if (i == 3) { oRT = RT_W3; } else if (i == 4) { oRT = RT_W4; }
-    else if (i == 5) { oRT = RT_W5; } else if (i == 6) { oRT = RT_W6; } else if (i == 7) { oRT = RT_W7; } else { oRT = RT_W8; }
+    else if (i == 5) { oRT = RT_W5; } else if (i == 6) { oRT = RT_W6; } else if (i == 7) { oRT = RT_W7; } else if (i == 8) { oRT = RT_W8; }
+    else if (i == 9) { oRT = RT_W9; } else if (i == 10) { oRT = RT_W10; } else if (i == 11) { oRT = RT_W11; } else if (i == 12) { oRT = RT_W12; }
+    else if (i == 13) { oRT = RT_W13; } else { oRT = RT_W14; }
 }
 function rtSetG(i, v) {
     if (i == 1) { RT_W1 = v; } else if (i == 2) { RT_W2 = v; } else if (i == 3) { RT_W3 = v; } else if (i == 4) { RT_W4 = v; }
-    else if (i == 5) { RT_W5 = v; } else if (i == 6) { RT_W6 = v; } else if (i == 7) { RT_W7 = v; } else { RT_W8 = v; }
+    else if (i == 5) { RT_W5 = v; } else if (i == 6) { RT_W6 = v; } else if (i == 7) { RT_W7 = v; } else if (i == 8) { RT_W8 = v; }
+    else if (i == 9) { RT_W9 = v; } else if (i == 10) { RT_W10 = v; } else if (i == 11) { RT_W11 = v; } else if (i == 12) { RT_W12 = v; }
+    else if (i == 13) { RT_W13 = v; } else { RT_W14 = v; }
 }
 
 // ---- the player -------------------------------------------------------------
@@ -253,7 +263,8 @@ function circDone(tk) {
     let k = 1;
     while (k < tk) { b = b * 2; k = k + 1; }
     if (mod(idiv(stCirc, b), 2) < 1) { stCirc = stCirc + b; }
-    if (stCirc >= 255) { unlock(13); }
+    // (every built-in circuit: v4.4 14 of them)
+    if (stCirc >= Math.pow(2, NTRK) - 1) { unlock(13); }
 }
 
 // a valid lap by the player (game.js updateLap): circuit best, its ghost,
@@ -306,14 +317,20 @@ function buildRec() {
     while (k <= NACH) { mask = mask + achGot[k] * b; b = b * 2; k = k + 1; }
     pRec = str('|', pNick, ',', pXP, ',', upE, ',', upA, ',', upB, ',', upT, ',', suW + 3, ',', suG + 3, ',', suB + 3, ',', suS + 3,
         ',', mask, ',', stRaces, ',', stWins, ',', stPods, ',', Math.round(stKm), ',', stCirc);
+    // (fields 17-24 and 25-32: circuits 1-8; v4.4: 9 on after field 36)
     let t = 1;
-    while (t <= NTRK) { pRec = str(pRec, ',', recLap[t] > 0 ? Math.round(recLap[t] * 1000) : 0); t = t + 1; }
+    while (t <= 8) { pRec = str(pRec, ',', recLap[t] > 0 ? Math.round(recLap[t] * 1000) : 0); t = t + 1; }
     t = 1;
-    while (t <= NTRK) { pRec = str(pRec, ',', recRace[t] > 0 ? Math.round(recRace[t] * 1000) : 0); t = t + 1; }
+    while (t <= 8) { pRec = str(pRec, ',', recRace[t] > 0 ? Math.round(recRace[t] * 1000) : 0); t = t + 1; }
     // v3.0: fields 33-35 (an older game reads the first 32 and ignores these)
     pRec = str(pRec, ',', suF + 3, ',', suD + 3, ',', suP + 3);
     // v4.0: field 36, the circuits the lap and race times were set on
     pRec = str(pRec, ',', TRKV);
+    // v4.4: fields 37-42 laps and 43-48 races on circuits 9-14
+    t = 9;
+    while (t <= NTRK) { pRec = str(pRec, ',', recLap[t] > 0 ? Math.round(recLap[t] * 1000) : 0); t = t + 1; }
+    t = 9;
+    while (t <= NTRK) { pRec = str(pRec, ',', recRace[t] > 0 ? Math.round(recRace[t] * 1000) : 0); t = t + 1; }
 }
 
 // split the record starting at character `from` of s into pF[1..nF]
@@ -376,10 +393,17 @@ function mergeRec(addMode) {
         if (nF >= 36) { if (pF[36] * 1 >= TRKV) { same = 1; } }
         if (same < 1) { t = NTRK + 1; }
         while (t <= NTRK) {
-            let a = pF[16 + t] / 1000;
+            // (circuits 9 on from field 37, v4.4 records only)
+            let fa = 16 + t;
+            let fr = 24 + t;
+            if (t > 8) { fa = 28 + t; fr = 28 + NTRK - 8 + t; }
+            if (fr > nF) { t = NTRK; fa = 0; }
+            if (fa > 0) {
+            let a = pF[fa] / 1000;
             if (a > 0) { if (recLap[t] <= 0) { recLap[t] = a; } else if (a < recLap[t]) { recLap[t] = a; } }
-            let r = pF[24 + t] / 1000;
+            let r = pF[fr] / 1000;
             if (r > 0) { if (recRace[t] <= 0) { recRace[t] = r; } else if (r < recRace[t]) { recRace[t] = r; } }
+            }
             t = t + 1;
         }
     }
@@ -699,16 +723,17 @@ function b32(v, n) {
 function wrUpload(tk, lt) {
     let n = pbN[tk];
     if (n > 4) {
-        let b = (tk - 1) * PBN;
+        pbBase(tk);
+        let b = oPB;
         wrS = str(pNick, ',', Math.round(lt * 1000), ',');
-        let px = Math.round(pbX[b + 1] * 5);
-        let pz = Math.round(pbZ[b + 1] * 5);
+        let px = Math.round((oPB2 > 0 ? pbX2[b + 1] : pbX[b + 1]) * 5);
+        let pz = Math.round((oPB2 > 0 ? pbZ2[b + 1] : pbZ[b + 1]) * 5);
         b32(px + 16384, 3);
         b32(pz + 16384, 3);
         let i = 2;
         while (i <= n) {
-            let qx = Math.round(pbX[b + i] * 5);
-            let qz = Math.round(pbZ[b + i] * 5);
+            let qx = Math.round((oPB2 > 0 ? pbX2[b + i] : pbX[b + i]) * 5);
+            let qz = Math.round((oPB2 > 0 ? pbZ2[b + i] : pbZ[b + i]) * 5);
             let dx = Math.max(0 - 511, Math.min(511, qx - px));
             let dz = Math.max(0 - 511, Math.min(511, qz - pz));
             b32(dx + 512, 2);
