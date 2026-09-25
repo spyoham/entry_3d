@@ -1,3 +1,31 @@
+# ENTRY RACING 3D — 작업 인계 메모 (2026-09-25, v3.2)
+
+산출물: `3D 레이싱 v3.2.ent` ← 최신, 설명서 `3D 레이싱 v3.2 설명서.md` (v3.1은 루트 `old/`로)
+빌드: `node build.mjs racing32.ent` → `globals 417, lists 481, functions 303, handlers 3`
+
+## 요청과 한 것
+"저장된 데이터 불러오기를 하면 불러와지는데 조작이 안되고, 새로고침안하고 정지후 다시 실행하면 갑자기 아케이드 레이싱이 시작되는 오류가 있어 고쳐줘"
+- 원인(재현: `node t7/keys.mjs`, v3.1 코드에서 A·B FAIL): 메뉴 키는 `pollAction`이 **이전 프레임과 다른 키**를 새 입력으로 받는다.
+  - 엔트리는 `Entry.pressedKeys`를 정지해도 비우지 않는다(entryjs utils.js: keydown push / keyup splice만 한다).
+    눌린 채로 남은 키가 있으면 새 실행 첫 프레임에 '새로 눌림'으로 잡힌다. 엔터면 메인 메뉴 1행(RACE, 기본 아케이드)이 바로 시작된다.
+  - 코드 입력(ask)을 엔터로 제출하면 그 엔터가 게임에도 들어가서, 불러오자마자 PROFILE이 메뉴로 튕긴다(tessvm에서 확인).
+  - 맥에서 Cmd+V로 붙여넣으면 브라우저가 V의 keyup을 보내지 않는다(알려진 동작). V(86)가 눌린 채 남으면,
+    다른 키를 뗄 때마다 k가 86으로 돌아와 V가 다시 입력되고, PROFILE에서는 불러오기 창이 계속 다시 뜬다(= 조작 불가).
+    순정 엔트리에서 직접 재현하지는 못했다. 증상과 브라우저 동작으로 추정한 원인이다.
+- 수정(`main.js`)
+  - `pollAction`을 키마다 풀어 썼다. `key()`는 상수 키코드만 받기 때문이다.
+  - `pkSt[1..NPK]`: 한 번 떼는 것을 볼 때까지 그 키를 무시한다. `keysStale()`이 전부 1로 만들고, keyPrev·edKey2도 초기화한다.
+    호출하는 곳은 시작(pen3 start, initGame 뒤), 백업 코드 ask 뒤(savecode.js svLoad), 트랙 코드 ask 뒤(share.js shImport)다.
+    에디터 K/I도 같은 방식이다(슬롯 20·21).
+  - 정말로 계속 눌린 채인 키는 무시되고 다른 키는 동작한다. 그 키를 다시 눌렀다 떼면 되살아난다.
+- 시험
+  - `node t7/keys.mjs`: A(엔터를 누른 채 시작해도 메뉴 유지), B(불러온 뒤 V가 남고 엔터가 눌려 있어도 PROFILE 유지, 창이 다시 안 뜸, ESC·아래 키 동작), C(다시 누르면 동작). 모두 PASS.
+  - tessvm(`_work/tessvm/sv3.json`, `node ../racing/t7/mkcode.mjs 테스터`로 만든 유효 코드): 불러온 뒤 PROFILE에 머물고 ESC·위아래가 동작한다.
+  - 기존 테스트(slots, savecode, prof, multi 7, v30 10)는 모두 통과한다.
+- 주의: 운전 키(W/S/A/D 등)는 `key()`를 직접 읽어서 이 보호를 받지 않는다(ask와는 관계없다).
+
+---
+
 # ENTRY RACING 3D — 작업 인계 메모 (2026-09-25, v3.1)
 
 산출물: `3D 레이싱 v3.1.ent` ← 최신, 설명서 `3D 레이싱 v3.1 설명서.md` (v3.0은 루트 `old/`로)

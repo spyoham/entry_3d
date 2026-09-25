@@ -136,6 +136,8 @@ function shImport() {
     shDecode(answer());
     if (oShOk > 0) { shShow = 0; setMsg('TRACK LOADED FROM THE CODE', 2.5); }
     else { setMsg('THAT CODE DID NOT WORK - CHECK IT AND TRY AGAIN', 3); }
+    // v3.2: keys still held from typing / pasting the code are not presses
+    keysStale();
     // the game stood still while the question was up: restart the clocks
     lastT = timer();
     simT = lastT;

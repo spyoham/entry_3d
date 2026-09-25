@@ -204,6 +204,9 @@ function svLoad() {
         svDecode(answer());
         if (oSvOk > 0) { setMsg(str('BACKUP CODE LOADED - LEVEL ', pLv, ', ', pXP, ' XP'), 4); }
         else { setMsg('THAT CODE DID NOT WORK FOR THIS ACCOUNT - CHECK IT AND TRY AGAIN', 4); }
+        // v3.2: whatever is still held (the Enter that sent the answer, a V
+        // whose release a Cmd+V paste swallowed) is not a new press
+        keysStale();
         // the game stood still while the question was up: restart the clocks
         lastT = timer();
         simT = lastT;

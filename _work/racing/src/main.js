@@ -5,27 +5,41 @@ let actKey = 0;
 let keyPrev = 0;
 let attractT = 0;
 
+// v3.2: a key that is already down when the work starts, or when a question
+// (ask) has just been answered, is ignored until it has been let go once.
+// Entry keeps its list of held keys across a stop and a new run, and misses
+// the key coming back up when the browser never sends it (on a Mac, V while
+// Cmd+V pastes a code): such a key used to be taken as a fresh press - the
+// menu started a race by itself after a restart, or the load prompt came
+// back after every other key. The first key down in the order below wins.
+function keysStale() {
+    let i = 1;
+    while (i <= NPK) { pkSt[i] = 1; i = i + 1; }
+    keyPrev = 0;
+    edKey2 = 0;
+}
+
 function pollAction() {
     let k = 0;
-    if (key(13)) { k = 13; }
-    else if (key(27)) { k = 27; }
-    else if (key(38)) { k = 38; }
-    else if (key(40)) { k = 40; }
-    else if (key(37)) { k = 37; }
-    else if (key(39)) { k = 39; }
-    else if (key(80)) { k = 80; }
-    else if (key(82)) { k = 82; }
-    else if (key(77)) { k = 77; }
-    else if (key(67)) { k = 67; }
-    else if (key(76)) { k = 76; }
-    else if (key(84)) { k = 84; }
-    else if (key(86)) { k = 86; }
-    else if (key(32)) { k = 32; }
-    else if (key(66)) { k = 66; }
-    else if (key(73)) { k = 73; }
-    else if (key(70)) { k = 70; }
-    else if (key(49)) { k = 49; }
-    else if (key(50)) { k = 50; }
+    if (key(13)) { if (pkSt[1] < 1) { if (k == 0) { k = 13; } } } else { pkSt[1] = 0; }
+    if (key(27)) { if (pkSt[2] < 1) { if (k == 0) { k = 27; } } } else { pkSt[2] = 0; }
+    if (key(38)) { if (pkSt[3] < 1) { if (k == 0) { k = 38; } } } else { pkSt[3] = 0; }
+    if (key(40)) { if (pkSt[4] < 1) { if (k == 0) { k = 40; } } } else { pkSt[4] = 0; }
+    if (key(37)) { if (pkSt[5] < 1) { if (k == 0) { k = 37; } } } else { pkSt[5] = 0; }
+    if (key(39)) { if (pkSt[6] < 1) { if (k == 0) { k = 39; } } } else { pkSt[6] = 0; }
+    if (key(80)) { if (pkSt[7] < 1) { if (k == 0) { k = 80; } } } else { pkSt[7] = 0; }
+    if (key(82)) { if (pkSt[8] < 1) { if (k == 0) { k = 82; } } } else { pkSt[8] = 0; }
+    if (key(77)) { if (pkSt[9] < 1) { if (k == 0) { k = 77; } } } else { pkSt[9] = 0; }
+    if (key(67)) { if (pkSt[10] < 1) { if (k == 0) { k = 67; } } } else { pkSt[10] = 0; }
+    if (key(76)) { if (pkSt[11] < 1) { if (k == 0) { k = 76; } } } else { pkSt[11] = 0; }
+    if (key(84)) { if (pkSt[12] < 1) { if (k == 0) { k = 84; } } } else { pkSt[12] = 0; }
+    if (key(86)) { if (pkSt[13] < 1) { if (k == 0) { k = 86; } } } else { pkSt[13] = 0; }
+    if (key(32)) { if (pkSt[14] < 1) { if (k == 0) { k = 32; } } } else { pkSt[14] = 0; }
+    if (key(66)) { if (pkSt[15] < 1) { if (k == 0) { k = 66; } } } else { pkSt[15] = 0; }
+    if (key(73)) { if (pkSt[16] < 1) { if (k == 0) { k = 73; } } } else { pkSt[16] = 0; }
+    if (key(70)) { if (pkSt[17] < 1) { if (k == 0) { k = 70; } } } else { pkSt[17] = 0; }
+    if (key(49)) { if (pkSt[18] < 1) { if (k == 0) { k = 49; } } } else { pkSt[18] = 0; }
+    if (key(50)) { if (pkSt[19] < 1) { if (k == 0) { k = 50; } } } else { pkSt[19] = 0; }
     actKey = 0;
     if (k != keyPrev) {
         keyPrev = k;
@@ -345,8 +359,8 @@ function frameClock() {
 let edKey2 = 0;
 function editKeys() {
     let k = 0;
-    if (key(75)) { k = 75; }
-    else if (key(73)) { k = 73; }
+    if (key(75)) { if (pkSt[20] < 1) { k = 75; } } else { pkSt[20] = 0; }
+    if (key(73)) { if (pkSt[21] < 1) { if (k == 0) { k = 73; } } } else { pkSt[21] = 0; }
     if (k != edKey2) {
         edKey2 = k;
         if (k == 75) {
@@ -359,6 +373,7 @@ on('start', 'pen3', function () {
     hide();
     penSize(1);
     initGame();
+    keysStale();
     timerReset();
     timerStart();
     lastT = timer();

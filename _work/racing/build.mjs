@@ -72,6 +72,7 @@ export const C = {
     NZ: 16,             // weather zones round a lap (rain, water, the dry line)
     FUELRACE: 100,      // kg a full-length race is fuelled for
     VSCK: 0.62,         // virtual safety car: speed as a share of the reference lap
+    NPK: 21,            // v3.2: menu keys polled (19) + the editor's K and I
     NTY: 5,             // tyre compounds
     // ---- v8 ----
     NACH: 20,           // achievements
@@ -1224,6 +1225,8 @@ export function buildData() {
     // v3.0 weather zones, grid order for the formation lap
     for (const k of ['zWet', 'zRain', 'zLine', 'zRk', 'zDk', 'zSpd']) lists[k] = zeros(C.NZ + 1);
     lists.gOrd = zeros(NC + 1);
+    // v3.2: keys the menus poll that have not been let go since a start / an answer
+    lists.pkSt = zeros(C.NPK);
     // v7 replay: RPN samples x RPC cars, oldest overwritten first
     for (const k of ['rpX', 'rpY', 'rpZ', 'rpW', 'rpS', 'rpV']) lists[k] = zeros(C.RPN * C.RPC);
     // v7 sparks, TV cameras, share-code scratch
