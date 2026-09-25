@@ -1139,6 +1139,7 @@ function renderWorld() {
         else if (lightsT > 0) { drawLights(); }
         if (raceState == ST_RACE) { drawRev(); }
         else if (raceState == ST_COUNT) { drawRev(); }
+        else if (raceState == ST_FORM) { drawRev(); }
         else if (raceState == ST_QUALI) { drawRev(); }
         if (rules == R_SIM) { drawSimHud(); }
     }

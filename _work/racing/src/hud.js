@@ -93,7 +93,8 @@ function resultsTable() {
         if (i <= nCars) {
             let o = clsI[i];
             let tail = 'ON TRACK';
-            if (caFin[o] > 0) {
+            if (caDNF[o] > 0) { tail = 'DNF'; }
+            else if (caFin[o] > 0) {
                 if (i == 1) { fmtTime(caFinT[o] + caPen[o]); tail = oTime; }
                 else { fmtSec(caFinT[o] + caPen[o] - caFinT[lead] - caPen[lead]); tail = str('+', oSec); }
                 if (caPen[o] > 0) { tail = str(tail, ' P'); }
@@ -110,11 +111,11 @@ function qualiTable() {
     let i = 1;
     while (i <= NCAR) {
         let o = clsI[i];
-        let tail = 'NO TIME';
-        if (caQT[o] < 9000) {
-            if (i == 1) { fmtTime(caQT[o]); tail = oTime; }
-            else { fmtSec(caQT[o] - caQT[clsI[1]]); tail = str('+', oSec); }
-        }
+        // v3.0: each car's time from the last session it reached
+        let ses = 3;
+        if (caQOut[o] > 0) { ses = caQOut[o]; }
+        let tail = str('NO TIME  Q', ses);
+        if (caQT[o] < 9000) { fmtTime(caQT[o]); tail = str(oTime, '  Q', ses); }
         tableRow(i, o, tail);
         tableLine(i, oRow);
         i = i + 1;
@@ -135,7 +136,7 @@ function standingsTable() {
 // Rebuilt a few times a second from updateGaps.
 function buildTower() {
     let on = 0;
-    if (raceState == ST_RACE) { on = 1; } else if (raceState == ST_COUNT) { on = 1; }
+    if (raceState == ST_RACE) { on = 1; } else if (raceState == ST_COUNT) { on = 1; } else if (raceState == ST_FORM) { on = 1; }
     let i = 1;
     while (i <= NCAR) {
         let s = BLANK;
@@ -150,6 +151,7 @@ function buildTower() {
                 }
                 s = str(o == 1 ? '▶' : ' ', i, ' ', oPad, g);
                 if (caFin[o] > 0) { s = str(s, ' ■'); }
+                else if (caDNF[o] > 0) { s = str(' ', i, ' ', oPad, 'OUT'); }
                 else if (rules == R_SIM) {
                     // v7: the tyre each car is on, or that it is in the pits
                     if (caPit[o] >= 2) { s = str(s, ' PIT'); } else { s = str(s, ' ', tyShort[caTy[o]]); }
@@ -178,6 +180,7 @@ function updateHud() {
     // a new screen starts from a blank page
     let page = raceState;
     if (page == ST_COUNT) { page = ST_RACE; }
+    if (page == ST_FORM) { page = ST_RACE; }
     if (page == ST_QUALI) { page = ST_RACE; }
     let sub = 0;
     if (page == ST_MENU) { sub = menuSel + 100 * mnPage; }
@@ -219,6 +222,8 @@ function updateHud() {
         tx(25, 'R   RESTART', 0, 0 - 24, 12, C_WHITE, 0);
         tx(26, 'M   MAIN MENU', 0, 0 - 42, 12, C_WHITE, 0);
         if (gfx > 1) { tx(27, 'V   REPLAY', 0, 0 - 60, 12, C_WHITE, 0); }
+        // v3.0: the cockpit keys of the realistic rules
+        if (rules == R_SIM) { tx(28, 'F FUEL MIX   1/2 BRAKE BALANCE   I TYRE CHECK   T PIT TYRE   Q/SHIFT ERS', 0, 0 - 84, 8, C_DIM, 0); }
     } else if (raceState == ST_QRES) {
         tx(9, 'QUALIFYING', 0, 106, 30, C_WHITE, 0);
         tx(10, str(trkName[selTrk], '   -   STARTING GRID'), 0, 82, 11, '#e0e6f2', 0);
@@ -240,6 +245,7 @@ function updateHud() {
     } else if (raceState == ST_DONE) {
         resultsTable();
         tx(9, str('FINISH  P', clsPos), 0, 106, 30, clsPos == 1 ? C_GOLD : C_WHITE, 0);
+        if (caDNF[1] > 0) { tx(9, 'RETIRED', 0, 106, 30, '#ff6a5a', 0); }
         fmtTime(caFinT[1] + caPen[1]);
         let tt = oTime;
         fmtTime(bestLap);
@@ -278,16 +284,24 @@ function hudRace() {
     let lp = caLap[1];
     if (lp < 1) { lp = 1; }
     if (raceState == ST_QUALI) {
-        let ql = str('LAP ', lp, ' / ', QLAPS);
-        if (caLap[1] < 1) { ql = 'OUT LAP'; }
-        tx(3, ql, 104, 112, 18, C_WHITE, 1);
-        tx(4, 'QUALIFYING', 104, 88, 18, C_GOLD, 1);
-        tx(12, 'ENTER  end the session', 0, 0 - 112, 9, C_DIM, 0);
+        // v3.0: Q1 / Q2 / Q3, one timed lap each
+        let ql = str('Q', qSes, '  TIMED LAP');
+        if (caLap[1] < 1) { ql = 'Q1  OUT LAP'; }
+        tx(3, ql, 104, 112, 16, C_WHITE, 1);
+        let qc = 'FIGHT FOR POLE';
+        if (qSes < 3) { qc = str('TOP ', 8 - 2 * qSes, ' GO THROUGH'); }
+        tx(4, qc, 104, 90, 12, C_GOLD, 1);
+        tx(12, 'ENTER  end qualifying', 0, 0 - 112, 9, C_DIM, 0);
+    } else if (raceState == ST_FORM) {
+        tx(3, 'FORMATION LAP', 104, 112, 14, C_WHITE, 1);
+        tx(4, str('GRID SLOT ', caGrid[1]), 104, 90, 12, C_GOLD, 1);
+        tx(12, 'ENTER  skip the formation lap', 0, 0 - 112, 9, C_DIM, 0);
     } else if (gMode >= M_TT) {
         tx(3, str('LAP ', lp), 104, 112, 18, C_WHITE, 1);
         tx(4, gMode == M_TT ? 'TIME TRIAL' : 'PRACTICE', 104, 88, 18, C_GOLD, 1);
     } else {
         if (lp > nLaps) { lp = nLaps; }
+        txOff(12);
         tx(3, str('LAP ', lp, ' / ', nLaps), 104, 112, 18, C_WHITE, 1);
         tx(4, str('P ', caRank[1], ' / ', nCars), 104, 88, 18, C_GOLD, 1);
     }
@@ -334,48 +348,90 @@ function hudRace() {
     if (raceState == ST_COUNT) { if (lightN < 1) { sb = 'GET READY'; } }
     tx(10, sb, 0, 0 - 26, 14, '#e0e6f2', 0);
     if (solo > 0) { let i = 16; while (i <= 23) { txOff(i); i = i + 1; } }
+    // v3.0: a blue flag (both rule sets) or the VSC delta under the flag panel
+    let fl2 = BLANK;
+    let fc2 = '#7cc4ff';
+    if (caBlue[1] > 0) { fl2 = str('BLUE FLAG - LET ', drvName[caBlueBy[1]], ' THROUGH'); }
+    if (rules == R_SIM) {
+        if (vscOn > 0) {
+            fmtDelta(vscDelta);
+            fl2 = str('VSC DELTA  ', oSec);
+            fc2 = vscDelta >= 0.3 ? '#5cf07a' : '#ff6a5a';
+        }
+    }
+    tx(34, fl2, 0, 100, 10, fc2, 0);
     if (rules == R_SIM) { hudSim(); }
 }
 
 // ---- v7 realistic HUD: slots 24..31, a panel on the right -----------------------
 function hudSim() {
+    // v3.0: one line every 12 px (the pen draws the bars beside them)
     let t = caTy[1];
     let tl = str(tyName[t], '  ', Math.round(caWear[1] * 100), '%');
-    tx(24, tl, 100, 64, 8, tyHex[t], 1);
+    tx(24, tl, 100, 66, 8, tyHex[t], 1);
     let el = 'ERS';
     if (caErsOn[1] > 0) { el = 'ERS BOOST'; }
-    tx(25, str(el, '  ', Math.round(caErs[1] * 100), '%'), 100, 50, 8, caErsOn[1] > 0 ? '#7cc4ff' : '#9dffb4', 1);
+    if (caFail[1] == 4) { el = 'ERS FAILED'; }
+    tx(25, str(el, '  ', Math.round(caErs[1] * 100), '%'), 100, 54, 8, caErsOn[1] > 0 ? '#7cc4ff' : '#9dffb4', 1);
+    // fuel: what is in the tank and how many laps it is over (+) or short (-)
+    let per = caFuelL[1];
+    if (per <= 0) { per = caFuelR[1] * NSEG * segStep * FUELK; }
+    let fuL = str('FUEL ', Math.round(caFuel[1] * 10) / 10, ' KG');
+    let fcol = '#e6e9f0';
+    if (raceState == ST_RACE) {
+        if (per > 0) {
+            let mg = caFuel[1] / per - (nLaps - Math.max(caLap[1], 1) + 1 - (caSeg[1] - 1) / NSEG);
+            let m10 = Math.round(mg * 10) / 10;
+            fuL = str(fuL, '  ', m10 >= 0 ? '+' : '', m10, ' L');
+            if (mg < 0) { fcol = '#ff8a7a'; }
+        }
+    }
+    tx(32, str(fuL, '  ', mixName[caMix[1]]), 100, 42, 8, fcol, 1);
+    // brakes: temperature and the balance
+    let bt = caBrT[1];
+    let bcol = '#9dffb4';
+    if (bt < 250) { bcol = '#7fd0ff'; }
+    if (bt > 950) { bcol = '#ff8a3a'; }
+    if (caFail[1] == 3) { bcol = '#ff6a5a'; }
+    tx(33, str('BRAKES ', Math.round(bt / 10) * 10, '°C  BIAS ', 55 + 2.5 * caBias[1], '%'), 100, 30, 8, bcol, 1);
     let dm = BLANK;
     if (caDmg[1] > 0.02) {
         dm = str('WING ', Math.round(caDmg[1] * 100), '%');
         if (caWing[1] > 0) { dm = 'NO FRONT WING'; }
     }
-    tx(26, dm, 100, 36, 8, caWing[1] > 0 ? '#ff6a5a' : '#ffc27a', 1);
+    if (caFail[1] > 0) { dm = str(failName[caFail[1]], ' PROBLEM'); }
+    tx(26, dm, 100, 18, 8, caWing[1] + caFail[1] > 0 ? '#ff6a5a' : '#ffc27a', 1);
     // the tyre the pit crew has ready (or, on the grid, the one fitted)
     let pl = str('PIT TYRE: ', tyName[pitNext], '  (T)');
     if (raceState == ST_COUNT) { pl = str('START TYRE: ', tyName[caTy[1]], '  (T)'); }
+    if (raceState == ST_FORM) { if (caFormD[1] < 5) { pl = str('START TYRE: ', tyName[caTy[1]], '  (T)'); } }
     if (caPit[1] == 2) { pl = 'PIT LIMITER  80'; }
     if (caPit[1] == 3) { fmtSec(caPitT[1]); pl = str('PIT STOP  ', oSec); }
     if (caPit[1] == 4) { pl = 'PIT EXIT - LIMITER'; }
-    tx(27, pl, 100, 22, 8, caPit[1] > 1 ? C_GOLD : C_WHITE, 1);
-    let wl = 'TRACK DRY';
-    if (wetL > 0.57) { wl = 'TRACK WET'; } else if (wetL > 0.31) { wl = 'TRACK DAMP'; } else if (wetL > 0.12) { wl = 'DRYING / DAMP PATCHES'; }
-    if (rainI > 0.2) { wl = str(wl, ' - RAIN'); }
-    tx(28, wl, 100, 8, 8, wetL > 0.31 ? C_SKY : '#c8c8d2', 1);
+    tx(27, pl, 100, 6, 8, caPit[1] > 1 ? C_GOLD : C_WHITE, 1);
+    // the track: water (and the dry line), temperature, grip
+    let wl = 'DRY';
+    if (wetL > 0.57) { wl = 'WET'; } else if (wetL > 0.31) { wl = 'DAMP'; } else if (wetL > 0.08) { wl = 'DRYING'; }
+    if (wetL > 0.08) { if (wetL <= 0.57) { if (dryLine > 0.3) { wl = 'DRY LINE'; } } }
+    if (rainI > 0.2) { wl = str(wl, ' RAIN'); }
+    tx(28, str('TRACK ', wl, ' ', Math.round(trkTemp), '°C GRIP ', Math.round(trkGripK * 100), '%'), 100, 0 - 6, 8, wetL > 0.31 ? C_SKY : '#c8c8d2', 1);
     let pn = BLANK;
     if (caPen[1] > 0) { pn = str('PENALTY +', caPen[1], 's'); }
     else if (caTL[1] > 0) { pn = str('TRACK LIMITS ', mod(caTL[1], 3), '/3'); }
-    tx(29, pn, 100, 0 - 6, 8, caPen[1] > 0 ? '#ff6a5a' : '#c8c8d2', 1);
+    tx(29, pn, 100, 0 - 18, 8, caPen[1] > 0 ? '#ff6a5a' : '#c8c8d2', 1);
     // flag panel text (the pen draws the panel) and team radio
     let fl = BLANK;
-    let fcol = C_WHITE;
+    let fgc = C_WHITE;
     if (raceState == ST_RACE) {
-        if (scOn == 1) { fl = 'SAFETY CAR'; fcol = '#ff9a2a'; }
-        else if (scOn == 2) { fl = 'SC IN THIS LAP'; fcol = '#ff9a2a'; }
-        else if (scOn == 3) { fl = 'RESTART - NO PASSING'; fcol = '#ff9a2a'; }
-        else if (yelHere > 0) { fl = 'YELLOW FLAG'; fcol = '#ffd21f'; }
+        if (scOn == 1) { fl = 'SAFETY CAR'; fgc = '#ff9a2a'; }
+        else if (scOn == 2) { fl = 'SC IN THIS LAP'; fgc = '#ff9a2a'; }
+        else if (scOn == 3) { fl = 'RESTART - NO PASSING'; fgc = '#ff9a2a'; }
+        else if (vscOn == 1) { fl = 'VIRTUAL SAFETY CAR'; fgc = '#ffb13a'; }
+        else if (vscOn == 2) { fl = 'VSC ENDING'; fgc = '#ffb13a'; }
+        else if (yelHere > 0) { fl = 'YELLOW FLAG'; fgc = '#ffd21f'; }
+        else if (caBlue[1] > 0) { fl = 'BLUE FLAG'; fgc = '#3a8dff'; }
     }
-    tx(30, fl, 0, 117, 12, fcol, 0);
+    tx(30, fl, 0, 117, 12, fgc, 0);
     tx(31, radio, 0, 0 - 44, 10, '#9fe0ff', 0);
     // v2.6 the four tyres beside the little car (the pen draws the wheels):
     // temperature and what is left of each
@@ -392,18 +448,30 @@ function hudSim() {
     // ...and the check panel (I)
     if (whShow > 0) {
         let t = caTy[1];
-        tx(44, str('TYRE CHECK  -  ', tyName[t], '   WINDOW ', tyTlo[t], '-', tyThi[t], '°C'), 0 - 112, 48, 8, C_WHITE, 1);
+        tx(44, str('TYRE CHECK  -  ', tyName[t], '   WINDOW ', tyTlo[t], '-', tyThi[t], '°C'), 0 - 112, 56, 8, C_WHITE, 1);
         k = 1;
         while (k <= 4) {
             let gp = Math.round(whG[k] * 100);
-            tx(44 + k, str(whName[k], '   ', Math.round(whT[k]), '°C   WEAR ', Math.round(whW[k] * 100), '%   GRIP ', gp, '%   ', whStN[whSt[k]]), 0 - 112, 34 - (k - 1) * 13, 8, whStC[whSt[k]], 1);
+            let fs = BLANK;
+            if (whFS[k] > 0.02) { fs = '  FLAT SPOT'; }
+            tx(44 + k, str(whName[k], '  ', Math.round(whT[k]), '°C  WEAR ', Math.round(whW[k] * 100), '%  GRIP ', gp, '%  ', whStN[whSt[k]], fs), 0 - 112, 42 - (k - 1) * 13, 8, whStC[whSt[k]], 1);
             k = k + 1;
         }
-        tx(49, whAdv, 0, 0 - 20, 7, whAdvC, 0);
+        // v3.0: the car's balance - front against rear grip from the tyres,
+        // the wings, the fuel load and the differential
+        let fr = (1 + caAxF[1]) * (1 + caFWb[1] * 0.5) * (1 - 0.03 * caMassD[1] / MASSK) * (1 - 0.006 * caDiff[1]);
+        let rr = (1 + caAxR[1]) * (1 - caFWb[1] * 0.5);
+        let bl = Math.round((fr / rr - 1) * 100);
+        let bs = 'NEUTRAL';
+        if (bl <= 0 - 2) { bs = str('UNDERSTEER ', 0 - bl, '%'); }
+        if (bl >= 2) { bs = str('OVERSTEER ', bl, '%'); }
+        tx(38, str('BALANCE  ', bs, '   FUEL ', Math.round(caFuel[1]), ' KG'), 0 - 112, 0 - 9, 8, C_SKY, 1);
+        tx(49, whAdv, 0, 0 - 21, 7, whAdvC, 0);
         tx(39, 'I  CLOSE', 0, 0 - 32, 7, C_DIM, 0);
     } else {
         k = 44;
         while (k <= 49) { txOff(k); k = k + 1; }
+        txOff(38);
         tx(39, 'I  TYRE CHECK', 0 - 177, 0 - 67, 6, C_DIM, 0);
     }
 }

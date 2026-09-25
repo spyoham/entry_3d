@@ -23,6 +23,9 @@ function pollAction() {
     else if (key(32)) { k = 32; }
     else if (key(66)) { k = 66; }
     else if (key(73)) { k = 73; }
+    else if (key(70)) { k = 70; }
+    else if (key(49)) { k = 49; }
+    else if (key(50)) { k = 50; }
     actKey = 0;
     if (k != keyPrev) {
         keyPrev = k;
@@ -234,7 +237,12 @@ function raceKeys() {
     else if (actKey == 84) {
         // v7 realistic: T picks the tyre (fitted on the grid, else for the next stop)
         if (rules == R_SIM) {
-            if (raceState == ST_COUNT) { fitTyre(1, mod(caTy[1], NTY) + 1); setMsg(str('START ON ', tyName[caTy[1]]), 1.2); }
+            // (v3.0: or on the grid before the formation lap has taken it anywhere)
+            let grid = 0;
+            if (raceState == ST_COUNT) { grid = 1; }
+            if (raceState == ST_FORM) { grid = 1; }
+            if (caFormD[1] >= 5) { grid = 0; }
+            if (grid > 0) { fitTyre(1, mod(caTy[1], NTY) + 1); setMsg(str('START ON ', tyName[caTy[1]]), 1.2); }
             else { pitNext = mod(pitNext, NTY) + 1; setMsg(str('NEXT STOP: ', tyName[pitNext]), 1.2); }
         }
     }
@@ -242,7 +250,13 @@ function raceKeys() {
         // v2.6 realistic: I opens / closes the tyre check
         if (rules == R_SIM) { whShow = 1 - whShow; }
     }
-    else if (actKey == 13) { if (raceState == ST_QUALI) { endQuali(); } }
+    else if (actKey == 70) { cockpitKey(70); }
+    else if (actKey == 49) { cockpitKey(49); }
+    else if (actKey == 50) { cockpitKey(50); }
+    else if (actKey == 13) {
+        if (raceState == ST_QUALI) { endQuali(); }
+        else if (raceState == ST_FORM) { formSkip(); formEnd(); }
+    }
     else if (actKey == 66) { if (gMode == M_PR) { backOnTrack(); } }
     else if (actKey == 76) { showLine = 1 - showLine; setMsg(showLine > 0 ? 'RACING LINE ON' : 'RACING LINE OFF', 1.2); }
     else if (actKey == 80) { prevState = raceState; raceState = ST_PAUSE; drawPausePanel(); }
@@ -425,6 +439,11 @@ on('start', 'pen3', function () {
                 stepRace();
                 renderWorld();
             } else if (raceState == ST_RACE) {
+                stepRace();
+                renderWorld();
+            } else if (raceState == ST_FORM) {
+                // v3.0: the formation lap
+                formStep();
                 stepRace();
                 renderWorld();
             } else if (raceState == ST_QUALI) {

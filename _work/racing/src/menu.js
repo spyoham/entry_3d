@@ -373,7 +373,7 @@ function drawTrkSel() {
 // (cardRow r: label 51+r, value 61+r), 72..76 extras; 77..79 pop-ups.
 function hudMenu() {
     tx(9, 'ENTRY RACING 3D', 0 - 232, 116, 21, C_WHITE, 1);
-    tx(10, 'F1 EDITION  /  v2.6', 0 - 232, 96, 8, C_WHITE, 1);
+    tx(10, 'F1 EDITION  /  v3.0', 0 - 232, 96, 8, C_WHITE, 1);
     let lvl = pLoaded > 0 ? str('LV ', pLv, '  ', pNick) : 'LOADING SAVE...';
     tx(13, lvl, 0 - 80, 96, 8, C_GOLD, 1);
     let crumb = 'MAIN MENU';
@@ -506,7 +506,7 @@ function hudCard() {
             tx(61 + k, str(lvl, '/', UPMAX), cardX1 - 16, 58 - (k - 1) * 13, 7, C_WHITE, 1);
             k = k + 1;
         }
-        cardRow(5, 'SETUP', str('WING ', suW, '  GEAR ', suG, '  BIAS ', suB, '  SUSP ', suS), 0 - 4);
+        cardRow(5, 'SETUP', str('WING ', suF, '/', suW, ' GEAR ', suG, ' BIAS ', suB, ' DIFF ', suD, ' PSI ', suP, ' SUSP ', suS), 0 - 4);
         cardTx(73, 'ONE POINT FOR EVERY LEVEL YOU GAIN', 0 - 30, 7, C_DIM);
         cardTx(74, 'THE SETUP IS FREE: EVERY GAIN HAS A COST', 0 - 42, 7, C_DIM);
         tx(75, 'ENTER  OPEN THE GARAGE', 121, 0 - 80, 9, C_GOLD, 0);
@@ -673,22 +673,30 @@ function drawSimHud() {
     if (raceState == ST_RACE) { on = 1; }
     if (raceState == ST_COUNT) { on = 1; }
     if (raceState == ST_QUALI) { on = 1; }
+    if (raceState == ST_FORM) { on = 1; }
     if (on > 0) {
         penAlpha(30);
-        box(96, 72, 238, 0 - 20, '#0d1117');
+        box(96, 74, 238, 0 - 24, '#0d1117');
         penAlpha(0);
         // tyre wear bar in the compound's colour
         let t = caTy[1];
-        box(170, 62, 232, 58, '#232b37');
-        box(170, 62, 170 + 62 * caWear[1], 58, tyHex[t]);
+        box(170, 64, 232, 60, '#232b37');
+        box(170, 64, 170 + 62 * caWear[1], 60, tyHex[t]);
         // ERS store, green (blue while deploying)
-        box(170, 48, 232, 44, '#232b37');
-        box(170, 48, 170 + 62 * caErs[1], 44, caErsOn[1] > 0 ? '#3aa0ff' : '#3dff6e');
+        box(170, 52, 232, 48, '#232b37');
+        box(170, 52, 170 + 62 * caErs[1], 48, caErsOn[1] > 0 ? '#3aa0ff' : '#3dff6e');
+        // v3.0: brake temperature (blue cold, green working, orange hot)
+        let bt = Math.min(1, caBrT[1] / 1200);
+        let bc = '#3dff6e';
+        if (caBrT[1] < 250) { bc = '#3a8dff'; }
+        if (caBrT[1] > 950) { bc = '#ff8a3a'; }
+        box(212, 28, 232, 24, '#232b37');
+        box(212, 28, 212 + 20 * bt, 24, bc);
         // front wing: grey when fine, orange to red with damage
         if (caDmg[1] > 0.02) {
             let dc = '#ffb13a';
             if (caWing[1] > 0) { dc = '#ff3b30'; }
-            box(170, 34, 170 + 62 * caDmg[1], 30, dc);
+            box(200, 16, 200 + 32 * caDmg[1], 12, dc);
         }
         // v2.6 the four tyres: a little car from above, each wheel filled up
         // to what is left of it in the colour of its temperature
@@ -711,12 +719,12 @@ function drawSimHud() {
         // the check panel (I): a swatch per wheel beside its line
         if (whShow > 0) {
             penAlpha(15);
-            box(0 - 122, 58, 122, 0 - 38, '#0d1117');
+            box(0 - 122, 64, 122, 0 - 38, '#0d1117');
             penAlpha(0);
-            box(0 - 122, 58, 122, 56, C_RED);
+            box(0 - 122, 64, 122, 62, C_RED);
             k = 1;
             while (k <= 4) {
-                let yy = 34 - (k - 1) * 13;
+                let yy = 42 - (k - 1) * 13;
                 box(0 - 119, yy + 4, 0 - 115, yy - 4, whStC[whSt[k]]);
                 k = k + 1;
             }
@@ -724,7 +732,9 @@ function drawSimHud() {
         // flag panel across the top
         let fc = BLANK;
         if (scOn > 0) { fc = '#ff8a00'; }
+        else if (vscOn > 0) { fc = '#ffb13a'; }
         else if (yelHere > 0) { fc = '#ffd21f'; }
+        else if (caBlue[1] > 0) { fc = '#3a8dff'; }
         if (fc != BLANK) {
             if (raceState == ST_RACE) {
                 box(0 - 78, 128, 78, 106, fc);
@@ -752,15 +762,30 @@ function drawReplayUI() {
 
 // ---- v8 garage -----------------------------------------------------------------
 // rows 1..4 upgrades (right buys a step with a point, left sells it back),
-// 5..8 setup sliders -3..+3 (free)
+// 5..11 setup sliders -3..+3 (free; v3.0: front wing, rear wing, gearing,
+// brake bias, differential, tyre pressure, suspension)
+const TUROWS = 11;
 let tuRow = 1;
 function tuneKeys() {
-    if (actKey == 40) { tuRow = mod(tuRow, 8) + 1; }
-    else if (actKey == 38) { tuRow = mod(tuRow + 6, 8) + 1; }
+    if (actKey == 40) { tuRow = mod(tuRow, TUROWS) + 1; }
+    else if (actKey == 38) { tuRow = mod(tuRow + TUROWS - 2, TUROWS) + 1; }
     else if (actKey == 37) { tuneStep(0 - 1); }
     else if (actKey == 39) { tuneStep(1); }
     else if (actKey == 13) { raceState = ST_MENU; nCars = 0; pDirty = 1; }
     else if (actKey == 27) { raceState = ST_MENU; nCars = 0; pDirty = 1; }
+}
+// the setup value on garage row r (5..11)
+let oSu = 0;
+function suGet(r) {
+    oSu = suF;
+    if (r == 6) { oSu = suW; } else if (r == 7) { oSu = suG; } else if (r == 8) { oSu = suB; }
+    else if (r == 9) { oSu = suD; } else if (r == 10) { oSu = suP; } else if (r == 11) { oSu = suS; }
+}
+// the row's y on the stage (the setup rows sit a little lower)
+let oTuY = 0;
+function tuY(r) {
+    oTuY = 66 - (r - 1) * 13;
+    if (r > 4) { oTuY = oTuY - 8; }
 }
 function tuneStep(d) {
     tuneTouched = 1;
@@ -774,10 +799,15 @@ function tuneStep(d) {
         if (tuRow == 1) { upE = nv; } else if (tuRow == 2) { upA = nv; } else if (tuRow == 3) { upB = nv; } else { upT = nv; }
         if (nv >= UPMAX) { unlock(18); }
     } else {
-        if (tuRow == 5) { suW = Math.max(0 - 3, Math.min(3, suW + d)); }
-        else if (tuRow == 6) { suG = Math.max(0 - 3, Math.min(3, suG + d)); }
-        else if (tuRow == 7) { suB = Math.max(0 - 3, Math.min(3, suB + d)); }
-        else { suS = Math.max(0 - 3, Math.min(3, suS + d)); }
+        suGet(tuRow);
+        let v = Math.max(0 - 3, Math.min(3, oSu + d));
+        if (tuRow == 5) { suF = v; }
+        else if (tuRow == 6) { suW = v; }
+        else if (tuRow == 7) { suG = v; }
+        else if (tuRow == 8) { suB = v; }
+        else if (tuRow == 9) { suD = v; }
+        else if (tuRow == 10) { suP = v; }
+        else { suS = v; }
     }
     levelFromXP();
     pDirty = 1;
@@ -787,9 +817,10 @@ function drawTune() {
     box(34, 116, 240, 0 - 106, C_PANEL);
     box(34, 116, 240, 113, C_RED);
     let r = 1;
-    while (r <= 8) {
-        let y = 62 - (r - 1) * 16 - (r > 4 ? 10 : 0);
-        if (r == tuRow) { box(36, y + 7, 238, y - 7, '#2a3240'); }
+    while (r <= TUROWS) {
+        tuY(r);
+        let y = oTuY;
+        if (r == tuRow) { box(36, y + 6, 238, y - 6, '#2a3240'); }
         if (r <= 4) {
             let lvl = upE;
             if (r == 2) { lvl = upA; } else if (r == 3) { lvl = upB; } else if (r == 4) { lvl = upT; }
@@ -800,8 +831,8 @@ function drawTune() {
                 j = j + 1;
             }
         } else {
-            let v = suW;
-            if (r == 6) { v = suG; } else if (r == 7) { v = suB; } else if (r == 8) { v = suS; }
+            suGet(r);
+            let v = oSu;
             box(140, y + 1, 224, y - 1, C_PANEL2);
             box(181, y + 4, 183, y - 4, '#5a6474');
             let x = 182 + v * 13;
@@ -816,8 +847,9 @@ function hudTune() {
     tx(9, 'GARAGE', 42, 99, 18, C_WHITE, 1);
     tx(10, str('LEVEL ', pLv, '   ', pPts, ' UPGRADE POINTS'), 42, 80, 9, pPts > 0 ? C_GOLD : C_DIM, 1);
     let r = 1;
-    while (r <= 8) {
-        let y = 62 - (r - 1) * 16 - (r > 4 ? 10 : 0) - 16;
+    while (r <= TUROWS) {
+        tuY(r);
+        let y = oTuY;
         let lab = BLANK;
         let val = BLANK;
         if (r <= 4) {
@@ -827,25 +859,28 @@ function hudTune() {
             val = str(lvl, '/', UPMAX);
         } else {
             lab = suName[r - 4];
-            let v = suW;
-            if (r == 6) { v = suG; } else if (r == 7) { v = suB; } else if (r == 8) { v = suS; }
+            suGet(r);
+            let v = oSu;
             val = v > 0 ? str('+', v) : str(v);
         }
-        tx(23 + r, lab, 44, y + 16, 8, r == tuRow ? C_WHITE : '#c9d1de', 1);
-        tx(31 + r, val, 112, y + 16, 8, r == tuRow ? C_WHITE : C_DIM, 1);
+        // v3.0: labels in slots 24..34, values 44..54
+        tx(23 + r, lab, 44, y, 7, r == tuRow ? C_WHITE : '#c9d1de', 1);
+        tx(43 + r, val, 118, y, 7, r == tuRow ? C_WHITE : C_DIM, 1);
         r = r + 1;
     }
-    tx(40, 'SETUP  (FREE)', 44, 62 - 4 * 16 - 1, 7, C_DIM, 1);
+    tuY(5);
+    tx(55, 'SETUP  (FREE)', 44, oTuY + 10, 6, C_DIM, 1);
     // what the selected row does, and the car as it stands
     let info = BLANK;
     if (tuRow <= 4) { info = upInfo[tuRow]; }
     else { info = str(suLo[tuRow - 4], ' <  ', suInfo[tuRow - 4], '  > ', suHi[tuRow - 4]); }
-    tx(41, info, 0, 0 - 98, 7, C_GOLD, 0);
-    let top = ctTop[selCar] * (1 + 0.006 * upE) * (1 - 0.012 * suW) * (1 - 0.015 * suG) * 3.6;
+    tx(56, info, 0, 0 - 98, 7, C_GOLD, 0);
+    let top = ctTop[selCar] * (1 + 0.006 * upE) * (1 - 0.009 * suW - 0.003 * suF) * (1 - 0.015 * suG) * (1 + 0.002 * suP) * 3.6;
     let acc = (1 + 0.014 * upE) * (1 + 0.03 * suG);
-    let grip = (1 + 0.008 * upT) * (1 + 0.01 * suS);
-    let aero = (1 + 0.03 * upA) * (1 + 0.06 * suW);
-    tx(42, str('TOP ', Math.round(top), ' km/h   PULL ', Math.round(acc * 100), '%   GRIP ', Math.round(grip * 100), '%   DOWNFORCE ', Math.round(aero * 100), '%   BRAKES ', Math.round((1 + 0.04 * upB) * 100), '%'),
+    let grip = (1 + 0.008 * upT) * (1 + 0.01 * suS) * (1 - 0.01 * suP);
+    let aero = (1 + 0.03 * upA) * (1 + 0.045 * suW + 0.02 * suF);
+    let bal = 50 + Math.round((0.035 * suF - 0.02 * suW) * 100);
+    tx(57, str('TOP ', Math.round(top), ' km/h  PULL ', Math.round(acc * 100), '%  GRIP ', Math.round(grip * 100), '%  DOWNFORCE ', Math.round(aero * 100), '% (', bal, '% FRONT)  BRAKES ', Math.round((1 + 0.04 * upB) * 100), '%'),
         0 - 238, 0 - 88, 7, C_WHITE, 1);
     tx(12, 'UP/DOWN choose   LEFT/RIGHT change   ENTER done', 0, 0 - 122, 9, '#c9d1de', 0);
 }

@@ -20,6 +20,7 @@ function engineSound() {
         if (nCars > 0) {
             if (raceState == ST_RACE) { want = 1; }
             if (raceState == ST_COUNT) { want = 1; }
+            if (raceState == ST_FORM) { want = 1; }
             if (raceState == ST_DONE) { want = 1; }
             if (raceState == ST_QUALI) { want = 1; }
             if (raceState == ST_REPLAY) { want = 1; }

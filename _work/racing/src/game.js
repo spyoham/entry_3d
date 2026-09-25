@@ -103,6 +103,13 @@ function carStats(c, ct) {
         caCol[c] = lv;
         caSkill[c] = (0.90 + mod(k * 11, 7) * 0.018) * dSkl;
         caLine[c] = (mod(k * 13, 5) - 2) * 0.8;
+        // v3.0: each team's car has its own character (both rule sets):
+        // top speed against downforce, how it treats its tyres; in realistic
+        // also its fuel use, brake cooling and reliability (race3.js)
+        caTop[c] = caTop[c] * tmTop[lv];
+        caAeroK[c] = tmAero[lv];
+        caWearK[c] = tmWear[lv];
+        caFWb[c] = 0; caDiff[c] = 0; caPres[c] = 0;
     }
 }
 
@@ -131,7 +138,12 @@ function placeCar(c, seg, off) {
     caAxF[c] = 0; caAxR[c] = 0; caWhT[c] = c * 0.012;
     let wb = (c - 1) * 4;
     let wk = 1;
-    while (wk <= 4) { whW[wb + wk] = 1; whT[wb + wk] = tyTbl[TY_M]; whG[wb + wk] = 1; wk = wk + 1; }
+    while (wk <= 4) { whW[wb + wk] = 1; whT[wb + wk] = tyTbl[TY_M]; whG[wb + wk] = 1; whFS[wb + wk] = 0; wk = wk + 1; }
+    // v3.0 state: brakes warm from the out-lap, no faults, no flags
+    caBrT[c] = 180; caBrD[c] = 0; caLock[c] = 0; caLockR[c] = 0; caPowD[c] = 0; caTopD[c] = 0;
+    caFail[c] = 0; caFailT[c] = 0; caDNF[c] = 0; caBlue[c] = 0; caBlueBy[c] = 0; caWet[c] = wetL;
+    caLC[c] = 0; caStrat[c] = 0; caUcL[c] = 0; caMisK[c] = 0; caFormOk[c] = 1; caFormD[c] = 0;
+    fuelUp(c);
     if (rules == R_SIM) {
         let t = TY_M;
         if (c == 1) { t = startTy; }
@@ -159,6 +171,11 @@ function initCars(ct) {
         let seg = mod(NSEG - 3 - row * 3 - 1, NSEG) + 1;
         carStats(c, ct);
         placeCar(c, seg, sd * sgW[seg] * 0.40);
+        // v3.0: the grid box, for the formation lap
+        caGSeg[c] = seg;
+        caGOff[c] = sd * sgW[seg] * 0.40;
+        caGrid[c] = slot;
+        gOrd[slot] = c;
         c = c + 1;
     }
 }
@@ -180,6 +197,10 @@ function setupRace(tk, ct) {
     if (wetL > 0.57) { startTy = TY_W; }
     pitNext = startTy;
     scOn = 0; scCar = 0; scUsed = 0; prevRank = 0; yelHere = 0;
+    // v3.0: flags, the cockpit, the track
+    vscOn = 0; vscUsed = 0; vscDelta = 0; bluT = 0; bbAdj = 0; fuelWarn = 0;
+    trkGripK = 1; trkRub = 0.35; trkTemp = trkT0[tk]; airTemp = trkTemp * 0.55 + 7; dryLine = 0;
+    if (rules == R_SIM) { trkReset(0); }
     radio = BLANK; radioT = 0;
     qOn = 0;
     // a restart keeps the grid that was qualified for
@@ -243,6 +264,10 @@ function startGrid(ct) {
     nCars = NCAR;
     if (gMode >= M_TT) { nCars = 1; nLaps = 999; }
     if (qDone > 0) { raceReset(); }
+    // v3.0: the track as qualifying left it (rubbered in), fresh water zones
+    let rub = trkRub;
+    if (rules == R_SIM) { trkReset(0); if (qDone > 0) { trkRub = Math.max(rub, 0.30); } }
+    vscOn = 0; bluT = 0;
     initCars(ct);
     tyreGrip(1);
     let gk = 1;
@@ -251,6 +276,8 @@ function startGrid(ct) {
     lightN = 0; lightsOut = 0; lightsT = 0; countT = 1.0;
     lightHold = rand(0.4, 1.9);
     raceState = ST_COUNT;
+    // v3.0: a realistic race starts with a formation lap
+    if (rules == R_SIM) { if (gMode < M_TT) { formBegin(); } }
     camMode = 0;
     camYawS = caYaw[1];
     camX = caX[1]; camZ = caZ[1]; camY = caY[1] + 3;
@@ -278,10 +305,13 @@ function updateLap(c) {
             // v7: a new lap of ERS harvesting, and the AI's pace for this lap
             caErsH[c] = 0;
             if (c > 1) { caPace[c] = 1 - drvErr[c] * rand(0.0001, 0.012); }
+            // v3.0: the fuel this lap took
+            if (rules == R_SIM) { fuelLap(c); }
             if (caLap[c] > 1) {
                 let lt = raceT - caLapT[c];
                 if (c == 1) {
                     lastLap = lt;
+                    qLapOk = lapBad < 1 ? 1 : 0;
                     sectorDone(3);
                     if (lapBad > 0) { setMsg('LAP DELETED - TRACK LIMITS', 2.4); }
                     else {
@@ -306,9 +336,9 @@ function updateLap(c) {
                 secT0 = raceT;
                 grN = 0;
                 if (raceState == ST_QUALI) {
-                    if (caLap[1] > QLAPS) { endQuali(); }
-                    else if (caLap[1] == QLAPS) { setBanner('FINAL TIMED LAP', 1.4); }
-                    else { setBanner('TIMED LAP', 1.2); }
+                    // v3.0: each lap after the out-lap is one session's timed lap
+                    if (caLap[1] > 1) { qLapDone(lastLap); }
+                    else { setBanner('Q1  -  TIMED LAP', 1.4); }
                 }
             }
             if (caLap[c] > nLaps) {
@@ -389,6 +419,7 @@ function updateDRS() {
     while (c <= nCars) {
         let z = sgDRS[caSeg[c]];
         if (scOn > 0) { z = 0; }
+        if (vscOn > 0) { z = 0; }
         if (z < 1) { caDRS[c] = 0; caDOk[c] = 0; }
         else {
             if (caDOk[c] < 1) {
@@ -509,6 +540,8 @@ function updateRanks() {
     while (c <= nCars) {
         caProg[c] = caLap[c] * NSEG + caSeg[c] + caU[c];
         if (caFin[c] > 0) { caProg[c] = 100000 - caFin[c] * 1000; }
+        // v3.0: a retired car drops behind everyone still running
+        if (caDNF[c] > 0) { caProg[c] = caProg[c] - 60000; }
         srtI[c] = c;
         srtV[c] = caProg[c];
         c = c + 1;
@@ -551,6 +584,8 @@ function updateGaps() {
         i = i + 1;
     }
     buildTower();
+    // v3.0: blue flags for cars about to be lapped
+    if (raceState == ST_RACE) { if (gMode < M_TT) { blueStep(0.3); } }
 }
 
 // ---- championship ---------------------------------------------------------
@@ -592,6 +627,9 @@ function startChampionship() {
 // ---- off-track recovery -------------------------------------------------
 function checkRecovery(c) {
     let offT = 0;
+    // v3.0: a retired car stays where it stopped
+    if (caDNF[c] > 0) { caOffT[c] = 0; }
+    else {
     if (caSurf[c] >= 2) { if (caSurf[c] != 5) { if (caSurf[c] != 6) { offT = 1; } } }
     if (offT > 0) { caOffT[c] = caOffT[c] + dt; } else { caOffT[c] = 0; }
     let far = Math.abs(caOff[c]) > sgW[caSeg[c]] + GRASSW - 2 ? 1 : 0;
@@ -606,6 +644,7 @@ function checkRecovery(c) {
         caVZ[c] = sgDZ[s] * 6;
         caVY[c] = 0; caYR[c] = 0; caAir[c] = 0; caOffT[c] = 0;
         if (c == 1) { setMsg('BACK ON TRACK', 1.4); addShake(3); }
+    }
     }
 }
 
@@ -634,6 +673,7 @@ function playerInput() {
     if (caErs[1] <= 0) { caErsOn[1] = 0; }
     let go = 0;
     if (raceState == ST_RACE) { go = 1; }
+    if (raceState == ST_FORM) { go = 1; }
     if (raceState == ST_QUALI) { go = 1; }
     if (go < 1) { th = 0; st = 0; hb = 0; br = 0; caErsOn[1] = 0; }
     if (caPit[1] == 3) { th = 0; br = 0; }

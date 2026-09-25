@@ -117,7 +117,14 @@ function carPhys(c) {
     // cut drag: a higher top speed and a harder pull towards it
     let tow = caTow[c];
     let drs = caDRS[c];
-    let top = caTop[c] * topMul * (1 + 0.035 * tow + 0.05 * drs + 0.02 * caErsOn[c]);
+    let top = caTop[c] * topMul * (1 + 0.035 * tow + 0.05 * drs + 0.02 * caErsOn[c]) * (1 - caTopD[c]);
+    // v3.0: fuel is weight (every force moves a heavier car less); failures,
+    // the fuel mix and an empty tank change the power (race3.js)
+    let mK = 1 + caMassD[c];
+    let pK = 1 - caPowD[c];
+    if (pK < 0) { pK = 0; }
+    let lockF = 0;
+    let lockR = 0;
     // v7: the pit lane limiter
     if (caLim[c] > 0) { if (top > PITV) { top = PITV; } }
     let acc = 0;
@@ -132,15 +139,44 @@ function carPhys(c) {
             if (f < 0) { f = 0; }
             acc = caAcc[c] * caThr[c] * (0.18 + 0.82 * f * (0.45 + 0.55 * f));
             // v7: ERS boost
-            acc = acc + ERS_ACC * caErsOn[c] * caThr[c] * (f > 0 ? 1 : 0);
+            acc = (acc + ERS_ACC * caErsOn[c] * caThr[c] * (f > 0 ? 1 : 0)) * pK / mK;
         }
         if (caBrk[c] > 0) {
-            if (vLong > 0.6) { acc = acc - 34 * caBrk[c] * caBrkK[c]; }
+            if (vLong > 0.6) {
+                // v3.0: brake temperature (cold or cooked brakes bite less) and,
+                // in realistic, lock-ups: each axle can only stop as hard as
+                // its tyres grip (the bias splits the work); past that it
+                // locks and slides. The AI feeds the brake in to stay just
+                // under it - unless it is making a mistake.
+                let dem = 34 * caBrk[c] * caBrkK[c] * (1 - caBrD[c]) / mK;
+                if (rules == R_SIM) {
+                    let muB = caGrip[c] * gripMul * caWK[c] * trkGripK * (GRIP0 + AERO * caAeroK[c] * vLong * vLong);
+                    let fs = 0.55 + 0.025 * caBias[c];
+                    let avF = muB * 0.5 * (1 + caAxF[c]) * 2.4;
+                    let avR = muB * 0.53 * (1 + caAxR[c]) * 2.4;
+                    if (c > 1) {
+                        if (caMisT[c] <= 0) {
+                            let kl = Math.min(avF / Math.max(0.01, dem * fs), avR / Math.max(0.01, dem * (1 - fs))) * 0.97;
+                            if (kl < 1) { dem = dem * kl; }
+                        }
+                    }
+                    let dF = dem * fs;
+                    let dR = dem - dF;
+                    if (dF > avF) { lockF = (dF - avF) / avF; dF = avF * 0.8; }
+                    if (dR > avR) { lockR = (dR - avR) / avR; dR = avR * 0.8; }
+                    dem = dF + dR;
+                }
+                acc = acc - dem;
+            }
             else { acc = acc - caAcc[c] * 0.55 * caBrk[c]; }
         }
         if (caHB[c] > 0) { acc = acc - 9 * (vLong > 0 ? 1 : 0 - 1); }
     }
     if (caHold[c] > 0) { acc = 0; rollRes = 0; }
+    caLock[c] = lockF;
+    caLockR[c] = lockR;
+    // v3.0 setup: low tyre pressure rolls a little heavier
+    rollRes = rollRes * (1 - 0.04 * caPres[c]);
     acc = acc - vLong * Math.abs(vLong) * 0.00013 * (1 - 0.3 * tow - 0.35 * drs) - vLong * rollRes;
     vLong = vLong + acc * dt;
     // quoted top speed is a hard limiter on the ground; in the air you keep what you had
@@ -161,7 +197,11 @@ function carPhys(c) {
     // v7: caWK is the weather (arcade) or the tyre on this track (realistic);
     // damage costs downforce
     let dmg = caDmg[c];
-    let mu = caGrip[c] * gripMul * caWK[c] * (GRIP0 + AERO * caAeroK[c] * spA * spA * (1 - 0.25 * drs) * (1 - 0.35 * dmg));
+    let aeroG = AERO * caAeroK[c] * spA * spA * (1 - 0.25 * drs) * (1 - 0.35 * dmg);
+    let mu = caGrip[c] * gripMul * caWK[c] * (GRIP0 + aeroG);
+    // v3.0: the rubbered-in, warm or cold track (realistic), fuel weight, and
+    // tyre pressure (lower: a bigger contact patch)
+    mu = mu * trkGripK * (1 - 0.01 * caPres[c]) / (1 + 0.5 * caMassD[c]);
     // friction circle: tyres that are braking hard have less left for turning
     if (caBrk[c] > 0) { if (vLong > 0.6) { mu = mu * (1 - 0.40 * caBrk[c]); } }
     if (caAir[c] == 0) { if (caThr[c] > 0.9) { if (spA < 30) { mu = mu * 0.94; } } }
@@ -180,8 +220,20 @@ function carPhys(c) {
     gripR = gripR * (1 + caAxR[c]);
     // v8 setup: brake bias forward steadies the rear on the brakes and costs turn-in
     if (caBrk[c] > 0.1) { if (vLong > 0.6) { gripF = gripF * (1 - 0.025 * caBias[c]); gripR = gripR * (1 + 0.025 * caBias[c]); } }
+    // v3.0 setup: the wings share the downforce between the axles (front
+    // wing more than rear: less understeer in fast corners), and a full tank
+    // pushes the nose wide
+    let afr = aeroG / (GRIP0 + aeroG);
+    gripF = gripF * (1 + caFWb[c] * afr) * (1 - 0.03 * caMassD[c] / MASSK);
+    gripR = gripR * (1 - caFWb[c] * afr);
+    // a locked axle hardly steers at all
+    if (lockF > 0) { gripF = gripF * 0.45; }
+    if (lockR > 0) { gripR = gripR * 0.55; }
     if (caHB[c] > 0) { gripR = mu * 0.16; }
-    if (caThr[c] > 0.9) { if (spA < 22) { gripR = gripR * 0.86; } }   // power oversteer
+    // power oversteer; a locked differential puts the power down better
+    if (caThr[c] > 0.9) { if (spA < 22) { gripR = gripR * (0.86 + 0.03 * caDiff[c]); } }
+    // ...and pushes the car straight on when it is not driving it
+    if (caThr[c] < 0.5) { if (Math.abs(caSteer[c]) > 0.2) { gripF = gripF * (1 - 0.012 * caDiff[c]); } }
     // Past its peak slip a tyre slides and gives less, not more: overdriving a
     // corner washes the nose wide instead of pulling the car round.
     let aF = Math.abs(slipF);
@@ -390,6 +442,13 @@ function carPhys(c) {
         if (caHB[c] > 0) { if (sp > 5) { slipping = 1; } }
         if (da > 14) { if (sp > 11) { slipping = 1; } }
         if (caSurf[c] >= 2) { if (caSurf[c] != 5) { if (sp > 7) { slipping = 1; } } }
+    }
+    // v3.0: a locked front wheel smokes at the front
+    if (caLock[c] > 0.05) {
+        if (sp > 12) {
+            if (mod(frameId + c, 2) < 1) { emitSmoke(caX[c] + fx * 1.6, caY[c], caZ[c] + fz * 1.6, caSeg[c]); }
+            if (wetL < 0.3) { addMark(caSeg[c], caOff[c], caU[c], 0.6); }
+        }
     }
     if (slipping > 0) {
         if (mod(frameId, 2) < 1) {

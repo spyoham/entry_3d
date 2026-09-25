@@ -92,9 +92,12 @@ function wxStep() {
         if (raceState == ST_DONE) { want = rainI > 0.5 ? 1 : 0; }
         rainI = rainI + (want - rainI) * Math.min(1, dt * 0.09);
     }
-    // the track soaks in about half a minute and dries over a few (a dry line)
-    if (rainI > wetL) { wetL = wetL + (rainI - wetL) * Math.min(1, dt * 0.055); }
-    else { wetL = wetL + (rainI - wetL) * Math.min(1, dt * 0.011); }
+    // the track soaks in about half a minute and dries over a few: v3.0 does
+    // that per zone of the lap (race3.js trkStep), and wetL is their mean
+    if (rules != R_SIM) {
+        if (rainI > wetL) { wetL = wetL + (rainI - wetL) * Math.min(1, dt * 0.055); }
+        else { wetL = wetL + (rainI - wetL) * Math.min(1, dt * 0.011); }
+    }
     rainVis = rainI;
     wetVis = wetL;
     if (rainI * 0.8 > wetVis) { wetVis = rainI * 0.8; }
@@ -114,7 +117,8 @@ function wxStep() {
 let oTyG = 1;               // the compound in these conditions, before heat and wear
 function tyreGrip(c) {
     let t = caTy[c];
-    let g = tyDry[t] + (tyWet[t] - tyDry[t]) * wetL;
+    // v3.0: the water under this car (its zone of the lap, on or off the dry line)
+    let g = tyDry[t] + (tyWet[t] - tyDry[t]) * caWet[c];
     oTyG = g;
     let b = (c - 1) * 4;
     let lo = tyTlo[t];
@@ -128,6 +132,8 @@ function tyreGrip(c) {
         let tt = whT[b + k];
         if (tt < lo) { f = f * (1 - Math.min(0.15, (lo - tt) * 0.006)); }
         if (tt > hi) { f = f * (1 - Math.min(0.15, (tt - hi) * 0.006)); }
+        // v3.0: a flat spot bumps instead of gripping
+        f = f * (1 - 0.5 * whFS[b + k]);
         whG[b + k] = f;
         sum = sum + f;
         k = k + 1;
@@ -144,7 +150,8 @@ function fitTyre(c, t) {
     caTy[c] = t;
     let b = (c - 1) * 4;
     let k = 1;
-    while (k <= 4) { whW[b + k] = 1; whT[b + k] = tyTbl[t]; k = k + 1; }
+    while (k <= 4) { whW[b + k] = 1; whT[b + k] = tyTbl[t]; whFS[b + k] = 0; k = k + 1; }
+    if (c == 1) { fsWarn = 0; }
     caWR[c] = WEARK / (tyLife[t] * raceDur);
     if (gMode >= M_TT) { caWR[c] = 0; }
     tyreGrip(c);
@@ -159,6 +166,7 @@ let whAdv = 'OK';
 let whAdvC = '#ffffff';
 let whWorst = 1;            // the worst status last time, for the radio
 let whRadT = 0;
+let fsWarn = 0;
 function whCheck() {
     let t = caTy[1];
     let lo = tyTlo[t];
@@ -173,6 +181,13 @@ function whCheck() {
         if (tt < lo - 8) { st = 3; } else if (tt < lo) { st = 2; }
         if (tt > hi + 12) { st = 5; } else if (tt > hi) { st = 4; }
         if (whW[k] < 0.25) { if (st != 5) { st = 6; } }
+        // v3.0: the first real flat spot on a set is worth a radio call
+        if (whFS[k] > 0.035) {
+            if (fsWarn < 1) {
+                fsWarn = 1;
+                if (raceState == ST_RACE) { setRadio(str('LOCK-UP - FLAT SPOT ON THE ', whLong[k]), 3); }
+            }
+        }
         if (st >= 2) { if (st <= 3) { nCold = nCold + 1; } }
         whSt[k] = st;
         // worst first: overheating, then worn, hot, cold, warming
@@ -257,18 +272,23 @@ function simCarStep(c, aLat, mu, da) {
         let trac = caThr[c] * (1 - Math.min(1, sp / 55));
         let slF = Math.min(1, Math.max(0, (phSlF - SLIPPK) / 10));
         let slR = Math.min(1.5, Math.max(0, (phSlR - SLIPPK) / 10, (da - 6) / 20));
-        let lock = 0;
-        if (br > 0.9) { if (sp > 15) { if (phSlF > SLIPPK) { lock = 1; } } }
+        // v3.0: a lock-up is an axle braking harder than its tyres grip (phys.js)
+        let lock = Math.min(1, caLock[c] * 3);
+        let lockR = Math.min(1, caLockR[c] * 3);
         let spf = 0.3 + 0.7 * Math.min(1, sp / 50);
-        let amb = 34 - 18 * wetL;
-        let cool = 0.012 * (1 + sp / 150) * (1 + 1.5 * wetL);
+        // v3.0: the track's own temperature and the water under this car
+        let wl = caWet[c];
+        let amb = trkTemp;
+        let cool = 0.012 * (1 + sp / 150) * (1 + 1.5 * wl);
+        // low tyre pressure (setup): the tyre flexes more - hotter, more wear
+        let pk = 1 - 0.05 * caPres[c];
         if (caSurf[c] >= 2) { cool = cool * 1.6; }
         let t = caTy[c];
         let lo = tyTlo[t];
         let hi = tyThi[t];
         // treaded tyres cook on a drying track
         let tread = 1;
-        if (t >= TY_I) { if (wetL < 0.35) { tread = 1 + 5 * (0.35 - wetL); } }
+        if (t >= TY_I) { if (wl < 0.35) { tread = 1 + 5 * (0.35 - wl); } }
         let wear = 0;
         if (raceState == ST_RACE) { wear = caWR[c] * caWearK[c]; }
         let fb = 0.05 * caBias[c];
@@ -286,22 +306,39 @@ function simCarStep(c, aLat, mu, da) {
                 use = use + 0.25 * br * (1.5 + fb) + 0.8 * slF + 0.6 * lock;
                 if (da > 8) { use = use + 0.4; }
             } else {
-                wk = (lat * 0.95 + 0.9 * br * (0.6 - fb) + 0.8 * trac + 2.5 * slR) * spf;
-                use = use + 0.25 * br * (0.5 - fb) + 0.3 * trac + 0.6 * slR;
+                // a locked differential works the rears harder out of corners
+                let dk = 1 + 0.08 * caDiff[c];
+                wk = (lat * 0.95 + 0.9 * br * (0.6 - fb) + 0.8 * trac * dk + 2.5 * slR + 2 * lockR) * spf;
+                use = use + 0.25 * br * (0.5 - fb) + 0.3 * trac * dk + 0.6 * slR + 0.6 * lockR;
                 if (da > 8) { use = use + 1.2; }
             }
             if (caSurf[c] == 1) { wk = wk + 0.3; }
+            // v3.0 flat spots: every locked wheel grinds one (more on the loaded side)
+            let lk = lockR;
+            if (k <= 2) { lk = lock; }
+            if (lk > 0) {
+                let fs = whFS[b + k] + 0.05 * lk * side * Math.min(1.5, sp / 40) * wt;
+                if (fs > 0.15) { fs = 0.15; }
+                whFS[b + k] = fs;
+            }
             let tt = whT[b + k];
-            tt = tt + (1.15 * (0.30 * spf + 1.25 * Math.sqrt(wk)) * tread - cool * (tt - amb)) * wt;
+            tt = tt + (1.15 * (0.30 * spf + 1.25 * Math.sqrt(wk)) * tread * pk - cool * (tt - amb)) * wt;
             whT[b + k] = tt;
             if (wear > 0) {
                 if (tt > hi) { use = use * (1 + (tt - hi) / 12); }
                 else if (tt < lo - 8) { use = use * (1 + (lo - 8 - tt) / 40); }
-                let w = whW[b + k] - wear * use * tread * wt;
+                let w = whW[b + k] - wear * use * tread * pk * (1 + 2 * whFS[b + k]) * wt;
                 if (w < 0) { w = 0; }
                 whW[b + k] = w;
             }
             k = k + 1;
+        }
+        // v3.0: brakes, fuel and faults on the same clock (race3.js)
+        carTick3(c, wt, sp);
+        // a flat spot shakes the player's car at speed
+        if (c == 1) {
+            let fm = Math.max(whFS[1], whFS[2], whFS[3], whFS[4]);
+            if (fm > 0.02) { if (sp > 20) { addShake(Math.min(1.6, fm * sp * 0.25)); } }
         }
     } else {
         caWhT[c] = wt;
@@ -341,6 +378,8 @@ function addDamage(c, d) {
             if (d > 0.3) {
                 incident(c);
                 maybeSC(Math.min(0.8, (d - 0.3) * 1.6));
+                // v3.0: what does not bring out the safety car may bring the VSC
+                if (scOn == 0) { if (rand(0.0001, 0.9999) < 0.35) { deployVSC(); } }
             }
         }
     }
@@ -465,29 +504,80 @@ function pitStop(c) {
     }
 }
 
-// the AI decides to come in while it still has room to cross to the lane
+// the AI decides to come in while it still has room to cross to the lane.
+// v3.0: besides worn tyres, weather and damage it now plays the game: an
+// UNDERCUT (stop first when stuck close behind someone on used tyres), a
+// COVER (a car close behind has just stopped: stop next time by), an
+// OVERCUT (the car ahead has stopped: stay out on a clear track a little
+// longer), and a cheap stop under the safety car or the VSC.
 function aiStrategy(c) {
     if (caPit[c] == 0) {
         if (pitOn > 0) {
             if (caFin[c] < 1) {
-                if (caLap[c] >= 1) {
-                    let d = mod(pitA - caSeg[c], NSEG);
-                    if (d > 6) {
-                        if (d < 30) {
-                            let left = nLaps - caLap[c];
-                            let want = 0;
-                            let t = caTy[c];
-                            if (t <= TY_H) { if (wetL > 0.40) { want = 1; } }
-                            if (t >= TY_I) { if (wetL < 0.22) { if (left >= 1) { want = 1; } } }
-                            if (t == TY_I) { if (wetL > 0.72) { if (left >= 2) { want = 1; } } }
-                            if (t == TY_W) { if (wetL < 0.50) { if (wetL >= 0.22) { if (left >= 2) { want = 1; } } } }
-                            if (caWear[c] < 0.30) { if (left >= 1) { want = 1; } }
-                            if (scOn == 1) { if (caWear[c] < 0.55) { if (left >= 2) { want = 1; } } }
-                            if (caDmg[c] > 0.45) { if (left >= 1) { want = 1; } }
-                            if (want > 0) {
-                                pickTyre(c, left);
-                                caPit[c] = 1;
-                                caPitN[c] = oTy;
+                if (caDNF[c] < 1) {
+                    if (caLap[c] >= 1) {
+                        // what the cars around are doing, once a lap per decision
+                        let r = caRank[c];
+                        let left = nLaps - caLap[c];
+                        if (caStrat[c] == 0) {
+                            if (left >= 2) {
+                                if (r > 1) {
+                                    let a = srtI[r - 1];
+                                    if (caPit[a] >= 2) { if (caWear[c] > 0.30) { caStrat[c] = 2; if (a == 1) { setRadio(str(drvName[c], ' STAYS OUT - OVERCUT'), 3); } } }
+                                }
+                                if (r < nCars) {
+                                    let bh = srtI[r + 1];
+                                    if (caPit[bh] >= 2) {
+                                        if (caGap[bh] - caGap[c] < 2.5) { if (caGap[c] >= 0) {
+                                            if (caWear[c] < 0.65) { if (rand(0.0001, 0.9999) < 0.3 + 0.6 * drvDef[c]) { caStrat[c] = 3; } }
+                                        } }
+                                    }
+                                }
+                            }
+                        }
+                        let d = mod(pitA - caSeg[c], NSEG);
+                        if (d > 6) {
+                            if (d < 30) {
+                                let want = 0;
+                                let t = caTy[c];
+                                if (t <= TY_H) { if (wetL > 0.40) { want = 1; } }
+                                if (t >= TY_I) { if (wetL < 0.22) { if (left >= 1) { want = 1; } } }
+                                if (t == TY_I) { if (wetL > 0.72) { if (left >= 2) { want = 1; } } }
+                                if (t == TY_W) { if (wetL < 0.50) { if (wetL >= 0.22) { if (left >= 2) { want = 1; } } } }
+                                let lim = 0.30;
+                                if (caStrat[c] == 2) { lim = 0.22; }
+                                if (caWear[c] < lim) { if (left >= 1) { want = 1; } }
+                                if (scOn == 1) { if (caWear[c] < 0.55) { if (left >= 2) { want = 1; } } }
+                                if (vscOn == 1) { if (caWear[c] < 0.50) { if (left >= 2) { want = 1; } } }
+                                if (caDmg[c] > 0.45) { if (left >= 1) { want = 1; } }
+                                if (caStrat[c] == 3) { if (left >= 2) { want = 1; } }
+                                // the undercut: close behind the car ahead, both on used tyres
+                                if (caUcL[c] != caLap[c]) {
+                                    caUcL[c] = caLap[c];
+                                    if (left >= 3) {
+                                        if (r > 1) {
+                                            let a = srtI[r - 1];
+                                            if (caPit[a] == 0) {
+                                                if (caGap[a] >= 0) { if (caGap[c] - caGap[a] < 1.6) {
+                                                    if (caWear[c] < 0.62) {
+                                                        if (caStops[c] <= caStops[a]) {
+                                                            if (rand(0.0001, 0.9999) < 0.2 + 0.6 * drvAgg[c]) {
+                                                                want = 1;
+                                                                if (a == 1) { setRadio(str(drvName[c], ' IS PITTING - UNDERCUT ATTEMPT, PUSH!'), 3.5); }
+                                                            }
+                                                        }
+                                                    }
+                                                } }
+                                            }
+                                        }
+                                    }
+                                }
+                                if (want > 0) {
+                                    pickTyre(c, left);
+                                    caPit[c] = 1;
+                                    caPitN[c] = oTy;
+                                    caStrat[c] = 0;
+                                }
                             }
                         }
                     }
@@ -577,11 +667,13 @@ function flagsStep() {
             if (caPit[1] == 0) {
                 let flag = yelHere;
                 if (scOn > 0) { flag = 1; }
+                if (vscOn > 0) { flag = 1; }
                 if (flag > 0) {
                     let o = srtI[r + 1];
                     if (Math.abs(caSpd[o]) > 15) {
                         if (caPit[o] == 0) {
                             if (scOn > 0) { penalise(1, 5, 'PENALTY: OVERTAKING UNDER THE SAFETY CAR'); }
+                            else if (vscOn > 0) { penalise(1, 5, 'PENALTY: OVERTAKING UNDER THE VSC'); }
                             else { penalise(1, 5, 'PENALTY: OVERTAKING UNDER YELLOW'); }
                         }
                     }
@@ -616,6 +708,7 @@ function maybeSC(chance) {
 // line.
 function deploySC() {
     scOn = 1;
+    vscOn = 0;
     scTm = 0;
     scUsed = 1;
     scCar = 1;
@@ -669,8 +762,11 @@ function scStep() {
 // ---- the whole lot, once a frame -------------------------------------------------
 function simStep() {
     wxStep();
+    // v3.0: the track (rubber, temperature, water per zone) and each car's water
+    trkStep();
     let c = 1;
     while (c <= nCars) {
+        carWet(c);
         tyreGrip(c);
         pitStep(c);
         c = c + 1;
@@ -678,6 +774,7 @@ function simStep() {
     if (raceState == ST_RACE) {
         limitsStep();
         flagsStep();
+        vscStep();
         c = 2;
         while (c <= nCars) { aiStrategy(c); c = c + 1; }
     }
@@ -715,6 +812,9 @@ function aiQualiTimes(ct) {
 function beginQuali(ct) {
     rpReset();
     aiQualiTimes(ct);
+    // v3.0: Q1 / Q2 / Q3, a green track that rubbers in as the sessions go
+    qBegin();
+    trkReset(1);
     nCars = 1;
     nLaps = 999;
     let s = mod(NSEG - 38 - 1, NSEG) + 1;
@@ -726,6 +826,7 @@ function beginQuali(ct) {
     caWR[1] = 0;
     caErs[1] = 1;
     raceState = ST_QUALI;
+    fuelUp(1);
     caHold[1] = 0;
     lightsOut = 1;
     raceT = 0;
@@ -735,20 +836,18 @@ function beginQuali(ct) {
     camYawS = caYaw[1];
     camX = caX[1]; camZ = caZ[1]; camY = caY[1] + 3;
     setBanner('QUALIFYING', 2.2);
-    setMsg('OUT LAP - THEN TWO TIMED LAPS', 3);
+    setMsg('Q1: OUT LAP, THEN ONE TIMED LAP - THE SLOWEST TWO ARE OUT', 3.5);
 }
 
 function endQuali() {
-    caQT[1] = 9999;
-    if (bestLap > 0) { caQT[1] = bestLap; }
-    let c = 1;
-    while (c <= NCAR) { clsI[c] = c; c = c + 1; }
+    // v3.0: the grid from the sessions (race3.js qGrid fills clsV)
+    qGrid();
     let i = 2;
     while (i <= NCAR) {
         let k = clsI[i];
         let j = i - 1;
         while (j >= 1) {
-            if (caQT[clsI[j]] <= caQT[k]) { break; }
+            if (clsV[clsI[j]] <= clsV[k]) { break; }
             clsI[j + 1] = clsI[j];
             j = j - 1;
         }

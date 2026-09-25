@@ -1,3 +1,44 @@
+# ENTRY RACING 3D — 작업 인계 메모 (2026-09-25, v3.0)
+
+산출물: `3D 레이싱 v3.0.ent` ← 최신, 설명서 `3D 레이싱 v3.0 설명서.md` (v2.6은 루트 `old/`로)
+빌드: `node build.mjs racing30.ent` → `globals 417, lists 479, functions 301, handlers 3`
+**버전 규칙(사용자)**: x.y. 조금 바뀌면 y를 올리고, 크게 바뀌면 x를 올리고 y=0으로 한다. 이슈 #1 반영은 큰 업데이트라 3.0이다.
+
+## 요청과 한 것
+"https://github.com/spyoham/entry_3d/issues/1 이 이슈에 있는 기능을 없는것은 모두 구현해줘.(리얼리스틱에서만 다 구현하고,
+가벼운것 위주인 아케이드에는 괜찮아보이는것 일부만 넣어줘)" — 이슈 26개 항목. 표는 루트 설명서에 있다.
+- 새 파일 `src/race3.js`(rules.js 다음): 노면(`trkReset/trkStep/carWet`: 고무, 온도, NZ=16 구역 물, 드라이 라인),
+  `carTick3`(브레이크 온도·페이드, 연료·무게·모드, 고장. simCarStep의 0.1초 틱에서 호출), `fuelLap/fuelUp`, `retireCar`, VSC(`deployVSC/vscStep`),
+  `blueStep`(updateGaps 0.3초, 두 규칙 모두), `cockpitKey`(F=70, 1=49, 2=50), 포메이션 랩(`ST_FORM=14`, formBegin/Step/Park/Skip/End/AI),
+  예선 세션(`qBegin/qCut/qLapDone/qGrid`, `caQ1..3`, `qIn`, `caQOut`).
+- `phys.js`: 출력/최고속 감소(`caPowD/caTopD`: 모드·고장·연료 없음), 무게(`caMassD`, MASSK 0.10), 락업(R_SIM: 축별 요구 > 그립×2.4 → `caLock/caLockR`,
+  AI는 실수 아닐 때 0.97배로 조절), 브레이크 페이드(`caBrD`), `trkGripK`, 윙 배분(`caFWb`×공력 비율), 디퍼렌셜(`caDiff`), 공기압(`caPres`), 앞바퀴 락업 연기.
+  **새 per-car 리스트는 모두 0이 중립이다**(GHOST/세이프티카 슬롯은 따로 설정할 필요가 없다).
+- `rules.js`: tyreGrip이 `caWet`와 플랫스팟(`whFS`)을 쓴다. simCarStep은 amb=`trkTemp`, 락업→플랫스팟, 공기압·디퍼렌셜 발열/마모.
+  wxStep은 아케이드에서만 wetL을 직접 바꾼다(리얼리스틱은 구역 평균). aiStrategy에 언더컷/커버/오버컷/VSC(`caStrat`, `caUcL`).
+  addDamage의 큰 사고 → 35% VSC. deploySC가 VSC를 끈다. endQuali는 qGrid 정렬. flagsStep은 VSC 중 추월에 페널티를 준다.
+- `ai.js`: gk/bdec에 트랙 그립·무게·페이드, 압박 실수 1.8배, `caMisK` 2 = 바깥으로 밀림. VSC 속도(rlV×VSCK), 포메이션(formAI, 칸 앞 260 m부터 가운데, 40 m부터 자기 칸 쪽),
+  블루 플래그 양보, DNF는 굴러서 갓길로, 리프트 앤 코스트(`caLC`). 추월 루프는 주차된 차와 DNF 차를 건너뛴다.
+- `game.js`: 팀 성격(`tm*`, 두 규칙 모두 top/aero/wear), placeCar에서 v3 상태 초기화와 `fuelUp`, initCars가 `caGSeg/caGOff/caGrid/gOrd` 기록,
+  startGrid가 리얼리스틱 GP/CH면 `formBegin`, updateLap에 fuelLap과 예선(`qLapOk`, 아웃랩 뒤 매 랩 `qLapDone`), updateRanks에서 DNF −60000, checkRecovery는 DNF를 건너뛴다.
+- 차고: `suF`(프론트윙), `suW`=리어윙, `suD`, `suP`. 11줄(`TUROWS`), 글자 슬롯 라벨 24–34 / 값 44–54 / 55–57. 기록 33–35칸(옛 기록이면 suF=suW).
+  백업 코드는 nF 32나 35를 받는다.
+- HUD: 오른쪽 패널을 12 px 간격으로 다시 배치했다(슬롯 24–29, 32 연료, 33 브레이크). 34는 블루 플래그/VSC 델타, 38은 점검 창의 BALANCE.
+  예선 Q 라벨, 포메이션 라벨, 타워 OUT, 결과 DNF/RETIRED, 일시정지 화면에 키 안내(28).
+- 보정값: `FUELK 0.72`(스로틀 거리 비율), `BRH 9`, `BRC 0.08`, 연료 = 100·n/max(n,4)·1.03+1.5 kg, `FAILK 0.045`.
+- 시험
+  - `node t7/v30.mjs`: 10개 전부 PASS. 예선 A, VSC B, 블루 C, 리타이어 D, 락업 E, 구역 비 F, 키·세팅 G, 트랙 H, AI 전략 I, 플레이어 리타이어 J.
+  - `node t7/fuel.mjs trk lapSel secs`: 연료, 리프트 앤 코스트, 브레이크를 잰다.
+  - `node t7/form.mjs trk`: 포메이션 랩.
+  - 슬롯 테스트는 포메이션과 카운트를 나눠서 본다. ppit는 포메이션을 건너뛴다.
+  - 기존 테스트는 모두 통과한다. 타이어 평균 온도는 이제 노면 온도에 따라 서킷마다 다르다(스파 약 86°C, 인테를라고스 약 110°C).
+  - tessvm(`_work/tessvm/wh30.json`): 오류 0, 56–60 fps.
+- 남은 일/주의
+  - 락업은 키보드 브레이크가 켜고 끄기뿐이라 젖은 노면에서 잘 생긴다(의도). AI는 실수할 때만 잠근다.
+  - 옐로 플래그와 브레이크 바이어스 세팅은 이미 있던 기능이다.
+
+---
+
 # ENTRY RACING 3D — 작업 인계 메모 (2026-09-25, v2.6)
 
 산출물: `3D 레이싱 v2.6.ent` ← 최신, 설명서 `3D 레이싱 v2.6 설명서.md` (v12는 루트 `old/`로)

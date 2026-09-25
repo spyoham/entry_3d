@@ -33,15 +33,16 @@ function aiPlan(c) {
     // (an attacker keeps a thinner one).
     let marg = AIMARG;
     if (c <= NCAR) { marg = AIMARG + 0.012 * drvAgg[c]; }
-    let gk = caGrip[c] * marg * skill * caWK[c];
+    let gk = caGrip[c] * marg * skill * caWK[c] * trkGripK / (1 + 0.5 * caMassD[c]);
     // a damaged front end turns in less: drive to what is left of it
     if (caDmg[c] > 0) { gk = gk * (1 - 0.30 * caDmg[c]); if (caWing[c] > 0) { gk = gk * 0.90; } }
     let bk2 = 1;
     // a mistake: too much speed into the next corner and a late, soft stop
-    if (caMisT[c] > 0) { gk = gk * 1.07; bk2 = 0.85; }
+    if (caMisT[c] > 0) { if (caMisK[c] < 2) { gk = gk * 1.07; bk2 = 0.85; } }
     let g0 = gk * GRIP0;
     let ga = gk * AERO;
-    let bdec = 2 * 15 * skill * caWK[c] * segStep * bk2;
+    // v3.0: faded brakes and a full tank stop the car later
+    let bdec = 2 * 15 * skill * caWK[c] * segStep * bk2 * (1 - caBrD[c]) / (1 + caMassD[c]);
     let worst = 0;
     let wsign = 0;
     let nearCv = 0;
@@ -74,7 +75,19 @@ function aiPlan(c) {
         if (caMisT[c] > 0) { caMisT[c] = caMisT[c] - dt; }
         else if (worst > 0.004) {
             if (sp > 25) {
-                if (rand(0.0001, 0.9999) < drvErr[c] * 0.016 * dt / skill) { caMisT[c] = 1.2; }
+                if (raceState == ST_RACE) {
+                    // v3.0: a car right behind makes mistakes likelier; a
+                    // mistake is either a late, soft stop (which in realistic
+                    // can lock the fronts) or running wide
+                    let pr = 1;
+                    let r = caRank[c];
+                    if (r < nCars) { if (caGap[srtI[r + 1]] - caGap[c] < 0.8) { if (caGap[c] >= 0) { pr = 1.8; } } }
+                    if (rand(0.0001, 0.9999) < drvErr[c] * 0.016 * pr * dt / skill) {
+                        caMisT[c] = 1.2;
+                        caMisK[c] = 1;
+                        if (rand(0.0001, 0.9999) < 0.4) { caMisK[c] = 2; }
+                    }
+                }
             }
         }
     } else {
@@ -112,6 +125,11 @@ function aiDrive(c) {
     let noPass = 0;
     if (scOn > 0) { noPass = 1; }
     if (aiYel[c] > 0) { noPass = 1; vlim = vlim * 0.94; }
+    // v3.0: the virtual safety car - everyone at the reference pace
+    if (vscOn > 0) { if (isSC < 1) { noPass = 1; let vv = rlV[s] * VSCK * 0.97; if (vv < vlim) { vlim = vv; } } }
+    // v3.0: the formation lap - in grid order, then into the box
+    if (raceState == ST_FORM) { noPass = 1; formAI(c); if (oForm < vlim) { vlim = oForm; } }
+    // (after the defence / pass logic below: down the middle of the grid, then into the box)
     let inPit = caPit[c];
 
     // ---- racing line: hug the inside of the coming corner ----
@@ -138,7 +156,12 @@ function aiDrive(c) {
     let gapW = 3.6 - 0.6 * agg;
     let o = 1;
     while (o <= nCars) {
-        if (o != c) {
+        // (v3.0: a car parked in its grid box or retired is not traffic to follow)
+        let skip = 0;
+        if (o == c) { skip = 1; }
+        if (raceState == ST_FORM) { if (caFormOk[o] > 0) { skip = 1; } }
+        if (caDNF[o] > 0) { skip = 1; }
+        if (skip < 1) {
             let dx = caX[o] - caX[c];
             let dz = caZ[o] - caZ[c];
             let ahead = dx * fx + dz * fz;
@@ -183,10 +206,35 @@ function aiDrive(c) {
         }
         o = o + 1;
     }
+    if (raceState == ST_FORM) {
+        if (caFormD[c] > NSEG * segStep * 0.75) {
+            formDist(c);
+            if (oBox < 260) { tgtOff = 0; }
+            if (oBox < 40) { tgtOff = caGOff[c]; }
+        }
+    }
+    // v3.0: a blue flag - lift and move off the line for the car lapping us
+    if (caBlue[c] > 0) {
+        let lb = caBlueBy[c];
+        tgtOff = (caOff[lb] >= caOff[c] ? 0 - 1 : 1) * (w - 2.2);
+        vlim = vlim * 0.94;
+    }
+    // v3.0: a mistake of the second kind - running wide out of the corner
+    if (caMisT[c] > 0) { if (caMisK[c] == 2) { tgtOff = 0 - wsign * (w - 0.6); } }
+    // v3.0: a retired car pulls off to the nearer side and stops
+    if (caDNF[c] > 0) {
+        // (it rolls - there is no power - and brakes once it is off the road)
+        tgtOff = (caOff[c] >= 0 ? 1 : 0 - 1) * (w + 2.5);
+        vlim = sp - 0.5;
+        if (Math.abs(caOff[c]) > w + 0.8) { vlim = sp - 3; }
+        if (vlim < 0) { vlim = 0; }
+        if (sp < 1.2) { caHold[c] = 1; }
+    }
     let offT = caSurf[c] >= 2 ? 1 : 0;
     if (caSurf[c] == 6) { offT = 0; }
-    if (offT > 0) { tgtOff = 0; }
+    if (offT > 0) { if (caDNF[c] < 1) { tgtOff = 0; } }
     let lim = w - 1.3;
+    if (caDNF[c] > 0) { lim = w + 3; }
     if (tgtOff > lim) { tgtOff = lim; }
     if (tgtOff < 0 - lim) { tgtOff = 0 - lim; }
 
@@ -297,7 +345,12 @@ function aiDrive(c) {
         if (caSteer[c] < 0 - need) { caSteer[c] = 0 - need; }
         let vmax = vlim;
         if (offT > 0) { vmax = vmax * 0.82; }
-        if (sp < vmax - 1.2) { caThr[c] = 1; caBrk[c] = 0; }
+        if (sp < vmax - 1.2) {
+            caThr[c] = 1; caBrk[c] = 0;
+            // v3.0 lift and coast: short of fuel, it rolls into the braking
+            // zone off the throttle instead of accelerating up to it
+            if (caLC[c] > 0) { if (vmax < sp + 9) { if (worst > 0.002) { caThr[c] = 0; } } }
+        }
         else if (sp > vmax + 1.0) { caThr[c] = 0; caBrk[c] = Math.min(1, (sp - vmax) / 2.2); }
         else { caThr[c] = 0.45; caBrk[c] = 0; }
         // a flick of handbrake in the very tightest stuff
@@ -327,5 +380,7 @@ function aiDrive(c) {
         }
     }
     if (raceState == ST_COUNT) { caThr[c] = 0; caBrk[c] = 1; caSteer[c] = 0; caHB[c] = 0; }
+    if (caFormOk[c] > 0) { if (raceState == ST_FORM) { caThr[c] = 0; caBrk[c] = 1; caSteer[c] = 0; } }
+    if (caDNF[c] > 0) { caErsOn[c] = 0; if (caHold[c] > 0) { caThr[c] = 0; caBrk[c] = 1; caSteer[c] = 0; } }
     if (caFin[c] > 0) { caThr[c] = caThr[c] * 0.5; }
 }

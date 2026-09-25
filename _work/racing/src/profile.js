@@ -79,6 +79,8 @@ let pLvNeed = 250;          // XP this level takes
 let pPts = 0;               // upgrade points to spend
 let upE = 0; let upA = 0; let upB = 0; let upT = 0;
 let suW = 0; let suG = 0; let suB = 0; let suS = 0;
+// v3.0: front wing (suW is the rear wing now), differential, tyre pressure
+let suF = 0; let suD = 0; let suP = 0;
 let stRaces = 0; let stWins = 0; let stPods = 0; let stKm = 0; let stCirc = 0;
 let nF = 0;
 let ghSel = 1;              // time trial ghost: 1 my best, 2 world record, 3 off
@@ -281,9 +283,13 @@ function lapDone(lt) {
 // Applied to the player's car in carStats.
 function tuneCar() {
     caAcc[1] = caAcc[1] * (1 + 0.014 * upE) * (1 + 0.03 * suG);
-    caTop[1] = caTop[1] * (1 + 0.006 * upE) * (1 - 0.012 * suW) * (1 - 0.015 * suG);
+    caTop[1] = caTop[1] * (1 + 0.006 * upE) * (1 - 0.009 * suW - 0.003 * suF) * (1 - 0.015 * suG) * (1 + 0.002 * suP);
     caGrip[1] = caGrip[1] * (1 + 0.008 * upT) * (1 + 0.01 * suS);
-    caAeroK[1] = (1 + 0.03 * upA) * (1 + 0.06 * suW);
+    caAeroK[1] = (1 + 0.03 * upA) * (1 + 0.045 * suW + 0.02 * suF);
+    // v3.0: where the downforce sits (front wing up: more front, rear wing up: more rear)
+    caFWb[1] = 0.035 * suF - 0.02 * suW;
+    caDiff[1] = suD;
+    caPres[1] = suP;
     caBrkK[1] = 1 + 0.04 * upB;
     caBias[1] = suB;
     caSusp[1] = suS;
@@ -303,6 +309,8 @@ function buildRec() {
     while (t <= NTRK) { pRec = str(pRec, ',', recLap[t] > 0 ? Math.round(recLap[t] * 1000) : 0); t = t + 1; }
     t = 1;
     while (t <= NTRK) { pRec = str(pRec, ',', recRace[t] > 0 ? Math.round(recRace[t] * 1000) : 0); t = t + 1; }
+    // v3.0: fields 33-35 (an older game reads the first 32 and ignores these)
+    pRec = str(pRec, ',', suF + 3, ',', suD + 3, ',', suP + 3);
 }
 
 // split the record starting at character `from` of s into pF[1..nF]
@@ -340,6 +348,9 @@ function mergeRec(addMode) {
         if (tuneTouched < 1) {
             upE = pF[3] * 1; upA = pF[4] * 1; upB = pF[5] * 1; upT = pF[6] * 1;
             suW = pF[7] - 3; suG = pF[8] - 3; suB = pF[9] - 3; suS = pF[10] - 3;
+            // v3.0: a save from before has one wing: the front gets the same
+            suF = suW; suD = 0; suP = 0;
+            if (nF >= 35) { suF = pF[33] - 3; suD = pF[34] - 3; suP = pF[35] - 3; }
         }
         let mask = pF[11] * 1;
         let k = 1;

@@ -7,6 +7,7 @@ const g = (e) => s.peek(e);
 for (let i = 0; i < 4; i++) s.frame();
 g(`rules = 2; wx = 1; gfx = 2; lapSel = 3; gMode = 1; applyWeather(); selTrk = ${trk}; buildTrack(${trk}); setupRace(${trk}, 1);`);
 if (+g('raceState') === 9) { g('endQuali()'); g('startGrid(1)'); }
+if (+g('raceState') === 14) { g('formSkip(); formEnd();'); }
 g(`playerInput = function(){ aiPlan(1); aiDrive(1); }`);
 g(`maybeSC = function(){}`);
 console.log('pit lane', g('pitA'), '->', g('pitE'), 'len', g('pitLen'), 'box0', g('pitBox0'), 'NSEG', 460, 'player box', g('caBox')[0]);

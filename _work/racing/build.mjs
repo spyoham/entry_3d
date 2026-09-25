@@ -13,7 +13,7 @@ import { f1Car } from './f1car.mjs';
 import { engineMp3, aiMp3, REF_RPM, LOOP_SEC, AI_RATIOS, AI_LEVELS, AI_LOOP } from './enginewav.mjs';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'rules.js', 'fx.js', 'sound.js', 'share.js', 'profile.js', 'savecode.js', 'editor.js', 'menu.js', 'hud.js', 'main.js'];
+export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'rules.js', 'race3.js', 'fx.js', 'sound.js', 'share.js', 'profile.js', 'savecode.js', 'editor.js', 'menu.js', 'hud.js', 'main.js'];
 
 // ============================================================
 // constants shared with the EJS sources
@@ -68,6 +68,10 @@ export const C = {
     PITW: 11,           // pit lane width beside the main straight, metres
     PITV: 22.2,         // pit lane speed limit, m/s (80 km/h)
     QLAPS: 2,           // timed laps in qualifying
+    // ---- v3.0 ----
+    NZ: 16,             // weather zones round a lap (rain, water, the dry line)
+    FUELRACE: 100,      // kg a full-length race is fuelled for
+    VSCK: 0.62,         // virtual safety car: speed as a share of the reference lap
     NTY: 5,             // tyre compounds
     // ---- v8 ----
     NACH: 20,           // achievements
@@ -997,6 +1001,22 @@ export function buildData() {
     lists.whStN = ['OK', 'WARMING', 'COLD', 'HOT', 'OVERHEAT', 'WORN'];
     lists.whStC = ['#3dff6e', '#7fd0ff', '#3a8dff', '#ffb13a', '#ff3b30', '#b0b6c2'];
     lists.whRank = [0, 1, 2, 3, 5, 4];
+    // v3.0 teams (by livery; the ghost and the safety car are neutral): top
+    // speed, downforce, tyre wear, fuel use, failure rate, brake cooling
+    lists.tmTop = [1.00, 1.02, 1.03, 0.99, 1.01, 0.98, 1.02, 0.99, 1, 1];
+    lists.tmAero = [1.05, 0.98, 0.96, 1.02, 1.01, 1.03, 1.00, 0.99, 1, 1];
+    lists.tmWear = [1.00, 0.94, 1.03, 1.00, 1.05, 1.00, 1.08, 0.91, 1, 1];
+    lists.tmFuel = [1.00, 1.00, 1.05, 1.00, 1.01, 0.95, 1.00, 1.02, 1, 1];
+    lists.tmRel = [1.2, 1.0, 1.0, 0.6, 1.1, 1.0, 1.5, 0.9, 1, 1];
+    lists.tmBrk = [1.00, 1.00, 1.00, 1.05, 0.85, 1.00, 1.00, 1.00, 1, 1];
+    lists.tmTag = ['CORNER SPEED', 'KIND TO TYRES', 'STRAIGHT-LINE SPEED, THIRSTY', 'BULLETPROOF', 'BRAKES RUN HOT',
+        'FUEL-EFFICIENT', 'QUICK BUT FRAGILE', 'EASIEST ON TYRES', '', ''];
+    // v3.0 failures, fuel mixes, track temperature per circuit (+ the editor's)
+    lists.failName = ['ENGINE', 'GEARBOX', 'BRAKES', 'ERS', 'HYDRAULICS', 'POWER UNIT'];
+    lists.mixName = ['LEAN', 'STANDARD', 'RICH'];
+    lists.mixPow = [0 - 0.035, 0, 0.025];
+    lists.mixBurn = [0.84, 1, 1.13];
+    lists.trkT0 = [38, 26, 31, 29, 37, 33, 41, 35, 30];
     lists.whSt = [1, 1, 1, 1];
 
 
@@ -1118,11 +1138,15 @@ export function buildData() {
     // v8 garage: upgrades (bought with level points) and setup sliders (free)
     lists.upName = ['ENGINE', 'AERO', 'BRAKES', 'TYRES'];
     lists.upInfo = ['+1.4% POWER, +0.6% TOP SPEED A STEP', '+3% DOWNFORCE A STEP', '+4% BRAKING FORCE A STEP', '+0.8% GRIP, -5% WEAR A STEP'];
-    lists.suName = ['WING', 'GEARING', 'BRAKE BIAS', 'SUSPENSION'];
-    lists.suLo = ['LOW DRAG', 'LONG', 'REAR', 'SOFT'];
-    lists.suHi = ['HIGH DOWNFORCE', 'SHORT', 'FRONT', 'STIFF'];
-    lists.suInfo = ['MORE WING: GRIP IN FAST CORNERS, LESS TOP SPEED', 'SHORTER GEARS: QUICKER PICK-UP, LOWER TOP SPEED',
-        'FORWARD: STABLE UNDER BRAKING, TURNS IN LESS', 'STIFFER: SHARPER ON TARMAC, WORSE OVER CURBS AND GRASS'];
+    // v3.0: seven setup sliders (the old single WING is now the rear wing, and
+    // an old save gives the front wing the same value)
+    lists.suName = ['FRONT WING', 'REAR WING', 'GEARING', 'BRAKE BIAS', 'DIFFERENTIAL', 'TYRE PRESSURE', 'SUSPENSION'];
+    lists.suLo = ['LESS', 'LOW DRAG', 'LONG', 'REAR', 'OPEN', 'LOW', 'SOFT'];
+    lists.suHi = ['MORE', 'HIGH DOWNFORCE', 'SHORT', 'FRONT', 'LOCKED', 'HIGH', 'STIFF'];
+    lists.suInfo = ['MORE: SHARPER TURN-IN (LESS UNDERSTEER), A LITTLE DRAG', 'MORE: REAR GRIP IN FAST CORNERS, LESS TOP SPEED',
+        'SHORTER GEARS: QUICKER PICK-UP, LOWER TOP SPEED', 'FORWARD: STABLE UNDER BRAKING, TURNS IN LESS, FRONTS LOCK',
+        'LOCKED: TRACTION OUT OF CORNERS, UNDERSTEER IN THEM', 'LOWER: MORE GRIP, HOTTER TYRES, MORE WEAR',
+        'STIFFER: SHARPER ON TARMAC, WORSE OVER CURBS AND GRASS'];
     lists.prTabN = ['PROFILE', 'RECORDS', 'ACHIEVEMENTS', 'RANKING'];
     lists.aiD = ['FORGIVING - LEARN THE CIRCUITS', 'STEADY PACE, FEW MISTAKES', 'CLOSE RACING AT A REAL PACE', 'FAST AND ON THE LIMIT', 'FASTER THAN THE CARS ALLOW'];
     lists.gfxD = ['FASTEST - FOR PLAIN ENTRY', 'BALANCED - RECOMMENDED', 'EVERYTHING ON - FOR TESSVM'];
@@ -1186,10 +1210,18 @@ export function buildData() {
         // v8 tuning multipliers (1 / 0 for the AI): aero, brakes, brake bias, suspension, wear
         'caAeroK', 'caBrkK', 'caBias', 'caSusp', 'caWearK',
         // v2.6: grip of the front / rear axle against the four-wheel mean, wheel clock
-        'caAxF', 'caAxR', 'caWhT'])
+        'caAxF', 'caAxR', 'caWhT',
+        // v3.0: brakes, fuel, faults, flags, setup, formation lap, Q1-Q3, strategy
+        // (every one of them 0 = neutral, so the ghost / safety car slot needs no setting)
+        'caBrT', 'caBrD', 'caFuel', 'caFuelR', 'caFuel0', 'caFuelL', 'caMix', 'caLock', 'caLockR', 'caPowD', 'caTopD', 'caMassD',
+        'caFail', 'caFailT', 'caDNF', 'caBlue', 'caBlueBy', 'caWet', 'caFWb', 'caDiff', 'caPres',
+        'caGSeg', 'caGOff', 'caFormD', 'caFormOk', 'caQ1', 'caQ2', 'caQ3', 'caQOut', 'qIn', 'caLC', 'caStrat', 'caUcL', 'caMisK'])
         lists[k] = zeros(NC + 2);
     // v2.6: four wheels per car (FL FR RL RR): temperature, wear left, grip
-    for (const k of ['whT', 'whW', 'whG']) lists[k] = zeros(4 * (NC + 2));
+    for (const k of ['whT', 'whW', 'whG', 'whFS']) lists[k] = zeros(4 * (NC + 2));
+    // v3.0 weather zones, grid order for the formation lap
+    for (const k of ['zWet', 'zRain', 'zLine', 'zRk', 'zDk', 'zSpd']) lists[k] = zeros(C.NZ + 1);
+    lists.gOrd = zeros(NC + 1);
     // v7 replay: RPN samples x RPC cars, oldest overwritten first
     for (const k of ['rpX', 'rpY', 'rpZ', 'rpW', 'rpS', 'rpV']) lists[k] = zeros(C.RPN * C.RPC);
     // v7 sparks, TV cameras, share-code scratch

@@ -118,6 +118,10 @@ function svSane() {
         while (k <= 10) { if (pF[k] > 6) { ok = 0; } k = k + 1; }
         if (pF[11] >= SVACH) { ok = 0; }
         if (pF[16] >= SVCIRC) { ok = 0; }
+        if (nF >= 35) {
+            k = 33;
+            while (k <= 35) { if (strlen(pF[k]) < 1) { ok = 0; } else if (pF[k] < 0) { ok = 0; } else if (pF[k] > 6) { ok = 0; } k = k + 1; }
+        }
     }
     oSvOk = ok;
 }
@@ -160,7 +164,11 @@ function svDecode(s) {
             let h2 = svV[nb + 5] * 32768 + svV[nb + 6] * 1024 + svV[nb + 7] * 32 + svV[nb + 8];
             if (h1 == svH1) { if (h2 == svH2) {
                 parseRec(str('|', pNick, ',', f), 2);
-                if (nF == 32) {
+                // v3.0 codes carry three more setup fields (33-35)
+                let nOk = 0;
+                if (nF == 32) { nOk = 1; }
+                if (nF == 35) { nOk = 1; }
+                if (nOk > 0) {
                     svSane();
                     if (oSvOk > 0) {
                         mergeRec(0);
