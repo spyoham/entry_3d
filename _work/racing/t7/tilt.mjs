@@ -8,7 +8,7 @@ for (let i = 0; i < 4; i++) s.frame();
 const ntrk = +g('NTRK');
 let bad = 0;
 for (let t = 1; t <= ntrk; t++) {
-    g(`rules = 0; gMode = 4; selTrk = ${t}; applyWeather(); startRace();`);
+    g(`rules = 0; gMode = 4; selTrk = ${t}; applyWeather(); doStartRace();`);
     g('playerInput = function(){ caThr[0] = 0; caBrk[0] = 0; caSteer[0] = 0; caHB[0] = 0; }');
     while (+g('raceState') !== 3) s.frame();
     const [ss, sl, bs, bk] = JSON.parse(g(`(()=>{ let ss=1, sl=0, bs=1, bk=0; for (let i = 2; i < NSEG; i++) { const k = (sgY[i+1]-sgY[i-1])/(2*segStep); if (Math.abs(k) > Math.abs(sl)) { sl = k; ss = i; } if (Math.abs(sgBank[i]) > Math.abs(bk)) { bk = sgBank[i]; bs = i; } } return JSON.stringify([ss, sl, bs, bk]); })()`));

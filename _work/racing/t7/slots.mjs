@@ -31,7 +31,7 @@ g('raceState = ST_TRKSEL'); check('trksel');
 g('raceState = ST_EDIT'); check('editor');
 g('shEncode(); shShow = 1'); check('editor code');
 g('shShow = 0; mnPage = 0; mnRow = 1; mnBuild(); raceState = ST_MENU; rules = 2; gfx = 2;');
-g('startRace()'); g(`playerInput = function(){ aiPlan(1); aiDrive(1); }`);
+g('doStartRace()'); g(`playerInput = function(){ aiPlan(1); aiDrive(1); }`);
 check('quali');
 g('endQuali()'); check('quali result');
 g('startGrid(1)'); check('formation');

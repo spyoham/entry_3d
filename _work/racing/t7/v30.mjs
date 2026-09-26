@@ -4,7 +4,7 @@ const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) process
 const mk = (trk, opts = '') => {
     const s = createSim({ fps: 10 }); const g = (e) => s.peek(e);
     for (let i = 0; i < 4; i++) s.frame();
-    g(`rules = 2; wx = 1; gfx = 2; lapSel = 3; gMode = 1; ${opts} applyWeather(); selTrk = ${trk}; buildTrack(${trk}); startRace();`);
+    g(`rules = 2; wx = 1; gfx = 2; lapSel = 3; gMode = 1; ${opts} applyWeather(); selTrk = ${trk}; buildTrack(${trk}); doStartRace();`);
     g(`playerInput = function(){ aiPlan(1); aiDrive(1); }`);
     return { s, g, run: (secs, each) => { for (let f = 0; f < secs * 10; f++) { s.frame(); if (each && each(f) === false) break; } } };
 };

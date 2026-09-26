@@ -2,7 +2,7 @@
 import { createSim } from '../sim.mjs';
 const s = createSim({ fps: 10 }); const g = (e) => s.peek(e);
 for (let i = 0; i < 4; i++) s.frame();
-g('rules = 2; wx = 1; gfx = 2; lapSel = 3; gMode = 1; applyWeather(); selTrk = 1; buildTrack(1); startRace();');
+g('rules = 2; wx = 1; gfx = 2; lapSel = 3; gMode = 1; applyWeather(); selTrk = 1; buildTrack(1); doStartRace();');
 g('playerInput = function(){ aiPlan(1); aiDrive(1); }');
 g('endQuali()'); g('startGrid(selCar)'); g('formSkip(); formEnd();');
 for (let f = 0; f < 400; f++) s.frame();

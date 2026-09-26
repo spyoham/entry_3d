@@ -1,0 +1,36 @@
+== v30
+PASS A qualifying sessions 1>2>3, grid 1,2,7,5,4,3,6,8, out-in 0,0,1,2,0,0,2,1, player P1
+PASS B VSC: the field averaged 85% of the VSC pace, ended true, player penalty 0, delta 6.05
+PASS C blue flags on the backmarker for 28.1 s, lapped by 2, player penalties 0
+PASS D retirement: DNF 1, speed 0.0, last in the order (car 4), VSC/SC out 1, off 8.2 / w 7.2
+PASS E flat spots in the rain: player worst 0.051, AI worst 0.013
+PASS F zones: peak wetness 0.69, biggest zone spread 0.88, dry line 0.97
+PASS G mix RICH, bias 2, wing balance 0.145, diff 2, pressure -3
+PASS H rubber 0.10 -> 0.14 in qualifying, track 40.1 C, grip x0.980
+PASS I AI pit calls 8, of them early (tyres still above 31%: undercut, cover or safety car) 5; finished 0,0,0,0,0,0,0,0, DNF 00000000
+PASS J player retirement: state 5, DNF 1, classified P8, banner ​
+== tilt
+PASS all circuits
+== wall
+== multi
+PASS A late welcome: saved XP 5000, +300 earned before the save arrived -> 5300 (level 9, sync 1)
+PASS B same-moment saves in one slot, 10 rounds: 0 rounds lost a record (alice 1000/1000, bob 1000/1000)
+PASS C same-moment ranking entries: 3 of 3 kept: ||alice,80000|bob,81000|carol,82000
+PASS D ranking with a lap set before the welcome: ||zed,70000|amy,75000
+PASS E 4 players, one slot, 60 s: 4/4 saves current, 4/4 best laps ranked; 68 server writes
+PASS F garage-only change vs a same-moment save, 6 rounds: 0 rounds lost the change
+PASS G two record laps at once, 5 rounds: 0 rounds left a ghost that is not P1's
+== pitgame
+PASS A perfect: 2.40 s, wheels 1111, "PERFECT STOP  2.342 s  -  MEDIUM"
+PASS B nothing pressed: 5.33 s, wheels 3333
+PASS C too early: 5.05 s, wheels 3333
+PASS D perfect with a new nose: 4.20 s (at least the repair)
+== photoauto
+PASS A pause 6 -> photo 15, flew 12.0 m in 1 s (yaw -30), help 0, back to 6
+PASS B replay 11 -> photo 15 -> 11
+PASS C 30 fps (30): quality 0.45, gfx 2; then 60 fps (60) for 240 s: 1, gfx 3
+== intrude
+PASS nothing on the road
+== offdiag
+Error: Cannot find module 'C:\Users\spyoh\entry_3d\_work\racing\t7\offdiag.mjs'
+== stuck

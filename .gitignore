@@ -39,3 +39,8 @@ _work/tessvm/tsrv.log
 
 # 실제 서킷 원자료 캐시(OSM, SRTM, f1-circuits; real/fetch.mjs로 다시 받기)
 _work/racing/real/cache/
+
+# 레이싱 A/B 시험 빌드와 소스 사본(벤치 결과 txt/json만 보관)
+_work/racing/ab/*.ent
+_work/racing/ab/*.lines.json
+_work/racing/ab/src_*/

@@ -1,3 +1,46 @@
+# ENTRY RACING 3D — 작업 인계 메모 (2026-09-27, v6.1)
+
+산출물: `3D 레이싱 v6.1.ent` ← 최신, 설명서 `3D 레이싱 v6.1 설명서.md` (v6.0은 루트 `old/`로)
+빌드: `node build.mjs racing61.ent` → `globals 501, lists 567, functions 326, handlers 3`, **project.json 15.52 MB**(문턱 약 16.17 MB)
+
+## 요청과 한 것
+"또다른 최적화 아이디어" → `최적화 아이디어.md` 8–15번(v6.0 측정 기반) → "각각 진행해보고 효과 좋은 것만, 로딩화면 전처리도, CPU 늦춰 저사양처럼 테스트"
+- 새 도구
+  - `t7/abench.mjs '{"builds":[...],"trks":[1,2,19],"reps":3,"throttle":4}'`: tessvm A/B, 빌드를 번갈아 race2–4 tick 평균.
+    - CPU 스로틀링은 경기 측정 구간에만 겁니다(trun.mjs에 `{throttle:N}` 단계 추가). 로딩·메뉴까지 느리면 한 번에 3분 → 지금 약 1분.
+    - `../tessvm/tsrv.mjs 3100`이 떠 있어야 합니다.
+  - `t7/pixcmp.mjs <다른 src 폴더> '{"trks":[..],"frames":360,"every":60,"png":dir}'`: sim에서 같은 경주를 두 소스로 돌려 픽셀 비교.
+    - build.mjs `sources()`가 `RSRC` 환경변수로 다른 src를 읽습니다.
+    - 컴파일러가 Math.random으로 블록 id를 뽑으므로 경주 직전에 다시 시드해야 같은 경주가 됩니다.
+    - LCG를 double로 쓰면 값이 반복돼 게임이 멈췄음 → mulberry32.
+- 적용(누적, 모두 화면 동일 또는 경계 몇 px)
+  - 8 상수: cullSegments 옆 훑기 `lod3Q/lod2Q`(cm², setupCam), `sideR2i`; `skyBand[14]`(refreshAtmos); drawRev 1/10 정수.
+  - 9 drawScn 시야 판정 정수: ringFast에서 `scRi`(gtR·scKR·BS), `scCi/scSi`(×65536), `scKq/scKZq`(×50×65536), `scKYq`(×100).
+    - setupCam `frKXq/frKYq`(floor), `frFXq/frFYq`(ceil) ×65536. 목록 읽기는 보일 때만.
+  - 10 **pvZ = 정수 vz(1/ZU m)**: NEARZ 비교는 NEARZI, 안개는 `fogDiv = ZU/fogK`, `fogDiv2`로 나눗셈 한 번.
+    - clipAdd는 `pvZ/ZU`로 m 단위 그대로. drawCarFar·연기·불꽃(fx.js)은 지역 `zm = pvZ/ZU`.
+    - **pvZ를 새로 읽는 코드는 정수 깊이임을 기억할 것.**
+  - 하늘·산(13번 대체): drawSky 모서리 = (×65536 정수 합)/65536.
+    - drawHills: 조각 방위의 탄젠트는 상수 `hlTan`(build, ×65536). 높이표 `hyT`(2×hyN2)는 buildTrack 끝 `hillPrep()`.
+    - 좌표는 (×2^36 정수 합)/2^36. `HLSTEP` 상수.
+    - 옛 idx의 `+1440`은 mod 64에서 +32 이동이었음(표에 그대로 넣음).
+  - 로딩 카드: `startRace()` → `ST_LOAD 16`, `ldT`. 2틱째에 `doStartRace()`(옛 startRace 내용).
+    - drawLoad(render.js), hud.js에 LOADING 글자. 테스트들은 `doStartRace()`를 부르도록 바꿈.
+- 벤치(번갈아 3회, 모나코·스파·라스베이거스, v6.0 대비)
+  - CPU ×4: −10.3 / −8.5 / −7.0%.
+  - 보통 속도: −8.5 / −5.7 / −7.3%(모두 60 fps 상한).
+  - 단계별 기여(bench1): 9 > 하늘·산 ≈ 10 > 8.
+- 넣지 않은 것
+  - 12 차 조명 정수화: 잡음 범위, 색 1단계 차이.
+  - 14 임포스터: 그려지는 풍경의 반지름이 거의 모두 16 px 이상(`$TEMP/scnprobe` 방식: drawScn 래핑).
+  - 13 파노라마: 상한 빌드(하늘·산 대신 단색 1장)가 v6.1보다 1–3%만 빠름.
+  - 11 clipAdd: 비중 0.6%.
+- 테스트: v30 A–J, keys, multi A–G, savecode, slots(v6.0과 같은 출력), alloc, share, pinned, tilt(19), wall, pitgame, photoauto, intrude, stuck, offdiag 1·2·19 모두 PASS / 1 m 넘는 이탈 0.
+  - offdiag는 `racing/offdiag.mjs`(t7 아님).
+- 결과 파일: `ab/bench1.txt`(단계별), `ab/bench2.txt`(최종·상한), `ab/bench3.txt`(보통 속도), `ab/tests.txt`.
+
+---
+
 # ENTRY RACING 3D — 작업 인계 메모 (2026-09-26, v6.0)
 
 산출물: `3D 레이싱 v6.0.ent` ← 최신, 설명서 `3D 레이싱 v6.0 설명서.md` (v5.2는 루트 `old/`로), 썸네일 `3D 레이싱 썸네일.png`

@@ -215,6 +215,12 @@ function updateHud() {
             }
             tx(35, str(ctlCnt[EDTRK], ' NODES  -  ', strlen(shCode), ' CHARACTERS  -  K CLOSES'), 0, 70 - shLines * 16 - 4, 9, C_DIM, 0);
         }
+    } else if (raceState == ST_LOAD) {
+        let tn = trkName[selTrk];
+        if (gMode == M_CH) { tn = trkName[1]; }
+        tx(9, 'LOADING', 0, 30, 30, C_WHITE, 0);
+        tx(10, str(tn, '   ', modeName[gMode], '   ', ruleName[rules]), 0, 4, 11, '#e0e6f2', 0);
+        tx(11, 'PREPARING THE CIRCUIT AND GRAPHICS', 0, 0 - 44, 9, C_DIM, 0);
     } else if (raceState == ST_PHOTO) {
         // v6.0 photo mode: nothing on the picture but the help (SPACE hides it)
         if (phHelp > 0) {

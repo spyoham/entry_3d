@@ -1,0 +1,62 @@
+rep 1 trk 1 base.ent  tick 22.50 ms  fps 32.6
+rep 1 trk 1 s8.ent  tick 22.69 ms  fps 32.4
+rep 1 trk 1 s9.ent  tick 21.20 ms  fps 33.9
+rep 1 trk 1 s10.ent  tick 21.00 ms  fps 34.3
+rep 1 trk 1 s12.ent  tick 20.85 ms  fps 34.4
+rep 1 trk 1 s13.ent  tick 20.96 ms  fps 34.1
+rep 1 trk 2 base.ent  tick 13.85 ms  fps 50.7
+rep 1 trk 2 s8.ent  tick 13.07 ms  fps 53.0
+rep 1 trk 2 s9.ent  tick 12.92 ms  fps 53.3
+rep 1 trk 2 s10.ent  tick 12.46 ms  fps 54.8
+rep 1 trk 2 s12.ent  tick 12.79 ms  fps 53.8
+rep 1 trk 2 s13.ent  tick 11.72 ms  fps 56.4
+rep 1 trk 19 base.ent  tick 12.91 ms  fps 53.1
+rep 1 trk 19 s8.ent  tick 12.56 ms  fps 54.1
+rep 1 trk 19 s9.ent  tick 12.50 ms  fps 53.8
+rep 1 trk 19 s10.ent  tick 14.71 ms  fps 47.3
+rep 1 trk 19 s12.ent  tick 12.60 ms  fps 53.7
+rep 1 trk 19 s13.ent  tick 11.60 ms  fps 56.5
+rep 2 trk 1 s13.ent  tick 19.52 ms  fps 36.3
+rep 2 trk 1 s12.ent  tick 20.19 ms  fps 35.3
+rep 2 trk 1 s10.ent  tick 20.71 ms  fps 34.9
+rep 2 trk 1 s9.ent  tick 20.87 ms  fps 34.4
+rep 2 trk 1 s8.ent  tick 22.24 ms  fps 33.1
+rep 2 trk 1 base.ent  tick 22.08 ms  fps 32.9
+rep 2 trk 2 s13.ent  tick 11.76 ms  fps 55.9
+rep 2 trk 2 s12.ent  tick 12.67 ms  fps 53.9
+rep 2 trk 2 s10.ent  tick 12.62 ms  fps 53.9
+rep 2 trk 2 s9.ent  tick 12.98 ms  fps 53.0
+rep 2 trk 2 s8.ent  tick 12.87 ms  fps 53.6
+rep 2 trk 2 base.ent  tick 14.39 ms  fps 49.5
+rep 2 trk 19 s13.ent  tick 11.70 ms  fps 56.1
+rep 2 trk 19 s12.ent  tick 12.03 ms  fps 56.0
+rep 2 trk 19 s10.ent  tick 12.29 ms  fps 53.5
+rep 2 trk 19 s9.ent  tick 12.72 ms  fps 53.3
+rep 2 trk 19 s8.ent  tick 12.81 ms  fps 53.5
+rep 2 trk 19 base.ent  tick 12.59 ms  fps 53.7
+rep 3 trk 1 base.ent  tick 22.36 ms  fps 32.5
+rep 3 trk 1 s8.ent  tick 21.56 ms  fps 33.7
+rep 3 trk 1 s9.ent  tick 21.23 ms  fps 34.0
+rep 3 trk 1 s10.ent  tick 20.31 ms  fps 35.2
+rep 3 trk 1 s12.ent  tick 20.53 ms  fps 35.1
+rep 3 trk 1 s13.ent  tick 19.68 ms  fps 36.2
+rep 3 trk 2 base.ent  tick 13.49 ms  fps 51.7
+rep 3 trk 2 s8.ent  tick 12.83 ms  fps 53.9
+rep 3 trk 2 s9.ent  tick 12.81 ms  fps 53.9
+rep 3 trk 2 s10.ent  tick 12.50 ms  fps 54.3
+rep 3 trk 2 s12.ent  tick 12.59 ms  fps 53.9
+rep 3 trk 2 s13.ent  tick 12.82 ms  fps 53.4
+rep 3 trk 19 base.ent  tick 12.61 ms  fps 53.7
+rep 3 trk 19 s8.ent  tick 13.47 ms  fps 51.7
+rep 3 trk 19 s9.ent  tick 12.73 ms  fps 53.6
+rep 3 trk 19 s10.ent  tick 12.34 ms  fps 54.9
+rep 3 trk 19 s12.ent  tick 12.15 ms  fps 55.3
+rep 3 trk 19 s13.ent  tick 12.95 ms  fps 52.1
+
+== throttle x4, gfx 2: mean tick ms (fps)
+base.ent          trk1 22.31 (32.7)   trk2 13.91 (50.6)   trk19 12.71 (53.5) 
+s8.ent            trk1 22.16 (33.1) -0.7%  trk2 12.92 (53.5) -7.1%  trk19 12.95 (53.1) 1.9%
+s9.ent            trk1 21.10 (34.1) -5.4%  trk2 12.90 (53.4) -7.3%  trk19 12.65 (53.6) -0.4%
+s10.ent           trk1 20.67 (34.8) -7.3%  trk2 12.53 (54.3) -10.0%  trk19 13.11 (51.9) 3.2%
+s12.ent           trk1 20.52 (34.9) -8.0%  trk2 12.68 (53.9) -8.8%  trk19 12.26 (55.0) -3.5%
+s13.ent           trk1 20.05 (35.5) -10.1%  trk2 12.10 (55.2) -13.0%  trk19 12.09 (54.9) -4.9%

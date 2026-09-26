@@ -8,7 +8,7 @@ const fps = +(process.argv[2] || 60);
 const s = createSim({ fps });
 const g = (e) => s.peek(e);
 for (let i = 0; i < 4; i++) s.frame();
-g('rules = 1; gMode = 4; paSel = 3; selTrk = 1; applyWeather(); startRace();');
+g('rules = 1; gMode = 4; paSel = 3; selTrk = 1; applyWeather(); doStartRace();');
 // a walled straight ring
 const seg = g('(()=>{ for (let i = 40; i < 460; i++) { if (sgHW[i-1] > 0 && Math.abs(sgCurv[i-1]) < 0.001 && Math.abs(sgCurv[i]) < 0.001 && Math.abs(sgCurv[i+2]) < 0.001) return i; } return 0; })()');
 g('playerInput = function(){ caThr[0] = 1; caBrk[0] = 0; caSteer[0] = 0; caHB[0] = 0; caErsOn[0] = 0; }');

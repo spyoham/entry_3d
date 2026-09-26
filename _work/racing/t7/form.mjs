@@ -4,7 +4,7 @@ import { createSim } from '../sim.mjs';
 const [trk = 1, aiP = 1] = process.argv.slice(2).map(Number);
 const s = createSim({ fps: 10 }); const g = (e) => s.peek(e);
 for (let i = 0; i < 4; i++) s.frame();
-g(`rules = 2; wx = 1; gfx = 2; lapSel = 2; gMode = 1; applyWeather(); selTrk = ${trk}; buildTrack(${trk}); startRace();`);
+g(`rules = 2; wx = 1; gfx = 2; lapSel = 2; gMode = 1; applyWeather(); selTrk = ${trk}; buildTrack(${trk}); doStartRace();`);
 if (aiP) g(`playerInput = function(){ aiPlan(1); aiDrive(1); }`);
 g('endQuali()');
 g('startGrid(selCar)');

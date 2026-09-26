@@ -1,0 +1,32 @@
+rep 1 trk 1 base.ent  tick 26.81 ms  fps 27.9  longest start tick 184.3 ms
+rep 1 trk 1 s15.ent  tick 23.94 ms  fps 30.5  longest start tick 207.8 ms
+rep 1 trk 1 ubsky.ent  tick 22.95 ms  fps 32.0  longest start tick 200.5 ms
+rep 1 trk 2 base.ent  tick 15.04 ms  fps 46.6  longest start tick 249.4 ms
+rep 1 trk 2 s15.ent  tick 13.23 ms  fps 51.4  longest start tick 231.4 ms
+rep 1 trk 2 ubsky.ent  tick 13.73 ms  fps 50.6  longest start tick 235.5 ms
+rep 1 trk 19 base.ent  tick 14.84 ms  fps 47.0  longest start tick 176.6 ms
+rep 1 trk 19 s15.ent  tick 14.31 ms  fps 47.7  longest start tick 181.5 ms
+rep 1 trk 19 ubsky.ent  tick 14.27 ms  fps 48.7  longest start tick 198.5 ms
+rep 2 trk 1 ubsky.ent  tick 20.96 ms  fps 34.8  longest start tick 199.5 ms
+rep 2 trk 1 s15.ent  tick 22.83 ms  fps 31.7  longest start tick 196.8 ms
+rep 2 trk 1 base.ent  tick 25.52 ms  fps 29.2  longest start tick 219.7 ms
+rep 2 trk 2 ubsky.ent  tick 12.89 ms  fps 53.0  longest start tick 238.0 ms
+rep 2 trk 2 s15.ent  tick 13.36 ms  fps 51.3  longest start tick 248.1 ms
+rep 2 trk 2 base.ent  tick 14.33 ms  fps 48.7  longest start tick 229.9 ms
+rep 2 trk 19 ubsky.ent  tick 12.60 ms  fps 54.0  longest start tick 170.7 ms
+rep 2 trk 19 s15.ent  tick 12.58 ms  fps 53.0  longest start tick 166.1 ms
+rep 2 trk 19 base.ent  tick 13.76 ms  fps 50.1  longest start tick 178.0 ms
+rep 3 trk 1 base.ent  tick 23.67 ms  fps 31.1  longest start tick 195.2 ms
+rep 3 trk 1 s15.ent  tick 21.43 ms  fps 33.7  longest start tick 201.2 ms
+rep 3 trk 1 ubsky.ent  tick 21.60 ms  fps 34.0  longest start tick 195.7 ms
+rep 3 trk 2 base.ent  tick 13.97 ms  fps 49.9  longest start tick 231.2 ms
+rep 3 trk 2 s15.ent  tick 13.08 ms  fps 51.7  longest start tick 225.9 ms
+rep 3 trk 2 ubsky.ent  tick 12.62 ms  fps 54.1  longest start tick 230.1 ms
+rep 3 trk 19 base.ent  tick 13.86 ms  fps 49.5  longest start tick 170.9 ms
+rep 3 trk 19 s15.ent  tick 12.60 ms  fps 53.1  longest start tick 167.4 ms
+rep 3 trk 19 ubsky.ent  tick 12.36 ms  fps 54.9  longest start tick 168.7 ms
+
+== throttle x4, gfx 2: mean tick ms (fps)
+base.ent          trk1 25.33 (29.4)   trk2 14.45 (48.4)   trk19 14.15 (48.9) 
+s15.ent           trk1 22.73 (32.0) -10.3%  trk2 13.22 (51.5) -8.5%  trk19 13.16 (51.3) -7.0%
+ubsky.ent         trk1 21.83 (33.6) -13.8%  trk2 13.08 (52.6) -9.5%  trk19 13.07 (52.6) -7.6%

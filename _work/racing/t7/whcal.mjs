@@ -7,7 +7,7 @@ const out = [];
 for (const trk of [1, 2, 3, 4, 5, 6, 7, 8]) {
     const s = createSim({ fps: 10 }); const g = (e) => s.peek(e);
     for (let i = 0; i < 4; i++) s.frame();
-    g(`rules = 2; wx = ${process.env.WX || 1}; gfx = 2; lapSel = 3; gMode = 1; applyWeather(); selTrk = ${trk}; buildTrack(${trk}); startRace();`);
+    g(`rules = 2; wx = ${process.env.WX || 1}; gfx = 2; lapSel = 3; gMode = 1; applyWeather(); selTrk = ${trk}; buildTrack(${trk}); doStartRace();`);
     if (process.env.WH) g(process.env.WH);
     g(`playerInput = function(){ aiPlan(1); aiDrive(1); }`);
     const sum = [0, 0, 0, 0], mx = [0, 0, 0, 0]; let n = 0, t0 = -1;

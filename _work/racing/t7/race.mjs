@@ -8,7 +8,7 @@ const g = (e) => s.peek(e);
 for (let i = 0; i < 4; i++) s.frame();
 g(`rules = ${rules}; wx = ${wx}; gfx = ${gfx}; lapSel = ${lapSel}; gMode = ${mode}; applyWeather();`);
 g(`selTrk = ${trk}; buildTrack(${trk})`);
-g(`startRace()`);
+g(`doStartRace()`);
 g(`playerInput = function(){ aiPlan(1); aiDrive(1); }`);
 const st = { off: 0, n: 0, maxState: {}, pits: 0, stops: 0 };
 let lastState = -1;

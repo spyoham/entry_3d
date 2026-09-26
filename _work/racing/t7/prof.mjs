@@ -12,7 +12,7 @@ const ok = (c, m) => console.log((c ? 'PASS ' : 'FAIL ') + m);
 s.R.nick = 'alice';
 run(13);                 // no server in this test: the save counts as synced after 12 s
 ok(+g('pLoaded') === 1 && +g('pGuest') === 0 && g('pNick') === 'alice', `profile loaded for alice (shard ${g('pSh')})`);
-g(`rules = 1; wx = 1; gfx = 2; lapSel = 1; gMode = 1; aiDiff = 1; applyWeather(); selTrk = ${trk}; buildTrack(${trk}); startRace();`);
+g(`rules = 1; wx = 1; gfx = 2; lapSel = 1; gMode = 1; aiDiff = 1; applyWeather(); selTrk = ${trk}; buildTrack(${trk}); doStartRace();`);
 g(`playerInput = function(){ aiPlan(1); aiDrive(1); }`);
 const fin = run(400, () => +g('raceState') === 5);
 ok(fin, `race finished at P${g('clsPos')} in ${(+g('raceT')).toFixed(1)} s`);
@@ -56,7 +56,7 @@ ok(len1 <= 2400, `shard 1 after 60 saves: ${len1} characters (cap 2400)`);
 
 // ---- time trial against the world-record ghost ----------------------------------
 g(reset); s.R.nick = 'bob'; g('loadProfile()');
-g(`gMode = 3; ghSel = 2; selTrk = ${trk}; startRace();`);
+g(`gMode = 3; ghSel = 2; selTrk = ${trk}; doStartRace();`);
 const gh = +g('ghN');
 const gx = g('ghX').slice(0, 5).map(v => (+v).toFixed(1)).join(','), px = g('pbX').slice((trk - 1) * 540, (trk - 1) * 540 + 5).map(v => (+v).toFixed(1)).join(',');
 ok(gh > 50, `world-record ghost decoded: ${gh} samples, time ${(+g('ghTime')).toFixed(3)}; starts ${gx}`);
@@ -68,7 +68,7 @@ g(`gMode = 1; upE = 5; suW = 0 - 3; suG = 3; carStats(1, 1);`);
 ok(Math.abs(+g('caTop')[0] - 90 * 1.03 * 1.036 * 0.955) < 0.5, `tuned top speed ${(+g('caTop')[0] * 3.6).toFixed(1)} km/h, aero x${(+g('caAeroK')[0]).toFixed(2)}`);
 
 // ---- practice: the brake assist brakes -------------------------------------------------
-g(`upE = 0; suW = 0; suG = 0; gMode = 4; paSel = 1; startRace();`);
+g(`upE = 0; suW = 0; suG = 0; gMode = 4; paSel = 1; doStartRace();`);
 g(`playerInput = function(){ caThr[0] = 1; caBrk[0] = 0; caSteer[0] = 0; caHB[0] = 0; caErsOn[0] = 0; practiceAssist(); }`);
 let braked = 0;
 run(30, () => { if (+g('caBrk')[0] > 0.2) braked++; return braked > 3; });

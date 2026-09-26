@@ -84,12 +84,12 @@ function drawSparksIn(i) {
             wvY[t] = Math.round((spY[k] - spVY[k] * 0.035) * WU);
             wvZ[t] = Math.round((spZ[k] - spVZ[k] * 0.035) * WU);
             projSlots(s, t);
-            if (pvZ[s] > 1.0) {
-                if (pvZ[t] > 1.0) {
+            if (pvZ[s] > ZU) {
+                if (pvZ[t] > ZU) {
                     let ax = psX[s]; let ay = psY[s];
                     let bx = psX[t]; let by = psY[t];
                     if (spC[k] > 1) {
-                        let r = 0.14 * camQ / pvZ[s];
+                        let r = 0.14 * camQ / (pvZ[s] / ZU);
                         if (r < QS) { r = QS; }
                         fill4((ax - r) / QS, (ay - r) / QS, (ax + r) / QS, (ay - r) / QS, (ax + r) / QS, (ay + r) / QS, (ax - r) / QS, (ay + r) / QS, '#1c1e24');
                     } else {

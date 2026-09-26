@@ -18,6 +18,7 @@ const ST_REPLAY = 11;       // v7: replay with TV cameras (HIGH / ULTRA)
 const ST_TUNE = 12;         // v8: the garage (upgrades and setup)
 const ST_PROF = 13;         // v8: profile, records, achievements, ranking
 const ST_PHOTO = 15;        // v6.0: photo mode (a free camera over a paused race or replay)
+const ST_LOAD = 16;         // v6.1: the loading card while the circuit is built for the race
 
 const M_GP = 1;             // game modes
 const M_CH = 2;

@@ -47,6 +47,7 @@ let last = { t: 0, f: 0 };
 const fpsNow = async () => { const r = await page.evaluate(() => ({ t: performance.now() - window.__t0, f: window.__vm.frame - window.__f0 })); const d = { dt: r.t - last.t, df: r.f - last.f }; last = r; return (d.df * 1000 / d.dt).toFixed(1); };
 for (const st of steps) {
     if (st.wait) await page.waitForTimeout(st.wait);
+    if (st.throttle !== undefined) { const c = await page.context().newCDPSession(page); await c.send('Emulation.setCPUThrottlingRate', { rate: st.throttle }); }   // (from here on only)
     if (st.down) await key('keydown', st.down);
     if (st.up) await key('keyup', st.up);
     if (st.fps) { const P = await page.evaluate(() => { const P = { ...window.__prof }; Object.assign(window.__prof, { tick: 0, n: 0, flush: 0, nf: 0, max: 0 }); return P; });

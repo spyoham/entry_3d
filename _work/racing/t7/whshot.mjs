@@ -3,7 +3,7 @@ import { createSim } from '../sim.mjs';
 const trk = +(process.argv[2] || 2);
 const s = createSim({ fps: 10 }); const g = (e) => s.peek(e);
 for (let i = 0; i < 4; i++) s.frame();
-g(`rules = 2; wx = 1; gfx = 3; lapSel = 2; gMode = 1; applyWeather(); selTrk = ${trk}; buildTrack(${trk}); startRace();`);
+g(`rules = 2; wx = 1; gfx = 3; lapSel = 2; gMode = 1; applyWeather(); selTrk = ${trk}; buildTrack(${trk}); doStartRace();`);
 g(`playerInput = function(){ aiPlan(1); aiDrive(1); }`);
 for (let f = 0; f < 1300; f++) {
     s.frame();

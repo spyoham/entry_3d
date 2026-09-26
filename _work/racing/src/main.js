@@ -186,7 +186,15 @@ function applyWeather() {
     wetVis = wetL;
 }
 
+// v6.1: START shows a loading card first; the circuit is built for the race
+// (and everything the renderer precomputes, see ringFast / hillPrep) two
+// ticks later, with the card on screen instead of a frozen menu
+let ldT = 0;
 function startRace() {
+    ldT = 0;
+    raceState = ST_LOAD;
+}
+function doStartRace() {
     if (gMode == M_CH) { startChampionship(); }
     else { restartRace(); }
 }
@@ -472,6 +480,10 @@ on('start', 'pen3', function () {
             else if (actKey == 77) { toMenu(); }
             else if (actKey == 86) { enterReplay(); }
             else if (actKey == 79) { photoEnter(); }
+        } else if (raceState == ST_LOAD) {
+            ldT = ldT + 1;
+            drawLoad();
+            if (ldT >= 2) { doStartRace(); }
         } else if (raceState == ST_PHOTO) {
             photoStep();
         } else if (raceState == ST_REPLAY) {

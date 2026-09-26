@@ -6,7 +6,7 @@ const fps = 10;
 const s = createSim({ fps });
 const g = (e) => s.peek(e);
 for (let i = 0; i < 4; i++) s.frame();
-g(`rules = 1; wx = 1; gfx = 1; lapSel = 4; gMode = 1; applyWeather(); selTrk = ${trk}; buildTrack(${trk}); startRace();`);
+g(`rules = 1; wx = 1; gfx = 1; lapSel = 4; gMode = 1; applyWeather(); selTrk = ${trk}; buildTrack(${trk}); doStartRace();`);
 g(`playerInput = function(){ aiPlan(1); aiDrive(1); }`);
 for (let f = 0; f < secs * fps; f++) s.frame();
 const best = g('caBest').slice(0, 8);

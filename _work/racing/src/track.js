@@ -102,6 +102,14 @@ function refreshAtmos() {
     rainCol = rgb(Math.round(skyR * 0.6 + 90), Math.round(skyG * 0.6 + 96), Math.round(skyB * 0.6 + 108));
     hillA = rgb(Math.round(skyR * 0.80 + 14), Math.round(skyG * 0.80 + 16), Math.round(skyB * 0.84 + 22));
     hillB = rgb(Math.round(skyR * 0.62 + 10), Math.round(skyG * 0.63 + 12), Math.round(skyB * 0.70 + 18));
+    // v6.1: the 14 sky bands (drawSky), made here instead of every frame
+    let sb = 0;
+    while (sb < 14) {
+        let t = sb / 13;
+        skyBand[sb + 1] = rgb(Math.round(skyR * (1 - t) + skyR * 0.42 * t), Math.round(skyG * (1 - t) + skyG * 0.46 * t),
+            Math.round(skyB * (1 - t) + (skyB * 0.55 + 42) * t));
+        sb = sb + 1;
+    }
     loadPalette();
 }
 
@@ -654,6 +662,32 @@ function buildTrack(tk) {
 
     // ---- 13) v4.4 arithmetic the fast way ----
     ringFast();
+    // ---- 14) v6.1 the far skyline's heights, ready to draw ----
+    hillPrep();
+}
+
+// v6.1: the height of both skyline ranges at every 6-degree bearing, as a
+// fraction of camScale x65536 (drawHills multiplies by camQ and nothing else).
+// Worked out here once instead of per slice per frame: which profile the
+// circuit uses, the range's scale and hillK.
+let hyN2 = 64;
+function hillPrep() {
+    hyN2 = NHILLT;
+    if (hillT < 1) { if (hlOn > 0) { hyN2 = 60; } }
+    let b = 0;
+    while (b < 2) {
+        let hs = b > 0 ? 1.0 : 0.66;
+        let m = 0;
+        while (m < hyN2) {
+            let idx = mod(m + b * 31 + 1440, NHILLT) + 1;
+            let h = hillH[idx] * hs;
+            if (hillT > 0) { h = hillC[idx] * hs; }
+            else if (hlOn > 0) { h = b > 0 ? hlN[hlOff + m + 1] : hlF[hlOff + m + 1]; }
+            hyT[b * hyN2 + m + 1] = Math.round(h * hillK * 65536);
+            m = m + 1;
+        }
+        b = b + 1;
+    }
 }
 
 // v4.4: tessvm reproduces Entry's decimal arithmetic, and a number with a
@@ -696,6 +730,15 @@ function ringFast() {
         scXi[o] = Math.round(scX[o] * WU);
         scYi[o] = Math.round(scY[o] * WU);
         scZi[o] = Math.round(scZ[o] * WU);
+        // v6.1: drawScn's culling and box-wall tests in whole numbers: the
+        // bounding radius (cm x BS), the heading x65536, the half sizes x65536
+        let t = scT[o];
+        scRi[o] = Math.round(gtR[t] * scKR[o] * BS);
+        scCi[o] = Math.round(scC[o] * 65536);
+        scSi[o] = Math.round(scS[o] * 65536);
+        scKq[o] = Math.round(scK[o] * 50 * 65536);
+        scKZq[o] = Math.round(scKZ[o] * 50 * 65536);
+        scKYq[o] = Math.round(scKY[o] * 100);
         o = o + 1;
     }
 }

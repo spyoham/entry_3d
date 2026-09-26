@@ -56,6 +56,7 @@ export const C = {
     NSCNV: 48,          // vertices in the largest scenery model
     NHILLT: 64,         // azimuth buckets in the distant skyline profile
     NHILLS: 26,         // slices drawn across the field of view
+    HLSTEP: Math.round(124 / 26 * 1024),   // v6.1: one slice's bearing step, x1024
     NMM: 52,            // samples in the minimap outline
     MMX: 184, MMY: -74, // minimap centre on the stage
     MMR: 42,            // half the size of the box it is fitted into
@@ -1203,7 +1204,7 @@ export function buildData() {
     SM.T.forEach((t, i) => { consts['SC_' + t.name.toUpperCase()] = i + 1; });
 
     // ---- scenery instances: filled in at track build time ----
-    for (const k of ['scT', 'scX', 'scY', 'scZ', 'scC', 'scS', 'scK', 'scKY', 'scKZ', 'scKR', 'scOf', 'scOfS', 'scXi', 'scYi', 'scZi', 'scRa', 'scRb', 'scM', 'scLod', 'scNext'])
+    for (const k of ['scT', 'scX', 'scY', 'scZ', 'scC', 'scS', 'scK', 'scKY', 'scKZ', 'scKR', 'scOf', 'scOfS', 'scXi', 'scYi', 'scZi', 'scRa', 'scRb', 'scM', 'scLod', 'scNext', 'scRi', 'scCi', 'scSi', 'scKq', 'scKZq', 'scKYq'])
         lists[k] = new Array(C.NSCENE + 1).fill(0);
     for (const k of ['scnO', 'scnN']) lists[k] = new Array(2 * C.NSCENE + 2).fill(0);
     // v4.3: scenery list nodes (an object can be filed under two rings) and
@@ -1359,6 +1360,11 @@ export function buildData() {
     lists.pvF = zeros(NSLOT);                    // frame stamp: this ring is projected
     lists.pvE = zeros(N + 2);                    // ...and how many of its points are
     lists.clipX = zeros(10); lists.clipY = zeros(10);
+    lists.skyBand = new Array(14).fill('#000000');   // v6.1 (refreshAtmos)
+    // v6.1: the far skyline's slices sit at fixed bearings off the view axis,
+    // so their tangents (x65536) are constants; hyT is filled by hillPrep()
+    lists.hlTan = Array.from({ length: C.NHILLS + 1 }, (_, j) => Math.round(Math.tan((-62 + j * 124 / C.NHILLS) * Math.PI / 180) * 65536));
+    lists.hyT = new Array(2 * Math.max(C.NHILLT, 60) + 2).fill(0);
     for (const k of ['tsX', 'tsY', 'tsZ', 'tsW', 'tsF', 'tsA']) lists[k] = zeros(NSAMP_MAX + 2);
     // (v4.2: + the patches of land in view)
     lists.visI = zeros(N + 8 + C.NTP); lists.visD = zeros(N + 8 + C.NTP); lists.visS = zeros(N + 8 + C.NTP);
@@ -1481,7 +1487,7 @@ export function declPrelude(D) {
         `    let i${n} = ${ks[0]}.length;\n    while (i${n} < ${n}) { ${ks.map(k => k + '.push(0);').join(' ')} i${n} = i${n} + 1; }`).join('\n');
     return decl + '\nfunction allocLists() {\n' + (loops || '    let n = 0;') + '\n}';
 }
-export function sources() { return SRC_FILES.map(f => fs.readFileSync(path.join(HERE, 'src', f), 'utf8')); }
+export function sources() { return SRC_FILES.map(f => fs.readFileSync(path.join(process.env.RSRC || path.join(HERE, 'src'), f), 'utf8')); }   // (RSRC: another src folder, for A/B frame checks)
 
 export const FUNC_WEIGHTS = { projectRing: 40, quad: 60, drawSeg: 20, carPhys: 8, aiDrive: 8 };
 

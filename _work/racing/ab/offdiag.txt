@@ -1,0 +1,9 @@
+== offdiag 1
+1 excursions
+{"seg":200,"kmh":47,"R":9,"side":"OUT","lim":50,"surf":2,"w":4.8,"off":4.9,"yr":-45,"st":-0.78}
+== offdiag 2
+{"seg":442,"kmh":36,"R":20,"side":"IN","lim":42,"surf":4,"w":7,"off":-7.3,"yr":-39,"st":-0.72}
+{"seg":19,"kmh":44,"R":19,"side":"IN","lim":41,"surf":2,"w":7,"off":7.1,"yr":20,"st":0.2}
+{"seg":22,"kmh":57,"R":19,"side":"OUT","lim":73,"surf":4,"w":7,"off":-7.1,"yr":27,"st":0.56}
+== offdiag 19
+0 excursions

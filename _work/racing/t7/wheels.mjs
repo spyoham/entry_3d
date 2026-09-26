@@ -8,7 +8,7 @@ const fps = 10;
 const s = createSim({ fps });
 const g = (e) => s.peek(e);
 for (let i = 0; i < 4; i++) s.frame();
-g(`rules = 2; wx = ${wx}; gfx = 2; lapSel = ${lapSel}; gMode = 1; applyWeather(); selTrk = ${trk}; buildTrack(${trk}); startRace();`);
+g(`rules = 2; wx = ${wx}; gfx = 2; lapSel = ${lapSel}; gMode = 1; applyWeather(); selTrk = ${trk}; buildTrack(${trk}); doStartRace();`);
 g(`playerInput = function(){ aiPlan(1); aiDrive(1); }`);
 const W = (c) => g(`(()=>{ const b = ${c} * 4, o = []; for (let k = 0; k < 4; k++) o.push(Math.round(whT[b + k]) + '/' + Math.round(whW[b + k] * 100)); return o.join(' '); })()`);
 let hot = 0, cold = 0, n = 0;

@@ -50,13 +50,16 @@ let cuXi = 0; let cuYi = BS; let cuZi = 0;
 let scrOX = 0; let scrOY = 0;                        // screen shift (1/QS units), cards only
 let frKX = 1; let frKY = 1;                           // frustum slopes (x, y) and
 let frFX = 1; let frFY = 1;                           // their sphere-test factors
+let frKXq = 65536; let frKYq = 65536; let frFXq = 65536; let frFYq = 65536;   // v6.1: x65536, whole
 let fogK2 = 0.019;          // fogK / 2, for the mean of two depths
+let fogDiv = 1; let fogDiv2 = 1;   // v6.1: ZU / fogK and ZU / fogK2
 let camFov = 74;
 let tanHalf = 0.8;
 let farCull2i = 0;         // v4.4: the ring scan in whole numbers (setupCam)
 let chXi = 0; let chZi = 1024;
 let csXi = 1024; let csZi = 0;
 let tanHalfI = 819;
+let lod3Q = 0; let lod2Q = 0;
 const SCNMI = SCNM * 100 * 1024;
 let farCull2 = 160000;
 let fogK = 0.0375;
@@ -112,14 +115,23 @@ function setupCam() {
     cuXi = Math.round(cuX * BS); cuYi = Math.round(cuY * BS); cuZi = Math.round(cuZ * BS);
     frKX = 250 / camScale; frKY = 145 / camScale;
     frFX = Math.sqrt(1 + frKX * frKX); frFY = Math.sqrt(1 + frKY * frKY);
+    // v6.1: the same x65536, rounded so the test never culls more than before
+    frKXq = Math.floor(frKX * 65536); frKYq = Math.floor(frKY * 65536);
+    frFXq = Math.ceil(frFX * 65536); frFYq = Math.ceil(frFY * 65536);
     farCull2 = fogFar * fogFar;
     // v4.4: whole-number copies for the ring scan (cm, and x1024)
     farCull2i = Math.round(farCull2 * WU * WU);
     chXi = Math.round(chX * 1024); chZi = Math.round(chZ * 1024);
     csXi = Math.round(csX * 1024); csZi = Math.round(csZ * 1024);
     tanHalfI = Math.round(tanHalf * 1024);
+    // v6.1: the side scan's detail bands, as whole cm² (a quarter of the band)
+    lod3Q = Math.round(gfLod3[gfx] * gfLod3[gfx] * 2500);
+    lod2Q = Math.round(gfLod2[gfx] * gfLod2[gfx] * 2500);
     fogK = (NFOG - 1) / fogFar;
     fogK2 = fogK / 2;
+    // v6.1: depths (pvZ) are whole numbers of 1/ZU m: a fog level is one division
+    fogDiv = ZU / fogK;
+    fogDiv2 = ZU / fogK2;
     colOff = 1 - NFOG;
     // how far along the ring the LOD bands and the scan itself reach. Working
     // in ring offsets instead of metres keeps the cull loop free of list reads.
@@ -147,7 +159,7 @@ function projSlots(a, b) {
         let dy = wvY[p] - camYi;
         let dz = wvZ[p] - camZi;
         let vz = dx * cfXi + dy * cfYi + dz * cfZi;
-        pvZ[p] = vz / ZU;
+        pvZ[p] = vz;
         let vx = dx * crXi + dy * crYi + dz * crZi;
         let vy = dx * cuXi + dy * cuYi + dz * cuZi;
         if (vz > NEARZI) {
@@ -191,8 +203,8 @@ function projRing(i, lvl) {
 
 // ---- near-plane clipping ------------------------------------------------
 function clipAdd(a, b) {
-    let za = pvZ[a];
-    let zb = pvZ[b];
+    let za = pvZ[a] / ZU;
+    let zb = pvZ[b] / ZU;
     let ax = pvX[a];
     let ay = pvY[a];
     if (za >= NEARZ) { let k = za / camQ; ax = psX[a] * k; ay = psY[a] * k; }
@@ -206,12 +218,12 @@ function clipAdd(a, b) {
     clipY[nClip] = Math.round((ay + (by - ay) * t) * iv);
 }
 function clipEdge(a, b) {
-    if (pvZ[a] >= NEARZ) {
+    if (pvZ[a] >= NEARZI) {
         nClip = nClip + 1;
         clipX[nClip] = psX[a];
         clipY[nClip] = psY[a];
-        if (pvZ[b] < NEARZ) { clipAdd(a, b); }
-    } else if (pvZ[b] >= NEARZ) { clipAdd(a, b); }
+        if (pvZ[b] < NEARZI) { clipAdd(a, b); }
+    } else if (pvZ[b] >= NEARZI) { clipAdd(a, b); }
 }
 
 // ---- the one polygon primitive -----------------------------------------
@@ -223,10 +235,10 @@ function quad(a, b, c, d, mat) {
     let zc = pvZ[c];
     let zd = pvZ[d];
     let nIn = 0;
-    if (za > NEARZ) { nIn = nIn + 1; }
-    if (zb > NEARZ) { nIn = nIn + 1; }
-    if (zc > NEARZ) { nIn = nIn + 1; }
-    if (zd > NEARZ) { nIn = nIn + 1; }
+    if (za > NEARZI) { nIn = nIn + 1; }
+    if (zb > NEARZI) { nIn = nIn + 1; }
+    if (zc > NEARZI) { nIn = nIn + 1; }
+    if (zd > NEARZI) { nIn = nIn + 1; }
     if (nIn == 4) {
         let ax = psX[a]; let ay = psY[a];
         let bx = psX[b]; let by = psY[b];
@@ -243,7 +255,7 @@ function quad(a, b, c, d, mat) {
             if (off < 1) {
                 if (mat < 0) { fillColorHex(qHex); }
                 else {
-                    let fl = Math.floor((za + zc) * fogK2);
+                    let fl = Math.floor((za + zc) / fogDiv2);
                     if (fl > NFOG - 1) { fl = NFOG - 1; }
                     fillColorHex(colTab[colOff + mat * NFOG + fl]);
                 }
@@ -279,8 +291,8 @@ function quad(a, b, c, d, mat) {
                 if (mat < 0) { fillColorHex(qHex); }
                 else {
                     let zz = za;
-                    if (zz < NEARZ) { zz = NEARZ; }
-                    let fl = Math.floor(zz * fogK);
+                    if (zz < NEARZI) { zz = NEARZI; }
+                    let fl = Math.floor(zz / fogDiv);
                     if (fl > NFOG - 1) { fl = NFOG - 1; }
                     fillColorHex(colTab[colOff + mat * NFOG + fl]);
                 }
@@ -311,7 +323,7 @@ function quadS(x1, y1, x2, y2, x3, y3, x4, y4, mat, depth) {
     let dx = Math.round(x4) - ax; let dy = Math.round(y4) - ay;
     let ar = bx * cy - by * cx + cx * dy - cy * dx;
     if (ar > 0) {
-        let fl = Math.floor(depth * fogK);
+        let fl = Math.floor(depth / fogDiv);
         if (fl > NFOG - 1) { fl = NFOG - 1; }
         if (fl < 0) { fl = 0; }
         fillColorHex(colTab[colOff + mat * NFOG + fl]);
@@ -345,12 +357,16 @@ function drawSky() {
     let k = camScale * tand(camPitch);
     let cr = cosd(camRoll);
     let sr = sind(camRoll);
-    let hx = 0 - k * sr;
-    let hy = 0 - k * cr;
-    let dx = cr * 900;
-    let dy = 0 - sr * 900;
-    let nx = sr;
-    let ny = cr;
+    // v6.1: every corner is a whole-number sum (stage units x65536) divided
+    // once: the decimal sums and products of the old way were the slow path
+    let hxN = Math.round((0 - k * sr) * 65536);
+    let hyN = Math.round((0 - k * cr) * 65536);
+    let crq = Math.round(cr * 65536);
+    let srq = Math.round(sr * 65536);
+    let dxN = crq * 900;
+    let dyN = 0 - srq * 900;
+    let ax = hxN - dxN; let ay = hyN - dyN;
+    let bx = hxN + dxN; let by = hyN + dyN;
     // ground haze: everything below the horizon, in the fogged grass tone.
     // v4.2: in bands - a line o below the horizon is ground about h / o
     // (x camScale) away for an eye h above it, so the lower bands are less
@@ -361,6 +377,7 @@ function drawSky() {
     if (sgGB[camSeg] < ga) { ga = sgGB[camSeg]; }
     if (ga < 0 - GRASSD) { hc = hc - ga - GRASSD; }
     if (hc < 1) { hc = 1; }
+    let hk = hc * camScale * fogK;
     let gb = 0;
     let g0 = 0;
     while (gb < 6) {
@@ -368,11 +385,13 @@ function drawSky() {
         if (gb == 0) { g1 = 4; } else if (gb == 1) { g1 = 10; } else if (gb == 2) { g1 = 22; } else if (gb == 3) { g1 = 45; } else if (gb == 4) { g1 = 90; }
         let fl = NFOG - 2;
         if (gb > 0) {
-            fl = Math.floor(hc * camScale / g0 * fogK);
+            fl = Math.floor(hk / g0);
             if (fl > NFOG - 2) { fl = NFOG - 2; }
         }
-        fill4(hx - dx - nx * g0, hy - dy - ny * g0, hx + dx - nx * g0, hy + dy - ny * g0,
-            hx + dx - nx * g1, hy + dy - ny * g1, hx - dx - nx * g1, hy - dy - ny * g1,
+        let sx0 = srq * g0; let sy0 = crq * g0;
+        let sx1 = srq * g1; let sy1 = crq * g1;
+        fill4((ax - sx0) / 65536, (ay - sy0) / 65536, (bx - sx0) / 65536, (by - sy0) / 65536,
+            (bx - sx1) / 65536, (by - sy1) / 65536, (ax - sx1) / 65536, (ay - sy1) / 65536,
             colTab[colOff + (gmatBase + 5) * NFOG + fl]);
         g0 = g1;
         gb = gb + 1;
@@ -383,13 +402,11 @@ function drawSky() {
         let o0 = b * 20;
         let o1 = o0 + 21;
         if (b == 13) { o1 = 900; }
-        let t = b / 13;
-        let r = Math.round(skyR * (1 - t) + skyR * 0.42 * t);
-        let g = Math.round(skyG * (1 - t) + skyG * 0.46 * t);
-        let bl = Math.round(skyB * (1 - t) + (skyB * 0.55 + 42) * t);
-        fill4(hx - dx + nx * o0, hy - dy + ny * o0, hx + dx + nx * o0, hy + dy + ny * o0,
-            hx + dx + nx * o1, hy + dy + ny * o1, hx - dx + nx * o1, hy - dy + ny * o1,
-            rgb(r, g, bl));
+        let sx0 = srq * o0; let sy0 = crq * o0;
+        let sx1 = srq * o1; let sy1 = crq * o1;
+        fill4((ax + sx0) / 65536, (ay + sy0) / 65536, (bx + sx0) / 65536, (by + sy0) / 65536,
+            (bx + sx1) / 65536, (by + sy1) / 65536, (ax + sx1) / 65536, (ay + sy1) / 65536,
+            skyBand[b + 1]);
         b = b + 1;
     }
 }
@@ -397,45 +414,39 @@ function drawSky() {
 // A ridge line along the horizon. It is pure screen space - there is no
 // geometry out there to project - but the profile is indexed by world azimuth,
 // so it swings past correctly as the camera turns instead of sliding with it.
+// v6.1: the heights per 6-degree bearing are made once per circuit (hillPrep)
+// and the slices' bearings off the view axis are fixed (hlTan, from the
+// build), so a frame is whole-number sums divided once per corner.
 function drawHills() {
     let k = camScale * tand(camPitch);
     let cr = cosd(camRoll);
     let sr = sind(camRoll);
-    let hx = 0 - k * sr;
-    let hy = 0 - k * cr;
+    // (x65536 twice over: rotation x a slice's offset in 1/(QS x 65536) units)
+    let hxN = Math.round((0 - k * sr) * 68719476736);
+    let hyN = Math.round((0 - k * cr) * 68719476736);
+    let crq = Math.round(cr * 65536);
+    let srq = Math.round(sr * 65536);
+    let a0q = Math.round((camYaw - 62) * 1024);
     let b = 0;
     while (b < 2) {
         // two ranges: a pale one behind, a darker one in front of it
-        let hs = b > 0 ? 1.0 : 0.66;
         let col = b > 0 ? hillB : hillA;
+        let base = b * hyN2;
         let j = 0;
-        let a0 = camYaw - 62;
-        let t0 = 0 - camScale * 1.9;
-        let y0 = 0;
+        let x0 = 0; let y0 = 0; let h0 = 0;
         while (j <= NHILLS) {
-            let az = a0 + j * (124 / NHILLS);
-            let t1 = camScale * tand(az - camYaw);
-            if (t1 > camScale * 1.9) { t1 = camScale * 1.9; }
-            let idx = mod(Math.floor(az / 6) + b * 31 + 1440, NHILLT) + 1;
-            let y1 = hillH[idx] * hs * hillK * camScale;
-            if (hlOn > 0) {
-                // v4.0: the real hills, far ones behind, near ones in front
-                let ri = hlOff + mod(Math.floor(az / 6), 60) + 1;
-                y1 = (b > 0 ? hlN[ri] : hlF[ri]) * hillK * camScale;
-            }
-            if (hillT > 0) {
-                // city: flat-topped blocks, each slice its own height
-                y1 = hillC[idx] * hs * hillK * camScale;
-                y0 = y1;
-            }
+            let t1 = camQ * hlTan[j + 1];
+            let fa = Math.floor((a0q + j * HLSTEP) / 6144);
+            let h1 = camQ * hyT[base + mod(fa, hyN2) + 1];
+            if (hillT > 0) { h0 = h1; }
+            let x1 = hxN + crq * t1;
+            let y1 = hyN - srq * t1;
             if (j > 0) {
-                fill4(hx + cr * t0, hy - sr * t0,
-                    hx + cr * t1, hy - sr * t1,
-                    hx + cr * t1 + sr * y1, hy - sr * t1 + cr * y1,
-                    hx + cr * t0 + sr * y0, hy - sr * t0 + cr * y0, col);
+                fill4(x0 / 68719476736, y0 / 68719476736, x1 / 68719476736, y1 / 68719476736,
+                    (x1 + srq * h1) / 68719476736, (y1 + crq * h1) / 68719476736,
+                    (x0 + srq * h0) / 68719476736, (y0 + crq * h0) / 68719476736, col);
             }
-            t0 = t1;
-            y0 = y1;
+            x0 = x1; y0 = y1; h0 = h1;
             j = j + 1;
         }
         b = b + 1;
@@ -493,17 +504,19 @@ function cullSegments() {
     // scan jumps ahead by the distance.
     let sideR = Math.round(gfSide[gfx] * gfQ);
     if (sideR > fogFar) { sideR = fogFar; }
-    let sideR2 = sideR * sideR;
+    let sideR2i = sideR * sideR * 10000;
     let kk = cullAhead + 1;
     let kEnd = NSEG - CULLBACK;
     while (kk < kEnd) {
         let i = mod(s0 - 1 + kk + NSEG, NSEG) + 1;
         let dxc = sgXi[i] - camXi;
         let dzc = sgZi[i] - camZi;
-        let d2 = (dxc * dxc + dzc * dzc) / 10000;
+        let d2i = dxc * dxc + dzc * dzc;
         let st = 1;
-        if (d2 < sideR2) {
-            if (d2 > gfLod3[gfx] * gfLod3[gfx] * 0.25) { st = 3; } else if (d2 > gfLod2[gfx] * gfLod2[gfx] * 0.25) { st = 2; }
+        // (v6.1: compared in whole cm², against squares made once per frame)
+        if (d2i < sideR2i) {
+            let d2 = d2i / 10000;
+            if (d2i > lod3Q) { st = 3; } else if (d2i > lod2Q) { st = 2; }
             if (kk + st > kEnd) { st = kEnd - kk; }
             if (st > 1) { if (sgBrg[i] + sgBrg[mod(i - 1 + st, NSEG) + 1] + sgBrg[mod(i - 1 + st + 1, NSEG) + 1] > 0) { st = 1; } }
             let fd = dxc * chXi + dzc * chZi;
@@ -522,7 +535,7 @@ function cullSegments() {
             }
             kk = kk + st;
         } else {
-            let jump = Math.floor((Math.sqrt(d2) - sideR) / segStep);
+            let jump = Math.floor((Math.floor(Math.sqrt(d2i)) - sideR * 100) / (segStep * 100));
             if (jump < 1) { jump = 1; }
             kk = kk + jump;
         }
@@ -660,8 +673,8 @@ function drawSeg(i, b0, b1, lvl) {
 // checkerboard start/finish line, interpolated across the already-projected
 // road edges (perspective error across one ring's width is negligible)
 function drawStartLine(b0, b1) {
-    if (pvZ[b0 + P_L] > NEARZ) {
-        if (pvZ[b1 + P_R] > NEARZ) {
+    if (pvZ[b0 + P_L] > NEARZI) {
+        if (pvZ[b1 + P_R] > NEARZI) {
             let ax = psX[b0 + P_L]; let ay = psY[b0 + P_L];
             let bx = psX[b0 + P_R]; let by = psY[b0 + P_R];
             let cx = psX[b1 + P_L]; let cy = psY[b1 + P_L];
@@ -682,8 +695,8 @@ function drawStartLine(b0, b1) {
 // white lines along both edges of the tarmac, inside the curbs where there
 // are curbs: two thin bands interpolated across the projected road quad
 function drawEdgeLines(i, b0, b1) {
-    if (pvZ[b0 + P_L] > NEARZ) {
-        if (pvZ[b1 + P_R] > NEARZ) {
+    if (pvZ[b0 + P_L] > NEARZI) {
+        if (pvZ[b1 + P_R] > NEARZI) {
             // (v4.4: the line's place across the road as a fraction x4096,
             // so everything below is whole numbers: tessvm adds and
             // multiplies short decimals the slow way)
@@ -709,8 +722,8 @@ function drawEdgeLines(i, b0, b1) {
 // what is coming and must brake.
 let showLine = 0;
 function drawLine(i, b0, b1) {
-    if (pvZ[b0 + P_L] > NEARZ) {
-        if (pvZ[b1 + P_R] > NEARZ) {
+    if (pvZ[b0 + P_L] > NEARZI) {
+        if (pvZ[b1 + P_R] > NEARZI) {
             let j = b1 / PPR + 1;
             let w2 = 2 * sgW[i];
             let t0 = (rlO[i] + sgW[i]) / w2;
@@ -732,8 +745,8 @@ function drawLine(i, b0, b1) {
 
 // the painted grid slot in front of each starting position
 function drawGrid(i, b0, b1) {
-    if (pvZ[b0 + P_L] > NEARZ) {
-        if (pvZ[b1 + P_R] > NEARZ) {
+    if (pvZ[b0 + P_L] > NEARZI) {
+        if (pvZ[b1 + P_R] > NEARZI) {
             let ax = psX[b0 + P_L]; let ay = psY[b0 + P_L];
             let bx = psX[b0 + P_R] - ax; let by = psY[b0 + P_R] - ay;
             let cx = psX[b1 + P_L]; let cy = psY[b1 + P_L];
@@ -760,8 +773,8 @@ function drawGrid(i, b0, b1) {
 
 // v7: a team's box in the pit lane, painted in its livery
 function drawPitBox(i, b0, b1) {
-    if (pvZ[b0 + P_OL] > NEARZ) {
-        if (pvZ[b1 + P_L] > NEARZ) {
+    if (pvZ[b0 + P_OL] > NEARZI) {
+        if (pvZ[b1 + P_L] > NEARZI) {
             let c = mod(i - pitBox0 + NSEG, NSEG) + 1;
             let ax = psX[b0 + P_OL]; let ay = psY[b0 + P_OL];
             let bx = psX[b0 + P_L] - ax; let by = psY[b0 + P_L] - ay;
@@ -789,8 +802,8 @@ function drawPitBox(i, b0, b1) {
 }
 
 function drawGateStripe(i, b0, b1) {
-    if (pvZ[b0 + P_L] > NEARZ) {
-        if (pvZ[b1 + P_R] > NEARZ) {
+    if (pvZ[b0 + P_L] > NEARZI) {
+        if (pvZ[b1 + P_R] > NEARZI) {
             quadS(psX[b0 + P_L], psY[b0 + P_L], psX[b0 + P_R], psY[b0 + P_R],
                 psX[b1 + P_R], psY[b1 + P_R], psX[b1 + P_L], psY[b1 + P_L], M_gate, pvZ[b0 + P_L]);
         }
@@ -799,8 +812,8 @@ function drawGateStripe(i, b0, b1) {
 
 // ---- tyre marks: lateral bands of a segment's road quad -----------------
 function drawMarks(i, b0, b1) {
-    if (pvZ[b0 + P_L] > NEARZ) {
-        if (pvZ[b1 + P_R] > NEARZ) {
+    if (pvZ[b0 + P_L] > NEARZI) {
+        if (pvZ[b1 + P_R] > NEARZI) {
             let ax = psX[b0 + P_L]; let ay = psY[b0 + P_L];
             let bx = psX[b0 + P_R] - ax; let by = psY[b0 + P_R] - ay;
             let cx = psX[b1 + P_L]; let cy = psY[b1 + P_L];
@@ -825,8 +838,8 @@ function drawMarks(i, b0, b1) {
 
 // ---- car shadow: a flat blob on the road under the body ----------------
 function drawShadow(c, i, b0, b1) {
-    if (pvZ[b0 + P_L] > NEARZ) {
-        if (pvZ[b1 + P_R] > NEARZ) {
+    if (pvZ[b0 + P_L] > NEARZI) {
+        if (pvZ[b1 + P_R] > NEARZI) {
             let w = sgW[i];
             let t = (caOff[c] + w) / (2 * w);
             let hw = 1.05 / (2 * w);
@@ -947,7 +960,7 @@ function drawCar(c, tier) {
             }
             let s = CARBASE + v;
             let vz = b20 * lx + b21 * ly + b22 * lz + i2;
-            pvZ[s] = vz / ZU;
+            pvZ[s] = vz;
             let vx = b00 * lx + b01 * ly + b02 * lz + i0;
             let vy = b10 * lx + b11 * ly + b12 * lz + i1;
             if (vz > NEARZI) {
@@ -1029,14 +1042,15 @@ function drawCarFar(c) {
     wvY[s] = Math.round((caY[c] + 0.45) * WU);
     wvZ[s] = Math.round(caZ[c] * WU);
     projSlots(s, s);
-    if (pvZ[s] > NEARZ) {
-        let r = camScale / pvZ[s];
+    let zm = pvZ[s] / ZU;
+    if (zm > NEARZ) {
+        let r = camScale / zm;
         let hx = r * 0.95;
         let hy = r * 0.38;
         let x = psX[s] / QS;
         let y = psY[s] / QS;
         let col = caCol[c];
-        let t = pvZ[s] / fogFar;
+        let t = zm / fogFar;
         if (t > 1) { t = 1; }
         qHex = rgb(Math.round(lvR[col] + (skyR - lvR[col]) * t), Math.round(lvG[col] + (skyG - lvG[col]) * t), Math.round(lvB[col] + (skyB - lvB[col]) * t));
         fill4(x - hx, y - hy, x + hx, y - hy, x + hx, y + hy, x - hx, y + hy, qHex);
@@ -1153,19 +1167,14 @@ function drawScn(o, hi) {
         fA = fB + 1;
         fB = gtFN[t];
     }
-    let cy = scC[o];
-    let sy = scS[o];
-    // v4.0: sized along each of its own axes (a real building is a unit box
-    // stretched to its footprint and height)
-    let sk = scK[o];
-    let ky = scKY[o];
-    let kz = scKZ[o];
     let dxi = scXi[o] - camXi;
     let dyi = scYi[o] - camYi;
     let dzi = scZi[o] - camZi;
     // bounding sphere against the view frustum: an object wholly off screen
     // costs a handful of operations instead of a model's worth of vertices
-    let rr = gtR[t] * scKR[o] * BS;
+    // (v6.1: all whole numbers - the slopes x65536 - since a decimal
+    // product is several times dearer in tessvm)
+    let rr = scRi[o];
     let i2 = dxi * cfXi + dyi * cfYi + dzi * cfZi;
     let i0 = dxi * crXi + dyi * crYi + dzi * crZi;
     let i1 = dxi * cuXi + dyi * cuYi + dzi * cuZi;
@@ -1173,12 +1182,29 @@ function drawScn(o, hi) {
     if (i2 < 0 - rr) { vis = 0; }
     // v4.0: too small to matter - a few pixels across at this distance (the
     // real circuits have hundreds of houses and trees far off)
-    if (rr * scnSz < i2) { vis = 0; }
-    if (i0 - frKX * i2 > rr * frFX) { vis = 0; }
-    if (0 - i0 - frKX * i2 > rr * frFX) { vis = 0; }
-    if (i1 - frKY * i2 > rr * frFY) { vis = 0; }
-    if (0 - i1 - frKY * i2 > rr * frFY) { vis = 0; }
+    else if (rr * scnSz < i2) { vis = 0; }
+    else {
+        let kx = frKXq * i2;
+        let rx = rr * frFXq;
+        let i0q = i0 * 65536;
+        if (i0q - kx > rx) { vis = 0; }
+        else if (0 - i0q - kx > rx) { vis = 0; }
+        else {
+            let ky2 = frKYq * i2;
+            let ry = rr * frFYq;
+            let i1q = i1 * 65536;
+            if (i1q - ky2 > ry) { vis = 0; }
+            else if (0 - i1q - ky2 > ry) { vis = 0; }
+        }
+    }
     if (vis > 0) {
+        let cy = scC[o];
+        let sy = scS[o];
+        // v4.0: sized along each of its own axes (a real building is a unit box
+        // stretched to its footprint and height)
+        let sk = scK[o];
+        let ky = scKY[o];
+        let kz = scKZ[o];
         // model (whole cm) straight to view space (1/ZU m): model x runs along
         // (cy, 0, -sy) in the world, z along (sy, 0, cy)
         let m00 = Math.round(sk * (crXi * cy - crZi * sy)); let m01 = Math.round(ky * crYi); let m02 = Math.round(kz * (crXi * sy + crZi * cy));
@@ -1192,7 +1218,7 @@ function drawScn(o, hi) {
             let gz = gvZ[g];
             let sl = SCNBASE + v;
             let vz = m20 * gx + m21 * gy + m22 * gz + i2;
-            pvZ[sl] = vz / ZU;
+            pvZ[sl] = vz;
             let vx = m00 * gx + m01 * gy + m02 * gz + i0;
             let vy = m10 * gx + m11 * gy + m12 * gz + i1;
             if (vz > NEARZI) {
@@ -1210,14 +1236,18 @@ function drawScn(o, hi) {
             // v4.0: a box shows the camera at most two walls and its roof;
             // which ones is plain from where the camera stands in the box's
             // own frame, so the rest never reach quad()
-            let lx = dzi * sy - dxi * cy;
-            let lz = 0 - dxi * sy - dzi * cy;
+            let syq = scSi[o];
+            let cyq = scCi[o];
+            let lx = dzi * syq - dxi * cyq;
+            let lz = 0 - dxi * syq - dzi * cyq;
+            let hz = scKZq[o];
+            let hx = scKq[o];
             let g = f0 + fA - 1;
-            if (lz > kz * 50) { quad(SCNBASE + gfA[g + 1], SCNBASE + gfB[g + 1], SCNBASE + gfC[g + 1], SCNBASE + gfD[g + 1], mb + gfM[g + 1]); }
-            if (lx > sk * 50) { quad(SCNBASE + gfA[g + 2], SCNBASE + gfB[g + 2], SCNBASE + gfC[g + 2], SCNBASE + gfD[g + 2], mb + gfM[g + 2]); }
-            if (lz < 0 - kz * 50) { quad(SCNBASE + gfA[g + 3], SCNBASE + gfB[g + 3], SCNBASE + gfC[g + 3], SCNBASE + gfD[g + 3], mb + gfM[g + 3]); }
-            if (lx < 0 - sk * 50) { quad(SCNBASE + gfA[g + 4], SCNBASE + gfB[g + 4], SCNBASE + gfC[g + 4], SCNBASE + gfD[g + 4], mb + gfM[g + 4]); }
-            if (0 - dyi > ky * 100) { quad(SCNBASE + gfA[g + 5], SCNBASE + gfB[g + 5], SCNBASE + gfC[g + 5], SCNBASE + gfD[g + 5], mb + gfM[g + 5]); }
+            if (lz > hz) { quad(SCNBASE + gfA[g + 1], SCNBASE + gfB[g + 1], SCNBASE + gfC[g + 1], SCNBASE + gfD[g + 1], mb + gfM[g + 1]); }
+            if (lx > hx) { quad(SCNBASE + gfA[g + 2], SCNBASE + gfB[g + 2], SCNBASE + gfC[g + 2], SCNBASE + gfD[g + 2], mb + gfM[g + 2]); }
+            if (lz < 0 - hz) { quad(SCNBASE + gfA[g + 3], SCNBASE + gfB[g + 3], SCNBASE + gfC[g + 3], SCNBASE + gfD[g + 3], mb + gfM[g + 3]); }
+            if (lx < 0 - hx) { quad(SCNBASE + gfA[g + 4], SCNBASE + gfB[g + 4], SCNBASE + gfC[g + 4], SCNBASE + gfD[g + 4], mb + gfM[g + 4]); }
+            if (0 - dyi > scKYq[o]) { quad(SCNBASE + gfA[g + 5], SCNBASE + gfB[g + 5], SCNBASE + gfC[g + 5], SCNBASE + gfD[g + 5], mb + gfM[g + 5]); }
         } else {
         let f = fA;
         while (f <= fB) {
@@ -1285,8 +1315,9 @@ function drawSmokeIn(i) {
                 let s = SCRBASE + 1;
                 wvX[s] = Math.round(smX[k] * WU); wvY[s] = Math.round(smY[k] * WU); wvZ[s] = Math.round(smZ[k] * WU);
                 projSlots(s, s);
-                if (pvZ[s] > SMOKEZ) {
-                    let r = smS[k] * camQ / pvZ[s];
+                let zm = pvZ[s] / ZU;
+                if (zm > SMOKEZ) {
+                    let r = smS[k] * camQ / zm;
                     if (r > 12 * QS) { r = 12 * QS; }
                     let x = psX[s];
                     let y = psY[s];
@@ -1294,7 +1325,7 @@ function drawSmokeIn(i) {
                     if (gfx > 1) {
                         // v7: a see-through puff that thins out as it fades
                         // (the pen's transparency applies to fills as well)
-                        let fl = Math.floor(pvZ[s] * fogK);
+                        let fl = Math.floor(pvZ[s] / fogDiv);
                         if (fl > NFOG - 1) { fl = NFOG - 1; }
                         let tr = 30 + Math.round((1 - smL[k]) * 12) * 5;
                         if (tr != penTr) { penTr = tr; penAlpha(tr); }
@@ -1473,21 +1504,39 @@ function fillOct(x, y, r, col) {
     fillStop();
 }
 
+// ---- v6.1 the loading card --------------------------------------------------
+function drawLoad() {
+    eraseAll();
+    penAlpha(0);
+    penTr = 0;
+    fill4(0 - 245, 140, 245, 140, 245, 0 - 140, 0 - 245, 0 - 140, '#0b0e14');
+    // a bar that fills over the two ticks (the second one does the work)
+    fill4(0 - 120, 0 - 20, 120, 0 - 20, 120, 0 - 26, 0 - 120, 0 - 26, '#1c2230');
+    let w = 0 - 120 + 120 * ldT;
+    if (w < 0 - 120) { w = 0 - 120; }
+    if (w > 120) { w = 120; }
+    fill4(0 - 120, 0 - 20, w, 0 - 20, w, 0 - 26, 0 - 120, 0 - 26, '#e10600');
+}
+
 // ---- rev lights: 15 LEDs, green / red / blue, above the speed readout -----
 function drawRev() {
     let n = (caRpm[1] - 8600) / 220;
     if (n < 0) { n = 0; }
     fill4(0 - 226, 0 - 78, 0 - 118, 0 - 78, 0 - 118, 0 - 88, 0 - 226, 0 - 88, '#101216');
     let k = 1;
+    let xt = 0 - 2250;
     while (k <= 15) {
-        let x = 0 - 225 + (k - 1) * 7.1;
+        // (v6.1: in tenths, divided once: a decimal x + 5.6 is slow in tessvm)
+        let x = xt / 10;
+        let x2 = (xt + 56) / 10;
+        xt = xt + 71;
         let col = '#23262c';
         if (k <= n) {
             col = '#34e05a';
             if (k > 5) { col = '#ff3030'; }
             if (k > 10) { col = '#3a7bff'; }
         }
-        fill4(x, 0 - 80, x + 5.6, 0 - 80, x + 5.6, 0 - 86, x, 0 - 86, col);
+        fill4(x, 0 - 80, x2, 0 - 80, x2, 0 - 86, x, 0 - 86, col);
         k = k + 1;
     }
 }
@@ -1509,7 +1558,7 @@ function drawTurntable(c) {
         projSlots(SCNBASE + 1, SCNBASE + 24);
         let ok = 1;
         k = 1;
-        while (k <= 24) { if (pvZ[SCNBASE + k] <= NEARZ) { ok = 0; } k = k + 1; }
+        while (k <= 24) { if (pvZ[SCNBASE + k] <= NEARZI) { ok = 0; } k = k + 1; }
         if (ok > 0) {
             fillColorHex(pass > 0 ? '#1b212b' : '#9aa6b8');
             goto(psX[SCNBASE + 1] / QS, psY[SCNBASE + 1] / QS);
