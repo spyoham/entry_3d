@@ -17,6 +17,7 @@ const ST_QRES = 10;         // v7: qualifying results
 const ST_REPLAY = 11;       // v7: replay with TV cameras (HIGH / ULTRA)
 const ST_TUNE = 12;         // v8: the garage (upgrades and setup)
 const ST_PROF = 13;         // v8: profile, records, achievements, ranking
+const ST_PHOTO = 15;        // v6.0: photo mode (a free camera over a paused race or replay)
 
 const M_GP = 1;             // game modes
 const M_CH = 2;
@@ -182,6 +183,7 @@ function initCars(ct) {
 }
 
 function setupRace(tk, ct) {
+    pmOn = 0;
     buildTrack(tk);
     selTrk = tk;
     nLaps = lapOpt[lapSel];
@@ -496,7 +498,8 @@ function lapGhost(tk, lt) {
                 pbBase(tk);
                 let b = oPB;
                 let n = 1;
-                if (oPB2 > 0) { while (n <= grN) { pbX2[b + n] = grX[n]; pbZ2[b + n] = grZ[n]; pbW2[b + n] = grW[n]; n = n + 1; } }
+                if (oPB2 > 1) { while (n <= grN) { pbX3[b + n] = grX[n]; pbZ3[b + n] = grZ[n]; pbW3[b + n] = grW[n]; n = n + 1; } }
+                else if (oPB2 > 0) { while (n <= grN) { pbX2[b + n] = grX[n]; pbZ2[b + n] = grZ[n]; pbW2[b + n] = grW[n]; n = n + 1; } }
                 else { while (n <= grN) { pbX[b + n] = grX[n]; pbZ[b + n] = grZ[n]; pbW[b + n] = grW[n]; n = n + 1; } }
                 pbN[tk] = grN;
                 lgOk = 1;
@@ -507,12 +510,14 @@ function lapGhost(tk, lt) {
 }
 
 // v4.4: where circuit tk's best-lap ghost lives: pb* for 1-8, pb*2 after
+// (v6.0: pb*2 for 9-16, pb*3 for 17 on; oPB2 says which: 0, 1, 2)
 let oPB = 0;
 let oPB2 = 0;
 function pbBase(tk) {
-    oPB2 = tk > 8 ? 1 : 0;
+    oPB2 = 0;
     oPB = (tk - 1) * PBN;
-    if (oPB2 > 0) { oPB = (tk - 9) * PBN; }
+    if (tk > 16) { oPB2 = 2; oPB = (tk - 17) * PBN; }
+    else if (tk > 8) { oPB2 = 1; oPB = (tk - 9) * PBN; }
 }
 
 function loadPbGhost(tk) {
@@ -521,7 +526,8 @@ function loadPbGhost(tk) {
     pbBase(tk);
     let b = oPB;
     let n = 1;
-    if (oPB2 > 0) { while (n <= ghN) { ghX[n] = pbX2[b + n]; ghZ[n] = pbZ2[b + n]; ghW[n] = pbW2[b + n]; n = n + 1; } }
+    if (oPB2 > 1) { while (n <= ghN) { ghX[n] = pbX3[b + n]; ghZ[n] = pbZ3[b + n]; ghW[n] = pbW3[b + n]; n = n + 1; } }
+    else if (oPB2 > 0) { while (n <= ghN) { ghX[n] = pbX2[b + n]; ghZ[n] = pbZ2[b + n]; ghW[n] = pbW2[b + n]; n = n + 1; } }
     else { while (n <= ghN) { ghX[n] = pbX[b + n]; ghZ[n] = pbZ[b + n]; ghW[n] = pbW[b + n]; n = n + 1; } }
 }
 

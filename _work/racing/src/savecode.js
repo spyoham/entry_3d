@@ -173,7 +173,9 @@ function svDecode(s) {
                 if (nF == 35) { nOk = 1; }
                 // v4.0 codes: + the circuits version (36); v4.4: + circuits 9-14 (48)
                 if (nF == 36) { nOk = 1; }
-                if (nF == 36 + 2 * (NTRK - 8)) { nOk = 1; }
+                if (nF == 48) { nOk = 1; }
+                // v6.0: + circuits 15-19 (58)
+                if (nF == 58) { nOk = 1; }
                 if (nOk > 0) {
                     svSane();
                     if (oSvOk > 0) {

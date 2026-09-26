@@ -40,6 +40,7 @@ function pollAction() {
     if (key(70)) { if (pkSt[17] < 1) { if (k == 0) { k = 70; } } } else { pkSt[17] = 0; }
     if (key(49)) { if (pkSt[18] < 1) { if (k == 0) { k = 49; } } } else { pkSt[18] = 0; }
     if (key(50)) { if (pkSt[19] < 1) { if (k == 0) { k = 50; } } } else { pkSt[19] = 0; }
+    if (key(79)) { if (pkSt[22] < 1) { if (k == 0) { k = 79; } } } else { pkSt[22] = 0; }
     actKey = 0;
     if (k != keyPrev) {
         keyPrev = k;
@@ -162,7 +163,14 @@ function menuChange(d) {
         applyWeather();
         buildTrack(selTrk);
     }
-    else if (menuSel == 10) { gfx = mod(gfx - 1 + d + NGFX, NGFX) + 1; buildTrack(selTrk); }
+    else if (menuSel == 10) {
+        // (v6.0: 4 = AUTO, built as ULTRA)
+        gfxSel = mod(gfxSel - 1 + d + NGFX + 1, NGFX + 1) + 1;
+        gfx = gfxSel > NGFX ? NGFX : gfxSel;
+        gfQ = 1;
+        afCap = 1;
+        buildTrack(selTrk);
+    }
     else if (menuSel == 11) { sndSel = mod(sndSel - 1 + d + 2, 2) + 1; }
 }
 
@@ -334,6 +342,47 @@ function realTimeScale() {
         rtN = 0;
     }
 }
+// v6.0 graphics AUTO: frames counted per clock second (the same in Entry and
+// in tessvm, whose own clock runs on ticks). Two slow seconds in a row cut
+// the distances a step; five quick ones give a little back, but never past a
+// step that was too slow. Below the last step ULTRA's extras go (gfx 2).
+let afSec = 0 - 1;
+let afN = 0;
+let afFps = 60;
+let afBad = 0;
+let afGood = 0;
+let afCap = 1;
+function gfAutoStep() {
+    afN = afN + 1;
+    let sc = dateSec();
+    if (sc != afSec) {
+        if (afSec >= 0) {
+            afFps = afN;
+            let racing = 0;
+            if (raceState == ST_RACE) { racing = 1; } else if (raceState == ST_QUALI) { racing = 1; } else if (raceState == ST_FORM) { racing = 1; }
+            if (gfxSel > 3) { if (racing > 0) {
+                if (afFps < 48) { afBad = afBad + 1; afGood = 0; }
+                else if (afFps >= 57) { afGood = afGood + 1; afBad = 0; }
+                else { afBad = 0; afGood = 0; }
+                if (afBad >= 2) {
+                    afBad = 0;
+                    if (gfQ <= 0.45) { gfx = 2; }
+                    afCap = gfQ - 0.05;
+                    gfQ = Math.max(0.45, Math.round((gfQ - 0.1) * 100) / 100);
+                }
+                if (afGood >= 5) {
+                    afGood = 0;
+                    if (gfQ < afCap) { gfQ = Math.min(afCap, Math.round((gfQ + 0.05) * 100) / 100); }
+                    else if (afCap < 1) { afCap = Math.round((afCap + 0.05) * 100) / 100; }
+                    if (gfQ >= 0.7) { gfx = NGFX; }
+                }
+            } }
+        }
+        afSec = sc;
+        afN = 0;
+    }
+}
+
 function frameClock() {
     let t = timer();
     let raw = t - lastT;
@@ -382,6 +431,7 @@ on('start', 'pen3', function () {
     simT = lastT;
     for (;;) {
         frameClock();
+        gfAutoStep();
         pollAction();
         if (raceState == ST_EDIT) {
             if (actKey == 27) { toMenu(); }
@@ -421,8 +471,12 @@ on('start', 'pen3', function () {
             else if (actKey == 82) { restartRace(); }
             else if (actKey == 77) { toMenu(); }
             else if (actKey == 86) { enterReplay(); }
+            else if (actKey == 79) { photoEnter(); }
+        } else if (raceState == ST_PHOTO) {
+            photoStep();
         } else if (raceState == ST_REPLAY) {
-            if (actKey == 13) { exitReplay(); }
+            if (actKey == 79) { photoEnter(); }
+            else if (actKey == 13) { exitReplay(); }
             else if (actKey == 27) { exitReplay(); }
             else if (actKey == 86) { exitReplay(); }
             else {

@@ -327,6 +327,85 @@ function exitReplay() {
     if (raceState == ST_PAUSE) { renderWorld(); drawPausePanel(); }
 }
 
+// ---- v6.0 photo mode ------------------------------------------------------------
+// From the pause screen or a replay (O): the world stands still and the camera
+// flies free - W/S A/D move, Q/E down and up, the arrows turn and tilt, Z/X
+// zoom, SHIFT is quicker, SPACE hides the help, O or ESC goes back.
+let phPrev = 0;
+let phX = 0; let phY = 0; let phZ = 0;
+let phYaw = 0; let phPitch = 0; let phFov = 70;
+let phX0 = 0; let phZ0 = 0;
+let phHelp = 1;
+function photoEnter() {
+    phPrev = raceState;
+    raceState = ST_PHOTO;
+    phX = camX; phY = camY; phZ = camZ;
+    phYaw = camYaw; phPitch = camPitch; phFov = camFov;
+    phX0 = camX; phZ0 = camZ;
+    phHelp = 1;
+}
+function photoExit() {
+    raceState = phPrev;
+    if (raceState == ST_PAUSE) {
+        // back to the frame the race stopped on
+        let ks = shakeT;
+        shakeT = 0;
+        updateCam();
+        shakeT = ks;
+        renderWorld();
+        drawPausePanel();
+    }
+}
+// the ring nearest the camera, for the ring scan (the camera is not on a car)
+function photoSeg() {
+    let xi = Math.round(phX * WU);
+    let zi = Math.round(phZ * WU);
+    let best = camSeg;
+    let bd = 0 - 1;
+    let i = 1;
+    while (i <= NSEG) {
+        let dx = xi - sgXi[i];
+        let dz = zi - sgZi[i];
+        let d = dx * dx + dz * dz;
+        if (bd < 0) { bd = d; best = i; } else if (d < bd) { bd = d; best = i; }
+        i = i + 2;
+    }
+    camSeg = best;
+}
+function photoStep() {
+    if (actKey == 79) { photoExit(); }
+    else if (actKey == 27) { photoExit(); }
+    else {
+        if (actKey == 32) { phHelp = 1 - phHelp; }
+        let mv = (key(16) ? 45 : 12) * dt;
+        let fx = sind(phYaw);
+        let fz = cosd(phYaw);
+        if (key(87)) { phX = phX + fx * mv; phZ = phZ + fz * mv; }
+        if (key(83)) { phX = phX - fx * mv; phZ = phZ - fz * mv; }
+        if (key(68)) { phX = phX + fz * mv; phZ = phZ - fx * mv; }
+        if (key(65)) { phX = phX - fz * mv; phZ = phZ + fx * mv; }
+        if (key(69)) { phY = phY + mv; }
+        if (key(81)) { phY = phY - mv; }
+        if (key(37)) { phYaw = phYaw - 70 * dt; }
+        if (key(39)) { phYaw = phYaw + 70 * dt; }
+        if (key(38)) { phPitch = Math.min(80, phPitch + 45 * dt); }
+        if (key(40)) { phPitch = Math.max(0 - 80, phPitch - 45 * dt); }
+        if (key(90)) { phFov = Math.max(20, phFov - 35 * dt); }
+        if (key(88)) { phFov = Math.min(100, phFov + 35 * dt); }
+        // not too far from where it started, and not under the world
+        let dx = phX - phX0;
+        let dz = phZ - phZ0;
+        let d = Math.sqrt(dx * dx + dz * dz);
+        if (d > 700) { phX = phX0 + dx * 700 / d; phZ = phZ0 + dz * 700 / d; }
+        if (phY < 0 - 30) { phY = 0 - 30; }
+        if (phY > 500) { phY = 500; }
+        camX = phX; camY = phY; camZ = phZ;
+        camYaw = phYaw; camPitch = phPitch; camRoll = 0; camFov = phFov;
+        photoSeg();
+        renderWorld();
+    }
+}
+
 // put every car where it was at playback time rpT
 function replayPose() {
     let fi = rpT / RPDT;

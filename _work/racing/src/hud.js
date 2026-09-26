@@ -215,13 +215,21 @@ function updateHud() {
             }
             tx(35, str(ctlCnt[EDTRK], ' NODES  -  ', strlen(shCode), ' CHARACTERS  -  K CLOSES'), 0, 70 - shLines * 16 - 4, 9, C_DIM, 0);
         }
+    } else if (raceState == ST_PHOTO) {
+        // v6.0 photo mode: nothing on the picture but the help (SPACE hides it)
+        if (phHelp > 0) {
+            tx(9, 'PHOTO MODE', 0 - 232, 122, 11, C_WHITE, 1);
+            tx(10, 'W/S A/D MOVE   Q/E DOWN/UP   ARROWS TURN/TILT   Z/X ZOOM   SHIFT FAST', 0, 0 - 112, 8, C_WHITE, 0);
+            tx(11, 'SPACE HIDE THIS   O BACK', 0, 0 - 124, 8, C_DIM, 0);
+        } else { txOff(9); txOff(10); txOff(11); }
     } else if (raceState == ST_PAUSE) {
         tx(9, 'PAUSED', 0, 44, 32, C_WHITE, 0);
         tx(10, str(trkName[selTrk], '   ', modeName[gMode], '   ', ruleName[rules]), 0, 16, 11, '#e0e6f2', 0);
         tx(24, 'P   RESUME', 0, 0 - 6, 12, C_WHITE, 0);
         tx(25, 'R   RESTART', 0, 0 - 24, 12, C_WHITE, 0);
         tx(26, 'M   MAIN MENU', 0, 0 - 42, 12, C_WHITE, 0);
-        if (gfx > 1) { tx(27, 'V   REPLAY', 0, 0 - 60, 12, C_WHITE, 0); }
+        if (gfx > 1) { tx(27, 'V   REPLAY      O   PHOTO', 0, 0 - 60, 12, C_WHITE, 0); }
+        else { tx(27, 'O   PHOTO', 0, 0 - 60, 12, C_WHITE, 0); }
         // v3.0: the cockpit keys of the realistic rules
         if (rules == R_SIM) { tx(28, 'F FUEL MIX   1/2 BRAKE BALANCE   I TYRE CHECK   T PIT TYRE   Q/SHIFT ERS', 0, 0 - 84, 8, C_DIM, 0); }
     } else if (raceState == ST_QRES) {
@@ -487,5 +495,5 @@ function hudReplay() {
     tx(11, cn, 0 - 120, 110, 8, C_DIM, 1);
     fmtSec(rpT);
     tx(13, str(oSec, ' / ', Math.round((rpN - 1) * RPDT), ' s'), 150, 118, 9, C_WHITE, 1);
-    tx(12, 'LEFT/RIGHT car   C camera   SPACE pause   ENTER back', 0, 0 - 123, 9, '#c9d1de', 0);
+    tx(12, 'LEFT/RIGHT car   C camera   SPACE pause   O photo   ENTER back', 0, 0 - 123, 9, '#c9d1de', 0);
 }

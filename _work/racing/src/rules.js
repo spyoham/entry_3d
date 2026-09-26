@@ -462,7 +462,10 @@ function pitStep(c) {
         }
         if (sgPit[s] < 1) { caPit[c] = 0; }
     } else if (st == 3) {
-        caPitT[c] = caPitT[c] - dt;
+        // (v6.0: the player's stop runs on the wheel gun until the fourth
+        // wheel is on; then what is left of it - a new nose - runs down)
+        if (c == 1) { if (pmOn > 0) { pmStep(); } else { caPitT[c] = caPitT[c] - dt; } }
+        else { caPitT[c] = caPitT[c] - dt; }
         caVX[c] = 0;
         caVZ[c] = 0;
         caHold[c] = 1;
@@ -495,12 +498,104 @@ function pitStop(c) {
     caWing[c] = 0;
     caStops[c] = caStops[c] + 1;
     if (c == 1) {
-        if (t < 2.5) { unlock(8); }
-        fmtSec(t);
-        setRadio(str('PIT STOP  ', oSec, ' s  -  ', tyName[ny]), t + 1);
+        // v6.0: the wheel gun (pmStep) decides how long it takes
+        pmOn = 1;
+        pmW = 1;
+        pmT = 0;
+        pmTot = 0;
+        pmMin = t - 2.2;
+        if (pmMin < 0.35) { pmMin = 0.35; }
+        pmKey = 1;
+        pmBusy = 0;
+        pmR1 = 0; pmR2 = 0; pmR3 = 0; pmR4 = 0;
+        caPitT[c] = 99;
+        pmTyre = ny;
+        setRadio('WHEEL GUN - SPACE IN THE GREEN', 4);
         // offer the same compound again next time unless the weather changes
         pickTyre(1, lapsLeft);
         if (oTy >= TY_I) { pitNext = oTy; }
+    }
+}
+
+// ---- v6.0: the player's pit stop, a mini game ----------------------------------------
+// The wheel gun: for each of the four wheels a marker sweeps a bar, and SPACE
+// with it in the green fits the wheel - dead centre quickest, the edge of the
+// green a little slower, outside it a cross-threaded nut. Doing nothing, the
+// crew gets there on its own, slowly. The stop is over when the fourth wheel
+// is on and the jacks drop (or, with a new nose to fit, when that is done).
+let pmOn = 0;
+let pmW = 0;               // the wheel being fitted, 1..4
+let pmT = 0;               // time on this wheel
+let pmTot = 0;             // time stationary so far
+let pmMin = 0;             // what the stop takes whatever the gun does (a new nose)
+let pmPos = 0;             // the marker, 0..1 across the bar
+let pmBusy = 0;            // the crew still at the last wheel (a slow nut takes a while)
+let pmKey = 0;
+let pmTyre = 1;
+let pmR1 = 0; let pmR2 = 0; let pmR3 = 0; let pmR4 = 0;    // 1 perfect, 2 good, 3 slow
+const PMSWEEP = 330;       // degrees of the marker's swing a second
+function pmStep() {
+    pmTot = pmTot + dt;
+    let fire = 0;
+    if (key(32)) { if (pmKey < 1) { fire = 1; } pmKey = 1; } else { pmKey = 0; }
+    if (pmBusy > 0) {
+        pmBusy = pmBusy - dt;
+        if (pmBusy <= 0) { pmBusy = 0; pmT = 0; if (pmW > 4) { pmDone(); } }
+    } else {
+        pmT = pmT + dt;
+        pmPos = 0.5 - 0.5 * cosd(pmT * PMSWEEP);
+        let res = 0;
+        if (fire > 0) {
+            let off = Math.abs(pmPos - 0.5);
+            if (off < 0.07) { res = 1; }
+            else if (off < 0.17) { res = 2; }
+            else { res = 3; }
+        } else if (pmT > 1.0) { res = 3; }
+        if (res > 0) {
+            // the crew moving round the car to the next wheel, longer after a
+            // nut that fought back
+            pmBusy = 0.2;
+            if (res == 2) { pmBusy = 0.45; }
+            if (res == 3) { if (fire > 0) { pmBusy = 1.1; } }
+            if (pmW == 1) { pmR1 = res; } else if (pmW == 2) { pmR2 = res; } else if (pmW == 3) { pmR3 = res; } else { pmR4 = res; }
+            pmW = pmW + 1;
+            pmPos = 0;
+        }
+    }
+}
+// the fourth wheel is on: the jacks drop (or the new nose is still going on)
+function pmDone() {
+    pmOn = 0;
+    let left = pmMin - pmTot;
+    if (left < 0.35) { left = 0.35; }
+    caPitT[1] = left;
+    let t = pmTot + left;
+    if (t < 2.5) { unlock(8); }
+    fmtSec(t);
+    let how = 'GOOD STOP';
+    if (pmR1 + pmR2 + pmR3 + pmR4 <= 4) { how = 'PERFECT STOP'; }
+    else if (t > 4) { how = 'SLOW STOP'; }
+    setRadio(str(how, '  ', oSec, ' s  -  ', tyName[pmTyre]), left + 2);
+}
+// the gun's bar and the four wheels, over the race picture
+function drawPitGame() {
+    box(0 - 118, 0 - 88, 118, 0 - 136, '#10151d');
+    box(0 - 118, 0 - 88, 118, 0 - 91, C_RED);
+    let x0 = 0 - 100;
+    box(x0, 0 - 100, 100, 0 - 112, '#2a3240');
+    box(x0 + 200 * 0.33, 0 - 100, x0 + 200 * 0.67, 0 - 112, '#2e7d4a');
+    box(x0 + 200 * 0.43, 0 - 100, x0 + 200 * 0.57, 0 - 112, '#3dff6e');
+    let mx = x0 + 200 * pmPos;
+    box(mx - 2, 0 - 96, mx + 2, 0 - 116, C_WHITE);
+    let k = 1;
+    while (k <= 4) {
+        let r = pmR1;
+        if (k == 2) { r = pmR2; } else if (k == 3) { r = pmR3; } else if (k == 4) { r = pmR4; }
+        let col = '#3a4452';
+        if (r == 1) { col = '#3dff6e'; } else if (r == 2) { col = C_GOLD; } else if (r == 3) { col = '#ff4a3a'; }
+        else if (k == pmW) { col = mod(Math.floor(gt * 6), 2) < 1 ? C_WHITE : '#6a7486'; }
+        fillOct(0 - 45 + (k - 1) * 30, 0 - 125, 6, col);
+        k = k + 1;
     }
 }
 

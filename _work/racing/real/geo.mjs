@@ -20,6 +20,12 @@ export const CIRCUITS = [
     { slot: 12, id: 'at-1969', pad: 400 },  // Red Bull Ring
     { slot: 13, id: 'nl-1948', pad: 400 },  // Zandvoort
     { slot: 14, id: 'us-2012', pad: 400 },  // Circuit of the Americas
+    // v6.0: five more
+    { slot: 15, id: 'it-1953', pad: 400 },  // Imola (Enzo e Dino Ferrari)
+    { slot: 16, id: 'hu-1986', pad: 400 },  // Hungaroring
+    { slot: 17, id: 'es-1991', pad: 400 },  // Barcelona-Catalunya
+    { slot: 18, id: 'sa-2021', pad: 420 },  // Jeddah Corniche
+    { slot: 19, id: 'us-2023', pad: 420 },  // Las Vegas Strip
 ];
 
 export function makeProj(lon0, lat0) {

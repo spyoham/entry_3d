@@ -40,7 +40,8 @@ for (const sh of o.shots) {
   const X = (await V('caX'))[o.car], Y = (await V('caY'))[o.car], Z = (await V('caZ'))[o.car], yaw = (await V('caYaw'))[o.car];
   const r = Math.PI / 180, fx = Math.sin(yaw * r), fz = Math.cos(yaw * r), rx = fz, rz = -fx;
   const cx = X - fx * sh.back + rx * sh.side, cz = Z - fz * sh.back + rz * sh.side, cy = Y + sh.up;
-  const ax = X + fx * (sh.ahead || 0), az = Z + fz * (sh.ahead || 0), ay = Y + (sh.lookUp ?? 0.8);
+  let ax = X + fx * (sh.ahead || 0), az = Z + fz * (sh.ahead || 0), ay = Y + (sh.lookUp ?? 0.8);
+  if (sh.look) [ax, az, ay] = sh.look;   // a world point to aim at instead of the car
   const dx = ax - cx, dz = az - cz;
   const camYaw = Math.atan2(dx, dz) / r + (sh.yawOff || 0);
   const camPitch = Math.atan2(ay - cy, Math.hypot(dx, dz)) / r + (sh.pitchOff || 0);

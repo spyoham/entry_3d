@@ -25,9 +25,11 @@ let RT_S13 = '|'; let RT_S14 = '|'; let RT_S15 = '|'; let RT_S16 = '|';
 let RT_L1 = '|'; let RT_L2 = '|'; let RT_L3 = '|'; let RT_L4 = '|';
 let RT_L5 = '|'; let RT_L6 = '|'; let RT_L7 = '|'; let RT_L8 = '|';
 let RT_L9 = '|'; let RT_L10 = '|'; let RT_L11 = '|'; let RT_L12 = '|'; let RT_L13 = '|'; let RT_L14 = '|';
+let RT_L15 = '|'; let RT_L16 = '|'; let RT_L17 = '|'; let RT_L18 = '|'; let RT_L19 = '|';
 let RT_W1 = '|'; let RT_W2 = '|'; let RT_W3 = '|'; let RT_W4 = '|';
 let RT_W5 = '|'; let RT_W6 = '|'; let RT_W7 = '|'; let RT_W8 = '|';
 let RT_W9 = '|'; let RT_W10 = '|'; let RT_W11 = '|'; let RT_W12 = '|'; let RT_W13 = '|'; let RT_W14 = '|';
+let RT_W15 = '|'; let RT_W16 = '|'; let RT_W17 = '|'; let RT_W18 = '|'; let RT_W19 = '|';
 // set to 'ok' by the first save ever: seeing it means the server's values
 // have arrived (Entry sends them a moment after the work starts)
 let RT_SYNC = '-';
@@ -54,25 +56,29 @@ function rtGetK(i) {
     if (i == 1) { oRT = RT_L1; } else if (i == 2) { oRT = RT_L2; } else if (i == 3) { oRT = RT_L3; } else if (i == 4) { oRT = RT_L4; }
     else if (i == 5) { oRT = RT_L5; } else if (i == 6) { oRT = RT_L6; } else if (i == 7) { oRT = RT_L7; } else if (i == 8) { oRT = RT_L8; }
     else if (i == 9) { oRT = RT_L9; } else if (i == 10) { oRT = RT_L10; } else if (i == 11) { oRT = RT_L11; } else if (i == 12) { oRT = RT_L12; }
-    else if (i == 13) { oRT = RT_L13; } else { oRT = RT_L14; }
+    else if (i == 13) { oRT = RT_L13; } else if (i == 14) { oRT = RT_L14; }
+    else if (i == 15) { oRT = RT_L15; } else if (i == 16) { oRT = RT_L16; } else if (i == 17) { oRT = RT_L17; } else if (i == 18) { oRT = RT_L18; } else { oRT = RT_L19; }
 }
 function rtSetK(i, v) {
     if (i == 1) { RT_L1 = v; } else if (i == 2) { RT_L2 = v; } else if (i == 3) { RT_L3 = v; } else if (i == 4) { RT_L4 = v; }
     else if (i == 5) { RT_L5 = v; } else if (i == 6) { RT_L6 = v; } else if (i == 7) { RT_L7 = v; } else if (i == 8) { RT_L8 = v; }
     else if (i == 9) { RT_L9 = v; } else if (i == 10) { RT_L10 = v; } else if (i == 11) { RT_L11 = v; } else if (i == 12) { RT_L12 = v; }
-    else if (i == 13) { RT_L13 = v; } else { RT_L14 = v; }
+    else if (i == 13) { RT_L13 = v; } else if (i == 14) { RT_L14 = v; }
+    else if (i == 15) { RT_L15 = v; } else if (i == 16) { RT_L16 = v; } else if (i == 17) { RT_L17 = v; } else if (i == 18) { RT_L18 = v; } else { RT_L19 = v; }
 }
 function rtGetG(i) {
     if (i == 1) { oRT = RT_W1; } else if (i == 2) { oRT = RT_W2; } else if (i == 3) { oRT = RT_W3; } else if (i == 4) { oRT = RT_W4; }
     else if (i == 5) { oRT = RT_W5; } else if (i == 6) { oRT = RT_W6; } else if (i == 7) { oRT = RT_W7; } else if (i == 8) { oRT = RT_W8; }
     else if (i == 9) { oRT = RT_W9; } else if (i == 10) { oRT = RT_W10; } else if (i == 11) { oRT = RT_W11; } else if (i == 12) { oRT = RT_W12; }
-    else if (i == 13) { oRT = RT_W13; } else { oRT = RT_W14; }
+    else if (i == 13) { oRT = RT_W13; } else if (i == 14) { oRT = RT_W14; }
+    else if (i == 15) { oRT = RT_W15; } else if (i == 16) { oRT = RT_W16; } else if (i == 17) { oRT = RT_W17; } else if (i == 18) { oRT = RT_W18; } else { oRT = RT_W19; }
 }
 function rtSetG(i, v) {
     if (i == 1) { RT_W1 = v; } else if (i == 2) { RT_W2 = v; } else if (i == 3) { RT_W3 = v; } else if (i == 4) { RT_W4 = v; }
     else if (i == 5) { RT_W5 = v; } else if (i == 6) { RT_W6 = v; } else if (i == 7) { RT_W7 = v; } else if (i == 8) { RT_W8 = v; }
     else if (i == 9) { RT_W9 = v; } else if (i == 10) { RT_W10 = v; } else if (i == 11) { RT_W11 = v; } else if (i == 12) { RT_W12 = v; }
-    else if (i == 13) { RT_W13 = v; } else { RT_W14 = v; }
+    else if (i == 13) { RT_W13 = v; } else if (i == 14) { RT_W14 = v; }
+    else if (i == 15) { RT_W15 = v; } else if (i == 16) { RT_W16 = v; } else if (i == 17) { RT_W17 = v; } else if (i == 18) { RT_W18 = v; } else { RT_W19 = v; }
 }
 
 // ---- the player -------------------------------------------------------------
@@ -328,8 +334,13 @@ function buildRec() {
     pRec = str(pRec, ',', TRKV);
     // v4.4: fields 37-42 laps and 43-48 races on circuits 9-14
     t = 9;
-    while (t <= NTRK) { pRec = str(pRec, ',', recLap[t] > 0 ? Math.round(recLap[t] * 1000) : 0); t = t + 1; }
+    while (t <= 14) { pRec = str(pRec, ',', recLap[t] > 0 ? Math.round(recLap[t] * 1000) : 0); t = t + 1; }
     t = 9;
+    while (t <= 14) { pRec = str(pRec, ',', recRace[t] > 0 ? Math.round(recRace[t] * 1000) : 0); t = t + 1; }
+    // v6.0: fields 49-53 laps and 54-58 races on circuits 15-19
+    t = 15;
+    while (t <= NTRK) { pRec = str(pRec, ',', recLap[t] > 0 ? Math.round(recLap[t] * 1000) : 0); t = t + 1; }
+    t = 15;
     while (t <= NTRK) { pRec = str(pRec, ',', recRace[t] > 0 ? Math.round(recRace[t] * 1000) : 0); t = t + 1; }
 }
 
@@ -393,11 +404,13 @@ function mergeRec(addMode) {
         if (nF >= 36) { if (pF[36] * 1 >= TRKV) { same = 1; } }
         if (same < 1) { t = NTRK + 1; }
         while (t <= NTRK) {
-            // (circuits 9 on from field 37, v4.4 records only)
+            // (circuits 9-14 from field 37, v4.4 records on; 15-19 from
+            // field 49, v6.0 records only)
             let fa = 16 + t;
             let fr = 24 + t;
-            if (t > 8) { fa = 28 + t; fr = 28 + NTRK - 8 + t; }
-            if (fr > nF) { t = NTRK; fa = 0; }
+            if (t > 14) { fa = 34 + t; fr = 39 + t; }
+            else if (t > 8) { fa = 28 + t; fr = 34 + t; }
+            if (fr > nF) { fa = 0; }
             if (fa > 0) {
             let a = pF[fa] / 1000;
             if (a > 0) { if (recLap[t] <= 0) { recLap[t] = a; } else if (a < recLap[t]) { recLap[t] = a; } }
@@ -602,6 +615,7 @@ function profileStep() {
     if (raceState == ST_TUNE) { quiet = 1; }
     if (raceState == ST_PROF) { quiet = 1; }
     if (raceState == ST_PAUSE) { quiet = 1; }
+    if (raceState == ST_PHOTO) { quiet = 1; }
     if (pLoaded > 0) {
         if (pSync > 0) {
             if (quiet > 0) {
@@ -726,14 +740,14 @@ function wrUpload(tk, lt) {
         pbBase(tk);
         let b = oPB;
         wrS = str(pNick, ',', Math.round(lt * 1000), ',');
-        let px = Math.round((oPB2 > 0 ? pbX2[b + 1] : pbX[b + 1]) * 5);
-        let pz = Math.round((oPB2 > 0 ? pbZ2[b + 1] : pbZ[b + 1]) * 5);
+        let px = Math.round((oPB2 > 1 ? pbX3[b + 1] : oPB2 > 0 ? pbX2[b + 1] : pbX[b + 1]) * 5);
+        let pz = Math.round((oPB2 > 1 ? pbZ3[b + 1] : oPB2 > 0 ? pbZ2[b + 1] : pbZ[b + 1]) * 5);
         b32(px + 16384, 3);
         b32(pz + 16384, 3);
         let i = 2;
         while (i <= n) {
-            let qx = Math.round((oPB2 > 0 ? pbX2[b + i] : pbX[b + i]) * 5);
-            let qz = Math.round((oPB2 > 0 ? pbZ2[b + i] : pbZ[b + i]) * 5);
+            let qx = Math.round((oPB2 > 1 ? pbX3[b + i] : oPB2 > 0 ? pbX2[b + i] : pbX[b + i]) * 5);
+            let qz = Math.round((oPB2 > 1 ? pbZ3[b + i] : oPB2 > 0 ? pbZ2[b + i] : pbZ[b + i]) * 5);
             let dx = Math.max(0 - 511, Math.min(511, qx - px));
             let dz = Math.max(0 - 511, Math.min(511, qz - pz));
             b32(dx + 512, 2);

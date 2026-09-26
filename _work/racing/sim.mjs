@@ -122,7 +122,7 @@ export function createSim({ fps = 30 } = {}) {
         nickname: () => (R.nick !== undefined ? R.nick : ' '),
         soundSpeed: (v) => { R.snd.speed = Math.max(0.5, Math.min(2, +v)); },
         tableSet: (t, r, c, v) => { (R.tables ||= {})[`${t}:${r}:${c}`] = v; }, tableShow: (t) => { R.shownTable = t; },
-        ask: (q) => { R.asked = String(q); }, answer: () => (R.answerText !== undefined ? R.answerText : ''), hideAnswer: () => { }, textColor: () => { }, textColorHex: () => { }, dateSec: () => Math.floor(Date.now() / 1000) % 60,
+        ask: (q) => { R.asked = String(q); }, answer: () => (R.answerText !== undefined ? R.answerText : ''), hideAnswer: () => { }, textColor: () => { }, textColorHex: () => { }, dateSec: () => (R.dateSecFn ? R.dateSecFn() : Math.floor(Date.now() / 1000) % 60),
         broadcast: () => { }, toFront: () => { }, toBack: () => { },
         stopAll: () => { }, stopThread: () => { }, waitSec: () => { }, waitUntil: () => { },
     };

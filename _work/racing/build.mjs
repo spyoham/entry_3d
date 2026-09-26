@@ -26,10 +26,10 @@ export const C = {
     NSEG: 460,          // centreline rings per circuit (ring NSEG+1 == ring 1)
     PPR: 10,            // points per ring in the vertex buffer
     NCAR: 8,            // cars on track (1 player + 7 AI)
-    NMAT: 280,          // materials in the palette (v4.0: 240 -> 264, v4.2: 280, colTab 4480)
+    NMAT: 288,          // materials in the palette (v4.0: 240 -> 264, v4.2: 280, v6.0: 288, colTab 4608)
     NFOG: 16,           // fog levels baked per material
-    NTRK: 14,           // built-in circuits (v4.4: 8 -> 14)
-    EDTRK: 15,          // slot of the editor's own circuit
+    NTRK: 19,           // built-in circuits (v4.4: 8 -> 14, v6.0: 19)
+    EDTRK: 20,          // slot of the editor's own circuit
     NCP: 4,             // default checkpoints per lap
     NCPMAX: 10,         // upper bound the editor may place
     LAPS: 3,
@@ -74,7 +74,7 @@ export const C = {
     NZ: 16,             // weather zones round a lap (rain, water, the dry line)
     FUELRACE: 100,      // kg a full-length race is fuelled for
     VSCK: 0.62,         // virtual safety car: speed as a share of the reference lap
-    NPK: 21,            // v3.2: menu keys polled (19) + the editor's K and I
+    NPK: 22,            // v3.2: menu keys polled (19) + the editor's K and I (v6.0: + O)
     NTY: 5,             // tyre compounds
     // ---- v8 ----
     NACH: 20,           // achievements
@@ -83,7 +83,7 @@ export const C = {
     NRANK: 10,          // ranking entries per circuit
     LVMAX: 50,
     UPMAX: 5,           // upgrade steps per part
-    SVMAX: 400,         // v11 backup code: letters read back
+    SVMAX: 520,         // v11 backup code: letters read back (v6.0: 400 -> 520, 58 fields)
 };
 // point slots inside a ring
 // ordered so a ring's LOD levels are contiguous prefixes: road edges alone for
@@ -185,6 +185,9 @@ export function buildPalette() {
     push('slate', [84, 92, 104]); push('dome', [92, 150, 122]); push('domeD', [62, 110, 90]);
     idx.stone = push('stone', [206, 176, 128]); push('stoneD', [156, 128, 90]); // old city stone
     push('stoneT', [178, 148, 104]);
+    // v6.0: the Las Vegas Sphere, its LED skin lit warm yellow, top to bottom
+    idx.sphere = push('sphA', [255, 226, 90]); push('sphB', [248, 190, 56]);
+    push('sphC', [226, 142, 42]); push('sphD', [168, 96, 36]);
     idx.ad = push('adR', [200, 32, 40]); push('adY', [246, 196, 30]);          // advertising
     push('adG', [22, 110, 70]); push('adB', [30, 70, 170]); push('adW', [240, 240, 244]);
     idx.tyreC = push('tyreC', [26, 26, 28]); push('rim', [120, 122, 130]);    // car wheels
@@ -791,6 +794,55 @@ export function sceneryModels() {
     }
     end('sheet', 0);
 
+    // v6.0: 31 sphere - the Las Vegas Sphere, 157 m across and 112 m tall
+    // (the rest is below the ground), base idx.sphere: 0..3 top to bottom.
+    // A ring of points at a height, then quads between rings and a cap.
+    {
+        const R = 78, CY = 34;
+        const ring = (y, n, rot) => {
+            const r = Math.sqrt(Math.max(0, R * R - (y - CY) * (y - CY)));
+            const out = [];
+            for (let k = 0; k < n; k++) { const a = (k + rot) / n * 2 * Math.PI; out.push(vert(Math.sin(a) * r, y, Math.cos(a) * r)); }
+            return out;
+        };
+        const band = (lo, hi, m) => { const n = lo.length; for (let k = 0; k < n; k++) face(lo[k], lo[(k + 1) % n], hi[(k + 1) % n], hi[k], m); };
+        const cap = (rg, top, m) => { const n = rg.length; for (let k = 0; k < n; k++) tri(rg[k], rg[(k + 1) % n], top, m); };
+        begin();
+        {
+            const a = ring(0, 6, 0.5), b = ring(52, 6, 0.5), c = ring(96, 6, 0.5), t = vert(0, 112, 0);
+            band(a, b, 2); band(b, c, 1); cap(c, t, 0);
+        }
+        mark();
+        {
+            const a = ring(0, 7, 0.5), b = ring(CY, 7, 0.5), c = ring(70, 7, 0.5), d = ring(98, 7, 0.5), t = vert(0, 112, 0);
+            band(a, b, 3); band(b, c, 2); band(c, d, 1); cap(d, t, 0);
+        }
+        end('sphere', 0);
+    }
+
+    // v6.0: 32 strat - the Strat tower, Las Vegas, 350 m: a tapering shaft,
+    // the pod and the mast on top. Base idx.mbs: 0 white, 1 shaded, 2 glass
+    begin();
+    drum(9, 9, 0, 262, 0.62, 0, 1, null);
+    drum(20, 20, 256, 286, 1, 2, 2, 0);
+    mark();
+    drum(10, 10, 0, 256, 0.55, 0, 1, null);
+    drum(15, 15, 250, 264, 1.4, 0, 1, null);     // the pod flaring out
+    drum(21, 21, 264, 280, 1, 2, 2, 0);          // its glazed decks and roof
+    drum(2.2, 2.2, 280, 350, 0.4, 1, 1, 1);      // the mast
+    end('strat', 0);
+
+    // v6.0: 33 eiffel - the half-size Eiffel Tower at the Paris hotel, 165 m:
+    // splayed legs, two platforms, the top. Base idx.stone: 0, 1 shaded, 2 top
+    begin();
+    spire(drum(22, 22, 0, 60, 0.36, 0, 1, null), 165, 0);
+    mark();
+    drum(24, 24, 0, 34, 0.62, 0, 1, null);       // the legs to the first platform
+    drum(17, 17, 34, 40, 1, 2, 2, 2);            // first platform
+    drum(12, 12, 40, 96, 0.42, 0, 1, null);      // up to the second
+    spire(drum(5.6, 5.6, 96, 150, 0.4, 0, 1, null), 165, 1);
+    end('eiffel', 0);
+
     // listed clockwise from outside; the renderer wants counter-clockwise
     return { V, F: F.map((f) => [f[3], f[2], f[1], f[0], f[4]]), T };
 }
@@ -801,7 +853,8 @@ export function sceneryBases(idx) {
         idx.rock, idx.tent, idx.water, idx.conc, idx.hedge,
         idx.bld, idx.bld, idx.conc, idx.conc,
         idx.tyre, idx.palm, idx.yacht, idx.wheel, idx.mbs, idx.flame, idx.casino, idx.stone,
-        idx.ad, idx.conc, idx.conc, idx.mbs, idx.steel, idx.stone, idx.bld, idx.water];
+        idx.ad, idx.conc, idx.conc, idx.mbs, idx.steel, idx.stone, idx.bld, idx.water,
+        idx.sphere, idx.mbs, idx.stone];
 }
 
 // ============================================================
@@ -911,9 +964,10 @@ export function buildData() {
     lists.trkRoad = TT.map(t => idx[t.road]);
     lists.trkRun = TT.map(t => t.runoff);
     // v4.0: a real circuit's skyline is the real one (a touch taller, it reads
-    // small at 240 px); only Singapore keeps the city-block profile
+    // small at 240 px); only the night cities keep the city-block profile
+    // (Singapore; v6.0 Jeddah and Las Vegas)
     lists.trkHillK = TT.map(t => (t.real ? 1.15 : t.hill[0]));
-    lists.trkHillT = TT.map(t => (t.real ? (t.real.id === 'sg-2008' ? 1 : 0) : t.hill[1]));
+    lists.trkHillT = TT.map(t => (t.real ? (['sg-2008', 'sa-2021', 'us-2023'].includes(t.real.id) ? 1 : 0) : t.hill[1]));
     lists.trkTheme = TT.map(t => t.theme);
     lists.trkTurns = TT.map(t => t.turnsN || 0);
     lists.trkType = TT.map(t => (t === ED ? 'YOUR DESIGN' : t.walls ? 'STREET CIRCUIT' : 'PERMANENT'));
@@ -1122,7 +1176,8 @@ export function buildData() {
     lists.mixName = ['LEAN', 'STANDARD', 'RICH'];
     lists.mixPow = [0 - 0.035, 0, 0.025];
     lists.mixBurn = [0.84, 1, 1.13];
-    lists.trkT0 = [38, 26, 31, 29, 37, 33, 41, 35, 42, 30, 33, 30, 26, 36, 30];
+    // (v6.0: Imola, Hungaroring, Barcelona, Jeddah, a Las Vegas night in November)
+    lists.trkT0 = [38, 26, 31, 29, 37, 33, 41, 35, 42, 30, 33, 30, 26, 36, 33, 45, 40, 34, 17, 30];
     lists.whSt = [1, 1, 1, 1];
 
 
@@ -1215,7 +1270,7 @@ export function buildData() {
 
     // ---- v5 menu options ----
     lists.modeName = ['GRAND PRIX', 'CHAMPIONSHIP', 'TIME TRIAL', 'PRACTICE'];
-    lists.modeD1 = ['ONE RACE AGAINST 7 AI DRIVERS', 'ALL 8 CIRCUITS, ONE AFTER ANOTHER', 'ALONE AGAINST A GHOST, UNLIMITED LAPS', 'ALONE ON TRACK, FREE DRIVING'];
+    lists.modeD1 = ['ONE RACE AGAINST 7 AI DRIVERS', 'EVERY CIRCUIT, ONE AFTER ANOTHER', 'ALONE AGAINST A GHOST, UNLIMITED LAPS', 'ALONE ON TRACK, FREE DRIVING'];
     lists.modeD2 = ['PICK THE CIRCUIT AND THE LAPS', 'POINTS 25-18-15-12-10-8-6-4', 'YOUR BEST LAP OR THE WORLD RECORD', 'RACING LINE AND BRAKE ASSIST'];
     lists.modeD3 = ['SLIPSTREAM AND DRS FROM LAP 2', 'MOST POINTS AFTER ROUND 8 WINS', 'SECTOR TIMES AND LIVE DELTA', 'B PUTS YOU BACK ON THE TRACK'];
     // v8: the LAPS row turns into these in time trial / practice
@@ -1260,9 +1315,9 @@ export function buildData() {
         'STIFFER: SHARPER ON TARMAC, WORSE OVER CURBS AND GRASS'];
     lists.prTabN = ['PROFILE', 'RECORDS', 'ACHIEVEMENTS', 'RANKING'];
     lists.aiD = ['FORGIVING - LEARN THE CIRCUITS', 'STEADY PACE, FEW MISTAKES', 'CLOSE RACING AT A REAL PACE', 'FAST AND ON THE LIMIT', 'FASTER THAN THE CARS ALLOW'];
-    lists.gfxD = ['FASTEST - FOR PLAIN ENTRY', 'BALANCED - RECOMMENDED', 'EVERYTHING ON - FOR TESSVM'];
+    lists.gfxD = ['FASTEST - FOR PLAIN ENTRY', 'BALANCED - RECOMMENDED', 'EVERYTHING ON - FOR TESSVM', 'ULTRA, CUT BACK TO HOLD 50 FPS'];
     // v7: what each graphics level adds on top of the picture itself
-    lists.gfxFx = ['NO EXTRA EFFECTS', 'REPLAY + TV CAMERAS, SPARKS, SEE-THROUGH SMOKE', 'ALL: + BRAKE GLOW, SUNSET, DEBRIS'];
+    lists.gfxFx = ['NO EXTRA EFFECTS', 'REPLAY + TV CAMERAS, SPARKS, SEE-THROUGH SMOKE', 'ALL: + BRAKE GLOW, SUNSET, DEBRIS', 'SCENERY AND LAND RANGE FOLLOW THE FRAME RATE'];
     lists.lapOpt = [1, 3, 5, 10];
     lists.wxName = ['DRY', 'RAIN', 'CHANGING'];
     lists.ruleName = ['ARCADE', 'REALISTIC'];
@@ -1270,7 +1325,7 @@ export function buildData() {
     lists.ruleD2 = ['RIVALS WITH THEIR OWN PERSONALITIES', 'QUALIFYING SETS THE GRID'];
     lists.ruleD3 = ['NO WEAR, NO DAMAGE, NO PENALTIES', 'FLAGS, SAFETY CAR, PENALTIES, WEATHER'];
     lists.sndName = ['OFF', 'ON'];
-    lists.gfxName = ['LOW', 'HIGH', 'ULTRA'];
+    lists.gfxName = ['LOW', 'HIGH', 'ULTRA', 'AUTO'];
     // graphics levels: LOD band distances (m), scenery draw distance (m),
     // scenery full-model radius (m), full car radius (m), mid car radius (m),
     // fog distance scale, scenery density (1 = v4)
@@ -1360,8 +1415,10 @@ export function buildData() {
     // v8: personal-best ghost of every circuit (editor slot included)
     // (v4.4: circuits 1-8 in pb*, 9 on - and the editor's - in pb*2: one list
     // holds 5000 at most)
+    // (v6.0: 9-16 in pb*2, 17 on - and the editor's - in pb*3)
     for (const k of ['pbX', 'pbZ', 'pbW']) lists[k] = zeros(8 * C.PBN);
-    for (const k of ['pbX2', 'pbZ2', 'pbW2']) lists[k] = zeros((C.EDTRK - 8) * C.PBN);
+    for (const k of ['pbX2', 'pbZ2', 'pbW2']) lists[k] = zeros(8 * C.PBN);
+    for (const k of ['pbX3', 'pbZ3', 'pbW3']) lists[k] = zeros((C.EDTRK - 16) * C.PBN);
     lists.pbN = zeros(C.EDTRK + 1);
     // v8 profile scratch: parsed save fields, ranking rows, achievements
     lists.pF = new Array(64).fill(0);

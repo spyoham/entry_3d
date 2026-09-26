@@ -20,7 +20,7 @@ for (let i = 1; i < o.trk; i++) press('Right', 400);
 press('Escape', 300);
 press('Down'); press('Down'); press('Down');   // SETTINGS
 press('Enter', 300);
-for (let i = 0; i < ((o.gfx - 2) + 3) % 3; i++) press('Right', 400);
+for (let i = 0; i < ((o.gfx - 2) + 4) % 4; i++) press('Right', 400);   // (v6.0: LOW HIGH ULTRA AUTO)
 press('Escape', 300);
 for (let i = 0; i < 4; i++) press('Up');
 steps.push({ wait: 1500, fps: 'menu', shot: o.shot ? o.shot + '_menu.png' : undefined }, { eval: get });

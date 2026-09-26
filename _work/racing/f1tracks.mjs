@@ -495,6 +495,12 @@ export const F1 = [
     { name: 'RED BULL RING', info: 'SPIELBERG  /  STYRIAN ALPS  /  UPHILL', sky: [176, 206, 236], fogFar: 500, ground: 'grass', road: 'road', runoff: 2, hill: [1.6, 0], theme: 4, width: 7.2, scale: 1, verts: SQUARE },
     { name: 'ZANDVOORT', info: 'NORTH SEA DUNES  /  BANKED TURNS', sky: [184, 200, 216], fogFar: 440, ground: 'sand', road: 'road', runoff: 1, hill: [0.7, 0], theme: 4, width: 6.5, scale: 1, verts: SQUARE },
     { name: 'AUSTIN', info: 'CIRCUIT OF THE AMERICAS  /  TURN 1 CLIMB', sky: [192, 208, 228], fogFar: 500, ground: 'grass', road: 'road', runoff: 2, hill: [0.8, 0], theme: 4, width: 7.5, scale: 1, verts: SQUARE },
+    // ---- v6.0: five more, from the map as well ----
+    { name: 'IMOLA', info: 'ENZO E DINO FERRARI  /  RIVAZZA  /  OLD SCHOOL', sky: [178, 204, 232], fogFar: 480, ground: 'grass', road: 'road', runoff: 3, hill: [1.1, 0], theme: 4, width: 6.2, scale: 1, verts: SQUARE },
+    { name: 'HUNGARORING', info: 'BUDAPEST  /  TWISTY VALLEY  /  HARD TO PASS', sky: [186, 208, 234], fogFar: 480, ground: 'grass', road: 'road', runoff: 3, hill: [0.9, 0], theme: 4, width: 6.4, scale: 1, verts: SQUARE },
+    { name: 'BARCELONA', info: 'CATALUNYA  /  MONTMELO  /  LONG STRAIGHT', sky: [176, 206, 238], fogFar: 500, ground: 'dry', road: 'road', runoff: 3, hill: [1.2, 0], theme: 4, width: 7.0, scale: 1, verts: SQUARE },
+    { name: 'JEDDAH', info: 'CORNICHE  /  NIGHT RACE  /  FASTEST STREETS', sky: [20, 26, 54], fogFar: 420, ground: 'dark', road: 'roadS', runoff: 0, hill: [1.0, 1], theme: 4, width: 6.4, walls: true, scale: 1, verts: SQUARE },
+    { name: 'LAS VEGAS', info: 'THE STRIP  /  NIGHT RACE  /  2 KM FLAT OUT', sky: [16, 18, 46], fogFar: 440, ground: 'dark', road: 'roadS', runoff: 0, hill: [1.4, 1], theme: 4, width: 7.0, walls: true, scale: 1, verts: SQUARE },
 ];
 
 // v4.0: the real circuits (real/prep.mjs from OpenStreetMap, SRTM and
@@ -503,7 +509,7 @@ export const F1 = [
 // fallback (and for the tests that still want it: REALTRK=0).
 const REAL = path.join(path.dirname(url.fileURLToPath(import.meta.url)), 'real', 'circuits.json');
 // corners as the circuits count them
-const TURNS = [19, 19, 18, 18, 11, 19, 15, 20, 15, 14, 14, 10, 14, 20];
+const TURNS = [19, 19, 18, 18, 11, 19, 15, 20, 15, 14, 14, 10, 14, 20, 19, 14, 14, 27, 17];
 export function buildF1() {
     const R = process.env.REALTRK !== '0' && fs.existsSync(REAL) ? JSON.parse(fs.readFileSync(REAL, 'utf8')) : {};
     return F1.map((d, k) => {

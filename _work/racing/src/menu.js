@@ -259,7 +259,7 @@ function drawMainMenu() {
     } else if (m == 9) {
         drawWxIcon(121, 46);
     } else if (m == 10) {
-        choiceBoxes(3, gfx);
+        choiceBoxes(4, gfxSel);
     } else if (m == 11) {
         choiceBoxes(2, sndSel);
         // a little level meter that moves when the sound is on
@@ -373,7 +373,7 @@ function drawTrkSel() {
 // (cardRow r: label 51+r, value 61+r), 72..76 extras; 77..79 pop-ups.
 function hudMenu() {
     tx(9, 'ENTRY RACING 3D', 0 - 232, 116, 21, C_WHITE, 1);
-    tx(10, 'F1 EDITION  /  v5.2', 0 - 232, 96, 8, C_WHITE, 1);
+    tx(10, 'F1 EDITION  /  v6.0', 0 - 232, 96, 8, C_WHITE, 1);
     let lvl = pLoaded > 0 ? str('LV ', pLv, '  ', pNick) : 'LOADING SAVE...';
     tx(13, lvl, 0 - 80, 96, 8, C_GOLD, 1);
     let crumb = 'MAIN MENU';
@@ -394,7 +394,7 @@ function hudMenu() {
         let val = BLANK;
         if (k == 20) { lab = 'RACE SETUP'; val = gMode == M_CH ? modeName[gMode] : trkName[selTrk]; }
         else if (k == 21) { lab = 'CAR & GARAGE'; val = pPts > 0 ? str(ctName[selCar], '  /  ', pPts, ' PTS') : ctName[selCar]; }
-        else if (k == 22) { lab = 'SETTINGS'; val = str(gfxName[gfx], '  /  SOUND ', sndName[sndSel]); }
+        else if (k == 22) { lab = 'SETTINGS'; val = str(gfxName[gfxSel], '  /  SOUND ', sndName[sndSel]); }
         else if (k == 23) { lab = '<  BACK'; }
         else if (k == 1) {
             lab = 'RACE START';
@@ -411,7 +411,7 @@ function hudMenu() {
             else if (gMode == M_PR) { lab = 'ASSIST'; val = paName[paSel]; }
         }
         else if (k == 9) { lab = 'WEATHER'; val = wxName[wx]; }
-        else if (k == 10) { lab = 'GRAPHICS'; val = gfxName[gfx]; }
+        else if (k == 10) { lab = 'GRAPHICS'; val = gfxName[gfxSel]; }
         else if (k == 11) { lab = 'SOUND'; val = sndName[sndSel]; }
         else if (k == 12) { lab = 'PROFILE'; val = str('LEVEL ', pLv); }
         else { lab = 'TRACK EDITOR'; }
@@ -581,15 +581,16 @@ function hudCard() {
         if (rules == R_ARC) { tx(71, 'CHANGING WEATHER: REALISTIC RULES ONLY', cardX0 + 10, 0 - 76, 7, C_DIM, 1); } else { txOff(71); }
     } else if (m == 10) {
         tx(50, 'GRAPHICS', cardX0 + 10, 84, 11, C_WHITE, 1);
-        tx(72, 'LOW', cardX0 + 44, 53, 10, gfx == 1 ? C_WHITE : C_DIM, 0);
-        tx(73, 'HIGH', cardX0 + 118, 53, 10, gfx == 2 ? C_WHITE : C_DIM, 0);
-        tx(74, 'ULTRA', cardX0 + 192, 53, 10, gfx == 3 ? C_WHITE : C_DIM, 0);
+        tx(72, 'LOW', cardX0 + 34, 53, 9, gfxSel == 1 ? C_WHITE : C_DIM, 0);
+        tx(73, 'HIGH', cardX0 + 88, 53, 9, gfxSel == 2 ? C_WHITE : C_DIM, 0);
+        tx(74, 'ULTRA', cardX0 + 143, 53, 9, gfxSel == 3 ? C_WHITE : C_DIM, 0);
+        tx(76, 'AUTO', cardX0 + 197, 53, 9, gfxSel == 4 ? C_WHITE : C_DIM, 0);
         cardRow(4, 'VIEW DISTANCE', str(Math.round(trkFar[selTrk] * gfFog[gfx]), ' m'), 22);
         cardRow(5, 'SCENERY RANGE', str(gfScn[gfx], ' m'), 9);
         cardRow(6, 'FULL-DETAIL CARS', str(gfFull[gfx]), 0 - 4);
         cardRow(7, 'SCENERY DENSITY', gfDen[gfx] > 1 ? 'x1.5' : 'x1', 0 - 17);
-        cardTx(75, gfxFx[gfx], 0 - 40, 7, gfx > 1 ? C_GOLD : C_DIM);
-        cardTx(71, gfxD[gfx], 0 - 56, 8, C_DIM);
+        cardTx(75, gfxFx[gfxSel], 0 - 40, 7, gfx > 1 ? C_GOLD : C_DIM);
+        cardTx(71, gfxSel > 3 ? str(gfxD[gfxSel], '  (NOW ', Math.round(gfQ * 100), ' %)') : gfxD[gfxSel], 0 - 56, 8, C_DIM);
     } else if (m == 11) {
         tx(50, 'SOUND', cardX0 + 10, 84, 11, C_WHITE, 1);
         tx(72, 'OFF', cardX0 + 61, 53, 10, sndSel == 1 ? C_WHITE : C_DIM, 0);
@@ -999,7 +1000,7 @@ function hudProf() {
             tx(37, 'TEST  +1000 XP  (X)', 168, 0 - 85, 8, C_GOLD, 0);
         }
     } else if (prTab == 2) {
-        // (v4.4: fourteen circuits, in two columns of seven)
+        // (v4.4: fourteen circuits, in two columns of seven; v6.0: 19 in ten rows)
         tx(24, 'CIRCUIT        MY BEST    WORLD RECORD', 0 - 228, 88, 7, C_DIM, 1);
         while (i <= NTRK) {
             padR(trkName[i], 15);
@@ -1009,12 +1010,12 @@ function hudProf() {
             let mb = oPad;
             let wr = '-';
             if (recWR[i] > 0) { fmtTime(recWR[i]); wr = str(oTime, ' ', recNm[i]); }
-            let cl = idiv(i - 1, 7);
-            tx(24 + i, str(nm, mb, wr), 0 - 228 + cl * 236, 72 - mod(i - 1, 7) * 16, 7, C_WHITE, 1);
+            let cl = idiv(i - 1, 10);
+            tx(24 + i, str(nm, mb, wr), 0 - 228 + cl * 236, 72 - mod(i - 1, 10) * 14, 7, C_WHITE, 1);
             i = i + 1;
         }
         fmtTime(recRace[selTrk] > 0 ? recRace[selTrk] : 0 - 1);
-        tx(39, str('BEST RACE ON ', trkName[selTrk], ':  ', oTime), 0 - 228, 0 - 64, 8, C_DIM, 1);
+        tx(44, str('BEST RACE ON ', trkName[selTrk], ':  ', oTime), 0 - 228, 0 - 84, 8, C_DIM, 1);
     } else if (prTab == 3) {
         while (i <= NACH) {
             let col = idiv(i - 1, 10);

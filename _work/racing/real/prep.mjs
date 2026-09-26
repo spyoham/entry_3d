@@ -45,6 +45,12 @@ const META = {
     'at-1969': { width: 7.2, range: 65, terrain: 0.8, trees: ['pine', 'pine', 'oak'], cols: [0, 6, 11, 7], glass: 8, defH: 8, nB: 260, nT: 700 },
     'nl-1948': { width: 6.5, range: 0, terrain: 0.6, trees: ['pine', 'oak'], cols: [10, 6, 0, 11], glass: 8, defH: 8, nB: 460, nT: 520, sea: true },
     'us-2012': { width: 7.5, range: 41, terrain: 0.6, trees: ['oak'], cols: [6, 0, 11, 9], glass: 8, defH: 9, nB: 260, nT: 560 },
+    // v6.0
+    'it-1953': { ctlK: 1.15, width: 6.2, range: 35, terrain: 0.6, trees: ['oak', 'oak', 'pine'], cols: [0, 1, 7, 6], glass: 3, defH: 8, nB: 300, nT: 820 },
+    'hu-1986': { ctlK: 1.15, width: 6.4, range: 35, terrain: 0.6, trees: ['oak', 'oak', 'pine'], cols: [11, 6, 0, 3], glass: 8, defH: 8, nB: 220, nT: 700 },
+    'es-1991': { ctlK: 1.15, width: 7.0, range: 30, terrain: 0.6, trees: ['pine', 'oak', 'pine'], cols: [0, 7, 6, 1], glass: 8, defH: 9, nB: 300, nT: 560 },
+    'sa-2021': { ctlK: 1.15, lineStart: 1, avenue: [34, 16, 'palm'], masts: [90, 9], merge: 1, width: 6.4, walls: true, range: 3, terrain: 0, trees: ['palm', 'palm', 'oak'], cols: [9, 0, 6, 1, 8], glass: 8, defH: 14, nB: 600, nT: 300, sea: true },
+    'us-2023': { ctlK: 1.15, masts: [110, 9], merge: 1, width: 7.0, walls: true, range: 6, terrain: 0, trees: ['palm', 'palm'], cols: [8, 6, 2, 3, 11], glass: 8, defH: 24, nB: 900, nT: 200 },
     'az-2016': { merge: 1, narrowClimb: [40.36622, 49.83731, 750, 480, 4.2], sightsLL: [['maiden', 40.36622, 49.83731]], width: 6.6, walls: true, range: 24, terrain: 0.8, trees: ['palm', 'palm', 'oak'], cols: [9, 0, 6, 1, 9], glass: 8, defH: 15, nB: 760, nT: 220, sea: true, widthZones: [] },
 };
 // how each built-in model's size is written (build.mjs gtQ): boxes and water
@@ -257,7 +263,9 @@ for (const C of CIRCUITS) {
     let startI = 0, pitInfo = 'none';
     {
         let best = null;
-        for (const w of pits) {
+        // (lineStart: the map's pit lane is only a piece away from the line;
+        // the centreline starts on the line itself)
+        for (const w of (M.lineStart ? [] : pits)) {
             const L = lineOf(w, P);
             let len = 0; for (let i = 1; i < L.length; i++) len += Math.hypot(L[i][0] - L[i - 1][0], L[i][1] - L[i - 1][1]);
             if (len < 120) continue;
@@ -445,7 +453,7 @@ for (const C of CIRCUITS) {
         while (s < N * 2 - 1) {
             const i = Math.round(s / 2) % N;
             ctl.push(i);
-            s += Math.max(4, spc[i]);
+            s += Math.max(4, spc[i] * (M.ctlK || 1));   // (v6.0 ctlK: all the circuits' points share lists of 5000)
         }
         // do not end right on top of the first point
         while (ctl.length > 3 && (N * 2 - ctl[ctl.length - 1] * 2) < spc[0] * 0.5) ctl.pop();
@@ -549,6 +557,10 @@ for (const C of CIRCUITS) {
         else if (/Flame Tower|Alov qüll/i.test(nm)) kind = 'flame';
         else if (/Maiden Tower|Qız qalası|Qiz Qalasi/i.test(nm)) kind = 'maiden';
         else if (/^The Wing$|Silverstone Wing/i.test(nameOf(e))) kind = 'wing';
+        // v6.0 Las Vegas: the Sphere, the Strat and the Paris hotel's Eiffel Tower
+        else if ((/^Sphere$/i.test(nameOf(e)) || /MSG Sphere/i.test(e.tags.alt_name || '')) && e.tags.building) kind = 'sphere';
+        else if (/Stratosphere|^The STRAT/i.test(nm)) kind = 'strat';
+        else if (/^Eiffel Tower$/i.test(nameOf(e)) && C.id === 'us-2023') kind = 'eiffel';
         if (!kind) continue;
         let x, z, poly = null;
         if (e.center) [x, z] = P.fwd(e.center.lon, e.center.lat);
@@ -574,7 +586,7 @@ for (const C of CIRCUITS) {
         sights.push({ kind, x: cx, z: cz, poly, e: pe || { tags: { name: kind } } });
     }
     // Buildings that make up a sight are drawn by its model
-    const nearSight = (x, z) => sights.some((s) => Math.hypot(s.x - x, s.z - z) < ({ mbs: 150, casino: 40, flame: 45, maiden: 14, wing: 90, wheel: 0 })[s.kind]);
+    const nearSight = (x, z) => sights.some((s) => Math.hypot(s.x - x, s.z - z) < ({ mbs: 150, casino: 40, flame: 45, maiden: 14, wing: 90, wheel: 0, sphere: 90, strat: 30, eiffel: 30 })[s.kind]);
     // the Flame Towers are three; the map may name only one
     {
         const f = sights.find((s) => s.kind === 'flame');
@@ -586,7 +598,7 @@ for (const C of CIRCUITS) {
     for (const s of sights) {
         const r0 = trackNear(s.x, s.z, 3000);
         const r = r0.i < 0 ? r0 : { i: r0.i, d: r0.d - wds[r0.i] };
-        if (r.i < 0 || r.d > (s.kind === 'wheel' ? 1500 : 2600)) continue;
+        if (r.i < 0 || r.d > (s.kind === 'wheel' ? 1500 : s.kind === 'strat' ? 4000 : 2600)) continue;
         const toward = F[r.i];
         let yaw = Math.atan2(toward[0] - s.x, toward[1] - s.z) * 180 / Math.PI;
         let k = 1, sx = 1, sz = 1, sy = 1;
@@ -604,12 +616,13 @@ for (const C of CIRCUITS) {
                 if (s.kind === 'mbs') { sx = clamp(Lx / ref[0], 1.4, 3.4); sz = sx * 0.9; }
             }
         }
-        const Hs = { wheel: 64, mbs: 104, flame: 118, casino: 28, maiden: 29.5, wing: 12.5 };
+        const Hs = { wheel: 64, mbs: 104, flame: 118, casino: 28, maiden: 29.5, wing: 12.5, sphere: 112, strat: 350, eiffel: 165 };
         const h = parseLen(s.e.tags.height);
         if (s.kind === 'wheel') { k = clamp((isFinite(h) ? h : (C.id === 'sg-2008' ? 165 : 50)) / Hs.wheel, 0.5, 3); sx = sy = sz = k; }
         else if (s.kind === 'flame') { k = clamp((isFinite(h) ? h : 160) / Hs.flame, 0.8, 1.7) * (s.k || 1); sx = sy = sz = k; }
         else if (s.kind === 'mbs') sy = clamp((isFinite(h) ? h : 194) / Hs.mbs, 1.2, 2.2);
         else if (s.kind === 'maiden') { sx = sy = sz = 1; }
+        else if (s.kind === 'sphere' || s.kind === 'strat' || s.kind === 'eiffel') { k = clamp((isFinite(h) ? h : Hs[s.kind]) / Hs[s.kind], 0.7, 1.4); sx = sy = sz = k; }
         else sy = Math.max(sx, sz) * 0.9;
         push({ t: s.kind, i: r.i, x: s.x, z: s.z, dy: dyAt(s.x, s.z, r.i, r.d), yaw, sx, sy, sz, m: 0, tier: 1, chk: 1, why: 'sight ' + nameOf(s.e) });
     }
@@ -880,6 +893,51 @@ for (const C of CIRCUITS) {
         void r;
     });
 
+    // -- v6.0: what the map leaves out beside a street circuit: an avenue of
+    //    trees (the Jeddah corniche's palms) and the floodlight masts of a
+    //    night race, both kept off water, other roads and buildings --
+    {
+        const onWater = (x, z) => wpolys.some((p) => inside(p, x, z)) || (M.sea && coastSegs.length && seaSide(x, z));
+        const clearAt = (x, z, i, need) => {
+            const r = trackNear(x, z, 80);
+            if (r.i >= 0) { let di = Math.abs(r.i - i); di = Math.min(di, N - di); if (di * 2 > 70 && r.d < wds[r.i] + need) return false; }
+            return !bl.some((o) => Math.abs(o.b.cx - x) < o.b.hu + o.b.hv + 4 && Math.abs(o.b.cz - z) < o.b.hu + o.b.hv + 4);
+        };
+        const along = (every, off, fn) => {
+            let k = 0;
+            for (let s2 = 0; s2 < len; s2 += every, k++) {
+                const i = Math.round(s2 / 2) % N;
+                const a = F[(i - 1 + N) % N], b = F[(i + 1) % N];
+                const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+                fn(i, k, (b[1] - a[1]) / L, -(b[0] - a[0]) / L, off + wds[i]);
+            }
+        };
+        let nA = 0, nL = 0;
+        if (M.avenue) {
+            const [every, off, kind] = M.avenue;
+            along(every, off, (i, k, nx, nz, d) => {
+                for (const sg of [-1, 1]) {
+                    const x = F[i][0] + nx * d * sg, z = F[i][1] + nz * d * sg;
+                    if (onWater(x, z) || !clearAt(x, z, i, 10)) continue;
+                    const sc = 0.95 + hash01(x, z, 'as') * 0.3;
+                    push({ t: kind, i, x, z, dy: 0, yaw: hash01(x, z, 'ay') * 360, sx: sc, sy: sc, sz: sc, m: 0, tier: k % 2 ? 2 : 3, chk: 1 });
+                    nA++;
+                }
+            });
+        }
+        if (M.masts) {
+            const [every, off] = M.masts;
+            along(every, off, (i, k, nx, nz, d) => {
+                const sg = k % 2 ? 1 : -1;
+                const x = F[i][0] + nx * d * sg, z = F[i][1] + nz * d * sg;
+                if (onWater(x, z) || !clearAt(x, z, i, 6)) return;
+                push({ t: 'mast', i, x, z, dy: 0, yaw: 0, sx: 1.2, sy: 1.2, sz: 1.2, m: 0, tier: 2, chk: 1 });
+                nL++;
+            });
+        }
+        if (nA || nL) M._extra = `avenue ${nA}, masts ${nL}`;
+    }
+
     // -- the crossover's girders --
     if (bridgeAt) {
         const q = F[bridgeAt.lo];
@@ -985,7 +1043,7 @@ for (const C of CIRCUITS) {
     const tiers = [1, 2, 3].map((t) => objs.filter((o) => o.tier <= t).length);
     console.log(`${C.id} ${LN.props.Name}: ${len.toFixed(0)} m (official ${LN.props.length}), ${pts.length} ctl, snapped ${M._snap || '-'} rough ${M._rough}, start: ${pitInfo}, ` +
         `height ${out[C.slot].range} m (SRTM ${out[C.slot].srtmRange}), tunnel ${tun.reduce((a, b) => a + b, 0) * 2} m` +
-        (M._narrow ? `, narrow ${M._narrow}` : '') + (M._terrain ? `, land ${M._terrain}` : '') + (bridgeAt ? `, bridge gap ${bridgeAt.gap.toFixed(1)} m (miss ${bridgeAt.miss.toFixed(1)} m)` : ''));
+        (M._narrow ? `, narrow ${M._narrow}` : '') + (M._extra ? `, ${M._extra}` : '') + (M._terrain ? `, land ${M._terrain}` : '') + (bridgeAt ? `, bridge gap ${bridgeAt.gap.toFixed(1)} m (miss ${bridgeAt.miss.toFixed(1)} m)` : ''));
     console.log('   objects', JSON.stringify(cnt), M._merged ? `merged ${M._merged}` : '', 'by tier', tiers.join('/'), 'sights', sights.map((s) => s.kind + ':' + nameOf(s.e)).join(', '));
 }
 const prev = fs.existsSync(path.join(HERE, 'circuits.json')) ? JSON.parse(fs.readFileSync(path.join(HERE, 'circuits.json'), 'utf8')) : {};

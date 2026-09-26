@@ -71,6 +71,12 @@ let qHex = '#000000';       // quad(..., mat < 0) fills with this colour instead
 // graphics level (1 LOW = v4, 2 HIGH, 3 ULTRA): how far the LOD bands, the
 // scenery and the detailed car models reach. Set from the gf* tables.
 let gfx = 2;
+// v6.0 graphics AUTO (gfxSel 4): built as ULTRA, and the distances scaled by
+// gfQ (1 down to 0.45) to hold 50 fps (main.js gfAutoStep). LOW / HIGH /
+// ULTRA are gfxSel 1-3 with gfQ 1.
+let gfxSel = 2;
+let gfQ = 1;
+let landFar2 = 160000;     // patches of land stop here (squared)
 let scnFar2 = 74000;        // scenery stops being drawn this far out (squared)
 let scnHi2 = 3600;          // ...and uses its full model inside this
 let carLodM2 = 14400;       // silhouette car model inside this, a card beyond
@@ -117,14 +123,19 @@ function setupCam() {
     colOff = 1 - NFOG;
     // how far along the ring the LOD bands and the scan itself reach. Working
     // in ring offsets instead of metres keeps the cull loop free of list reads.
-    lodF2 = Math.floor(gfLod2[gfx] / segStep) + 1;
-    lodF3 = Math.floor(gfLod3[gfx] / segStep) + 1;
-    scnFar2 = gfScn[gfx] * gfScn[gfx];
-    scnHi2 = gfScnHi[gfx] * gfScnHi[gfx];
-    scnSz = gfScnSz[gfx];
+    // (v6.0: all scaled by gfQ, and kept whole: scnSz and the squares are
+    // used against whole numbers every object, every frame)
+    lodF2 = Math.floor(gfLod2[gfx] * gfQ / segStep) + 1;
+    lodF3 = Math.floor(gfLod3[gfx] * gfQ / segStep) + 1;
+    let sq = Math.round(gfScn[gfx] * gfQ);
+    scnFar2 = sq * sq;
+    sq = Math.round(gfScnHi[gfx] * gfQ);
+    scnHi2 = sq * sq;
+    scnSz = Math.round(gfScnSz[gfx] * gfQ);
     carLod2 = gfCar[gfx] * gfCar[gfx];
     carLodM2 = gfCarM[gfx] * gfCarM[gfx];
-    cullAhead = Math.floor(fogFar / segStep) + 2;
+    cullAhead = Math.floor(fogFar * (0.7 + 0.3 * gfQ) / segStep) + 2;
+    landFar2 = farCull2 * gfQ * gfQ;
     if (cullAhead > NSEG - 8) { cullAhead = NSEG - 8; }
 }
 
@@ -480,7 +491,7 @@ function cullSegments() {
     // not ahead down the road, so the walk above never reaches it. A ring
     // can only be one ring's length closer than the last, so far off the
     // scan jumps ahead by the distance.
-    let sideR = gfSide[gfx];
+    let sideR = Math.round(gfSide[gfx] * gfQ);
     if (sideR > fogFar) { sideR = fogFar; }
     let sideR2 = sideR * sideR;
     let kk = cullAhead + 1;
@@ -526,7 +537,7 @@ function cullSegments() {
             let dx = tpX[p] - camX;
             let dz = tpZ[p] - camZ;
             let d2 = dx * dx + dz * dz;
-            if (d2 < farCull2) {
+            if (d2 < landFar2) {
                 let fd = dx * chX + dz * chZ;
                 if (fd > 0 - pr) {
                     let sd = dx * csX + dz * csZ;
@@ -1400,15 +1411,16 @@ function renderWorld() {
     if (raceState == ST_TUNE) { room = 1; }
     if (room > 0) { drawTurntable(1); drawCar(1, 1); }
     if (rainVis > 0.05) { drawRain(); }
-    if (raceState == ST_REPLAY) { drawReplayUI(); }
+    if (raceState == ST_PHOTO) { }
+    else if (raceState == ST_REPLAY) { drawReplayUI(); }
     else {
         if (nCars > 0) { if (room < 1) { drawMinimap(); } }
         if (raceState == ST_COUNT) { drawLights(); }
         else if (lightsT > 0) { drawLights(); }
-        if (raceState == ST_RACE) { drawRev(); }
+        if (raceState == ST_RACE) { drawRev(); if (pmOn > 0) { drawPitGame(); } }
         else if (raceState == ST_COUNT) { drawRev(); }
         else if (raceState == ST_FORM) { drawRev(); }
-        else if (raceState == ST_QUALI) { drawRev(); }
+        else if (raceState == ST_QUALI) { drawRev(); if (pmOn > 0) { drawPitGame(); } }
         if (rules == R_SIM) { drawSimHud(); }
     }
     drawMenuUI();

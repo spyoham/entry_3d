@@ -1,3 +1,36 @@
+# ENTRY RACING 3D — 작업 인계 메모 (2026-09-26, v6.0)
+
+산출물: `3D 레이싱 v6.0.ent` ← 최신, 설명서 `3D 레이싱 v6.0 설명서.md` (v5.2는 루트 `old/`로), 썸네일 `3D 레이싱 썸네일.png`
+빌드: `node real/prep.mjs && node build.mjs racing60.ent` → `globals 491, lists 558, functions 323, handlers 3`, .ent 1.19 MB, **project.json 15.42 MB**
+(온라인 저장 문턱 추정 16.17 MB까지 0.75 MB. 더 늘릴 때는 함수 블록 줄이기 먼저)
+
+## 요청과 한 것
+"썸네일 찍어 편집해서 png로" → 모나코 헤어핀(링 189, 6번 차 첫 바퀴, 차 7대·야자수·바다·곶). 임시 자유 카메라 빌드(thK 훅, 게임엔 없음) +
+`_work/tessvm/thumbshot.mjs`(ULTRA 1920×1080, `look` 옵션) + `thumb/edit_thumb.py`(색·비네팅·메뉴풍 제목).
+"4,5,6,7 추가(4는 현실과 최대한 비슷하게)":
+- 4 서킷 15-19: `real/geo.mjs`에 it-1953 hu-1986 es-1991 sa-2021 us-2023, fetch → prep META(고저차 35/35/30/3/6, 벽, 나무, 색).
+  - ctl 리스트 5000 한도: 새 5곳만 `ctlK 1.15`(제어점 간격 ×1.15) → 총 4946(에디터 48 포함). 더 늘리려면 ctl*2 리스트 분리 필요.
+  - 제다 `lineStart`(지도 피트 조각 대신 f1-circuits 출발선), `avenue`(야자수 34 m 간격 양쪽), `masts`(조명탑). 라스베이거스 `masts`.
+  - 새 모델 31 sphere(46정점, 재질 idx.sphere 4색), 32 strat(48), 33 eiffel(42). NMAT 280→288(colTab 4608). 명소 종류 prep에서 이름으로.
+  - 야간: 하늘 어둡게(DUSK 자동 [8,10,26]), trkHillT 도시 블록(sg, sa, us). trkT0 +[33,45,40,34,17].
+  - NTRK 19, EDTRK 20. 고스트 pb*(1-8) pb*2(9-16) pb*3(17-20), pbBase oPB2 0/1/2. RT_L15..19/RT_W15..19.
+  - **세이브 필드 고정 배치**: 17-24/25-32(1-8), 36 TRKV, 37-42 랩·43-48 레이스(9-14), **49-53 랩·54-58 레이스(15-19)**. mergeRec이 명시적 번호로 읽음
+    (예전 NTRK 기반 공식은 19에서 43-48을 밀어 옛 기록을 잘못 읽었을 것). 백업 코드 nF 48/58 허용, SVMAX 400→520(최대 450자).
+  - 기록 탭 2열 10행, BEST RACE 줄 tx 44.
+- 5 피트 휠건(rules.js pmStep/pmDone/drawPitGame): 플레이어 정차 때만. 마커 `0.5-0.5cos(t·330°)`, 초록 ±0.17, 중앙 ±0.07.
+  결과마다 pmBusy(0.2/0.45/1.1 s, 실제로 기다림), 1초 안 누르면 자동. 완벽 약 2.34 s, 무입력 약 5.3 s. 노즈 수리 pmMin 이상.
+- 6 사진 모드 ST_PHOTO 15(ST_FORM이 14): 일시정지·리플레이에서 O(pollAction pkSt[22], NPK 22). photoSeg는 전체 링 2칸 간격 스캔.
+  HUD는 updateHud 페이지 전환으로 비우고 도움말만(SPACE 토글).
+- 7 AUTO: gfxSel 1-4(4=AUTO, gfx=3으로 빌드), gfQ가 setupCam의 lodF2/3·scnFar2·scnHi2·scnSz(정수로 반올림)·cullAhead·landFar2와
+  cullSegments sideR에 곱해짐. gfAutoStep(main 루프): dateSec마다 프레임 수, <48 두 번 → −0.1(최저 0.45, 그 아래면 gfx 2), ≥57 다섯 번 → +0.05(afCap까지), gfQ≥0.7이면 gfx 3.
+- 시험: 새 `t7/pitgame.mjs`, `t7/photoauto.mjs`(sim.mjs `R.dateSecFn`으로 시계 바꿈), `t7/circstats.mjs`. mkb는 그래픽 4개(`% 4`).
+  intrude(새 5곳, RUNOFF 포함) 0, offdiag 1 m 초과 0, v30·keys·multi·savecode·slots·tilt(19)·pinned·alloc·share·wall·stuck PASS.
+  prof의 "tuned top speed"는 v5.2에서도 FAIL(기대 공식 낡음).
+- 서킷 가이드 표: 최저 속도 = rlV 최솟값, 전개 구간 = rlV ≥ 최고속 95% 비율(기존 표와 맞춤).
+- tessvm: 새 5곳 HIGH·ULTRA 57–60 fps.
+
+---
+
 # ENTRY RACING 3D — 작업 인계 메모 (2026-09-26, v5.2)
 
 산출물: `3D 레이싱 v5.2.ent` ← 최신, 설명서 `3D 레이싱 v5.2 설명서.md` (v5.1은 루트 `old/`로)
