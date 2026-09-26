@@ -72,10 +72,16 @@ function aiPlan(c) {
         }
         // the nearest firm corner is the one the racing line aims at
         // (v4.4: long-tailed constants: 1.05 and 0.5 sent this down tessvm's
-        // slow decimal path on every ring of every car's look-ahead)
-        let aw = av * (1.0500000000314159 - 0.50000000003141593 * k / look);
-        if (k < 1) { aw = av * 0.6; }
-        if (aw > worst) { worst = aw; wsign = cv > 0 ? 1 : 0 - 1; }
+        // slow decimal path on every ring of every car's look-ahead. v5.2: the
+        // 0.5 one printed back as only 15 decimals - short again - so it is
+        // one whose shortest form has 16)
+        // (v5.2: not on a straight - a product with 0 is a slow one in tessvm,
+        // and 0 never beats worst anyway)
+        if (av > 0) {
+            let aw = av * (1.0500000000314159 - 0.49999999996858407 * k / look);
+            if (k < 1) { aw = av * 0.6; }
+            if (aw > worst) { worst = aw; wsign = cv > 0 ? 1 : 0 - 1; }
+        }
         if (k <= nearK) { if (av > nearCv) { nearCv = av; } }
         k = k + 1;
     }
@@ -167,6 +173,8 @@ function aiDrive(c) {
     let fx = sind(caYaw[c]);
     let fz = cosd(caYaw[c]);
     let passD = 17 + 14 * agg;
+    let fxi = Math.round(fx * BS);      // (v5.2: x BS, whole, for the traffic scan)
+    let fzi = Math.round(fz * BS);
     let gapW = 3.6 - 0.6 * agg;
     let o = 1;
     while (o <= nCars) {
@@ -176,10 +184,11 @@ function aiDrive(c) {
         if (raceState == ST_FORM) { if (caFormOk[o] > 0) { skip = 1; } }
         if (caDNF[o] > 0) { skip = 1; }
         if (skip < 1) {
-            let dx = caX[o] - caX[c];
-            let dz = caZ[o] - caZ[c];
-            let ahead = dx * fx + dz * fz;
-            let side = dx * fz - dz * fx;
+            // (v5.2: in whole cm, carsCm)
+            let dx = caXi[o] - caXi[c];
+            let dz = caZi[o] - caZi[c];
+            let ahead = (dx * fxi + dz * fzi) / ZU;
+            let side = (dx * fzi - dz * fxi) / ZU;
             if (ahead > 0) {
                 if (ahead < passD) {
                     if (Math.abs(side) < 3.4) {

@@ -373,7 +373,7 @@ function drawTrkSel() {
 // (cardRow r: label 51+r, value 61+r), 72..76 extras; 77..79 pop-ups.
 function hudMenu() {
     tx(9, 'ENTRY RACING 3D', 0 - 232, 116, 21, C_WHITE, 1);
-    tx(10, 'F1 EDITION  /  v5.1', 0 - 232, 96, 8, C_WHITE, 1);
+    tx(10, 'F1 EDITION  /  v5.2', 0 - 232, 96, 8, C_WHITE, 1);
     let lvl = pLoaded > 0 ? str('LV ', pLv, '  ', pNick) : 'LOADING SAVE...';
     tx(13, lvl, 0 - 80, 96, 8, C_GOLD, 1);
     let crumb = 'MAIN MENU';

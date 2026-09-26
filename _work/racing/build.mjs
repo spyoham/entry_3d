@@ -1318,7 +1318,7 @@ export function buildData() {
     for (const k of ['mapSX', 'mapSY', 'mapTX', 'mapTY']) lists[k] = zeros(2 * C.NMAP + 2);
     // cars
     const NC = C.NCAR;
-    for (const k of ['caX', 'caY', 'caZ', 'caYaw', 'caVX', 'caVZ', 'caVY', 'caYR', 'caSeg', 'caLap', 'caCP', 'caProg', 'caRank',
+    for (const k of ['caX', 'caY', 'caZ', 'caXi', 'caZi', 'caYaw', 'caVX', 'caVZ', 'caVY', 'caYR', 'caSeg', 'caLap', 'caCP', 'caProg', 'caRank',
         'aiVlim', 'aiWorst', 'aiWsign', 'aiNear', 'aiYel',
         'caCol', 'caAcc', 'caTop', 'caGrip', 'caMass', 'caSteer', 'caThr', 'caBrk', 'caHB', 'caHold', 'caSurf', 'caAir', 'caOff',
         'caSkill', 'caLine', 'caDrift', 'caOffT', 'caLapT', 'caBest', 'caFin', 'caRoll', 'caPitch', 'caU', 'caStuck', 'caSpd',

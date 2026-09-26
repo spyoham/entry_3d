@@ -1286,12 +1286,16 @@ let sfSurf = 0;
 let sfU = 0;               // 0..1 along the segment
 function sampleTrack(x, z, hint) {
     let best = hint;
-    let bestD = 1e9;
+    let bestD = 1e15;
+    // v5.2: the scan in whole cm (sgXi) - a difference of two positions with
+    // long decimal tails is tessvm's slowest sum, and this ran 26 of them
+    let xi = Math.round(x * WU);
+    let zi = Math.round(z * WU);
     let k = 0 - 6;
     while (k <= 6) {
         let i = mod(hint - 1 + k, NSEG) + 1;
-        let dx = x - sgX[i];
-        let dz = z - sgZ[i];
+        let dx = xi - sgXi[i];
+        let dz = zi - sgZi[i];
         let d = dx * dx + dz * dz;
         if (d < bestD) { bestD = d; best = i; }
         k = k + 1;

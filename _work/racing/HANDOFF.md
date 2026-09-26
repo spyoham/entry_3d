@@ -1,3 +1,28 @@
+# ENTRY RACING 3D — 작업 인계 메모 (2026-09-26, v5.2)
+
+산출물: `3D 레이싱 v5.2.ent` ← 최신, 설명서 `3D 레이싱 v5.2 설명서.md` (v5.1은 루트 `old/`로)
+빌드: `node build.mjs racing52.ent` → `globals 449, lists 555, functions 315, handlers 3`
+
+## 요청과 한 것
+"다른 최적화 방법은?" → 아이디어 7개를 `최적화 아이디어.md`에 저장 → "1,2,5만, 1번 시험" → "2,5 진행(효과 있는 것만 적용)"
+- 1 tessvm 커널: 효과 없음, 보류. 확장은 JS 커널만 씀. 게다가 v3.3의 빈 리스트 저장(allocLists) 때문에 커널이 첫 호출에서 영구 정지
+  (v5.1의 루트 43개도 한 번도 안 돎). 미리 채운 시험 빌드에서도 호출당 복사 ~170 µs vs 계산 ~12 µs. 도구 `_work/tessvm/kprobe.mjs`, `kslots.mjs`.
+- 2 그리기 호출 줄이기: A 색 캐시, B 작은 폴리곤(2%뿐), C 마지막 goto 생략 — 모두 오차 범위라 넣지 않음.
+- 5 물리·AI 정수화(적용):
+  - `sampleTrack` 13링 탐색을 `sgXi/sgZi` cm로.
+  - `carsCm()`(phys.js): `caXi/caZi` cm, game.js에서 updateTow 전과 둘째 이후 슬라이스의 aiDrive 전에 부름. aiDrive가 모든 carPhys보다 먼저 돌아 그 사이 위치가 안 바뀜.
+    `updateTow`·`aiDrive` 차 사이 거리는 정수 차 × 방향(×BS 정수) / ZU.
+  - 0 곱하기 건너뛰기: aiPlan `aw`(직선의 av 0), carPhys `topK`·`aeroG`(drs/tow/ers/dmg 0).
+  - aiPlan 상수 `0.50000000003141593`은 String이 `0.500000000031416`(15자리)이라 꼬리가 짧았음 → `0.49999999996858407`.
+    긴 꼬리 상수는 `String(c)`의 소수 자릿수가 16 이상인지 확인할 것.
+- 결과(tessvm HIGH, 번갈아 3회 평균 tick, v5.1→v5.2): 모나코 5.41→5.35, 멜버른 4.24→3.97, 스즈카 4.46→4.19 ms.
+  모나코 toFixed 3057→2377, decimalsBelow 9402→7541 /프레임.
+- 벤치 방법: `t7/mkb.mjs`로 키 스크립트 → `_work/tessvm/trun.mjs`를 빌드끼리 번갈아 3회, race2–4 tick 평균(한 빌드 첫 회가 자주 튐).
+- 테스트: v30 10/10, keys, multi A–G, tilt, pinned, wall, stuck(400 s 전원 완주), offdiag 6곳 240 s 1 m 넘는 이탈 0.
+- 남은 느린 지점은 `최적화 아이디어.md` 5번 참고(그리기 쪽이 더 큼).
+
+---
+
 # ENTRY RACING 3D — 작업 인계 메모 (2026-09-26, v5.1)
 
 산출물: `3D 레이싱 v5.1.ent` ← 최신, 설명서 `3D 레이싱 v5.1 설명서.md` (v5.0은 루트 `old/`로)

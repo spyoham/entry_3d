@@ -117,7 +117,12 @@ function carPhys(c) {
     // cut drag: a higher top speed and a harder pull towards it
     let tow = caTow[c];
     let drs = caDRS[c];
-    let top = caTop[c] * topMul * (1 + 0.035 * tow + 0.05 * drs + 0.02 * caErsOn[c]) * (1 - caTopD[c]);
+    // (v5.2: terms that are 0 are left out - a product with 0 is slow in tessvm)
+    let topK = 1;
+    if (tow > 0) { topK = topK + 0.035 * tow; }
+    if (drs > 0) { topK = topK + 0.05 * drs; }
+    if (caErsOn[c] > 0) { topK = topK + 0.02 * caErsOn[c]; }
+    let top = caTop[c] * topMul * topK * (1 - caTopD[c]);
     // v3.0: fuel is weight (every force moves a heavier car less); failures,
     // the fuel mix and an empty tank change the power (race3.js)
     let mK = 1 + caMassD[c];
@@ -197,7 +202,9 @@ function carPhys(c) {
     // v7: caWK is the weather (arcade) or the tyre on this track (realistic);
     // damage costs downforce
     let dmg = caDmg[c];
-    let aeroG = AERO * caAeroK[c] * spA * spA * (1 - 0.25 * drs) * (1 - 0.35 * dmg);
+    let aeroG = AERO * caAeroK[c] * spA * spA;
+    if (drs > 0) { aeroG = aeroG * (1 - 0.25 * drs); }
+    if (dmg > 0) { aeroG = aeroG * (1 - 0.35 * dmg); }
     let mu = caGrip[c] * gripMul * caWK[c] * (GRIP0 + aeroG);
     // v3.0: the rubbered-in, warm or cold track (realistic), fuel weight, and
     // tyre pressure (lower: a bigger contact patch)
@@ -579,21 +586,36 @@ function carCollisions() {
 // ---- slipstream, once a frame --------------------------------------------
 // How much tow each car gets from whatever is in front of it: full right
 // behind another car, fading to nothing 40 m back or 2.4 m off its line.
+// v5.2: every car's position in whole cm, for the car-to-car distances of
+// updateTow and aiDrive (a difference of two long-tailed positions is one
+// of tessvm's slowest sums; of two whole numbers, one of its quickest).
+// Taken while nobody moves: before the tow and before each slice's driving.
+function carsCm() {
+    let c = 1;
+    while (c <= nCars) {
+        caXi[c] = Math.round(caX[c] * WU);
+        caZi[c] = Math.round(caZ[c] * WU);
+        c = c + 1;
+    }
+    if (scCar > 0) { caXi[GHOST] = Math.round(caX[GHOST] * WU); caZi[GHOST] = Math.round(caZ[GHOST] * WU); }
+}
+
 function updateTow() {
     let c = 1;
     while (c <= nCars) {
-        let fx = sind(caYaw[c]);
-        let fz = cosd(caYaw[c]);
+        // (v5.2: the heading x BS, whole: dot products of whole numbers)
+        let fx = Math.round(sind(caYaw[c]) * BS);
+        let fz = Math.round(cosd(caYaw[c]) * BS);
         let tw = 0;
         let o = 1;
         while (o <= nCars) {
             if (o != c) {
-                let dx = caX[o] - caX[c];
-                let dz = caZ[o] - caZ[c];
-                let ahead = dx * fx + dz * fz;
+                let dx = caXi[o] - caXi[c];
+                let dz = caZi[o] - caZi[c];
+                let ahead = (dx * fx + dz * fz) / ZU;
                 if (ahead > 4) {
                     if (ahead < 40) {
-                        let side = Math.abs(dx * fz - dz * fx);
+                        let side = Math.abs(dx * fz - dz * fx) / ZU;
                         if (side < 2.4) {
                             let t = (1 - ahead / 40) * (1 - side / 2.4 * 0.5);
                             if (t > tw) { tw = t; }

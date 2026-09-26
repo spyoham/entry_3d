@@ -804,12 +804,14 @@ function stepRace() {
     while (c <= nCars) { aiPlan(c); c = c + 1; }
     if (scCar > 0) { aiPlan(GHOST); }
     dt = full;
+    carsCm();
     updateTow();
     updateDRS();
     dt = full / sub;
     let n = 1;
     while (n <= sub) {
         playerInput();
+        if (n > 1) { carsCm(); }
         c = 2;
         while (c <= nCars) { aiDrive(c); c = c + 1; }
         if (scCar > 0) { aiDrive(GHOST); }
