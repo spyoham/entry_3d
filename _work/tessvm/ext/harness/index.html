@@ -19,6 +19,7 @@ async function start() {
   window.__compileMs = performance.now() - t0;
   window.__dropped = built.dropped;
   window.__source = built.source;
+  window.__fnIds = built.project.functions.map(fn => String(fn.id));
   window.__fnNames = built.project.functions.map(fn => { let c = fn.content; if (typeof c === 'string') c = JSON.parse(c); const st = c.find(s => s[0] && s[0].type.startsWith('function_create')); let lab = st && st[0].params[0]; return lab && lab.params ? String(lab.params[0]) : fn.id; });
   await document.fonts.load('bold 20px "Nanum Gothic Coding"').catch(()=>{});
   // ?nick=... signs a pretend user in (the work reads the nickname)
