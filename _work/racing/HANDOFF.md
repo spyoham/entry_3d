@@ -1,3 +1,39 @@
+# ENTRY RACING 3D — 작업 인계 메모 (2026-09-27, v6.2)
+
+산출물: `3D 레이싱 v6.2.ent` ← 최신, 설명서 `3D 레이싱 v6.2 설명서.md` (v6.1은 루트 `old/`로)
+빌드: `node build.mjs racing62.ent` → `globals 506, lists 574, functions 329, handlers 3`, **project.json 15.82 MB**(문턱 약 16.17 MB, 남은 0.35 MB)
+
+## 요청과 한 것
+"bug.mp4(사진 모드, 모나코 페어몬트 헤어핀 위)에서 건물부터 도로까지 정렬 이슈, 폴리곤 중심 정렬만의 문제는 아닌 듯" → v6.2
+- 재현: `t8/shot.mjs`(사진 모드 카메라를 링 기준 `look/brg/dist/up` 또는 x,y,z,yaw로, `SIMS=2`면 960×540, `stub`/`exec`로 함수 끄기·감싸기).
+  - **주의**: photoStep은 phX0/phZ0에서 700 m로 카메라를 묶는다 → 스크립트가 phX0/phZ0도 같이 설정.
+- 원인 1 잔디 띠 모양: prep `reach()`가 랩 35 m(di*2<70) 안을 건너뜀 → 헤어핀 꼭짓점 안쪽 sl=40, 급커브 안쪽 바깥 끝이 접혀 부채꼴(가시)이 두 다리 위로.
+  - `track.js stripReach()`(4단계 뒤): 이 링의 앞뒤 반 링+상대 반폭 안에 중심이 있고 도로 밖(|ac| > w + wj/2 + 1)인 링까지 (|ac|−wj−w)/2로 자름(가운데서 만남),
+    급커브 안쪽은 w+폭 ≤ 0.7·segStep/turn. 먼 링은 (d−far)/segStep 건너뜀. 평면도: `t8/plan.mjs trk out.json` + `t8/plan.py json png a b cx cz half`.
+- 원인 2 땅을 단위와 함께: 가까운 단위의 넓은 띠가 먼 단위 건물 밑동·다른 구간 도로를 덮음.
+  - renderWorld 층: 물(`wtQ`, sheet·water) → 땅(모든 단위 `drawSegGround(..,1)` + `drawLand`, 먼 것부터) → 단위(도로·벽·차)에 풍경 병합.
+  - 언덕 띠(바깥 끝이 도로보다 `GRISE` 300 cm 넘게 높음, `sgUpL/R` 로딩 때)와 다리 옆·밑면은 단위 안(`md 2`).
+- 원인 3 풍경 순서: v4.3은 자기 링 도로 앞/뒤(pass 1/2)만 봄. `gatherScn()`이 풍경 키(cm²)를 모아 내림차순 삽입 정렬(`scQ/scQK/scQH`, 단위 안은 먼 링부터 모아 거의 정렬), 단위 앞에서 병합.
+  - 키: 카메라가 도로 위/반대편 → rgD[링]+1(긴 것은 먼 끝 링, v4.3 그대로). 카메라가 물체 쪽 → min(중심 거리², scRa−1..scRb+1 중 **카메라가 그 링에서도 물체 쪽인** 링의 rgD) − 1.
+    (그 조건이 없으면 187 m 스즈카 피트 건물처럼 굽은 곳을 따라 긴 물체가 도로 위에 칠해짐)
+  - drawScnIn(pass 1/2) 삭제. 같은 링 안 중심거리 동률 깨기는 효과 없어 뺌(소수 덧셈).
+- 땅을 먼저 깔면 묻힌 부분이 보임 → `scGround()`(loadLand 뒤): `groundAt(x,z)`가 모든 링의 띠(선형 보간)와 지형(tgH 쌍선형) 중 최고 높이,
+  중심 + 가장 가까운 링 쪽 면 가운데 두 점. 블록은 지붕 유지하고 scKY 줄임(다 묻혔으면 통째로 올림), 나머지는 들어 올림. 도로 위(e<0.5) 물체는 건드리지 않음.
+- drawSky: 땅 안개 띠 8단(…90, 250, 800, 30000), 하늘 마지막 띠 30000 → 수직으로 내려다봐도 검은 구멍 없음.
+- **새 검증 도구 `SIMZ=1`**(sim.mjs): quad()/quadS()를 감싸 같은 프레임을 깊이 버퍼(1/z 보간, 삼각형 팬)로도 그림. `s.zpng(ref, diff)`가 틀린 픽셀 비율
+  (1픽셀 경계 제외, 3×3 침식). `t8/zsurvey.mjs '{"trks":[..],"n":15,"out":dir,"keep":3}'`: 서킷마다 무작위 카메라(high/low/chase), `ZEXEC`로 실행 전 문장, RSRC로 다른 src.
+  - 19곳×15장 평균: v6.1 3.79% → 띠 폭만 3.72 → +땅 먼저·물 2.43 → +언덕 띠 2.37 → +풍경 병합(측면 링 규칙) 1.68 → +묻힌 물체 올림 0.95%.
+  - 남은 것: 라스베이거스·바쿠 도시 건물끼리 순서, 연석·선 1픽셀, 카메라가 건물 안.
+  - 기준 그림도 물체 높이 조정 뒤 기하로 그리므로 "올림"은 그림 자체를 바꾼 것(묻힌 건물이 땅 위로 보임).
+- `t8/objat.mjs '{"trk":..,"cam":[x,y,z,yaw,pitch,fov],"px":..,"py":..}'`: 그 화면 점(무대 좌표)을 칠한 풍경 물체 목록. `t8/rtime.mjs`(sim renderWorld 시간), `t8/ltime.mjs`(로딩 시간), `t8/rpos.mjs`, `t8/rings.mjs`(급커브 링).
+- 벤치(tessvm HIGH, 보통 CPU, 번갈아 3회, `ab/bench62.txt`): 모나코 7.07→7.21, 스파 4.49→4.49, 라스베이거스 4.23→4.37 ms/틱(+1.9/−0.1/+3.2%, 60 fps 상한 그대로).
+  - CPU×4 측정은 잡음이 커서(같은 빌드 회차 사이 ±15%) 모나코 +4~12%, 라스베이거스 −2~−23%로 흩어짐. 보통 속도 모나코 6회: +0.9%(잡음 범위).
+  - 로딩 첫 틱 280→338 ms(stripReach·scGround). sim에서 doStartRace 18 ms 중 1~2 ms.
+- 테스트: v30 A–J, keys, multi A–G, savecode, slots(v6.1과 같은 출력, 경주 시간 글자만 다름), alloc, share, pinned, tilt, wall, pitgame, photoauto, intrude, stuck(전원 완주), offdiag 1·2·19(1 m 넘는 이탈 0) → `ab/tests62.txt`.
+- 전후 그림: `ab/v62_before_after.png`(왼쪽 v6.1, 오른쪽 v6.2).
+
+---
+
 # ENTRY RACING 3D — 작업 인계 메모 (2026-09-27, v6.1)
 
 산출물: `3D 레이싱 v6.1.ent` ← 최신, 설명서 `3D 레이싱 v6.1 설명서.md` (v6.0은 루트 `old/`로)

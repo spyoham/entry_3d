@@ -380,9 +380,13 @@ function drawSky() {
     let hk = hc * camScale * fogK;
     let gb = 0;
     let g0 = 0;
-    while (gb < 6) {
-        let g1 = 900;
+    while (gb < 8) {
+        // (v6.2: two more bands, the last reaching the bottom of the screen
+        // even with the photo camera looking steeply down, the horizon far
+        // above it: from there the ground is near, not lost in the haze)
+        let g1 = 30000;
         if (gb == 0) { g1 = 4; } else if (gb == 1) { g1 = 10; } else if (gb == 2) { g1 = 22; } else if (gb == 3) { g1 = 45; } else if (gb == 4) { g1 = 90; }
+        else if (gb == 5) { g1 = 250; } else if (gb == 6) { g1 = 800; }
         let fl = NFOG - 2;
         if (gb > 0) {
             fl = Math.floor(hk / g0);
@@ -401,7 +405,7 @@ function drawSky() {
     while (b < 14) {
         let o0 = b * 20;
         let o1 = o0 + 21;
-        if (b == 13) { o1 = 900; }
+        if (b == 13) { o1 = 30000; }
         let sx0 = srq * o0; let sy0 = crq * o0;
         let sx1 = srq * o1; let sy1 = crq * o1;
         fill4((ax + sx0) / 65536, (ay + sy0) / 65536, (bx + sx0) / 65536, (by + sy0) / 65536,
@@ -619,24 +623,46 @@ function cullSegments() {
 // ---- one track segment --------------------------------------------------
 // v4.3: a unit's ground (grass strip, run-off, a deck's underside) is drawn
 // before the scenery that stands on it, and the road with its walls after
-function drawSegGround(i, b0, b1, lvl) {
-    if (sgBrg[i] > 0) {
+function drawSegGround(i, b0, b1, lvl, md) {
+    let brg = sgBrg[i];
+    if (brg > 0) {
         // v4.2: a bridge deck: its underside, seen from the road below (not
         // on the last ring, whose next ring is the embankment)
-        if (sgBrg[idiv(b1, PPR) + 1] > 0) { quad(b0 + P_GR, b0 + P_GL, b1 + P_GL, b1 + P_GR, M_deck + 1); }
+        if (md != 1) { if (sgBrg[idiv(b1, PPR) + 1] > 0) { quad(b0 + P_GR, b0 + P_GL, b1 + P_GL, b1 + P_GR, M_deck + 1); } }
+    }
+    // which sides climb (a hillside hides what is behind it, so it keeps its
+    // place in the unit's order; flat ground goes down first, under everything)
+    let j = idiv(b1, PPR) + 1;
+    let upL = sgUpL[i] + sgUpL[j];
+    let upR = sgUpR[i] + sgUpR[j];
+    if (upL > 1) { upL = 1; }
+    if (upR > 1) { upR = 1; }
+    let dL = 1;
+    let dR = 1;
+    if (md == 1) { dL = 1 - upL; dR = 1 - upR; } else if (md == 2) { dL = upL; dR = upR; }
+    // (a deck's sides are the deck's, drawn with it)
+    if (brg > 0) {
+        if (md == 1) { dL = 0; dR = 0; } else { dL = 1; dR = 1; }
     } else if (lvl < 1) {
-        quad(b0 + P_GL, b0 + P_GR, b1 + P_GR, b1 + P_GL, sgGMat[i]);
+        if (dL + dR > 0) {
+            let k = md == 1 ? dL * dR : 1;
+            if (k > 0) { quad(b0 + P_GL, b0 + P_GR, b1 + P_GR, b1 + P_GL, sgGMat[i]); }
+        }
     }
     if (lvl > 0) {
         if (sgHW[i] > 0) {
-            quad(b0 + P_GL, b0 + P_L, b1 + P_L, b1 + P_GL, sgGMat[i]);
-            quad(b0 + P_R, b0 + P_GR, b1 + P_GR, b1 + P_R, sgGMat[i]);
+            if (dL > 0) { quad(b0 + P_GL, b0 + P_L, b1 + P_L, b1 + P_GL, sgGMat[i]); }
+            if (dR > 0) { quad(b0 + P_R, b0 + P_GR, b1 + P_GR, b1 + P_R, sgGMat[i]); }
         } else {
             // run-off band (gravel, tarmac or verge), then the grass beyond it
-            quad(b0 + P_OL, b0 + P_L, b1 + P_L, b1 + P_OL, sgRML[i]);
-            quad(b0 + P_GL, b0 + P_OL, b1 + P_OL, b1 + P_GL, sgGMat[i]);
-            quad(b0 + P_R, b0 + P_OR, b1 + P_OR, b1 + P_R, sgRMR[i]);
-            quad(b0 + P_OR, b0 + P_GR, b1 + P_GR, b1 + P_OR, sgGMat[i]);
+            if (dL > 0) {
+                quad(b0 + P_OL, b0 + P_L, b1 + P_L, b1 + P_OL, sgRML[i]);
+                quad(b0 + P_GL, b0 + P_OL, b1 + P_OL, b1 + P_GL, sgGMat[i]);
+            }
+            if (dR > 0) {
+                quad(b0 + P_R, b0 + P_OR, b1 + P_OR, b1 + P_R, sgRMR[i]);
+                quad(b0 + P_OR, b0 + P_GR, b1 + P_GR, b1 + P_OR, sgGMat[i]);
+            }
         }
     }
 }
@@ -1259,50 +1285,108 @@ function drawScn(o, hi) {
     }
 }
 
-// every object filed against the rings this draw unit spans
-// v4.3: in two passes round the road. Pass 1, before the road and its walls:
-// everything behind them - which, from a camera on the road, is all of it.
-// Pass 2, after the road and the cars on it: what stands between the camera
-// and this road (the camera is off it, on the object's side: the other leg
-// of a hairpin, a parallel straight).
-function drawScnIn(i, st, lvl, d2, pass) {
-    // full models only close in; how close depends on the graphics level
-    let hi = lvl > 1 ? 1 : 0;
-    if (gfx > 1) { hi = d2 < scnHi2 ? 1 : 0; }
-    let q = 0;
-    while (q < st) {
-        let sg = i + q;
-        if (sg > NSEG) { sg = sg - NSEG; }
-        // (whole numbers: cm x the normal x1024, against the half width)
-        let co = (camXi - sgXi[sg]) * sgNXi[sg] + (camZi - sgZi[sg]) * sgNZi[sg];
-        let out = 0;
-        if (co > sgWi[sg]) { out = 1; } else if (co < 0 - sgWi[sg]) { out = 0 - 1; }
-        let n = scHead[sg];
-        // (from on this road nothing is in front of it: no second walk)
-        if (pass > 1) { if (out == 0) { n = 0; } }
-        let dsg = rgD[sg];
-        while (n > 0) {
-            let o = scnO[n];
-            if (scLod[o] <= lvl) {
-                // a long object: only with the end ring further from the
-                // camera (if that ring is being drawn this frame)
-                let ok = 1;
-                let ra = scRa[o];
-                if (ra != scRb[o]) {
-                    let ot = ra == sg ? scRb[o] : ra;
-                    if (rgF[ot] == frameId) { if (rgD[ot] > dsg) { ok = 0; } }
-                }
-                if (ok > 0) {
-                    if (out == 0) { drawScn(o, hi); }
-                    else {
-                        let front = out * scOfS[o] > 0 ? 2 : 1;
-                        if (front == pass) { drawScn(o, hi); }
+// v6.2: every object filed against the rings drawn this frame, with a sort
+// key (whole cm²), farthest first, to be merged into the units' order.
+// With the camera on the road, or across it from the object, the object goes
+// just before its ring's road and walls (v4.3; a long one, a grandstand down
+// a straight, with the further of the rings at its two ends). With the
+// camera off the road on the object's side it stands in front of that road:
+// it goes after every ring beside it, and after any other part of the lap it
+// is nearer than (v4.3 only put it after its own ring, so the road beside it
+// and the other leg of a hairpin were painted over it).
+// Water is ground: it is kept apart (wtQ) and goes down before everything.
+let nScQ = 0;
+let nWtQ = 0;
+function gatherScn() {
+    nScQ = 0;
+    nWtQ = 0;
+    let k = 1;
+    while (k <= nVis) {
+        let i = visI[k];
+        if (i > 0) { if (visD[k] < scnFar2) {
+            let st = visS[k];
+            let lvl = 3 - st;
+            let hi = lvl > 1 ? 1 : 0;
+            if (gfx > 1) { hi = visD[k] < scnHi2 ? 1 : 0; }
+            // (the unit's far ring first: the list stays nearly in order)
+            let q = st - 1;
+            while (q >= 0) {
+                let sg = i + q;
+                if (sg > NSEG) { sg = sg - NSEG; }
+                let dsg = rgD[sg];
+                // (the camera off this road, and on which side: v4.3)
+                let co = (camXi - sgXi[sg]) * sgNXi[sg] + (camZi - sgZi[sg]) * sgNZi[sg];
+                let out = 0;
+                if (co > sgWi[sg]) { out = 1; } else if (co < 0 - sgWi[sg]) { out = 0 - 1; }
+                let n = scHead[sg];
+                while (n > 0) {
+                    let o = scnO[n];
+                    if (scLod[o] <= lvl) {
+                        let t = scT[o];
+                        let ok = 1;
+                        let wat = 0;
+                        if (t == SC_SHEET) { wat = 1; } else if (t == SC_WATER) { wat = 1; }
+                        // just before its ring's road (the v4.3 order: a long
+                        // object with the further of its two end rings)...
+                        let key = dsg + 1;
+                        let ra = scRa[o];
+                        let rb = scRb[o];
+                        if (ra != rb) {
+                            let ot = ra == sg ? rb : ra;
+                            if (rgF[ot] == frameId) { if (rgD[ot] > dsg) { ok = 0; } }
+                        }
+                        if (wat > 0) {
+                            if (ok > 0) { nWtQ = nWtQ + 1; wtQ[nWtQ] = o; wtH[nWtQ] = hi; }
+                            ok = 0;
+                        }
+                        if (ok > 0) { if (out * scOfS[o] > 0) {
+                            // ...but with the camera off the road on its side it
+                            // stands in front of that road: after every ring
+                            // beside it, and after any other road it is nearer
+                            // than (another part of the lap)
+                            let dx = scXi[o] - camXi;
+                            let dz = scZi[o] - camZi;
+                            key = dx * dx + dz * dz;
+                            let r = ra - 1;
+                            if (r < 1) { r = NSEG; }
+                            let re = mod(rb, NSEG) + 1;
+                            let guard = 0;
+                            while (guard < 30) {
+                                if (rgF[r] == frameId) { if (rgD[r] < key) {
+                                    // (only where the camera is off that ring's
+                                    // road on the object's side too: a long one
+                                    // may run round a bend)
+                                    let cr = (camXi - sgXi[r]) * sgNXi[r] + (camZi - sgZi[r]) * sgNZi[r];
+                                    if (cr * scOfS[o] > sgWi[r]) { key = rgD[r]; }
+                                } }
+                                if (r == re) { guard = 30; }
+                                r = mod(r, NSEG) + 1;
+                                guard = guard + 1;
+                            }
+                            key = key - 1;
+                        } }
+                        if (ok > 0) {
+                            // (in near order already, mostly: a short insertion)
+                            let j = nScQ;
+                            while (j >= 1) {
+                                if (scQK[j] >= key) { break; }
+                                scQ[j + 1] = scQ[j];
+                                scQK[j + 1] = scQK[j];
+                                scQH[j + 1] = scQH[j];
+                                j = j - 1;
+                            }
+                            scQ[j + 1] = o;
+                            scQK[j + 1] = key;
+                            scQH[j + 1] = hi;
+                            nScQ = nScQ + 1;
+                        }
                     }
+                    n = scnN[n];
                 }
+                q = q - 1;
             }
-            n = scnN[n];
-        }
-        q = q + 1;
+        } }
+        k = k + 1;
     }
 }
 
@@ -1374,6 +1458,14 @@ function drawMinimap() {
 }
 
 // ---- whole frame --------------------------------------------------------
+// v6.2: in layers. Water and then the ground - grass strips, run-off and the
+// patches of land, far to near - go down first, under everything: flat ground
+// can hide nothing, and drawn with its unit it painted over the foot of what
+// stands on it beyond that unit (a building on the next ring's strip) and
+// over the road of any part of the lap it stretched towards. A strip that
+// climbs a hillside (GRISE) can hide what is behind it, so it keeps its
+// place in its unit. Then the units, far to near - road, walls, cars - with
+// the scenery merged in by its own key (gatherScn).
 function renderWorld() {
     frameId = frameId + 1;
     drawnQuads = 0;
@@ -1383,10 +1475,40 @@ function renderWorld() {
     drawHills();
     cullSegments();
     pickCarDetail();
+    nScQ = 0;
+    nWtQ = 0;
+    if (scN > 0) { gatherScn(); }
     let k = 1;
+    while (k <= nWtQ) {
+        drawScn(wtQ[k], wtH[k]);
+        k = k + 1;
+    }
+    k = 1;
     while (k <= nVis) {
         let i = visI[k];
-        if (i < 0) { drawLand(0 - i, visS[k]); } else {
+        if (i < 0) { drawLand(0 - i, visS[k]); }
+        else if (sgBrg[i] < 1) {
+            let j = i + visS[k];
+            if (j > NSEG + 1) { j = j - NSEG; }
+            let lvl = 3 - visS[k];
+            projRing(i, lvl);
+            projRing(j, lvl);
+            drawSegGround(i, (i - 1) * PPR, (j - 1) * PPR, lvl, 1);
+        }
+        k = k + 1;
+    }
+    let qi = 1;
+    k = 1;
+    while (k <= nVis) {
+        let i = visI[k];
+        // the scenery further off than this unit
+        let vk = visD[k] * 10000;
+        while (qi <= nScQ) {
+            if (scQK[qi] < vk) { break; }
+            drawScn(scQ[qi], scQH[qi]);
+            qi = qi + 1;
+        }
+        if (i > 0) {
         let st = visS[k];
         let j = i + st;                     // the ring that closes this unit
         if (j > NSEG + 1) { j = j - NSEG; }
@@ -1396,11 +1518,9 @@ function renderWorld() {
         projRing(j, lvl);
         let b0 = (i - 1) * PPR;
         let b1 = (j - 1) * PPR;
-        // (v4.3: ground, the scenery behind the road, then the road and walls)
-        drawSegGround(i, b0, b1, lvl);
-        let scnOn = 0;
-        if (scN > 0) { if (visD[k] < scnFar2) { scnOn = 1; } }
-        if (scnOn > 0) { drawScnIn(i, st, lvl, visD[k], 1); }
+        // (a hillside strip, a bridge deck's sides and underside; then the
+        // road and its walls)
+        if (sgBrg[i] + sgUpL[i] + sgUpR[i] + sgUpL[j] + sgUpR[j] > 0) { drawSegGround(i, b0, b1, lvl, 2); }
         drawSeg(i, b0, b1, lvl);
         // the time-trial ghost rides along in the same unit as any car,
         // drawn first so it never hides the real car it is racing
@@ -1428,14 +1548,17 @@ function renderWorld() {
             }
             c = c + 1;
         }
-        // v4.3: what stands between the camera and this road, over its cars
-        if (scnOn > 0) { drawScnIn(i, st, lvl, visD[k], 2); }
         if (near > 0) {
             if (smN > 0) { drawSmokeIn(i); }
             if (spN > 0) { drawSparksIn(i); }
         }
         }
         k = k + 1;
+    }
+    // (what stands nearer than every unit)
+    while (qi <= nScQ) {
+        drawScn(scQ[qi], scQH[qi]);
+        qi = qi + 1;
     }
     let room = 0;
     if (raceState == ST_CARSEL) { room = 1; }

@@ -8,6 +8,7 @@ const NSAMP = 1200;
 const CURBW = 1.10;        // curb strip width
 const GRASSW = 40;         // grass skirt width
 const GRASSD = 1.0;        // grass sits this far below the road
+const GRISE = 300;         // v6.2: cm - a strip edge this far above the road is a hillside
 const WALLH = 1.35;        // barrier height
 const TUNH = 7.0;          // tunnel ceiling height
 const JUMPH = 3.4;         // how high a jump run climbs before the lip
@@ -111,6 +112,71 @@ function refreshAtmos() {
         sb = sb + 1;
     }
     loadPalette();
+}
+
+// v6.2: how far each grass strip may reach, measured on the rings themselves.
+// A strip stops half way to another part of the lap (the other leg of a
+// hairpin, a parallel straight - that road's strip comes out to meet it), and
+// on the inside of a bend short of the point where its outer edge would fold
+// back over the road as a fan. (The map's limits skipped 70 m of lap either
+// side of the ring, and a hairpin's other leg is inside that.)
+function stripReach() {
+    let far = 2 * GRASSW + 20;
+    let i = 1;
+    while (i <= NSEG) {
+        let x = sgX[i];
+        let z = sgZ[i];
+        let w = sgW[i];
+        let dxi = sgDX[i];
+        let dzi = sgDZ[i];
+        let nxi = sgNX[i];
+        let nzi = sgNZ[i];
+        let sl = sgSL[i];
+        let sr = sgSR[i];
+        // the bend: offsetting a ring's step by D along the inside shortens it
+        // by about D x the turn, so the edge must stay well inside that
+        let q = 0 - 1;
+        while (q <= 0) {
+            let a = mod(i - 1 + q + NSEG, NSEG) + 1;
+            let b = mod(a, NSEG) + 1;
+            let tn = sgDX[b] * sgNX[a] + sgDZ[b] * sgNZ[a];
+            if (tn > 0.02) { sr = Math.min(sr, 0.7 * segStep / tn - w); }
+            if (tn < 0 - 0.02) { sl = Math.min(sl, 0 - 0.7 * segStep / tn - w); }
+            q = q + 1;
+        }
+        // other road within reach: a ring whose centre lies in this ring's
+        // slice of the lap and off this road (the ring's own neighbours sit
+        // on it, a hairpin's far side does not)
+        let j = 1;
+        while (j <= NSEG) {
+            let dx = sgX[j] - x;
+            let dz = sgZ[j] - z;
+            let d = Math.sqrt(dx * dx + dz * dz);
+            if (d < far) {
+                let wj = sgW[j];
+                let al = Math.abs(dx * dxi + dz * dzi);
+                if (al < segStep * 0.5 + wj) {
+                    let ac = dx * nxi + dz * nzi;
+                    let aa = Math.abs(ac);
+                    if (aa > w + wj * 0.5 + 1) {
+                        let lim = (aa - wj - w) / 2;
+                        if (ac > 0) { if (lim < sr) { sr = lim; } }
+                        else if (lim < sl) { sl = lim; }
+                    }
+                }
+                j = j + 1;
+            } else {
+                // a ring is at most one ring's length nearer than the last
+                j = j + 1 + Math.floor((d - far) / segStep);
+            }
+        }
+        if (sl < 0) { sl = 0; }
+        if (sr < 0) { sr = 0; }
+        sgSL[i] = sl;
+        sgSR[i] = sr;
+        i = i + 1;
+    }
+    sgSL[NSEG + 1] = sgSL[1]; sgSR[NSEG + 1] = sgSR[1];
 }
 
 function buildTrack(tk) {
@@ -288,6 +354,7 @@ function buildTrack(tk) {
     i = 1;
     while (i <= NSEG) { sgBank[i] = tsA[i]; i = i + 1; }
     sgBank[NSEG + 1] = sgBank[1];
+    stripReach();
 
     // ---- 4b) derived per-segment flags, and jump ramps ----
     i = 1;
@@ -438,6 +505,19 @@ function buildTrack(tk) {
         wvX[i] = Math.round(wvX[i] * WU);
         wvY[i] = Math.round(wvY[i] * WU);
         wvZ[i] = Math.round(wvZ[i] * WU);
+        i = i + 1;
+    }
+    // v6.2: which grass strips climb a hillside (render.js: they keep their
+    // place in the depth order; flat ground is drawn first, under everything)
+    i = 1;
+    while (i <= NSEG + 1) {
+        let b = (i - 1) * PPR;
+        sgUpL[i] = 0;
+        sgUpR[i] = 0;
+        if (sgBrg[i] < 1) {
+            if (wvY[b + P_GL] - wvY[b + P_L] > GRISE) { sgUpL[i] = 1; }
+            if (wvY[b + P_GR] - wvY[b + P_R] > GRISE) { sgUpR[i] = 1; }
+        }
         i = i + 1;
     }
 
@@ -656,6 +736,7 @@ function buildTrack(tk) {
     placeScenery(tk);
     // ---- 11b) v4.2 the land round the circuit ----
     loadLand(tk);
+    scGround();
 
     // ---- 12) v7 trackside TV cameras for replays ----
     buildTvCams();
@@ -1103,6 +1184,108 @@ function placeReal(tk) {
             k = k + RSW;
         }
         c = c + 1;
+    }
+}
+
+// v6.2: the ground goes down before the scenery now, so nothing may stand
+// sunk in it (a grass strip, or the land, used to paint over the buried
+// part). Each object's base comes up to the ground under it: the highest
+// strip or patch of land, from any part of the lap, at its centre and at
+// the middle of its side facing the nearest road. A building keeps its roof
+// (it only gets shorter); anything else is lifted. Not water, and not what
+// stands over the road on purpose.
+let oGy = 0;
+let oOnRd = 0;
+let oNr = 0;
+function groundAt(x, z) {
+    let far = GRASSW + 20;
+    oGy = 0 - 100000;
+    oOnRd = 0;
+    oNr = 0;
+    let nd = 100000;
+    let j = 1;
+    while (j <= NSEG) {
+        let dx = x - sgX[j];
+        let dz = z - sgZ[j];
+        let d = Math.sqrt(dx * dx + dz * dz);
+        if (d < far) {
+            if (d < nd) { nd = d; oNr = j; }
+            let al = dx * sgDX[j] + dz * sgDZ[j];
+            if (Math.abs(al) <= segStep * 0.5) {
+                let ac = dx * sgNX[j] + dz * sgNZ[j];
+                let sd = ac < 0 ? 0 - 1 : 1;
+                let e = sd * ac - sgW[j];
+                if (e < 0.5) { oOnRd = 1; }
+                else if (sgBrg[j] < 1) {
+                    let sw = sd > 0 ? sgSR[j] : sgSL[j];
+                    if (e <= sw) {
+                        let b = (j - 1) * PPR;
+                        let ye = sd > 0 ? wvY[b + P_R] : wvY[b + P_L];
+                        let yo = sd > 0 ? wvY[b + P_GR] : wvY[b + P_GL];
+                        let y = ye;
+                        if (sw > 0.01) { y = ye + (yo - ye) * e / sw; }
+                        if (y / WU > oGy) { oGy = y / WU; }
+                    }
+                }
+            }
+            j = j + 1;
+        } else {
+            // (a ring is at most one ring's length nearer than the last)
+            j = j + 1 + Math.floor((d - far) / segStep);
+        }
+    }
+    // the land, where a patch of it is in play here
+    if (tpN > 0) {
+        let fi = (x - tgX0c) / tgCc;
+        let fj = (z - tgZ0c) / tgCc;
+        let ci = Math.floor(fi);
+        let cj = Math.floor(fj);
+        if (ci >= 0) { if (cj >= 0) { if (ci < tgNXc) { if (cj < tgNZc) {
+            if (tgK[cj * tgNXc + ci + 1] > 0) {
+                let a = cj * (tgNXc + 1) + ci + 1;
+                let u = fi - ci;
+                let v = fj - cj;
+                let h = (tgH[a] * (1 - u) + tgH[a + 1] * u) * (1 - v) + (tgH[a + tgNXc + 1] * (1 - u) + tgH[a + tgNXc + 2] * u) * v;
+                if (h > oGy) { oGy = h; }
+            }
+        } } } }
+    }
+}
+function scGround() {
+    let o = 1;
+    while (o <= scN) {
+        let t = scT[o];
+        let ok = 1;
+        if (t == SC_SHEET) { ok = 0; } else if (t == SC_WATER) { ok = 0; }
+        if (ok > 0) {
+            groundAt(scX[o], scZ[o]);
+            let gy = oGy;
+            if (oOnRd > 0) { ok = 0; }
+            else if (oNr > 0) {
+                // the side facing the nearest road: half the footprint's
+                // smaller size towards that ring
+                let hx = (gtX1[t] - gtX0[t]) * scK[o] / 2;
+                let hz = (gtZ1[t] - gtZ0[t]) * scKZ[o] / 2;
+                let h = Math.min(hx, hz);
+                let dx = sgX[oNr] - scX[o];
+                let dz = sgZ[oNr] - scZ[o];
+                let d = Math.sqrt(dx * dx + dz * dz);
+                if (d > h + 0.5) {
+                    groundAt(scX[o] + dx * h / d, scZ[o] + dz * h / d);
+                    if (oGy > gy) { gy = oGy; }
+                }
+            }
+            if (ok > 0) {
+                let lift = gy - 0.3 - scY[o];
+                if (lift > 0) {
+                    if (t == SC_BLOCK) {
+                        if (scKY[o] > lift + 2) { scKY[o] = scKY[o] - lift; scY[o] = scY[o] + lift; }
+                        else { scY[o] = gy - 0.3; }
+                    } else { scY[o] = scY[o] + lift; }
+                }
+            }
+        }
+        o = o + 1;
     }
 }
 

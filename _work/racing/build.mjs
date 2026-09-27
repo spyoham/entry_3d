@@ -1368,6 +1368,10 @@ export function buildData() {
     for (const k of ['tsX', 'tsY', 'tsZ', 'tsW', 'tsF', 'tsA']) lists[k] = zeros(NSAMP_MAX + 2);
     // (v4.2: + the patches of land in view)
     lists.visI = zeros(N + 8 + C.NTP); lists.visD = zeros(N + 8 + C.NTP); lists.visS = zeros(N + 8 + C.NTP);
+    // v6.2: the scenery of a frame, sorted by its own distance (render.js gatherScn)
+    lists.scQ = zeros(C.NSCENE + 8); lists.scQK = zeros(C.NSCENE + 8); lists.scQH = zeros(C.NSCENE + 8);
+    lists.wtQ = zeros(C.NSCENE + 8); lists.wtH = zeros(C.NSCENE + 8);
+    lists.sgUpL = zeros(N + 2); lists.sgUpR = zeros(N + 2);
     lists.tsGL = zeros(NSAMP_MAX + 2); lists.tsGR = zeros(NSAMP_MAX + 2); lists.tsSL = zeros(NSAMP_MAX + 2); lists.tsSR = zeros(NSAMP_MAX + 2);
     // v4.2 the land: corner heights, cell kinds and colours, and 3x3-cell patches
     for (const k of ['tgH']) lists[k] = zeros(4902);

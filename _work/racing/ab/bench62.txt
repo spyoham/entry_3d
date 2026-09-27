@@ -1,0 +1,22 @@
+rep 1 trk 1 racing61.ent  tick 7.14 ms  fps 58.6  longest start tick 276.8 ms
+rep 1 trk 1 racing62.ent  tick 7.05 ms  fps 59.7  longest start tick 338.3 ms
+rep 1 trk 2 racing61.ent  tick 4.37 ms  fps 60.0  longest start tick 312.0 ms
+rep 1 trk 2 racing62.ent  tick 4.35 ms  fps 60.0  longest start tick 390.2 ms
+rep 1 trk 19 racing61.ent  tick 4.18 ms  fps 60.0  longest start tick 238.0 ms
+rep 1 trk 19 racing62.ent  tick 4.49 ms  fps 60.0  longest start tick 279.0 ms
+rep 2 trk 1 racing62.ent  tick 7.13 ms  fps 59.6  longest start tick 343.7 ms
+rep 2 trk 1 racing61.ent  tick 6.98 ms  fps 59.3  longest start tick 273.8 ms
+rep 2 trk 2 racing62.ent  tick 4.76 ms  fps 60.0  longest start tick 397.9 ms
+rep 2 trk 2 racing61.ent  tick 4.48 ms  fps 60.0  longest start tick 342.6 ms
+rep 2 trk 19 racing62.ent  tick 4.32 ms  fps 60.0  longest start tick 269.1 ms
+rep 2 trk 19 racing61.ent  tick 4.30 ms  fps 60.0  longest start tick 249.6 ms
+rep 3 trk 1 racing61.ent  tick 7.09 ms  fps 59.0  longest start tick 278.2 ms
+rep 3 trk 1 racing62.ent  tick 7.44 ms  fps 58.6  longest start tick 389.5 ms
+rep 3 trk 2 racing61.ent  tick 4.63 ms  fps 60.0  longest start tick 309.2 ms
+rep 3 trk 2 racing62.ent  tick 4.34 ms  fps 60.0  longest start tick 375.5 ms
+rep 3 trk 19 racing61.ent  tick 4.21 ms  fps 60.0  longest start tick 241.5 ms
+rep 3 trk 19 racing62.ent  tick 4.29 ms  fps 60.0  longest start tick 256.2 ms
+
+== throttle x1, gfx 2: mean tick ms (fps)
+racing61.ent      trk1 7.07 (59.0)   trk2 4.49 (60.0)   trk19 4.23 (60.0) 
+racing62.ent      trk1 7.21 (59.3) 1.9%  trk2 4.49 (60.0) -0.1%  trk19 4.37 (60.0) 3.2%
