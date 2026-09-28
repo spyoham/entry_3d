@@ -44,3 +44,11 @@ _work/racing/real/cache/
 _work/racing/ab/*.ent
 _work/racing/ab/*.lines.json
 _work/racing/ab/src_*/
+
+# 목소리 높이 바꾸기: 시험 녹음과 중간 산출물(build.mjs로 다시 만듦) — 원본 voice.wav만 보관
+_work/pitch/sim/
+_work/pitch/*.ent
+_work/pitch/grains.wav
+_work/pitch/voice_trim.wav
+_work/pitch/.tmp/
+_work/pitch/.pack/
