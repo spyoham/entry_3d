@@ -25,3 +25,15 @@
 ## 측정(2026-09-28)
 엔트리: ±12반음 모두 재생 길이 10.52–10.60 s(원본 10.46 s), 음높이 ×0.506–×2.018, 음량 원본과 같음.
 속도째 +7반음: 6.98 s. tessvm: +4반음 ×1.258, −12반음 ×0.507, 길이 10.54–10.60 s.
+
+## 조각 만들기 (파일 넣으면 조각 MP3 + .ent)
+저장소 루트의 `조각 만들기.html`을 더블클릭해 브라우저로 연다(인터넷 필요: lamejs를 cdnjs에서 받음).
+공개 버전: https://claude.ai/artifact/5mQHcK47Bf8nUXtaqqKwCg (그 화면은 .zip으로만 받을 수 있다: downloads 기능 허용 목록)
+
+- 브라우저 안에서 전부 처리한다: 디코드 → 44.1 kHz 모노 → 앞뒤 −45 dB 무음 자르기, 최고 0.9, 앞뒤 50 ms → 조각 → lamejs 64 kbps
+  → 파형 PNG → `template.json`의 작품에 소리·그림·변수(`목소리길이`, `마지막조각`)를 바꿔 넣고 tar.gz(.ent).
+- lamejs MP3는 갭리스 헤더가 없어 크롬 디코드 때 앞에 1101샘플(25 ms)이 붙는다 → 인코딩 전에 그만큼 잘라 낸다(`LAME_DELAY`).
+- 작품은 이제 목소리마다 다른 숫자를 변수 `목소리길이`, `마지막조각`에서 읽는다(build.mjs가 template.json도 쓴다).
+- 다시 만들기: `node build.mjs` → `node gen-page.mjs 1101`. 시험: `node ptest.mjs [파일]`(페이지가 만든 .ent를
+  from-page.ent로 저장) → `node etest.mjs from-page.ent`(`SHORT=1`이면 두 음높이만), `node ttest.mjs from-page.ent`.
+- 측정: 샘플 처리 0.7 s. 영어 5.5 s 음성: 엔트리에서 길이 5.30/5.34/5.38 s(원본/+4/−12), 음높이 ×1.27, ×0.52.

@@ -88,6 +88,9 @@ const set = (name, v) => B('set_variable', [V[name], val(v), null]);
 const add = (name, v) => B('change_variable', [V[name], val(v), null]);
 ['반음', '재생속도', '모드', '위치', '지난시각', '지금', '조각번호', '조각길이'].forEach((v) => variable(v));
 variable('$TESSVM');     // tessvm sets it to 1; plain Entry leaves it 0
+// the voice's own numbers (조각 만들기.html rewrites them for another voice)
+variable('목소리길이', +LEN.toFixed(3));
+variable('마지막조각', N - 1);
 // sound speed for -12 .. +12 semitones: item (semitone + 13)
 const RATE_ID = newId();
 const rates = Array.from({ length: 25 }, (_, i) => Math.round(2 ** ((i - 12) / 12) * 10000) / 10000);
@@ -124,11 +127,11 @@ const ctrl = [
                 [add('위치', calc(get('지금'), '-', get('지난시각')))]),
             set('지난시각', get('지금')),
             iff(cmp(get('모드'), '>', 0),
-                iff(cmp(get('위치'), '>', +(LEN).toFixed(3)), set('모드', 0), cast('설정 적용'))),
+                iff(cmp(get('위치'), '>', get('목소리길이')), set('모드', 0), cast('설정 적용'))),
             // one grain every frame: the one under the playing position
             iff(cmp(get('모드'), '==', 1),
                 set('조각번호', round(calc(get('위치'), '*', 1 / H))),
-                iff(cmp(get('조각번호'), '>', N - 1), set('조각번호', N - 1)),
+                iff(cmp(get('조각번호'), '>', get('마지막조각')), set('조각번호', get('마지막조각'))),
                 B('sound_from_to', [snd('grains'),
                     calc(get('조각번호'), '*', S),
                     calc(calc(get('조각번호'), '*', S), '+', get('조각길이')), null])),
@@ -175,7 +178,7 @@ const WX = -200;   // left edge of the waveform
 const bar = [
     thread(onStart(), B('hide', [null]),
         forever(ifElse(cmp(get('모드'), '>', 0),
-            [B('locate_x', [calc(WX, '+', calc(get('위치'), '*', +(WW / LEN).toFixed(4))), null]), B('show', [null])],
+            [B('locate_x', [calc(WX, '+', calc(get('위치'), '*', calc(WW, '/', get('목소리길이')))), null]), B('show', [null])],
             [B('hide', [null])]))),
 ];
 
@@ -215,7 +218,11 @@ const objects = [
     button('b3', '■ 멈춤 (S)', 0, -116, 136, '멈추기', '#b8453c'),
 ];
 
-packEnt(OUT, { name: '목소리 높이 바꾸기', objects, variables, functions: [], messages, speed: 60, tmpDir: path.join(HERE, '.pack') });
+const project = packEnt(OUT, { name: '목소리 높이 바꾸기', objects, variables, functions: [], messages, speed: 60, tmpDir: path.join(HERE, '.pack') });
+// template for 조각 만들기.html: the project plus the one asset it does not remake (the playhead bar)
+const barUrl = project.objects.find(o => o.id === 'bar').sprite.pictures[0].fileurl;
+fs.writeFileSync(path.join(HERE, 'template.json'), JSON.stringify({ project, bar: { fileurl: barUrl, b64: barPng.toString('base64') },
+    params: { SR, P, M, S, H, WW, WH } }));
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log('wrote', OUT, fs.statSync(OUT).size, 'bytes; voice', LEN.toFixed(2), 's; grains', N, '=', (N * S).toFixed(1), 's; mp3',
     voiceMp3.length, '+', grainMp3.length, 'bytes');

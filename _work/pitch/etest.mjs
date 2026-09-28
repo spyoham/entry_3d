@@ -84,13 +84,13 @@ const run = async (label, keys, ms) => {
     phases.push({ label, t0, t1: await page.evaluate(() => performance.now()), st: await readVar('반음'), mode: await readVar('모드') });
 };
 await wait(1000);
-await run('+4 grains', [38, 38, 38, 38, 32], 11500);
+await run('+4 grains', [38, 38, 38, 38, 32], process.env.SHORT ? 6500 : 11500);
 await page.locator('canvas').first().screenshot({ path: new URL('./shot.png', import.meta.url).pathname.slice(1) }).catch(() => {});
-await run('-7 grains', [40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 32], 11500);
-await run('+12 grains', [...Array(19).fill(38), 32], 11500);
-await run('-12 grains', [...Array(24).fill(40), 32], 11500);
-await run('original', [48, 49], 11500);
-await run('speed only +7', [...Array(7).fill(38), 50], 8000);
+if (!process.env.SHORT) await run('-7 grains', [40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 32], 11500);
+if (!process.env.SHORT) await run('+12 grains', [...Array(19).fill(38), 32], 11500);
+await run('-12 grains', [...Array(24).fill(40), 32], process.env.SHORT ? 6500 : 11500);
+await run('original', [48, 49], process.env.SHORT ? 6500 : 11500);
+if (!process.env.SHORT) await run('speed only +7', [...Array(7).fill(38), 50], 8000);
 // clicking a button (a text box with a background) casts its message
 const box = await page.locator('canvas').first().boundingBox();
 const clickAt = (x, y) => page.mouse.click(box.x + (x + 240) / 480 * box.width, box.y + (135 - y) / 270 * box.height);
