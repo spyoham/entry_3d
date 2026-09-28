@@ -46,7 +46,6 @@ let scUsed = 0;
 let scLap = 0;
 let prevRank = 0;
 let yelHere = 0;            // the player is inside a yellow-flag zone
-let plSlowT = 0;            // v6.3: how long the player has been crawling
 let oYel = 0;
 let radio = BLANK;          // team radio line
 let radioT = 0;
@@ -745,17 +744,9 @@ function flagsStep() {
         if (caPit[c] == 0) {
             if (caFin[c] < 1) {
                 let sp = Math.abs(caSpd[c]);
-                // v6.3: a yellow is for a car stopped, or stranded well off
-                // the road - not for one that runs over the kerb of a hairpin
-                // at walking pace and carries on, nor for a moment's crawl
-                if (caSurf[c] >= 2) { if (caSurf[c] != 6) { if (caOffT[c] > 1.2) { if (sp < 12) {
-                    if (Math.abs(caOff[c]) > sgW[caSeg[c]] + 1.0) { incident(c); }
-                } } } }
-                if (caStuck[c] > 1.5) { incident(c); }
-                if (c == 1) {
-                    if (sp < 4) { plSlowT = plSlowT + dt; if (plSlowT > 1.5) { if (raceT > 5) { incident(c); } } }
-                    else { plSlowT = 0; }
-                }
+                if (caSurf[c] >= 2) { if (caSurf[c] != 6) { if (caOffT[c] > 0.8) { if (sp < 18) { incident(c); } } } }
+                if (caStuck[c] > 0.8) { incident(c); }
+                if (c == 1) { if (sp < 4) { if (raceT > 5) { incident(c); } } }
             }
         }
         c = c + 1;
@@ -766,7 +757,6 @@ function flagsStep() {
     // passing under yellow or behind the safety car costs 5 s (not a car
     // that is in the pits or crawling)
     let r = caRank[1];
-    let hold = 0;
     if (prevRank > 0) {
         if (r < prevRank) {
             if (caPit[1] == 0) {
@@ -777,12 +767,7 @@ function flagsStep() {
                     let o = srtI[r + 1];
                     if (Math.abs(caSpd[o]) > 15) {
                         if (caPit[o] == 0) {
-                            // v6.3: side by side is not a pass yet - only
-                            // once clear ahead (a flag shown with two cars
-                            // abreast used to flip the order on a few cm)
-                            trackGap(o, 1);
-                            if (oGap < 5) { hold = 1; }
-                            else if (scOn > 0) { penalise(1, 5, 'PENALTY: OVERTAKING UNDER THE SAFETY CAR'); }
+                            if (scOn > 0) { penalise(1, 5, 'PENALTY: OVERTAKING UNDER THE SAFETY CAR'); }
                             else if (vscOn > 0) { penalise(1, 5, 'PENALTY: OVERTAKING UNDER THE VSC'); }
                             else { penalise(1, 5, 'PENALTY: OVERTAKING UNDER YELLOW'); }
                         }
@@ -791,7 +776,7 @@ function flagsStep() {
             }
         }
     }
-    if (hold < 1) { prevRank = r; }
+    prevRank = r;
 }
 
 function maybeSC(chance) {

@@ -1546,20 +1546,12 @@ function sampleTrack(x, z, hint) {
     sfU = u;
     let nxt = best + 1;
     if (nxt > NSEG) { nxt = 1; }
-    // v6.3: across the road on the normal blended from both rings, as the
-    // road is drawn (its edges run straight from ring to ring). The first
-    // ring's normal alone put a car on the kerb of a hairpin 3-5 m off the
-    // road it was visibly still on. (The banking still tilts about the
-    // ring's own normal, as the body attitude in carPhys reads it.)
-    let tr = dx * sgNX[best] + dz * sgNZ[best];
-    let bnx = sgNX[best] + (sgNX[nxt] - sgNX[best]) * u;
-    let bnz = sgNZ[best] + (sgNZ[nxt] - sgNZ[best]) * u;
-    sfT = ((dx - (sgX[nxt] - sgX[best]) * u) * bnx + (dz - (sgZ[nxt] - sgZ[best]) * u) * bnz) / (bnx * bnx + bnz * bnz);
+    sfT = dx * sgNX[best] + dz * sgNZ[best];
     let w = sgW[best] + (sgW[nxt] - sgW[best]) * u;
     let y = sgY[best] + (sgY[nxt] - sgY[best]) * u;
     // banking tilts the surface across the track
     let bank = sgBank[best] + (sgBank[nxt] - sgBank[best]) * u;
-    sfY = y - tr * tand(bank);
+    sfY = y - sfT * tand(bank);
     let at = sfT;
     if (at < 0) { at = 0 - at; }
     if (at <= w - CURBW) { sfSurf = 0; }

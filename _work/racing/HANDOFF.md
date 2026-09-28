@@ -1,3 +1,53 @@
+# ENTRY RACING 3D — 작업 인계 메모 (2026-09-28, v6.3)
+
+산출물: `3D 레이싱 v6.3.ent` ← 최신, 설명서 `3D 레이싱 v6.3 설명서.md` (v6.2는 루트 `old/`로)
+빌드: `node build.mjs racing63.ent` → `globals 507, lists 574, functions 329, handlers 3`, **project.json 15.91 MB**(문턱 약 16.17 MB, 남은 0.26 MB)
+
+## 요청과 한 것
+"v6.2에서 게임 시작하자마자 AI가 주행경로를 벗어나거나 살짝 부딪혀서 Yellow flag와 VSC가 뜸, AI 사고율 낮추기(F1이 원래 그렇다면 그대로).
+R로 재시작하면 리얼리스틱에서 갑자기 retire 당하는 버그" → v6.3
+- **근본 원인: 엔트리 `calc_rand`는 경계에 소수가 있으면 `toFixed(2)`** (entry.js 414393, tessvm 동일). `rand(0.0001, 0.9999)`가 약 0.5%로 0.00.
+  - 고장(`carTick3`, 0.1초마다 `< FAILK/…`): 차마다 평균 20초에 고장, 1/3은 리타이어 → 옐로 + VSC/SC. **R 뒤 리타이어도 이것**(플레이어도 고장. 재시작 경로는 무관, sim·tessvm으로 확인).
+  - AI 실수(`aiPlan`, 매 프레임 `< drvErr·0.016·dt`): 프레임마다 0.5%(60 fps면 초당 26%).
+  - 고침: 정수 범위 후 나누기 `rand(0, 999999) / 1000000`(ai/rules/race3), `rand(0, 12000) / 1000000`(caPace, caQT), `rand(0, 6000|5000)`(caQ1-3), 고장 종류 `rand(1, 6)`(예전엔 7도 나옴).
+  - **sim.mjs `rand`도 소수 경계면 `toFixed(2)`** — 전에는 sim이 버그를 가렸음. 연출용(fx 불꽃, 카메라 흔들림 등)은 0.01 해상도로 충분해서 그대로.
+  - tessvm 재현: `t9/mkr.mjs out.json` → `../tessvm/trun.mjs racing63.ent --script out.json`(메뉴→리얼리스틱→예선 Enter→그리드 Enter→포메이션 Enter→Up 유지→R). v6.2 출발 20초에 5/8대 고장, v6.3 0대.
+- 원인 2 `sampleTrack` 가로 위치: 앞 링 법선에 투영만 → 헤어핀(링 사이 45°+)에서 3–5 m 과대, 도로 위 차가 자갈(surf 4)로.
+  - 이제 `sfT` = (dx − E·u)·N(u)/|N(u)|², N(u) = 두 링 법선 선형 보간(그린 도로 사각형과 같음). **뱅크 높이 `sfY`는 옛 투영 `tr`**(tilt 테스트·carPhys 차체 기울기와 맞춤; sfT로 하면 뱅크 코너에서 1.2° 어긋나 tilt FAIL).
+- 원인 3 AI(aiDrive 교통 루프): 같은 차선(|side|<2.3) 40 m 안 앞차 → `vlim ≤ √(vo² + 22·max(0, ahead − 6.4))`.
+  겹친 차(ahead −4..6, |side| 1.2..5) → `hiB/loB`(caOff ± 2.6)로 tgtOff 제한, 자리 없으면 뒤 차(`sideV`)가 vo − 1. pit·DNF·포메이션 제외.
+  - 조준점 처짐: aim 계산 뒤 nearCv > 0.004면 안쪽 tgtOff ≤ w − 1.3 − da²·nearCv/8 (안쪽 = sgCurv[중간 링] + sgCurv[ti] 부호).
+  - noPass(옐로·VSC·SC): 가로 12 m·트랙 25 m 안 앞차 뒤에 섬(예전엔 |side|<3.4만 → 다른 라인으로 지나침). 옆으로 비키기는 ahead<6 & 3 m/s 넘게 빠를 때만.
+- 원인 4 공중(phys.js 수직): 예전 `climb < −0.22`면 뜸 → 내리막 속도를 안 빼서 13% 내리막 170 km/h(50 ms 단계)면 뜸.
+  모나코 링 300–311(카지노→미라보) 1.7초 비행 → 시케인 벽. 이제 `fall = min(0, caVY·dt − GRAV·dt²/2)`, `climb < fall − 0.22`.
+- 원인 5 깃발 규칙(flagsStep): 도로 밖 옐로 = caOffT > 1.2 & sp < 12 & |off| > w + 1(예전 0.8 s·18 m/s·연석 포함), 멈춤 caStuck > 1.5(0.8),
+  플레이어 sp < 4가 `plSlowT` > 1.5 s(예전 즉시). 깃발 아래 추월은 `trackGap(o,1) ≥ 5 m`부터(미만이면 prevRank 유지 = 보류).
+- 주의: **trk 1은 MONACO**(Melbourne은 10). 페어몬트 헤어핀 링 195–198 곡률 0.17(R 5.8 m) — AI는 안쪽 벽을 긁으며 7–8 m/s로 통과(정상).
+  AI가 대신 모는 플레이어 차(sim)는 가끔 거기서 멈춰 뒤 차들이 줄 서기도 함(실게임에선 사람이 몲).
+
+## 측정 (sim 10 fps, `t9/flags.mjs`, 서킷 1·2·3·5·6·10·19 × 4번, 출발 뒤 150 s, 8대 AI, 경기당 평균)
+| | v6.2(엔트리 반올림) | 무작위 수만 고침(`t9/src_rf`) | v6.3 |
+|---|---|---|---|
+| 고장 / DNF | 6.89 / 2.71 | 0.11 / 0.04 | 0.07 / 0.04 |
+| AI 실수 | 7.18 | 1.86 | 2.39 |
+| 접촉 추돌 / 옆 | 6.46 / 1.93 | 5.25 / 8.11 | 0.54 / 3.36 |
+| 큰 충돌(>0.3) | 2.36 | 1.61 | 0.11 |
+| 이탈 / 1 m 넘게 | 27.4 / 7.5 | 38.6 / 8.75 | 2.57 / 0.14 |
+| 옐로 / VSC / SC | 5.18 / 0.75 / 0.71 | 5.11 / 0.14 / 0.21 | 0.57 / 0 / 0.07 |
+| 깃발 나온 경기 | 100% | 86% | 25% (다른 회차 14–36%) |
+| 순위 바뀜 / 진행 랩 | 16.2 / 1.53 | 14.1 / 1.94 | 13.8 / 2.01 |
+- 결과 파일 `ab/flags_v62.txt`, `flags_rf.txt`, `flags_v63.txt`. 480 s 경기(2·5·10·1 × 3): 깃발 25%, 고장 0.33/경기(설계 ≈0.3), DNF 0.
+- sim은 10 fps라 v6.2의 실수 과다는 실제(60 fps)보다 6배 약하게 나옴.
+- 벤치(tessvm HIGH, 보통 CPU, 번갈아 3회, `ab/bench63.txt`): 모나코 5.03→5.11, 스파 3.27→3.31, 라스베이거스 3.06→3.13 ms/틱(+1.6/+1.2/+2.2%, 세 번 모두 같은 방향이라 실제 비용; 60 fps 상한 그대로). mkb는 아케이드.
+- 테스트(`t9/tests.sh`, TESTS 환경변수로 일부만): v30 A–J, keys, multi A–G, savecode, slots(v6.2와 같은 패턴), alloc, share, pinned, tilt(19), wall, pitgame, photoauto,
+  intrude, stuck(400 s 전원 4랩), offdiag 1·2·19(이탈 0; v6.2는 1·3·0) → `ab/tests63*.txt`.
+  - multi E(4명 60 s 랭킹)가 한 번 3/4로 FAIL, 다시 12번은 PASS(v6.2 src도 같음) — 무작위 저장 타이밍 경쟁, 이번 변경과 무관한 드문 flake.
+  - v30 B(VSC 중 플레이어 페널티)는 원래도 가끔(src_rf 2/20). `t9/vscb.mjs N`: v6.3 1/40(그것도 첫 랩 옐로 중).
+- 새 도구(`t9/`): `flags.mjs`(위 표, RSRC로 A/B, `log:1`이면 1 m 이탈 목록), `inc.mjs`(옐로 원인), `dmg.mjs`(큰 충돌: 벽/차, `hist:"wall"`이면 직전 3 s),
+  `trace.mjs`(차별 seg/off/속도), `aidbg.mjs`(aiDrive 안의 tgtOff/da/nearCv — 컴파일된 함수 문자열을 바꿔 끼움), `brk.mjs`, `rst.mjs`(R 재시작), `vscb.mjs`, `tests.sh`.
+
+---
+
 # ENTRY RACING 3D — 작업 인계 메모 (2026-09-27, v6.2)
 
 산출물: `3D 레이싱 v6.2.ent` ← 최신, 설명서 `3D 레이싱 v6.2 설명서.md` (v6.1은 루트 `old/`로)

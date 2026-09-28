@@ -327,14 +327,7 @@ function carPhys(c) {
         }
     } else {
         let climb = gy - caY[c];
-        // v6.3: the car leaves the ground only where the road falls away
-        // faster than the car itself would fall (it already moves down a
-        // slope at caVY). Before, 0.22 m below it in one step was enough:
-        // a plain 13 % downhill at 170 km/h launched it (worse the lower the
-        // frame rate), and at Melbourne every car flew into the chicane.
-        let fall = caVY[c] * dt - GRAV * 0.5 * dt * dt;
-        if (fall > 0) { fall = 0; }
-        if (climb < fall - 0.22) {
+        if (climb < 0 - 0.22) {
             if (spA > 8) { caAir[c] = 1; }
             else { caY[c] = gy; caVY[c] = 0; }
         } else {

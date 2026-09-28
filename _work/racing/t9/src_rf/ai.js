@@ -176,11 +176,6 @@ function aiDrive(c) {
     let fxi = Math.round(fx * BS);      // (v5.2: x BS, whole, for the traffic scan)
     let fzi = Math.round(fz * BS);
     let gapW = 3.6 - 0.6 * agg;
-    // v6.3: room to leave to cars alongside (the track offsets we may steer
-    // between) and whether one of them is a nose ahead of us
-    let hiB = 99;
-    let loB = 0 - 99;
-    let sideV = 0 - 1;
     let o = 1;
     while (o <= nCars) {
         // (v3.0: a car parked in its grid box or retired is not traffic to follow)
@@ -194,51 +189,15 @@ function aiDrive(c) {
             let dz = caZi[o] - caZi[c];
             let ahead = (dx * fxi + dz * fzi) / ZU;
             let side = (dx * fzi - dz * fxi) / ZU;
-            let aside = Math.abs(side);
-            // v6.3: a car in our lane ahead - close on it only as fast as we
-            // could still stop behind it (the pass logic below moves us out)
-            if (ahead > 0) {
-                if (ahead < 40) {
-                    if (aside < 2.3) {
-                        let vo = Math.abs(caSpd[o]);
-                        if (sp > vo) {
-                            let vf = Math.sqrt(vo * vo + 22 * Math.max(0, ahead - 6.4));
-                            if (vf < vlim) { vlim = vf; }
-                        }
-                    }
-                }
-            }
-            // ...and one alongside (overlapping, a car's width or more across):
-            // never steer into it
-            if (ahead > 0 - 4) {
-                if (ahead < 6) {
-                    if (aside > 1.2) {
-                        if (aside < 5) {
-                            if (caOff[o] > caOff[c]) { if (caOff[o] - 2.6 < hiB) { hiB = caOff[o] - 2.6; } }
-                            else { if (caOff[o] + 2.6 > loB) { loB = caOff[o] + 2.6; } }
-                            if (ahead > 1.5) { sideV = Math.abs(caSpd[o]); }
-                        }
-                    }
-                }
-            }
             if (ahead > 0) {
                 if (ahead < passD) {
-                    let vo = Math.abs(caSpd[o]);
-                    if (noPass > 0) {
-                        // hold station a few car lengths back - v6.3: behind
-                        // any car ahead on this bit of road, not only one in
-                        // our lane (on another line it used to drive past)
-                        if (ahead < 16) {
-                            if (aside < 12) {
-                                trackGap(c, o);
-                                if (oGap < 25) { if (vlim > vo - 0.5) { vlim = vo - 0.5; } }
-                            }
-                        }
-                        // (v6.3: stepping aside only to miss it - pulling
-                        // alongside a car we may not pass invites a pass)
-                        if (ahead < 6) { if (aside < 3.4) { if (sp > vo + 2) { tgtOff = caOff[o] + (side > 0 ? 0 - 3.6 : 3.6); } } }
-                    } else if (aside < 3.4) {
-                        if (ahead < 17) {
+                    if (Math.abs(side) < 3.4) {
+                        let vo = Math.abs(caSpd[o]);
+                        if (noPass > 0) {
+                            // hold station a few car lengths back
+                            if (ahead < 16) { if (vlim > vo - 0.5) { vlim = vo - 0.5; } }
+                            if (ahead < 9) { tgtOff = caOff[o] + (side > 0 ? 0 - 3.6 : 3.6); }
+                        } else if (ahead < 17) {
                             tgtOff = caOff[o] + (side > 0 ? 0 - gapW : gapW);
                             // an attacker lunges for the inside of the next corner
                             if (agg > 0.6) { if (worst > 0.003) { tgtOff = wsign * (w - 2.2); } }
@@ -298,24 +257,6 @@ function aiDrive(c) {
     if (caSurf[c] == 6) { offT = 0; }
     if (offT > 0) { if (caDNF[c] < 1) { tgtOff = 0; } }
     let lim = w - 1.3;
-    // v6.3: keep the room to the cars alongside; with none left on the road,
-    // the car that is behind drops back
-    if (inPit == 0) {
-        if (caDNF[c] < 1) {
-            if (raceState != ST_FORM) {
-                if (tgtOff > hiB) { tgtOff = hiB; }
-                if (tgtOff < loB) { tgtOff = loB; }
-                if (loB > hiB) { tgtOff = (loB + hiB) / 2; }
-                if (sideV >= 0) {
-                    let no = 0;
-                    if (hiB < 0 - lim) { no = 1; }
-                    if (loB > lim) { no = 1; }
-                    if (loB > hiB) { no = 1; }
-                    if (no > 0) { if (vlim > sideV - 1) { vlim = sideV - 1; } }
-                }
-            }
-        }
-    }
     if (caDNF[c] > 0) { lim = w + 3; }
     if (tgtOff > lim) { tgtOff = lim; }
     if (tgtOff < 0 - lim) { tgtOff = 0 - lim; }
@@ -398,20 +339,6 @@ function aiDrive(c) {
     let afr = af - ak;
     let ti = mod(s - 1 + ak, NSEG) + 1;
     let tj = mod(ti, NSEG) + 1;
-    // v6.3: that chord cuts inside the arc by da*da*curv/8, so an inside
-    // line (a pass, room left to a car outside) keeps that much road in hand
-    // - in a hairpin a car on the kerb used to cut across the grass
-    if (nearCv > 0.004) {
-        if (caDNF[c] < 1) {
-            if (inPit == 0) {
-                let li = w - 1.3 - da * da * nearCv / 8;
-                if (li < 0) { li = 0; }
-                let mi = mod(s - 1 + Math.floor(ak / 2), NSEG) + 1;
-                if (sgCurv[mi] + sgCurv[ti] > 0) { if (tgtOff > li) { tgtOff = li; } }
-                else { if (tgtOff < 0 - li) { tgtOff = 0 - li; } }
-            }
-        }
-    }
     let tx = sgX[ti] + sgNX[ti] * tgtOff + (sgX[tj] + sgNX[tj] * tgtOff - sgX[ti] - sgNX[ti] * tgtOff) * afr;
     let tz = sgZ[ti] + sgNZ[ti] * tgtOff + (sgZ[tj] + sgNZ[tj] * tgtOff - sgZ[ti] - sgNZ[ti] * tgtOff) * afr;
     atan2d(tx - caX[c], tz - caZ[c]);

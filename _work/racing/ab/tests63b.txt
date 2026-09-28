@@ -1,0 +1,8 @@
+== stuck
+end 394.4007898570068 laps 4,4,4,4,4,4,4,4 DNF 00000000
+== offdiag 1
+0 excursions
+== offdiag 2
+0 excursions
+== offdiag 19
+0 excursions

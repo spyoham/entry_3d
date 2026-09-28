@@ -158,7 +158,9 @@ export function createSim({ fps = 30 } = {}) {
         atand: (v) => Math.atan(v) * 180 / Math.PI, asind: (v) => Math.asin(v) * 180 / Math.PI, acosd: (v) => Math.acos(v) * 180 / Math.PI,
         mod: R.mod, idiv: (a, b) => Math.floor(a / b), frac: (v) => v - Math.floor(v),
         // like Entry: two whole numbers give a whole number, inclusive
-        rand: (a, b) => (Number.isInteger(+a) && Number.isInteger(+b) ? Math.floor(+a + Math.random() * (b - a + 1)) : a + Math.random() * (b - a)),
+        // (with a decimal bound Entry rounds to 2 places - toFixed(2) - so
+        // rand(0.0001, 0.9999) is 0.00 one time in 200)
+        rand: (a, b) => (Number.isInteger(+a) && Number.isInteger(+b) ? Math.floor(+a + Math.random() * (b - a + 1)) : +(a + Math.random() * (b - a)).toFixed(2)),
         str: (...a) => a.join(''), indexOf: (s, sub) => String(s).indexOf(String(sub)) + 1,
         charAt: (s, i) => String(s)[i - 1], strlen: (s) => String(s).length, substr: (s, a, b) => String(s).slice(a - 1, b),
         key: (c) => keys.has(c), mouseX: () => mouse.x, mouseY: () => mouse.y, mouseDown: () => mouse.down,
