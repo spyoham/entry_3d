@@ -295,6 +295,9 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
             case 'textColor': return B('text_change_font_color', [B('color', [String(evalConst(args[0]))]), null]);
             case 'textColorHex': return B('text_change_font_color', [A(0), null]);
             case 'dateSec': return B('get_date', [null, 'SECOND', null]);
+            case 'dateMin': return B('get_date', [null, 'MINUTE', null]);
+            case 'dateHour': return B('get_date', [null, 'HOUR', null]);
+            case 'dateDay': return B('get_date', [null, 'DAY', null]);
             case 'broadcast': return B('message_cast', [messageId(evalConst(args[0])), null]);
             case 'timerReset': return B('choose_project_timer_action', [null, 'RESET', null, null]);
             case 'timerStart': return B('choose_project_timer_action', [null, 'START', null, null]);
@@ -613,7 +616,10 @@ export function compileToJS(sources) {
                 ? `let ${d.id.name}=R.syList(${JSON.stringify(d.id.name)},${E(d.init)});`
                 : `R.syDefault(${JSON.stringify(d.id.name)},${E(d.init)});`).join(''));
         } else if (st.type === 'VariableDeclaration' && st.kind !== 'const') {
-            parts.push('let ' + st.declarations.map(d => d.id.name + '=' + (d.init && d.init.type === 'ArrayExpression' ? '(R.data && R.data[' + JSON.stringify(d.id.name) + '] ? R.data[' + JSON.stringify(d.id.name) + '].slice() : ' + E(d.init) + ')' : (d.init ? E(d.init) : '0'))).join(',') + ';');
+            // (v2.1.0: a global whose start value looks like a number starts as that
+            // number - tessvm does so: '0000' is 0 there, not four characters)
+            const start = (i) => (i.type === 'Literal' && typeof i.value === 'string' && /^\s*-?\d+(\.\d+)?\s*$/.test(i.value) ? String(Number(i.value)) : E(i));
+            parts.push('let ' + st.declarations.map(d => d.id.name + '=' + (d.init && d.init.type === 'ArrayExpression' ? '(R.data && R.data[' + JSON.stringify(d.id.name) + '] ? R.data[' + JSON.stringify(d.id.name) + '].slice() : ' + E(d.init) + ')' : (d.init ? start(d.init) : '0'))).join(',') + ';');
         } else parts.push(S(st));
     }
     const globalsList = [];

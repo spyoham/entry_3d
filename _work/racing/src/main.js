@@ -41,6 +41,8 @@ function pollAction() {
     if (key(49)) { if (pkSt[18] < 1) { if (k == 0) { k = 49; } } } else { pkSt[18] = 0; }
     if (key(50)) { if (pkSt[19] < 1) { if (k == 0) { k = 50; } } } else { pkSt[19] = 0; }
     if (key(79)) { if (pkSt[22] < 1) { if (k == 0) { k = 79; } } } else { pkSt[22] = 0; }
+    // v2.1.0: Y chats online
+    if (key(89)) { if (pkSt[23] < 1) { if (k == 0) { k = 89; } } } else { pkSt[23] = 0; }
     actKey = 0;
     if (k != keyPrev) {
         keyPrev = k;
@@ -195,7 +197,8 @@ function startRace() {
     raceState = ST_LOAD;
 }
 function doStartRace() {
-    if (gMode == M_CH) { startChampionship(); }
+    if (netRace > 0) { netDoStart(); }
+    else if (gMode == M_CH) { startChampionship(); }
     else { restartRace(); }
 }
 
@@ -210,7 +213,7 @@ let mnItem = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 function mnAdd(k) { mnN = mnN + 1; mnItem[mnN] = k; }
 function mnBuild() {
     mnN = 0;
-    if (mnPage == 0) { mnAdd(1); mnAdd(20); mnAdd(21); mnAdd(12); mnAdd(22); mnAdd(13); }
+    if (mnPage == 0) { mnAdd(1); mnAdd(24); mnAdd(20); mnAdd(21); mnAdd(12); mnAdd(22); mnAdd(13); }
     else if (mnPage == 1) { mnAdd(2); mnAdd(3); mnAdd(6); mnAdd(7); mnAdd(8); mnAdd(9); mnAdd(1); mnAdd(23); }
     else if (mnPage == 2) { mnAdd(4); mnAdd(5); mnAdd(23); }
     else { mnAdd(10); mnAdd(11); mnAdd(23); }
@@ -222,8 +225,8 @@ function mnOpen(p) { mnPage = p; mnRow = 1; mnBuild(); }
 function mnBack() {
     let p = mnPage;
     mnPage = 0;
-    mnRow = 5;
-    if (p == 1) { mnRow = 2; } else if (p == 2) { mnRow = 3; }
+    mnRow = 6;
+    if (p == 1) { mnRow = 3; } else if (p == 2) { mnRow = 4; }
     mnBuild();
 }
 
@@ -235,6 +238,7 @@ function menuKeys() {
     else if (actKey == 27) { if (mnPage > 0) { mnBack(); } }
     else if (actKey == 13) {
         if (menuSel == 1) { startRace(); }
+        else if (menuSel == 24) { netEnter(); }
         else if (menuSel == 20) { mnOpen(1); }
         else if (menuSel == 21) { mnOpen(2); }
         else if (menuSel == 22) { mnOpen(3); }
@@ -290,7 +294,7 @@ function raceKeys() {
     else if (actKey == 66) { if (gMode == M_PR) { backOnTrack(); } }
     else if (actKey == 76) { showLine = 1 - showLine; setMsg(showLine > 0 ? 'RACING LINE ON' : 'RACING LINE OFF', 1.2); }
     else if (actKey == 80) { prevState = raceState; raceState = ST_PAUSE; drawPausePanel(); }
-    else if (actKey == 82) { restartRace(); }
+    else if (actKey == 82) { if (netRace < 1) { restartRace(); } }
     else if (actKey == 27) { prevState = raceState; raceState = ST_PAUSE; drawPausePanel(); }
 }
 
@@ -473,9 +477,18 @@ on('start', 'pen3', function () {
             nCars = 0;
             menuCam();
             renderWorld();
+        } else if (raceState == ST_NET) {
+            // v2.1.0 online: lobby, room settings, room
+            netKeys();
+            if (raceState == ST_NET) { menuCam(); renderWorld(); }
         } else if (raceState == ST_PAUSE) {
             if (actKey == 80) { raceState = prevState; }
             else if (actKey == 27) { raceState = prevState; }
+            else if (netRace > 0) {
+                // (online the race goes on without us: no restart, replay or photo)
+                if (actKey == 77) { netBackToRoom(); }
+                else if (actKey == 89) { netChat(); }
+            }
             else if (actKey == 82) { restartRace(); }
             else if (actKey == 77) { toMenu(); }
             else if (actKey == 86) { enterReplay(); }
@@ -499,7 +512,8 @@ on('start', 'pen3', function () {
             if (actKey == 13) { startGrid(selCar); }
             else { menuCam(); renderWorld(); }
         } else if (raceState == ST_DONE) {
-            if (actKey == 13) {
+            if (netRace > 0) { netDoneKeys(); if (raceState == ST_DONE) { stepRace(); renderWorld(); } }
+            else if (actKey == 13) {
                 if (gMode == M_CH) {
                     awardPoints();
                     raceState = ST_STAND;
@@ -516,9 +530,10 @@ on('start', 'pen3', function () {
                 else { toMenu(); }
             } else { stepRace(); renderWorld(); }
         } else {
-            raceKeys();
+            if (netRace > 0) { netRaceKeys(); } else { raceKeys(); }
             if (raceState == ST_COUNT) {
-                stepCountdown();
+                // (online: on the grid until the host says go)
+                if (netWait < 1) { stepCountdown(); }
                 stepRace();
                 renderWorld();
             } else if (raceState == ST_RACE) {
@@ -538,6 +553,8 @@ on('start', 'pen3', function () {
         // v8: the saved game - loaded once the real-time variables have
         // arrived, then saved, checked and ranked at quiet moments
         profileStep();
+        // v2.1.0: the online slots - read, answered, and ours sent
+        if (netOn > 0) { netStep(); }
         updateHud();
     }
 });

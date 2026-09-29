@@ -876,18 +876,21 @@ function simStep() {
     trkStep();
     let c = 1;
     while (c <= nCars) {
-        carWet(c);
-        tyreGrip(c);
-        pitStep(c);
+        if (caNet[c] < 1) {
+            carWet(c);
+            tyreGrip(c);
+            pitStep(c);
+        }
         c = c + 1;
     }
-    if (raceState == ST_RACE) {
+    // (v2.1.0 online: no flags, safety cars or penalties - nobody runs them for all)
+    if (raceState == ST_RACE) { if (netRace < 1) {
         limitsStep();
         flagsStep();
         vscStep();
         c = 2;
         while (c <= nCars) { aiStrategy(c); c = c + 1; }
-    }
+    } }
     whCheck();
     if (radioT > 0) { radioT = radioT - dt; if (radioT <= 0) { radio = BLANK; } }
 }

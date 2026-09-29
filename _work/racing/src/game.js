@@ -421,6 +421,12 @@ function updateSectors() {
 function updateDRS() {
     let c = 1;
     while (c <= nCars) {
+        // (v2.1.0: an online car reports its own DRS)
+        if (caNet[c] < 1) { drsCar(c); }
+        c = c + 1;
+    }
+}
+function drsCar(c) {
         let z = sgDRS[caSeg[c]];
         if (scOn > 0) { z = 0; }
         if (vscOn > 0) { z = 0; }
@@ -448,8 +454,6 @@ function updateDRS() {
             }
             if (caBrk[c] > 0.1) { caDRS[c] = 0; if (c == 1) { caDOk[c] = 2; } }
         }
-        c = c + 1;
-    }
 }
 
 // ---- gearbox read-out: an 8-speed box, only for the HUD -----------------
@@ -606,7 +610,7 @@ function updateGaps() {
     }
     buildTower();
     // v3.0: blue flags for cars about to be lapped
-    if (raceState == ST_RACE) { if (gMode < M_TT) { blueStep(0.3); } }
+    if (raceState == ST_RACE) { if (gMode < M_TT) { if (netRace < 1) { blueStep(0.3); } } }
 }
 
 // ---- championship ---------------------------------------------------------
@@ -807,8 +811,9 @@ function stepRace() {
     if (full > 0.055) { sub = Math.ceil(full / 0.055); }
     if (sub > 6) { sub = 6; }
     dt = full / sub;
+    // (v2.1.0: an online car - caNet - is driven on another screen)
     let c = 2;
-    while (c <= nCars) { aiPlan(c); c = c + 1; }
+    while (c <= nCars) { if (caNet[c] < 1) { aiPlan(c); } c = c + 1; }
     if (scCar > 0) { aiPlan(GHOST); }
     dt = full;
     carsCm();
@@ -817,20 +822,20 @@ function stepRace() {
     dt = full / sub;
     let n = 1;
     while (n <= sub) {
-        playerInput();
+        if (caNet[1] < 1) { playerInput(); }
         if (n > 1) { carsCm(); }
         c = 2;
-        while (c <= nCars) { aiDrive(c); c = c + 1; }
+        while (c <= nCars) { if (caNet[c] < 1) { aiDrive(c); } c = c + 1; }
         if (scCar > 0) { aiDrive(GHOST); }
         c = 1;
-        while (c <= nCars) { carPhys(c); c = c + 1; }
+        while (c <= nCars) { if (caNet[c] < 1) { carPhys(c); } c = c + 1; }
         if (scCar > 0) { carPhys(GHOST); }
         carCollisions();
         n = n + 1;
     }
     dt = full;
     c = 1;
-    while (c <= nCars) { checkRecovery(c); c = c + 1; }
+    while (c <= nCars) { if (caNet[c] < 1) { checkRecovery(c); } c = c + 1; }
     let timing = 0;
     if (raceState == ST_RACE) { timing = 1; }
     if (raceState == ST_QUALI) { timing = 1; }
@@ -840,6 +845,7 @@ function stepRace() {
         // moment, at racing speed, and this lap will not count
         let off = 0;
         if (caSurf[1] >= 2) { if (caSurf[1] != 6) { off = 1; } }
+        if (caNet[1] > 0) { off = 0; }
         if (off > 0) {
             if (Math.abs(caSpd[1]) > 14) { limT = limT + dt; }
         } else { limT = 0; }
@@ -849,17 +855,15 @@ function stepRace() {
             }
         }
         c = 1;
-        while (c <= nCars) { updateLap(c); c = c + 1; }
-        scoreDrift();
-        updateSectors();
+        while (c <= nCars) { if (caNet[c] < 1) { updateLap(c); } c = c + 1; }
+        if (netWatch < 1) { scoreDrift(); updateSectors(); }
     } else if (raceState == ST_DONE) {
         // the rest of the field still has to cross the line
         raceT = raceT + dt;
         c = 2;
-        while (c <= nCars) { updateLap(c); c = c + 1; }
+        while (c <= nCars) { if (caNet[c] < 1) { updateLap(c); } c = c + 1; }
     }
-    ghostRec();
-    statsStep();
+    if (netWatch < 1) { ghostRec(); statsStep(); }
     if (gMode == M_TT) { updateGhost(); }
     updateRanks();
     if (rules == R_SIM) { simStep(); }

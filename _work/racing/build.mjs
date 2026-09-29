@@ -13,7 +13,7 @@ import { f1Car } from './f1car.mjs';
 import { engineMp3, aiMp3, REF_RPM, LOOP_SEC, AI_RATIOS, AI_LEVELS, AI_LOOP } from './enginewav.mjs';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'rules.js', 'race3.js', 'fx.js', 'sound.js', 'share.js', 'profile.js', 'savecode.js', 'editor.js', 'menu.js', 'hud.js', 'main.js'];
+export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'rules.js', 'race3.js', 'fx.js', 'sound.js', 'share.js', 'profile.js', 'savecode.js', 'editor.js', 'net.js', 'menu.js', 'hud.js', 'main.js'];
 
 // ============================================================
 // constants shared with the EJS sources
@@ -41,7 +41,12 @@ export const C = {
     NSCENE: 1500,       // scenery instances placed around a circuit
     NTP: 640,           // v4.2: patches of land (3 x 3 cells) round a circuit, at most
     GHOST: 9,
-    NTX: 80,            // v6: text slots, one clone of the text object each (v7: 64 -> 76, v8: 80)
+    NTX: 88,            // v6: text slots, one clone of the text object each (v7: 64 -> 76, v8: 80; v2.1.0: 88, chat 81-87)
+    NPS: 16,            // v2.1.0 online: player slots (?!p1..16)
+    NCH: 6,             // chat lines kept
+    NSTALE: 8,          // s without a change before a slot counts as empty (60 while it says it is loading)
+    NETHB: 1,           // s between heartbeats off the track
+    NETHZ: 6,           // reports a second in a race
     TXW: 1000, TXH: 28, TXF: 20,     // text box: fixed width/height, font px
     TXCW: 0.5,          // monospace advance, em per character
     NMAP: 64,           // centreline samples in the 3D circuit map           // car slot of the time-trial ghost (NCAR + 1)
@@ -75,7 +80,7 @@ export const C = {
     NZ: 16,             // weather zones round a lap (rain, water, the dry line)
     FUELRACE: 100,      // kg a full-length race is fuelled for
     VSCK: 0.62,         // virtual safety car: speed as a share of the reference lap
-    NPK: 22,            // v3.2: menu keys polled (19) + the editor's K and I (v6.0: + O)
+    NPK: 23,            // v3.2: menu keys polled (19) + the editor's K and I (v6.0: + O)
     NTY: 5,             // tyre compounds
     // ---- v8 ----
     NACH: 20,           // achievements
@@ -1437,6 +1442,14 @@ export function buildData() {
     lists.rkN = new Array(C.NRANK + 2).fill('-'); lists.rkT = zeros(C.NRANK + 2);
     lists.achGot = zeros(C.NACH + 1); lists.popQ = zeros(33);
     lists.recNm = new Array(C.NTRK + 1).fill('-'); lists.recWR = zeros(C.NTRK + 1);
+    // v2.1.0 online: what each slot says (ns*), the cars' online state (ca*), chat
+    for (const k of ['nsV', 'nsT', 'nsSeen', 'nsStale', 'nsLive', 'nsSid', 'nsSt', 'nsRoom', 'nsRSid', 'nsRid', 'nsCar', 'nsChS', 'nsRst', 'nsTrk',
+        'nsLaps', 'nsRules', 'nsWx', 'nsCon', 'nsMax', 'nsCode', 'nsGrid', 'nsLap', 'nsSeg', 'nsU', 'nsOff', 'nsYaw', 'nsSpd', 'nsFl', 'nsFin',
+        'nsRT', 'nsRcv', 'nsNick', 'nsTitle', 'nfL', 'nsSeq', 'nsRtt']) lists[k] = zeros(C.NPS + 1);
+    lists.netSentT = zeros(1000);
+    for (const k of ['caNet', 'caSlot', 'caNP', 'caNOff', 'caNGo']) lists[k] = zeros(C.NCAR + 3);
+    lists.nrL = zeros(9); lists.nmL = zeros(9);
+    lists.chL = zeros(C.NCH + 1); lists.chC = zeros(C.NCH + 1); lists.chA = zeros(C.NCH + 1);
     lists.pendRk = zeros(C.NTRK + 1); lists.pendG = zeros(C.NTRK + 1); lists.rkOk = zeros(C.NTRK + 1);
     // time into the lap at each ring: best lap and the current one (live delta)
     lists.bsT = zeros(R + 1); lists.csT = zeros(R + 1);

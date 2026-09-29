@@ -1,0 +1,126 @@
+== v30
+PASS A qualifying sessions 1>2>3, grid 1,3,7,5,4,2,6,8, out-in 0,0,1,2,0,0,2,1, player P1
+PASS B VSC: the field averaged 79% of the VSC pace, ended true, player penalty 0, delta 5.27
+PASS C blue flags on the backmarker for 15.1 s, lapped by 2, player penalties 0
+PASS D retirement: DNF 1, speed 0.0, last in the order (car 4), VSC/SC out 1, off 8.9 / w 7.2
+PASS E flat spots in the rain: player worst 0.040, AI worst 0.021
+PASS F zones: peak wetness 0.71, biggest zone spread 0.89, dry line 0.99
+PASS G mix RICH, bias 2, wing balance 0.145, diff 2, pressure -3
+PASS H rubber 0.10 -> 0.14 in qualifying, track 40.1 C, grip x0.980
+PASS I AI pit calls 6, of them early (tyres still above 31%: undercut, cover or safety car) 1; finished 0,0,0,0,0,0,0,0, DNF 00000000
+PASS J player retirement: state 5, DNF 1, classified P8, banner ​
+== keys
+PASS A Enter held at the start: state 0 (0 = menu), cars 0
+PASS C Enter let go and pressed again starts the race: state 16
+PASS B after the load: prompt shown 1x, stayed in the profile true, prompt again 0x, Esc to the menu true, Down moved to row 2; msg "BACKUP CODE LOADED - LEVEL 7, 3000 XP"
+== multi
+latency 120 ms, welcome after 3 s
+PASS A late lists: new work sync 1, saved XP 5000, +300 earned before the save arrived -> 5300 (level 9, sync 1)
+PASS A2 lists 9 s late: zoe kept 777, bob saved 200 (writes 1)
+PASS B same-moment saves in one list, 10 rounds: 0 rounds lost a record (alice 1000/1000, bob 1000/1000)
+PASS C same-moment ranking entries: 3 of 3 kept: ||alice,80000|bob,81000|carol,82000
+PASS D ranking with a lap set before the lists came: ||zed,70000|amy,75000
+PASS E 4 players, one list, 60 s: 4/4 saves current, 4/4 best laps ranked; 120 server writes
+PASS F garage-only change vs a same-moment save, 6 rounds: 0 rounds lost the change
+PASS G two record laps at once, 5 rounds: 0 rounds left a ghost that is not P1's
+PASS H without the extension: sync 2 at 5 s, 'OFFLINE', 0 server writes, local save kept
+PASS I full list: 60 records, oldest dropped, newest last
+PASS J rolled back by an old copy (record 0, ranking '|') -> put back: record 600, ranking '||alice,70250'
+== savecode
+code 168 chars: S1JC0VM97PBFQMZKQJZW9XCFQ26JQ2VA4XN7MX98EZQDC41BTJGP1Y7PQ80F5DG7W5SEGZ1633NYWR6N9EBN5HM1HEY3R0JENR07S2K57RQZFV3VX9QKW17ARW698K14D7VKH5FENE54DE8R0SDETPGH8Z4DRQ8F9T4YSRSK
+PASS starts with S + version
+PASS only share-code letters
+PASS salt: the same save gives another code
+PASS fresh profile starts empty
+PASS round trip: accepted
+PASS round trip: every field back  {"pXP":123456,"upE":5,"upA":3,"upB":0,"upT":2,"suW":-3,"suG":3,"suB":1,"suS":-1,"stRaces":87,"stWins":12,"stPods":30,"stCirc":173,"stKm":4321,"ach":"100010000000000000010","laps":"83456,0,71002,0,0,0,0,100500,0,0,0,0,0,0,0,0,0,0,0","races":"1002250,0,0,0,0,0,0,2400999,0,0,0,0,0,0,0,0,0,0,0"}
+PASS second code of the same save also loads
+PASS marked for the online save
+PASS messy paste (case, spaces, dashes, text before)
+PASS another nickname rejects it ("코딩재미있어요")
+PASS another nickname rejects it ("코딩재미있다")
+PASS another nickname rejects it ("코딩재미있어 ")
+PASS another nickname rejects it ("GUEST_1")
+PASS another nickname rejects it ("가나다라마바")
+PASS another nickname rejects it ("abc")
+PASS one letter changed: 0 of 5177 accepted  0 accepted
+PASS cut short: none accepted
+PASS a letter added: rejected
+PASS random codes of the same length: 0 of 20000 accepted
+PASS older code loads
+PASS XP kept (larger wins)
+PASS race count kept
+PASS better lap kept
+PASS lap only in the code taken
+PASS load waits for the save
+PASS Entry: code put in table svtb row 2 col 1 and its window opened
+PASS Entry: clipboard left alone
+PASS tessvm: code written to $CLIPBOARD, no table window
+PASS load: asks, then takes the answer  BACKUP CODE LOADED - LEVEL 50, 123456 XP
+PASS load: a bad answer says so
+PASS old plain-Entry code loads for the same player  BACKUP CODE LOADED - LEVEL 50, 123456 XP
+PASS ...and still not for another player
+PASS largest save: 450 letters (limit 520)
+
+all passed
+== slots
+r2 p0 row2     ok
+r2 p0 row3     ok
+r2 p0 row4     ok
+r2 p0 row5     ok
+r2 p0 row6     ok
+r2 p0 row7     ok
+r2 p1 row1     ok
+r2 p1 row2     ok
+r2 p1 row3     ok
+r2 p1 row4     ok
+r2 p1 row5     ok
+r2 p1 row6     ok
+r2 p1 row7     ok
+r2 p1 row8     ok
+r2 p2 row1     ok
+r2 p2 row2     ok
+r2 p2 row3     ok
+r2 p3 row1     ok
+r2 p3 row2     ok
+r2 p3 row3     ok
+menu 9 wx3     ok
+menu 8 TT      ok
+menu 8 PR      ok
+garage         ok
+garage 6       ok
+profile 1      ok
+profile 2      ok
+profile 3      ok
+profile 4      ok
+carsel         ok
+trksel         ok
+editor         ok
+editor code    ok
+quali          REWRITTEN EVERY FRAME 1:46
+quali result   ok
+formation      REWRITTEN EVERY FRAME 1:7
+count          ok
+race           REWRITTEN EVERY FRAME 1:168, 5:0:06.199
+pause          ok
+replay         REWRITTEN EVERY FRAME 13:1.599 / 12 s
+== share
+code 103 R0EHNG0G90HQGNJ91H7H6V90GDHBE90FNH4E9AF6GTH90ERGFJJ0ECG0G90E9FBE94ESETF90FKENJ90GBEWJ90GTF6F90H8FHE9072 lines 2 [
+  '​R0EHN G0G90 HQGNJ 91H7H 6V90G DHBE9 0FNH4 E9AF6 GTH90 ERGFJ J0ECG 0G90E',
+  '​9FBE9 4ESET F90FK ENJ90 GBEWJ 90GTF 6F90H 8FHE9 072',
+  '​',
+  '​'
+]
+ok 1
+n 283 283 max error x,y,z,w,f 0.00 0.00 0.00 0.00 0.00
+bad checksum rejected: true
+rubbish rejected: true
+== stuck
+end 393.2002232558197 laps 3,4,3,4,3,4,3,3 DNF 10000000
+== offdiag 1
+0 excursions
+== offdiag 2
+1 excursions
+{"seg":21,"kmh":42,"R":19,"side":"IN","lim":41,"surf":2,"w":7,"off":7.1,"yr":51,"st":0.74}
+== offdiag 19
+0 excursions

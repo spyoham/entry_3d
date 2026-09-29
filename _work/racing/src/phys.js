@@ -533,6 +533,17 @@ function carCollisions() {
         while (b <= nCars) {
             let dx = caX[b] - caX[a];
             let dz = caZ[b] - caZ[a];
+            // v2.1.0 online: two online cars never meet here; the local car
+            // meets one only when the room has contact on, and only it moves
+            // (the other screen moves the other car). ka / kb: each car's share.
+            let ka = 0.5;
+            let kb = 0.5;
+            let meet = 1;
+            if (caNet[a] + caNet[b] > 0) {
+                if (caNet[a] + caNet[b] > 1) { meet = 0; } else if (netCon < 1) { meet = 0; }
+                if (caNet[a] > 0) { ka = 0; kb = 1; } else { ka = 1; kb = 0; }
+            }
+            if (meet < 1) { dx = 99; }
             if (dx * dx + dz * dz < 30) {
                 let lon = dx * fx + dz * fz;
                 let lat = dx * fz - dz * fx;
@@ -550,11 +561,12 @@ function carCollisions() {
                             nx = fx; nz = fz;
                             if (lon < 0) { nx = 0 - fx; nz = 0 - fz; }
                         }
-                        pen = pen * 0.5;
-                        caX[a] = caX[a] - nx * pen;
-                        caZ[a] = caZ[a] - nz * pen;
-                        caX[b] = caX[b] + nx * pen;
-                        caZ[b] = caZ[b] + nz * pen;
+                        let pa = pen * ka;
+                        let pb = pen * kb;
+                        caX[a] = caX[a] - nx * pa;
+                        caZ[a] = caZ[a] - nz * pa;
+                        caX[b] = caX[b] + nx * pb;
+                        caZ[b] = caZ[b] + nz * pb;
                         let rel = (caVX[b] - caVX[a]) * nx + (caVZ[b] - caVZ[a]) * nz;
                         if (rel < 0) {
                             // v7: a hard nose-to-tail hit breaks the front wing of
@@ -562,22 +574,24 @@ function carCollisions() {
                             let hv = 0 - rel;
                             if (pl < pw) {
                                 if (hv > 4.5) {
-                                    if (lon > 0) { addDamage(a, (hv - 4.5) * 0.09); }
-                                    else { addDamage(b, (hv - 4.5) * 0.09); }
+                                    if (lon > 0) { if (ka > 0) { addDamage(a, (hv - 4.5) * 0.09); } }
+                                    else { if (kb > 0) { addDamage(b, (hv - 4.5) * 0.09); } }
                                 }
                             } else if (hv > 6) {
-                                addDamage(a, (hv - 6) * 0.03);
-                                addDamage(b, (hv - 6) * 0.03);
+                                if (ka > 0) { addDamage(a, (hv - 6) * 0.03); }
+                                if (kb > 0) { addDamage(b, (hv - 6) * 0.03); }
                             }
                             if (hv > 2.5) { sparkBurst((caX[a] + caX[b]) / 2, (caY[a] + caY[b]) / 2 + 0.2, (caZ[a] + caZ[b]) / 2, caVX[a], caVZ[a], caSeg[a], 3); }
                             let j = rel * 0.75;
-                            caVX[a] = caVX[a] + nx * j;
-                            caVZ[a] = caVZ[a] + nz * j;
-                            caVX[b] = caVX[b] - nx * j;
-                            caVZ[b] = caVZ[b] - nz * j;
+                            let ja = j * 2 * ka;
+                            let jb = j * 2 * kb;
+                            caVX[a] = caVX[a] + nx * ja;
+                            caVZ[a] = caVZ[a] + nz * ja;
+                            caVX[b] = caVX[b] - nx * jb;
+                            caVZ[b] = caVZ[b] - nz * jb;
                             // a touch unsettles both cars a little
-                            caYR[a] = caYR[a] + rel * 1.4 * (lat > 0 ? 1 : 0 - 1);
-                            caYR[b] = caYR[b] - rel * 1.4 * (lat > 0 ? 1 : 0 - 1);
+                            caYR[a] = caYR[a] + rel * 1.4 * (lat > 0 ? 1 : 0 - 1) * ka * 2;
+                            caYR[b] = caYR[b] - rel * 1.4 * (lat > 0 ? 1 : 0 - 1) * kb * 2;
                             if (a == 1) { addShake(Math.min(6, Math.abs(rel) * 0.45)); }
                             if (b == 1) { addShake(Math.min(6, Math.abs(rel) * 0.45)); }
                         }

@@ -1,3 +1,68 @@
+# F1 ONLINE 3D — 작업 인계 메모 (2026-09-30, v2.1.0)
+
+산출물: `F1 Online 3D v2.1.0.ent`, 설명서 `F1 Online 3D v2.1.0 설명서.md` (v2.0.0은 루트 `old/`로)
+빌드: `node build.mjs f1online210.ent` → `globals 529, lists 632, functions 379, handlers 3`
+- 사용자: "용량 제한은 사실상 없다고 봐줘" → 16 MB 문턱은 신경 쓰지 않음.
+- 조사만 하고 하지 않은 것: ctl* 리스트 문자열 압축(약 1.7 MB 절약 가능).
+
+## 요청과 한 것
+"온라인 대전 기능이랑 관전, 채팅 기능도 같이 구현" (앞서 방 제목·룰을 정해 여는 가상 방 설계를 제안함)
+- 새 `src/net.js`(SRC_FILES에서 menu.js 앞)
+  - 자리 변수 `SY_p1..16` → `?!p1..16`(일반 변수, Entry Sync). 각자 자기 자리에만 씀. 고정 폭 한 줄:
+    - `F`, sid6, seq3, wall5(일·시·분·초 mod 100000), st, room2, rsid6, rid2, car2, chat#2
+    - 호스트 칸: rst, trk2, laps2, rules, wx, contact, max, code4, grid 17(`G`+8×2)
+    - 경주 칸: lap2, seg4, u3, off4(+5000, ×10), yaw3, spd3(m/s×3), flags(브레이크 1 / DRS 2), fin7(ms), rt7
+    - ack: slot2, seq3, hold3(ms)
+    - `|nick|chat|title`. NHDR 102.
+  - 상태 NS_: 1 로비, 2 방, 3 준비, 4 그리드(로드 끝), 5 경주, 6 완주, 7 관전, 8 LOADING.
+  - 살아 있음 = 바뀐 지 NSTALE 8 s 안(LOADING이면 60 s). 처음 보는 값은 벽시계 차이 > 16 s면 빈자리(Entry Sync가 남긴 옛 값).
+  - 자리 잡기: `netClaim` 무작위 빈자리. 같은 자리를 동시에 잡으면 sid 작은 쪽이 가짐(`netStep`).
+  - 방 = 호스트 자리(room = 자기 번호). 참가 = 내 칸에 호스트 slot/sid. 목록 `netRooms`, 인원 `netMembers`(관전 제외).
+    - 호스트가 2 s 넘게 사라져 보이면(netGoneT) 로비로. 경주 중이면 netHostGone.
+  - 시작
+    1. 호스트 `netStart`: 모두 READY → 그리드 섞기 → rst 1, rid+1.
+    2. 모두 `netBegin`: LOADING을 먼저 보냄(엔트리 본체는 로드 프레임이 몇 초라 그동안 조용함) → startRace → doStartRace가 `netDoStart`.
+    3. `netDoStart`: setupRace(keepGrid 1로 예선 없음) 뒤 그리드를 온라인으로 다시 짬.
+       - 1번 차 = 나, 나머지 caNet=1, caSlot.
+       - 내 차는 업그레이드 0으로 carStats.
+    4. LOADED → 호스트가 모두 LOADED(또는 25 s)면 rst 2.
+    5. 참가자는 rst 2를 받는 즉시, 호스트는 max(RTT/2)(최대 1 s) 뒤 netWait 0 → 신호등.
+       - lightHold는 rid로 정함.
+  - 원격 차 `netCars`(netRaceStep 안, 매 프레임)
+    - 보고 진행도 + 속도 × (수신 뒤 경과 + RTT/2, 최대 0.9 s)를 트랙을 따라 적용.
+    - caNP로 부드럽게 따라가고 25링 넘게 어긋나면 바로 옮김. sampleTrack으로 높이.
+    - 2 s 넘게 안 보이면 DNF + "LEFT THE RACE".
+  - RTT: 보고마다 다른 live 자리 하나를 차례로 ack(그 자리의 seq와 받은 뒤 경과). 받은 쪽은 `netSentT[seq]`로 계산, nsRtt에 0.8/0.2로 평균.
+  - 순위 `netFinOrder`: 완주 시간(각자 자기 신호등부터 잰 raceT). netOver = 남은 차 0 또는 첫 완주 뒤 60 s.
+  - 관전: `netWatchRace`(모든 차 caNet, 1번도 원격), `netHudWatch`, ◀▶ camCar, ESC. 방에서 들어왔으면 방으로, 로비에서면 로비로.
+  - 채팅: Y → ask → `netClean`(|→/, 60자) → chSeq+1, chTx.
+    - 받는 쪽은 채팅 번호가 바뀌면 `netHear`. 같은 채널(로비 0 / room×1e6+rsid)만 받음.
+    - 표시 `netHudChat`: 방·로비는 패널, 경주는 위 가운데 4줄 14 s. 텍스트 슬롯 81–87, NTX 88.
+- 게임에 넣은 곳
+  - main.js: Y 키(pkSt 23, NPK 23), 메뉴 항목 24 ONLINE RACE(0쪽 2행), ST_NET 17 분기.
+    - 온라인 일시정지는 M(방으로)·Y만. ST_DONE은 `netDoneKeys`. 레이스 키는 `netRaceKeys`. ST_COUNT는 netWait면 대기.
+    - 매 프레임 `netStep`.
+  - game.js: aiPlan/aiDrive/carPhys/checkRecovery/updateLap/DRS(`drsCar`로 분리)를 caNet이면 건너뜀. 관전이면 1번 차 전용(ghostRec·statsStep·drift·sectors) 끔. 온라인 blueStep 끔.
+  - phys.js carCollisions: 원격끼리는 안 만남. 접촉 OFF면 원격과도 안 만남. ON이면 ka/kb로 내 차만 밀림(오프라인은 0.5/0.5로 수치 동일).
+  - rules.js simStep: caNet 건너뜀. 온라인 limits/flags/VSC/aiStrategy 끔. race3.js: 온라인 고장 없음. fx.js: 원격 불꽃 없음.
+  - hud.js: 이름 `netName`(tower, tableRow), ST_NET/관전/결과 HUD, 그리드 대기 문구. menu.js: drawNet, 카드 24. profile.js: ST_NET은 조용한 화면.
+- ejs: `dateMin/dateHour/dateDay`.
+  - JS 백엔드: **숫자처럼 보이는 문자열로 시작하는 전역은 숫자로 시작**(tessvm이 그렇게 함 — `'0000000000000000'`이 0이 되어 그리드 칸이 1글자로 줄고 뒤 칸이 모두 밀렸던 버그).
+- sim.mjs `R.sySet`이 `R.syNet.varChanged`를 부름. `R.wallMs`로 벽시계를 옮김.
+
+## 시험
+- `t9/netsim.mjs [지연ms] [흔들림ms]`(ONLY=race,slots,rules,late,keys): 모델의 지연은 올림·내림 양쪽에 붙음. 33개 PASS.
+  - 120/60: 신호등 0 s 차이, 위치 오차 중앙값 3.7 m. 40/20: 3.7 m. 300/150: 0.1 s, 3.4 m.
+  - RTT 보정 전에는 12.2 m(지연 × 속도).
+- `t9/nettess.mjs`: tessvm 두 창 + 실제 inject.js(tessvm 지원판). Node가 서버 역할(80 ms). 키·타이핑만 씀. 위치 오차 1.3 m. 스크린숏 `ab/net_*.png`.
+- `t9/netreal.mjs`: 엔트리 본체 두 창(entry-vibe-coding :3000), 오차 0.5–1.2 m.
+  - 한 브라우저라 포커스가 하나: W를 300 ms마다 다시 keydown.
+  - 한때 참가자가 "ROOM WAS CLOSED"로 로비에 떨어지는 경우가 가끔 있었음(원인 못 잡음) → 2 s 디바운스 뒤 재현 안 됨.
+- 오프라인 회귀 `t9/tests.sh` → `ab/tests210.txt`(prof "tuned top speed"는 예전부터 FAIL인 옛 공식).
+- 미확인: 실제 Entry Sync 서버와 실제 두 계정, 서버 메시지 한도.
+
+---
+
 # F1 ONLINE 3D — 작업 인계 메모 (2026-09-29, v2.0.0)
 
 산출물: `F1 Online 3D v2.0.0.ent` ← 최신(이름 변경, 버전 2.0.0부터 새로), 설명서 `F1 Online 3D v2.0.0 설명서.md` (3D 레이싱 v6.3은 루트 `old/`로)

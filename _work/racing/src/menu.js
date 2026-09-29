@@ -162,6 +162,7 @@ function drawMenuUI() {
     else if (raceState == ST_QRES) { drawTablePanel(); }
     else if (raceState == ST_TUNE) { drawTune(); }
     else if (raceState == ST_PROF) { drawProf(); }
+    else if (raceState == ST_NET) { drawNet(); }
 }
 
 function drawTablePanel() {
@@ -415,6 +416,7 @@ function hudMenu() {
         else if (k == 10) { lab = 'GRAPHICS'; val = gfxName[gfxSel]; }
         else if (k == 11) { lab = 'SOUND'; val = sndName[sndSel]; }
         else if (k == 12) { lab = 'PROFILE'; val = str('LEVEL ', pLv); }
+        else if (k == 24) { lab = 'ONLINE RACE'; val = SY_ > 0 ? 'ROOMS  /  WATCH  /  CHAT' : 'NEEDS ENTRY SYNC'; }
         else { lab = 'TRACK EDITOR'; }
         let x = 0 - 226 + (sel > 0 ? 4 * menuSlide : 0);
         tx(23 + i, lab, x, oRowY, 10, sel > 0 ? C_WHITE : (k >= 20 ? '#ffd9d4' : '#c9d1de'), 1);
@@ -599,6 +601,15 @@ function hudCard() {
         cardTx(52, 'ENGINE SOUND', 0 - 18, 12, C_GOLD);
         cardTx(53, 'YOUR V6 TURBO HYBRID FOLLOWS YOUR REVS', 0 - 36, 7, C_WHITE);
         cardTx(54, 'CARS NEARBY ARE HEARD TOO, PASSING BY', 0 - 48, 7, C_DIM);
+    } else if (m == 24) {
+        tx(50, 'ONLINE RACE', cardX0 + 10, 84, 11, C_WHITE, 1);
+        cardTx(52, 'RACE OTHER PLAYERS', 50, 12, C_GOLD);
+        cardTx(53, 'OPEN A ROOM - TITLE, CIRCUIT, LAPS,', 30, 8, C_WHITE);
+        cardTx(54, 'RULES, CONTACT, PLAYERS, A CODE - OR', 18, 8, C_WHITE);
+        cardTx(55, 'JOIN ONE. WATCH A RACE, CHAT WITH Y.', 6, 8, C_WHITE);
+        cardTx(56, 'EVERYONE NEEDS THE ENTRY SYNC EXTENSION', 0 - 14, 7, C_DIM);
+        cardTx(57, 'UPGRADES ARE OFF ONLINE (SETUP STAYS)', 0 - 26, 7, C_DIM);
+        tx(71, SY_ > 0 ? 'ENTER  GO ONLINE' : 'ENTRY SYNC IS NOT CONNECTED', 121, 0 - 80, 8, SY_ > 0 ? C_GOLD : C_ACC, 0);
     } else if (m == 12) {
         tx(50, 'PROFILE', cardX0 + 10, 84, 11, C_WHITE, 1);
         tx(72, str(pLv), cardX0 + 40, 48, 18, C_WHITE, 0);

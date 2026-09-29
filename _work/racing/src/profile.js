@@ -671,6 +671,7 @@ function profileStep() {
     if (raceState == ST_PROF) { quiet = 1; }
     if (raceState == ST_PAUSE) { quiet = 1; }
     if (raceState == ST_PHOTO) { quiet = 1; }
+    if (raceState == ST_NET) { quiet = 1; }
     if (pLoaded > 0) {
         if (pSync > 0) {
             if (quiet > 0) {

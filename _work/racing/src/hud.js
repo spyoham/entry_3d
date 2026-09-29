@@ -73,7 +73,9 @@ let oRow = BLANK;
 
 // "P3  K. TANAKA   AZURE    +4.512" for results and standings tables
 function tableRow(pos, o, tail) {
-    padR(drvName[o], 11);
+    let dn = drvName[o];
+    if (netRace > 0) { netName(o); dn = oNm; }
+    padR(dn, 11);
     let nm = oPad;
     padR(lvName[caCol[o]], 9);
     let tm = oPad;
@@ -143,7 +145,8 @@ function buildTower() {
         if (i <= nCars * on) {
             if (nCars > 1) {
                 let o = srtI[i];
-                padR(drvShort[o], 7);
+                netName(o);
+                padR(oNm, 7);
                 let g = 'LEADER';
                 if (i > 1) {
                     if (caGap[o] < 0) { g = str('+', 0 - caGap[o], ' LAP'); }
@@ -186,15 +189,20 @@ function updateHud() {
     if (page == ST_MENU) { sub = menuSel + 100 * mnPage; }
     if (page == ST_EDIT) { sub = shShow; }
     if (page == ST_PROF) { sub = prTab; }
+    if (page == ST_NET) { sub = netPg; }
+    if (page == ST_RACE) { sub = netWatch; }
     if (page != hudPage) { txClear(); hudPage = page; hudSub = sub; }
     else if (sub != hudSub) {
         hudSub = sub;
         let i = 50;
         if (page == ST_EDIT) { i = 28; }
         if (page == ST_PROF) { i = 24; }
+        if (page == ST_NET) { i = 9; }
+        if (page == ST_RACE) { i = 1; }
         while (i <= NTX) { txOff(i); i = i + 1; }
     }
     if (raceState == ST_MENU) { hudMenu(); }
+    else if (raceState == ST_NET) { hudNet(); }
     else if (raceState == ST_CARSEL) { hudCarSel(); }
     else if (raceState == ST_TUNE) { hudTune(); }
     else if (raceState == ST_PROF) { hudProf(); }
@@ -256,7 +264,7 @@ function updateHud() {
             tx(12, 'ENTER  next round', 0, 0 - 112, 11, C_DIM, 0);
         }
         standingsTable();
-    } else if (raceState == ST_DONE) {
+    } else if (raceState == ST_DONE) { if (netRace > 0) { netHudDone(); } else {
         resultsTable();
         tx(9, str('FINISH  P', clsPos), 0, 106, 30, clsPos == 1 ? C_GOLD : C_WHITE, 0);
         if (caDNF[1] > 0) { tx(9, 'RETIRED', 0, 106, 30, '#ff6a5a', 0); }
@@ -272,7 +280,10 @@ function updateHud() {
         if (gfx > 1) { rp = '     V  replay'; }
         if (gMode == M_CH) { tx(12, str('ENTER  championship standings     R  restart', rp), 0, 0 - 112, 11, C_DIM, 0); }
         else { tx(12, str('ENTER  menu     R  restart', rp), 0, 0 - 112, 11, C_DIM, 0); }
-    } else { hudRace(); }
+    } } else if (netWatch > 0) { netHudWatch(); }
+    else { hudRace(); }
+    // v2.1.0: the online chat, on every screen while online
+    if (netOn > 0) { netHudChat(); }
     // v8: achievement / level-up pop-up (the pen draws its panel)
     if (popT > 0) {
         let a = Math.min(1, popT * 3, (3.2 - popT) * 4);
@@ -359,7 +370,7 @@ function hudRace() {
     }
     tx(15, de, 0, 74, 13, dcol, 0);
     let sb = BLANK;
-    if (raceState == ST_COUNT) { if (lightN < 1) { sb = 'GET READY'; } }
+    if (raceState == ST_COUNT) { if (lightN < 1) { sb = 'GET READY'; if (netWait > 0) { sb = 'WAITING FOR THE OTHER DRIVERS'; } } }
     tx(10, sb, 0, 0 - 26, 14, '#e0e6f2', 0);
     if (solo > 0) { let i = 16; while (i <= 23) { txOff(i); i = i + 1; } }
     // v3.0: a blue flag (both rule sets) or the VSC delta under the flag panel

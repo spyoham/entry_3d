@@ -117,7 +117,7 @@ function drawSparksIn(i) {
 function fxStep() {
     if (gfx > 1) {
         let c = 1;
-        while (c <= nCars) { carSparks(c); c = c + 1; }
+        while (c <= nCars) { if (caNet[c] < 1) { carSparks(c); } c = c + 1; }
         if (spN > 0) { stepSparks(); }
     } else { spN = 0; }
     todStep();

@@ -147,7 +147,8 @@ function carTick3(c, wt, sp) {
     if (raceState == ST_RACE) {
         if (gMode < M_TT) {
             if (caDNF[c] < 1) {
-                if (caFail[c] < 1) {
+                // (v2.1.0: no failures in an online race)
+                if (caFail[c] + netRace < 1) {
                     let st = 1;
                     if (mix == 3) { st = st + 0.6; }
                     if (bt > 1050) { st = st + 2; }
