@@ -1,3 +1,25 @@
+From a1b5863b0c8b77cfe2ff1bd67aa0dbd81660fc6d Mon Sep 17 00:00:00 2001
+From: spyoham <98806847+spyoham@users.noreply.github.com>
+Date: Tue, 29 Sep 2026 23:50:07 +0900
+Subject: [PATCH] feat: support works played in the tessvm runner
+
+tessvm (the "tessvm for Entry" extension) replaces the play page's Entry
+iframe with its own runner, so the page has no window.Entry and Entry Sync
+did nothing there. inject.js now also binds to the runner tessvm leaves at
+window.tessvm (vm.variables, vm.start/stop/reset/tick): room data, remote
+updates and the '?!' status variable are written into its variables, local
+changes (found by each variable's revision counter) are sent once per tick,
+and stop / page unload send the ?? and ?! snapshots. The rules match the
+Entry path (4 s startup gate, whole-list sends, no echo). Nothing changes
+for pages that run Entry itself.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ extension/inject.js | 265 +++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 263 insertions(+), 2 deletions(-)
+
+diff --git a/extension/inject.js b/extension/inject.js
+index 69e1004..27dee78 100644
 --- a/extension/inject.js
 +++ b/extension/inject.js
 @@ -6,6 +6,7 @@
@@ -324,3 +346,6 @@
          // Works on both play page (with engine) AND workspace page (without engine)
          const hasEntry = window.Entry && window.Entry.variableContainer;
          if (hasEntry) {
+-- 
+2.55.0.windows.3
+
