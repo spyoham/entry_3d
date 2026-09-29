@@ -372,8 +372,9 @@ function drawTrkSel() {
 // v8 slots: menu labels 24..36, values 37..49; cards 50 (title), 51..71
 // (cardRow r: label 51+r, value 61+r), 72..76 extras; 77..79 pop-ups.
 function hudMenu() {
-    tx(9, 'ENTRY RACING 3D', 0 - 232, 116, 21, C_WHITE, 1);
-    tx(10, 'F1 EDITION  /  v6.0', 0 - 232, 96, 8, C_WHITE, 1);
+    tx(9, 'F1 ONLINE 3D', 0 - 232, 116, 21, C_WHITE, 1);
+    syLabel();
+    tx(10, str('v2.0.0  /  ', oSyL), 0 - 232, 96, 8, C_WHITE, 1);
     let lvl = pLoaded > 0 ? str('LV ', pLv, '  ', pNick) : 'LOADING SAVE...';
     tx(13, lvl, 0 - 80, 96, 8, C_GOLD, 1);
     let crumb = 'MAIN MENU';
@@ -606,7 +607,7 @@ function hudCard() {
         cardRow(4, 'ACHIEVEMENTS', str(achCount, ' / ', NACH), 0 - 4);
         cardRow(5, 'RACES / WINS', str(stRaces, ' / ', stWins), 0 - 17);
         cardRow(6, 'DISTANCE', str(Math.round(stKm), ' km'), 0 - 30);
-        tx(75, pGuest > 0 ? 'GUEST - SIGN IN TO SAVE ONLINE' : 'SAVED IN THE WORK (REAL-TIME VARIABLES)', cardX0 + 10, 0 - 56, 7, pGuest > 0 ? C_ACC : C_DIM, 1);
+        tx(75, pGuest > 0 ? 'GUEST - SIGN IN TO SAVE ONLINE' : 'SAVED ONLINE WITH ENTRY SYNC', cardX0 + 10, 0 - 56, 7, pGuest > 0 ? C_ACC : C_DIM, 1);
         tx(71, 'ENTER  RECORDS, ACHIEVEMENTS, RANKING', 121, 0 - 80, 8, C_GOLD, 0);
     } else {
         tx(50, 'TRACK EDITOR', cardX0 + 10, 84, 11, C_WHITE, 1);
@@ -975,7 +976,8 @@ function hudProf() {
         tx(25, pNick, 0 - 120, 74, 16, C_GOLD, 1);
         tx(26, str('LEVEL ', pLv, '    ', pXP, ' XP    ', pLvNeed - pLvXP, ' TO THE NEXT LEVEL'), 0 - 120, 56, 8, C_WHITE, 1);
         let sv = str('SAVED ONLINE  (SLOT ', pSh, ')');
-        if (pSync == 2) { sv = str('SAVING  (SLOT ', pSh, ' - NO SERVER REPLY YET, KEPT IF OFFLINE)'); }
+        if (pSync == 2) { sv = str('SAVING  (SLOT ', pSh, ' - NO SAVE DATA FROM THE SERVER YET)'); }
+        if (SY_ < 1) { sv = 'OFFLINE - NOT SAVED ONLINE (NEEDS THE ENTRY SYNC EXTENSION)'; }
         if (pVerN > 0) { sv = str('SAVING AGAIN - SOMEONE ELSE SAVED AT THE SAME MOMENT (TRY ', pVerN, ')'); }
         if (pGuest > 0) { sv = 'GUEST - SIGN IN TO KEEP YOUR PROGRESS ONLINE'; }
         if (pLoaded < 1) { sv = 'LOADING YOUR SAVE...'; }
@@ -992,7 +994,7 @@ function hudProf() {
         tx(33, str('CIRCUITS DRIVEN  ', nc, ' / ', NTRK), 20, 0 - 20, 9, C_WHITE, 1);
         tx(34, str('UPGRADE POINTS  ', pPts), 20, 0 - 36, 9, C_WHITE, 1);
         tx(35, str('UPGRADES  ', upE + upA + upB + upT, ' / ', 4 * UPMAX), 20, 0 - 52, 9, C_WHITE, 1);
-        tx(36, 'ONLINE SAVES WORK ON THE WORK\'S OWN PAGE - IN THE EDITOR ENTRY KEEPS THEM OFFLINE', 0 - 220, 0 - 68, 6, C_DIM, 1);
+        tx(36, 'ONLINE SAVES AND RANKINGS NEED THE ENTRY SYNC CHROME EXTENSION (THE WORK MUST BE SAVED)', 0 - 220, 0 - 68, 6, C_DIM, 1);
         // v11: a backup of the save the player keeps, for when the online save is lost
         tx(39, 'BACKUP CODE   C  COPY IT    V  LOAD IT', 0 - 220, 0 - 81, 8, C_WHITE, 1);
         tx(38, msg, 0 - 220, 0 - 96, 7, C_GOLD, 1);

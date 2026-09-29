@@ -491,10 +491,14 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
     });
 
     const variables = [];
-    // v8: a global named RT_* is an Entry real-time variable - kept on the
-    // server and shared by everyone who runs the work (online only)
-    for (const [name, g] of globals) variables.push({ name, id: g.id, value: g.init, variableType: 'variable', visible: false, isCloud: false, isRealTime: name.startsWith('RT_'), cloudDate: false, object: g.object || null, x: 0, y: 0 });
-    for (const [name, l] of lists) variables.push({ name, id: l.id, value: 0, variableType: 'list', visible: false, isCloud: false, isRealTime: false, cloudDate: false, object: null, x: 0, y: 0, width: 100, height: 120,
+    // v2.0.0 (F1 Online 3D): a global or list named SY_* is an Entry Sync one.
+    // Entry Sync (a Chrome extension) shares and stores every plain variable
+    // or list whose name starts with '?!' - so SY_x becomes '?!x', and SY_
+    // alone the connection flag '?!' (1 connected, -1 not). They are ordinary
+    // variables to Entry: never cloud, never Entry's own real-time ones.
+    const entryName = (n) => (n.startsWith('SY_') ? '?!' + n.slice(3) : n);
+    for (const [name, g] of globals) variables.push({ name: entryName(name), id: g.id, value: g.init, variableType: 'variable', visible: false, isCloud: false, isRealTime: false, cloudDate: false, object: g.object || null, x: 0, y: 0 });
+    for (const [name, l] of lists) variables.push({ name: entryName(name), id: l.id, value: 0, variableType: 'list', visible: false, isCloud: false, isRealTime: false, cloudDate: false, object: null, x: 0, y: 0, width: 100, height: 120,
         array: l.init.map((v, i) => ({ id: `${l.id}_${i}`, data: v })) });
     variables.sort((a, b) => (use.get(b.id) || 0) - (use.get(a.id) || 0));
     return {
@@ -517,13 +521,18 @@ export function compileToJS(sources) {
     const ast = acorn.parse(src, { ecmaVersion: 2022, sourceType: 'script', locations: true });
     const lists = new Set();
     for (const st of ast.body) if (st.type === 'VariableDeclaration' && st.kind !== 'const') for (const d of st.declarations) if (d.init && d.init.type === 'ArrayExpression') lists.add(d.id.name);
+    // v2.0.0: SY_* (Entry Sync) - a variable is read / written through R,
+    // a list is a plain array whose every change is reported to R.syChanged
+    const isSyVar = (nm) => nm.startsWith('SY_') && !lists.has(nm);
+    let locals = new Set();
+    const syN = (L, code) => (L.startsWith('SY_') ? `(${code},R.syChanged(${JSON.stringify(L)},${L}))` : code);
     const E = (n) => {
         switch (n.type) {
             case 'Literal': return JSON.stringify(n.value);
             case 'ArrayExpression': return '[' + n.elements.map(E).join(',') + ']';
             case 'TemplateLiteral': return '(' + n.quasis.map((q, i) => JSON.stringify(q.value.cooked) + (i < n.expressions.length ? '+R.s(' + E(n.expressions[i]) + ')' : '')).join('+') + ')';
-            // v8: real-time variables go through the runtime (the sim models the server)
-            case 'Identifier': return n.name.startsWith('RT_') ? `R.rtGet(${JSON.stringify(n.name)})` : n.name;
+            // v2.0.0: Entry Sync variables go through the runtime (the sim models the extension)
+            case 'Identifier': return isSyVar(n.name) ? `R.syGet(${JSON.stringify(n.name)})` : locals.has(n.name) ? `(${n.name}||0)` : n.name;
             case 'UnaryExpression': return `(${n.operator}${E(n.argument)})`;
             case 'BinaryExpression':
                 if (n.operator === '%') return `R.mod(${E(n.left)},${E(n.right)})`;
@@ -540,9 +549,9 @@ export function compileToJS(sources) {
                 const c = n.callee;
                 if (c.type === 'MemberExpression' && lists.has(c.object.name)) {
                     const L = c.object.name, a = n.arguments.map(E);
-                    if (c.property.name === 'push') return `${L}.push(${a[0]})`;
-                    if (c.property.name === 'removeAt') return `R.removeAt(${L},${a[0]})`;
-                    if (c.property.name === 'insertAt') return `R.insertAt(${L},${a[0]},${a[1]})`;
+                    if (c.property.name === 'push') return syN(L, `${L}.push(${a[0]})`);
+                    if (c.property.name === 'removeAt') return syN(L, `R.removeAt(${L},${a[0]})`);
+                    if (c.property.name === 'insertAt') return syN(L, `R.insertAt(${L},${a[0]},${a[1]})`);
                     if (c.property.name === 'includes') return `${L}.some(v=>v==${a[0]})`;
                 }
                 if (c.type === 'MemberExpression') return `${E(c)}(${n.arguments.map(E).join(',')})`;
@@ -551,10 +560,10 @@ export function compileToJS(sources) {
             case 'AssignmentExpression':
                 if (n.left.type === 'MemberExpression' && n.left.computed) {
                     const L = n.left.object.name;
-                    if (n.operator === '=') return `R.set(${L},${E(n.left.property)},${E(n.right)},${JSON.stringify(L)})`;
-                    return `R.set(${L},R.$i=(${E(n.left.property)}),R.get(${L},R.$i,${JSON.stringify(L)})${n.operator[0]}(${E(n.right)}),${JSON.stringify(L)})`;
+                    if (n.operator === '=') return syN(L, `R.set(${L},${E(n.left.property)},${E(n.right)},${JSON.stringify(L)})`);
+                    return syN(L, `R.set(${L},R.$i=(${E(n.left.property)}),R.get(${L},R.$i,${JSON.stringify(L)})${n.operator[0]}(${E(n.right)}),${JSON.stringify(L)})`);
                 }
-                if (n.left.name.startsWith('RT_')) return `R.rtSet(${JSON.stringify(n.left.name)},${E(n.right)})`;
+                if (isSyVar(n.left.name)) return `R.sySet(${JSON.stringify(n.left.name)},${E(n.right)})`;
                 return `${n.left.name}${n.operator}${E(n.right)}`;
             case 'UpdateExpression':
                 if (n.argument.type === 'MemberExpression') return `R.set(${n.argument.object.name},R.$i=(${E(n.argument.property)}),R.get(${n.argument.object.name},R.$i)${n.operator[0]}1)`;
@@ -575,7 +584,19 @@ export function compileToJS(sources) {
             case 'BreakStatement': return 'break;';
             case 'ReturnStatement': return `return ${s.argument ? E(s.argument) : ''};`;
             case 'BlockStatement': return Sb(s);
-            case 'FunctionDeclaration': return `function ${s.id.name}(${s.params.map(p => p.name).join(',')}){${Sb(s.body)}}`;
+            // v2.0.0: an Entry function's local variable reads back as `value || 0`
+            // (entryjs Func.getValue), so '' or false stored in one reads as 0
+            case 'FunctionDeclaration': {
+                const was = locals; locals = new Set();
+                const walk = (x) => { if (!x || typeof x !== 'object') return; if (Array.isArray(x)) return x.forEach(walk);
+                    if (x.type === 'VariableDeclaration') for (const d of x.declarations) locals.add(d.id.name);
+                    if (x.type !== 'FunctionDeclaration' || x === s) for (const k in x) if (k !== 'loc') walk(x[k]); };
+                walk(s.body);
+                for (const p of s.params) locals.delete(p.name);
+                const out = `function ${s.id.name}(${s.params.map(p => p.name).join(',')}){${Sb(s.body)}}`;
+                locals = was;
+                return out;
+            }
             case 'EmptyStatement': return '';
         }
         throw new Error('js backend stmt: ' + s.type);
@@ -586,8 +607,11 @@ export function compileToJS(sources) {
         if (st.type === 'ExpressionStatement' && st.expression.type === 'CallExpression' && st.expression.callee.name === 'on') {
             const [ev, obj, fn] = st.expression.arguments;
             parts.push(`R.on(${JSON.stringify(ev.value)},${JSON.stringify(obj.value)},function*(){${Sb(fn.body)}});`);
-        } else if (st.type === 'VariableDeclaration' && st.kind !== 'const' && st.declarations[0].id.name.startsWith('RT_')) {
-            parts.push(st.declarations.map(d => `R.rtDefault(${JSON.stringify(d.id.name)},${E(d.init)});`).join(''));
+        } else if (st.type === 'VariableDeclaration' && st.kind !== 'const' && st.declarations.some(d => d.id.name.startsWith('SY_'))) {
+            if (!st.declarations.every(d => d.id.name.startsWith('SY_'))) throw new Error('declare SY_* apart from other globals');
+            parts.push(st.declarations.map(d => lists.has(d.id.name)
+                ? `let ${d.id.name}=R.syList(${JSON.stringify(d.id.name)},${E(d.init)});`
+                : `R.syDefault(${JSON.stringify(d.id.name)},${E(d.init)});`).join(''));
         } else if (st.type === 'VariableDeclaration' && st.kind !== 'const') {
             parts.push('let ' + st.declarations.map(d => d.id.name + '=' + (d.init && d.init.type === 'ArrayExpression' ? '(R.data && R.data[' + JSON.stringify(d.id.name) + '] ? R.data[' + JSON.stringify(d.id.name) + '].slice() : ' + E(d.init) + ')' : (d.init ? E(d.init) : '0'))).join(',') + ';');
         } else parts.push(S(st));

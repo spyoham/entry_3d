@@ -1,4 +1,4 @@
-// Build "ENTRY RACING 3D" -> .ent
+// Build "F1 Online 3D" (was ENTRY RACING 3D) -> .ent
 //   - track control points (3 built-in circuits) generated from smooth harmonics
 //   - a material palette with baked directional lighting, expanded into a
 //     per-track fog colour table (material x 16 fog levels) so the renderer
@@ -79,8 +79,9 @@ export const C = {
     NTY: 5,             // tyre compounds
     // ---- v8 ----
     NACH: 20,           // achievements
-    NSH: 16,            // save shards (RT_S1..16)
-    SHCAP: 2400,        // characters a save shard is allowed to grow to
+    NSH: 8,             // v2.0.0: save lists (?!save1..8, Entry Sync)
+    SHCAP: 60,          // records a save list is allowed to hold
+    SYWAIT: 20,         // s to wait for Entry Sync's lists before assuming a new work
     NRANK: 10,          // ranking entries per circuit
     LVMAX: 50,
     UPMAX: 5,           // upgrade steps per part
@@ -1436,7 +1437,7 @@ export function buildData() {
     lists.rkN = new Array(C.NRANK + 2).fill('-'); lists.rkT = zeros(C.NRANK + 2);
     lists.achGot = zeros(C.NACH + 1); lists.popQ = zeros(33);
     lists.recNm = new Array(C.NTRK + 1).fill('-'); lists.recWR = zeros(C.NTRK + 1);
-    lists.pendRk = zeros(C.NTRK + 1); lists.pendG = zeros(C.NTRK + 1);
+    lists.pendRk = zeros(C.NTRK + 1); lists.pendG = zeros(C.NTRK + 1); lists.rkOk = zeros(C.NTRK + 1);
     // time into the lap at each ring: best lap and the current one (live delta)
     lists.bsT = zeros(R + 1); lists.csT = zeros(R + 1);
     lists.sgDRS = zeros(R); lists.sgGrid = zeros(R);
@@ -1531,7 +1532,7 @@ export async function buildEnt(outFile, opts = {}) {
             ...AI_RATIOS.flatMap((r, i) => AI_LEVELS.map((a, j) => ({ id: `ai${i + 1}${j + 1}`, name: `ai${i + 1}${j + 1}`, buf: aiMp3(r, a), ext: 'mp3', duration: AI_LOOP })))],
         entity: { x: 0, y: 0, visible: true } }));
     const project = packEnt(outFile, {
-        name: 'ENTRY RACING 3D', tmpDir: path.join(HERE, '.pack'),
+        name: 'F1 Online 3D', tmpDir: path.join(HERE, '.pack'),
         variables: orderVariables(prog.variables), functions: prog.functions, messages: prog.messages, objects, speed: 60,
         // v11: the backup code's table (plain Entry shows it; its text can be selected there)
         tables: [{ id: 'svtb', name: 'BACKUP CODE', fields: ['CODE'], data: [['-']], chart: [] }],

@@ -1,4 +1,4 @@
-// v8 profile systems in the node sim: save/load through the RT_* variables
+// v8 profile systems in the node sim: save/load through the Entry Sync lists (?!save1..8, ?!rank, ?!ghost)
 // for two players, ranking, the world-record ghost, tuning, practice assist.
 import { createSim } from '../sim.mjs';
 const trk = +(process.argv[2] || 5);
@@ -10,7 +10,7 @@ const ok = (c, m) => console.log((c ? 'PASS ' : 'FAIL ') + m);
 
 // ---- alice races one lap -------------------------------------------------
 s.R.nick = 'alice';
-run(13);                 // no server in this test: the save counts as synced after 12 s
+run(13);                 // no Entry Sync in this test: offline after 3 s
 ok(+g('pLoaded') === 1 && +g('pGuest') === 0 && g('pNick') === 'alice', `profile loaded for alice (shard ${g('pSh')})`);
 g(`rules = 1; wx = 1; gfx = 2; lapSel = 1; gMode = 1; aiDiff = 1; applyWeather(); selTrk = ${trk}; buildTrack(${trk}); doStartRace();`);
 g(`playerInput = function(){ aiPlan(1); aiDrive(1); }`);
@@ -20,7 +20,7 @@ run(5);
 const xp = +g('pXP');
 ok(xp > 0, `XP ${xp}, level ${g('pLv')}, line "${g('rsLine')}"`);
 ok(+g('achGot')[0] === 1, `achievements: ${g('achGot').map((v, i) => (v ? g('achName')[i] : '')).filter(Boolean).join(', ')}`);
-const shard = g(`(()=>{ rtGetS(pSh); return oRT; })()`);
+const shard = g(`(()=>{ shLen(pSh); let v = ""; for (let i = 1; i <= oSN; i++) { shGet(pSh, i); v += oRT; } return v; })()`);
 ok(shard.includes('|alice,'), `alice saved in her shard: ${shard.slice(0, 120)}`);
 const rk = g(`(()=>{ rtGetK(${trk}); return oRT; })()`);
 ok(rk.includes('|alice,'), `ranking ${trk}: ${rk}`);
@@ -30,7 +30,7 @@ const lapA = +g('recLap')[trk - 1];
 
 // ---- bob, a new player, on the same work ------------------------------------
 const reset = `pXP = 0; upE = 0; upA = 0; upB = 0; upT = 0; suW = 0; suG = 0; suB = 0; suS = 0; stRaces = 0; stWins = 0; stPods = 0; stKm = 0; stCirc = 0;
-  for (let k = 0; k < achGot.length; k++) achGot[k] = 0; for (let k = 0; k < recLap.length; k++) { recLap[k] = 0; recRace[k] = 0; } pCache = '|';`;
+  for (let k = 0; k < achGot.length; k++) achGot[k] = 0; for (let k = 0; k < recLap.length; k++) { recLap[k] = 0; recRace[k] = 0; }`;
 g(reset); s.R.nick = 'bob';
 g('loadProfile()');
 ok(+g('pXP') === 0 && g('pNick') === 'bob', `bob starts fresh (shard ${g('pSh')})`);
@@ -48,11 +48,11 @@ const before = g(`(()=>{ rtGetK(${trk}); return oRT; })()`);
 g(`rankSubmit(${trk}, 1)`);
 ok(+g('pGuest') === 1 && g(`(()=>{ rtGetK(${trk}); return oRT; })()`) === before, 'guest: nothing written to the ranking');
 
-// ---- shard eviction: 60 players into one shard stays under SHCAP --------------
+// ---- list eviction: 70 players into one save list keep SHCAP (60) records --------------
 s.R.nick = 'alice'; g('loadProfile()');
-for (let i = 0; i < 60; i++) { g(`pNick = 'filler${i}'; pSh = 1; addXP(${i}); saveProfile();`); }
-const len1 = g(`(()=>{ rtGetS(1); return oRT.length; })()`);
-ok(len1 <= 2400, `shard 1 after 60 saves: ${len1} characters (cap 2400)`);
+for (let i = 0; i < 70; i++) { g(`pNick = 'filler${i}'; pSh = 1; addXP(${i}); saveProfile();`); }
+const len1 = g(`(()=>{ shLen(1); return oSN; })()`);
+ok(len1 === 60, `save list 1 after 70 saves: ${len1} records (cap 60)`);
 
 // ---- time trial against the world-record ghost ----------------------------------
 g(reset); s.R.nick = 'bob'; g('loadProfile()');

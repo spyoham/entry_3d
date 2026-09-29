@@ -1,3 +1,55 @@
+# F1 ONLINE 3D — 작업 인계 메모 (2026-09-29, v2.0.0)
+
+산출물: `F1 Online 3D v2.0.0.ent` ← 최신(이름 변경, 버전 2.0.0부터 새로), 설명서 `F1 Online 3D v2.0.0 설명서.md` (3D 레이싱 v6.3은 루트 `old/`로)
+빌드: `node build.mjs f1online200.ent` → `globals 458, lists 585, functions 336, handlers 3`, **project.json 15.83 MB**(v6.3보다 0.08 MB 작음, 문턱 약 16.17 MB)
+
+## 요청과 한 것
+"앞으로 모든 실시간 변수/리스트는 ?!로 시작하는 일반 변수로(Entry Sync 팁 글), 레이싱 온라인 저장을 실시간 리스트 체계로, 작품 이름 F1 Online 3D, 버전 2.0.0"
+- **Entry Sync**(WHBL의 크롬 확장, 소스 github.com/good-bad-code/Entry-Sync, 사본 `_work/entrysync/inject.js, content.js`)
+  - `?!이름`: 실시간 공유와 저장을 함께 합니다.
+  - 변수 이름이 정확히 `?!`이면 연결 상태입니다. 연결 1, 끊김 -1, 확장이 없으면 0 그대로입니다.
+  - 소스를 읽어 확인한 동작:
+    - 리스트가 바뀔 때마다(appendValue/deleteValue/replaceValue/insertValue 훅) **리스트 전체**를 보냅니다. 서버는 마지막 것을 두고 **보낸 사람 빼고** 모두에게 전달합니다.
+    - 방 자료(INIT_ROOM_STATUS)는 실행 뒤에 옵니다. 그 전 최대 4초(isStartingUp)는 로컬 변경을 보내지 않습니다. 4초 뒤에는 방 자료가 없어도 보냅니다.
+    - 방 = 작품 ID입니다(저장 안 된 'new'는 접속하지 않습니다). 정지 때 스냅숏을 서버에 보냅니다.
+  - 스토어판 Entry Sync는 tessvm에서 동작하지 않습니다(자체 실행기라 `window.Entry`가 없음) → OFFLINE으로 표시됩니다. 같은 날 다른 세션이 `_work/entrysync`를 tessvm 지원 빌드(v1.0.1, `tessvm.diff`)로 바꿨습니다. `t9/synctess.mjs`로 이 게임을 시험했고 모두 PASS입니다.
+- ejs: 전역·리스트 이름 `SY_x` → 엔트리 이름 `?!x`, `SY_` → `?!`, 모두 isCloud/isRealTime false. RT_ 처리는 없앴습니다.
+  - JS 백엔드: SY_ 변수는 `R.syGet/sySet`, SY_ 리스트는 바뀔 때마다 `R.syChanged(name, arr)`(sim.mjs `R.syNet` 모델이 받음), `R.syList`로 선언.
+- profile.js 저장 층 교체
+  - `?!save1..8`(NSH 8, 한 사람 한 항목 `|nick,…`, SHCAP 60명, 저장 = 제자리 교체 또는 빼고 끝에 붙이기, 넘치면 1번 삭제)
+  - `?!rank`/`?!ghost`(서킷마다 한 항목, 첫 저장 때 `syInit()`이 19칸)
+  - 동기화 표시: `?!rank` 길이 ≥ NTRK면 pSync 1. SYWAIT 20 s 지나면 2(새 작품). 3 s 뒤 `?!`가 0이면 바로 2(확장 없음).
+  - pSync 2 → 1은 `?!` = 1일 때만.
+  - if 사슬: `shLen/shGet/shSet/shDel/shAdd`, `rtGetK/rtSetK/rtGetG/rtSetG`는 리스트 항목을 읽고 씁니다.
+  - verifySave·rankStep 확인·백오프는 그대로입니다(`rand(20,160)/100`로 소수 경계 반올림 회피).
+  - **selfCheck**(새로 추가): 조용한 화면에서 2 s마다 봅니다.
+    - 내 저장 항목(pSavedRec 그대로, 또는 XP가 더 큼)을 봅니다. 아니면 pDirty를 켭니다. 같은 XP 다른 내용은 10회까지만 다시 씁니다(두 기기).
+    - 랭킹 서킷 하나씩(`rkOk[t]`, rankStep 확인이나 rankAll 로드에서 기록) 봅니다. `rankHeal`이 빠졌으면 pendRk로 되돌립니다. 10명 밖으로 정당하게 밀렸으면 rkOk를 0으로 합니다. P1인데 고스트가 남의 것이면 wrUpload합니다.
+    - 이유: 에코가 없어서, 경쟁에서 진 클라이언트가 옛 리스트를 들고 있다가 다시 보내면 남의 새 기록이 되돌아갑니다(`t7/multi.mjs` E에서 약 1/6로 재현).
+  - 메뉴 제목 `F1 ONLINE 3D`, 버전 줄 `v2.0.0  /  ONLINE|OFFLINE|SYNC: NO SERVER`(`syLabel/oSyL`). PROFILE 안내문은 Entry Sync 기준입니다.
+- **엔트리 본체 버그(v6.3까지)**: 함수 지역 변수는 `value || 0`으로 읽힙니다(entryjs Func.getValue).
+  - `''`로 시작한 문자열 누적이 `0…`이 되었습니다. 닉네임은 `0alice`, rankParse 이름은 `00alice`가 되어 랭킹 확인이 영원히 실패했습니다.
+  - whoAmI(첫 글자부터), parseRec/rankParse(substr로 잘라 냄), savecode f(첫 글자부터)를 고쳤습니다.
+  - 엔트리 substring은 양 끝의 min/max를 쓰고 범위 밖이면 throw합니다. 빈 범위는 쓰지 않습니다.
+  - **ejs JS 백엔드가 이제 함수 지역 변수 읽기를 `(x||0)`으로 흉내 냅니다.** sim도 같은 버그를 봅니다.
+  - 백업 코드는 닉네임 키입니다. svLoad는 실패하면 `'0'+닉네임`으로 한 번 더 시도합니다(엔트리 본체 v6.3에서 복사한 코드).
+- 예전 RT_ 온라인 기록은 옮기지 않습니다(서버에 등록되지 않았었음). 백업 코드로 옮깁니다.
+
+## 시험
+- `t7/multi.mjs [지연ms] [welcome s]`: Entry Sync 모델입니다.
+  - 모델 동작: 전체 리스트, 마지막 도착 우선, 보낸 사람 에코 없음, 연결당 순서 보존, 시작 4 s 전송 막힘. `ONLY=E,J`로 일부만, `TRACE=SY_save3`로 메시지 기록.
+  - 테스트 목록: A, A2(9 s 늦은 방 자료에도 지우기 없음), B–G, H(확장 없음), I(60명), J(옛 리스트 되돌림 → 복구).
+  - 120/3, JIT=300 120/3, 400/6, JIT=300 250/5 모두 PASS. E는 selfCheck 전 10/12, 뒤 12/12.
+  - 주의: peek한 리스트는 0-based 원배열입니다(`pendRk[4]` = 서킷 5).
+- `t9/syncreal.mjs`: 엔트리 본체(entry-vibe-coding `node server.js`, :3000)에 **실제 inject.js**를 넣고 content.js·서버 역할을 흉내 냅니다.
+  - 확인 항목: `?!` = 1, 자료 전 전송 0, 예전 저장 로드(XP 5000), 전체 리스트 전송(남의 기록 유지), 랭킹 등록 1회에 확인(재시도 0), 원격 랭킹 반영. 모두 PASS.
+- `t7/savecode.mjs`: 예전 `0닉` 코드 로드 추가, 모두 PASS. `t7/prof.mjs`: 리스트 API로 바꿈. "tuned top speed"는 v3.0 이전 공식을 하드코딩한 것이라 예전부터 FAIL이었고, 저장과 무관합니다.
+- tessvm: 메뉴/PROFILE 스크린샷(`ab/f1o_menu.png`, `ab/f1o_prof.png`), 오류 0, 57 틱/초.
+- 회귀(`t9/tests.sh` + multi JIT + prof) → `ab/tests200.txt`.
+- **미확인**: 실제 playentry 업로드 + 실제 Entry Sync 서버(두 계정 동시). 사용자에게 요청했습니다.
+
+---
+
 # ENTRY RACING 3D — 작업 인계 메모 (2026-09-28, v6.3)
 
 산출물: `3D 레이싱 v6.3.ent` ← 최신, 설명서 `3D 레이싱 v6.3 설명서.md` (v6.2는 루트 `old/`로)

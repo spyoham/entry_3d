@@ -144,6 +144,23 @@ for (const nick of ['코딩재미있어요', '코딩재미있다', '코딩재미
     check('load: a bad answer says so', /DID NOT WORK/.test(Q.peek('msg')));
 }
 
+// ---- v2.0.0: a code copied in plain Entry before v2.0.0 (nickname read as '0' + name) ----
+{
+    const P = player('alice');
+    setRich(P);
+    P.poke('pNick', '0alice');
+    P.peek('svEncode()');
+    const old = P.peek('svCode');
+    const Q = player('alice');
+    Q.R.answerText = old;
+    Q.peek('svLoad()');
+    check('old plain-Entry code loads for the same player', Q.peek('pXP') === 123456 && Q.peek('pNick') === 'alice', Q.peek('msg'));
+    const B = player('bob');
+    B.R.answerText = old;
+    B.peek('svLoad()');
+    check('...and still not for another player', B.peek('pXP') === 0 && /DID NOT WORK/.test(B.peek('msg')));
+}
+
 // ---- the largest save the game can hold still fits ------------------------------------------
 {
     const P = player('ABCDEFGHIJKLMNOP');

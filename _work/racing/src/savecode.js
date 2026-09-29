@@ -152,14 +152,15 @@ function svDecode(s) {
     if (bad < 1) { if (n >= 3 + 8 + 40) { if (svV[1] == SVVER) {
         svBegin(svV[2], svV[3]);
         let nb = n - 8;
-        let f = '';
+        let f = 0;              // (v2.0.0: from its first letter - an Entry function's local reads '' back as 0)
+        let nf = 0;
         let okv = 1;
         let q = 4;
         while (q <= nb) {
             svKey();
             let v = mod(svV[q] - oSvK + 32, 32);
             if (v > 12) { okv = 0; }
-            else { svMac(v); f = str(f, charAt(SVSYM, v + 1)); }
+            else { svMac(v); if (nf < 1) { f = charAt(SVSYM, v + 1); } else { f = str(f, charAt(SVSYM, v + 1)); } nf = nf + 1; }
             q = q + 1;
         }
         if (okv > 0) {
@@ -209,7 +210,11 @@ function svLoad() {
     if (pLoaded < 1) { setMsg('WAIT - YOUR SAVE IS STILL LOADING', 2.5); }
     else {
         ask('PASTE YOUR BACKUP CODE (IT STARTS WITH S)');
-        svDecode(answer());
+        let code = answer();
+        svDecode(code);
+        // v2.0.0: before, plain Entry made every nickname '0' + nickname (see
+        // whoAmI), and a code copied there is keyed to that name
+        if (oSvOk < 1) { let me = pNick; pNick = str('0', me); svDecode(code); pNick = me; }
         if (oSvOk > 0) { setMsg(str('BACKUP CODE LOADED - LEVEL ', pLv, ', ', pXP, ' XP'), 4); }
         else { setMsg('THAT CODE DID NOT WORK FOR THIS ACCOUNT - CHECK IT AND TRY AGAIN', 4); }
         // v3.2: whatever is still held (the Enter that sent the answer, a V

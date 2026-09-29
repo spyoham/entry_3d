@@ -7,78 +7,73 @@
 //   * each circuit's best lap and race, and its best-lap ghost (game.js)
 //   * the online ranking and the saved game
 //
-// Saving uses Entry REAL-TIME VARIABLES (globals named RT_*), not lists:
-// real-time lists are known to lose writes. A real-time variable is one
-// value shared by everybody who runs the work, so the save is sharded:
-// each player's record sits in RT_S<hash of nickname>, a string of
-// '|nick,field,field,...' records. Saving re-reads the shard, swaps the
-// player's own record for the new one (moving it to the end) and drops the
-// oldest records once the shard passes SHCAP characters. Rankings are
-// RT_L1..8 ('|nick,ms' x 10, fastest first) and the world-record ghosts
-// RT_W1..8. Offline, or signed out, they behave as ordinary variables:
-// everything works for the session and nothing is written for a guest.
+// v2.0.0 (F1 Online 3D): saving uses ENTRY SYNC lists. Entry Sync is a
+// Chrome extension: every plain variable or list whose name starts with '?!'
+// is shared live with everybody running the work and kept on its server
+// (SY_x in this source is '?!x' in the work; SY_ alone is its connection
+// flag '?!', 1 connected / -1 not). A change to a list sends the WHOLE list;
+// the last one to arrive wins, and it reaches every other player.
+//   ?!save1..8  the players' records, one item each ('|nick,field,...'),
+//               in the list picked by a hash of the nickname. Saving swaps
+//               the player's item for the new one, moved to the end; past
+//               SHCAP items the first (least recently saved) goes.
+//   ?!rank      one item per circuit: '|nick,ms|nick,ms...' fastest first
+//   ?!ghost     one item per circuit: the world record's ghost
+// ?!rank has NTRK items once anybody has saved: seeing that means the
+// server's lists have arrived. Two writes to one list at the same moment
+// lose one of them, so every write is checked a moment later and redone.
+// Without the extension the lists are ordinary ones: everything works for
+// the session and nothing is kept.
 // ============================================================
-let RT_S1 = '|'; let RT_S2 = '|'; let RT_S3 = '|'; let RT_S4 = '|';
-let RT_S5 = '|'; let RT_S6 = '|'; let RT_S7 = '|'; let RT_S8 = '|';
-let RT_S9 = '|'; let RT_S10 = '|'; let RT_S11 = '|'; let RT_S12 = '|';
-let RT_S13 = '|'; let RT_S14 = '|'; let RT_S15 = '|'; let RT_S16 = '|';
-let RT_L1 = '|'; let RT_L2 = '|'; let RT_L3 = '|'; let RT_L4 = '|';
-let RT_L5 = '|'; let RT_L6 = '|'; let RT_L7 = '|'; let RT_L8 = '|';
-let RT_L9 = '|'; let RT_L10 = '|'; let RT_L11 = '|'; let RT_L12 = '|'; let RT_L13 = '|'; let RT_L14 = '|';
-let RT_L15 = '|'; let RT_L16 = '|'; let RT_L17 = '|'; let RT_L18 = '|'; let RT_L19 = '|';
-let RT_W1 = '|'; let RT_W2 = '|'; let RT_W3 = '|'; let RT_W4 = '|';
-let RT_W5 = '|'; let RT_W6 = '|'; let RT_W7 = '|'; let RT_W8 = '|';
-let RT_W9 = '|'; let RT_W10 = '|'; let RT_W11 = '|'; let RT_W12 = '|'; let RT_W13 = '|'; let RT_W14 = '|';
-let RT_W15 = '|'; let RT_W16 = '|'; let RT_W17 = '|'; let RT_W18 = '|'; let RT_W19 = '|';
-// set to 'ok' by the first save ever: seeing it means the server's values
-// have arrived (Entry sends them a moment after the work starts)
-let RT_SYNC = '-';
+let SY_ = 0;
+let SY_save1 = [];
+let SY_save2 = [];
+let SY_save3 = [];
+let SY_save4 = [];
+let SY_save5 = [];
+let SY_save6 = [];
+let SY_save7 = [];
+let SY_save8 = [];
+let SY_rank = [];
+let SY_ghost = [];
 
 const HCH = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-.';
 const TRKV = 4;             // v4.0: circuits version written with the times
 let oRT = '|';
+let oSN = 0;
 
-// Entry reads a variable by a fixed id, so the shard / circuit number picks
-// the variable through a chain of ifs
-function rtGetS(i) {
-    if (i == 1) { oRT = RT_S1; } else if (i == 2) { oRT = RT_S2; } else if (i == 3) { oRT = RT_S3; } else if (i == 4) { oRT = RT_S4; }
-    else if (i == 5) { oRT = RT_S5; } else if (i == 6) { oRT = RT_S6; } else if (i == 7) { oRT = RT_S7; } else if (i == 8) { oRT = RT_S8; }
-    else if (i == 9) { oRT = RT_S9; } else if (i == 10) { oRT = RT_S10; } else if (i == 11) { oRT = RT_S11; } else if (i == 12) { oRT = RT_S12; }
-    else if (i == 13) { oRT = RT_S13; } else if (i == 14) { oRT = RT_S14; } else if (i == 15) { oRT = RT_S15; } else { oRT = RT_S16; }
+// the ranking and ghost items of circuit i
+function rtGetK(i) { oRT = '|'; if (SY_rank.length >= i) { oRT = SY_rank[i]; } }
+function rtSetK(i, v) { syInit(); SY_rank[i] = v; }
+function rtGetG(i) { oRT = '|'; if (SY_ghost.length >= i) { oRT = SY_ghost[i]; } }
+function rtSetG(i, v) { syInit(); SY_ghost[i] = v; }
+// the first save ever gives ?!rank and ?!ghost their NTRK items
+function syInit() {
+    while (SY_rank.length < NTRK) { SY_rank.push('|'); }
+    while (SY_ghost.length < NTRK) { SY_ghost.push('|'); }
 }
-function rtSetS(i, v) {
-    if (i == 1) { RT_S1 = v; } else if (i == 2) { RT_S2 = v; } else if (i == 3) { RT_S3 = v; } else if (i == 4) { RT_S4 = v; }
-    else if (i == 5) { RT_S5 = v; } else if (i == 6) { RT_S6 = v; } else if (i == 7) { RT_S7 = v; } else if (i == 8) { RT_S8 = v; }
-    else if (i == 9) { RT_S9 = v; } else if (i == 10) { RT_S10 = v; } else if (i == 11) { RT_S11 = v; } else if (i == 12) { RT_S12 = v; }
-    else if (i == 13) { RT_S13 = v; } else if (i == 14) { RT_S14 = v; } else if (i == 15) { RT_S15 = v; } else { RT_S16 = v; }
+
+// Entry names a list by a fixed id, so the save list is picked through a
+// chain of ifs: its length (oSN), item i (oRT), and the three changes
+function shLen(s) {
+    if (s == 1) { oSN = SY_save1.length; } else if (s == 2) { oSN = SY_save2.length; } else if (s == 3) { oSN = SY_save3.length; } else if (s == 4) { oSN = SY_save4.length; }
+    else if (s == 5) { oSN = SY_save5.length; } else if (s == 6) { oSN = SY_save6.length; } else if (s == 7) { oSN = SY_save7.length; } else { oSN = SY_save8.length; }
 }
-function rtGetK(i) {
-    if (i == 1) { oRT = RT_L1; } else if (i == 2) { oRT = RT_L2; } else if (i == 3) { oRT = RT_L3; } else if (i == 4) { oRT = RT_L4; }
-    else if (i == 5) { oRT = RT_L5; } else if (i == 6) { oRT = RT_L6; } else if (i == 7) { oRT = RT_L7; } else if (i == 8) { oRT = RT_L8; }
-    else if (i == 9) { oRT = RT_L9; } else if (i == 10) { oRT = RT_L10; } else if (i == 11) { oRT = RT_L11; } else if (i == 12) { oRT = RT_L12; }
-    else if (i == 13) { oRT = RT_L13; } else if (i == 14) { oRT = RT_L14; }
-    else if (i == 15) { oRT = RT_L15; } else if (i == 16) { oRT = RT_L16; } else if (i == 17) { oRT = RT_L17; } else if (i == 18) { oRT = RT_L18; } else { oRT = RT_L19; }
+function shGet(s, i) {
+    if (s == 1) { oRT = SY_save1[i]; } else if (s == 2) { oRT = SY_save2[i]; } else if (s == 3) { oRT = SY_save3[i]; } else if (s == 4) { oRT = SY_save4[i]; }
+    else if (s == 5) { oRT = SY_save5[i]; } else if (s == 6) { oRT = SY_save6[i]; } else if (s == 7) { oRT = SY_save7[i]; } else { oRT = SY_save8[i]; }
 }
-function rtSetK(i, v) {
-    if (i == 1) { RT_L1 = v; } else if (i == 2) { RT_L2 = v; } else if (i == 3) { RT_L3 = v; } else if (i == 4) { RT_L4 = v; }
-    else if (i == 5) { RT_L5 = v; } else if (i == 6) { RT_L6 = v; } else if (i == 7) { RT_L7 = v; } else if (i == 8) { RT_L8 = v; }
-    else if (i == 9) { RT_L9 = v; } else if (i == 10) { RT_L10 = v; } else if (i == 11) { RT_L11 = v; } else if (i == 12) { RT_L12 = v; }
-    else if (i == 13) { RT_L13 = v; } else if (i == 14) { RT_L14 = v; }
-    else if (i == 15) { RT_L15 = v; } else if (i == 16) { RT_L16 = v; } else if (i == 17) { RT_L17 = v; } else if (i == 18) { RT_L18 = v; } else { RT_L19 = v; }
+function shSet(s, i, v) {
+    if (s == 1) { SY_save1[i] = v; } else if (s == 2) { SY_save2[i] = v; } else if (s == 3) { SY_save3[i] = v; } else if (s == 4) { SY_save4[i] = v; }
+    else if (s == 5) { SY_save5[i] = v; } else if (s == 6) { SY_save6[i] = v; } else if (s == 7) { SY_save7[i] = v; } else { SY_save8[i] = v; }
 }
-function rtGetG(i) {
-    if (i == 1) { oRT = RT_W1; } else if (i == 2) { oRT = RT_W2; } else if (i == 3) { oRT = RT_W3; } else if (i == 4) { oRT = RT_W4; }
-    else if (i == 5) { oRT = RT_W5; } else if (i == 6) { oRT = RT_W6; } else if (i == 7) { oRT = RT_W7; } else if (i == 8) { oRT = RT_W8; }
-    else if (i == 9) { oRT = RT_W9; } else if (i == 10) { oRT = RT_W10; } else if (i == 11) { oRT = RT_W11; } else if (i == 12) { oRT = RT_W12; }
-    else if (i == 13) { oRT = RT_W13; } else if (i == 14) { oRT = RT_W14; }
-    else if (i == 15) { oRT = RT_W15; } else if (i == 16) { oRT = RT_W16; } else if (i == 17) { oRT = RT_W17; } else if (i == 18) { oRT = RT_W18; } else { oRT = RT_W19; }
+function shDel(s, i) {
+    if (s == 1) { SY_save1.removeAt(i); } else if (s == 2) { SY_save2.removeAt(i); } else if (s == 3) { SY_save3.removeAt(i); } else if (s == 4) { SY_save4.removeAt(i); }
+    else if (s == 5) { SY_save5.removeAt(i); } else if (s == 6) { SY_save6.removeAt(i); } else if (s == 7) { SY_save7.removeAt(i); } else { SY_save8.removeAt(i); }
 }
-function rtSetG(i, v) {
-    if (i == 1) { RT_W1 = v; } else if (i == 2) { RT_W2 = v; } else if (i == 3) { RT_W3 = v; } else if (i == 4) { RT_W4 = v; }
-    else if (i == 5) { RT_W5 = v; } else if (i == 6) { RT_W6 = v; } else if (i == 7) { RT_W7 = v; } else if (i == 8) { RT_W8 = v; }
-    else if (i == 9) { RT_W9 = v; } else if (i == 10) { RT_W10 = v; } else if (i == 11) { RT_W11 = v; } else if (i == 12) { RT_W12 = v; }
-    else if (i == 13) { RT_W13 = v; } else if (i == 14) { RT_W14 = v; }
-    else if (i == 15) { RT_W15 = v; } else if (i == 16) { RT_W16 = v; } else if (i == 17) { RT_W17 = v; } else if (i == 18) { RT_W18 = v; } else { RT_W19 = v; }
+function shAdd(s, v) {
+    if (s == 1) { SY_save1.push(v); } else if (s == 2) { SY_save2.push(v); } else if (s == 3) { SY_save3.push(v); } else if (s == 4) { SY_save4.push(v); }
+    else if (s == 5) { SY_save5.push(v); } else if (s == 6) { SY_save6.push(v); } else if (s == 7) { SY_save7.push(v); } else { SY_save8.push(v); }
 }
 
 // ---- the player -------------------------------------------------------------
@@ -86,7 +81,6 @@ let pNick = 'GUEST';
 let pGuest = 1;
 let pSh = 1;                // save shard
 let pLoaded = 0;
-let pCache = '|';           // the shard as last read (guards a write against an unsynced read)
 let pDirty = 0;
 let pSaveT = 0;
 let pXP = 0;
@@ -112,10 +106,13 @@ function whoAmI() {
     if (n == 'guest') { pGuest = 1; }
     if (pGuest > 0) { pNick = 'GUEST'; }
     else {
-        let c = '';
+        // (v2.0.0: never built from '' - an Entry function's local variable
+        // reads '' back as 0, which made every nickname '0...' in plain Entry)
         let L = strlen(n);
         if (L > 16) { L = 16; }
-        let k = 1;
+        let c = charAt(n, 1);
+        if (indexOf('|,~', c) > 0) { c = '_'; }
+        let k = 2;
         while (k <= L) {
             let ch = charAt(n, k);
             if (indexOf('|,~', ch) > 0) { ch = '_'; }
@@ -345,19 +342,23 @@ function buildRec() {
 }
 
 // split the record starting at character `from` of s into pF[1..nF]
+// (v2.0.0: each field cut out whole - see whoAmI on '')
 function parseRec(s, from) {
     let L = strlen(s);
     let k = from;
+    let a = from;           // where the field began
     nF = 1;
-    let cur = '';
-    while (k <= L) {
-        let ch = charAt(s, k);
-        if (ch == '|') { k = L; }
-        else if (ch == ',') { pF[nF] = cur; nF = nF + 1; cur = ''; }
-        else { cur = str(cur, ch); }
+    while (k <= L + 1) {
+        let ch = '|';
+        if (k <= L) { ch = charAt(s, k); }
+        let end = 0;
+        if (ch == '|') { end = 1; } else if (ch == ',') { end = 2; }
+        if (end > 0) {
+            if (k > a) { pF[nF] = substr(s, a, k - 1); } else { pF[nF] = 0; }
+            if (end == 2) { nF = nF + 1; a = k + 1; } else { k = L + 1; }
+        }
         k = k + 1;
     }
-    pF[nF] = cur;
 }
 
 // Fold the record parsed into pF (the server's copy) into the session.
@@ -426,10 +427,11 @@ function mergeRec(addMode) {
 let tuneTouched = 0;
 
 // ---- sync, load, save ------------------------------------------------------------
-// Entry's real-time variables start with the work's own values and are
-// replaced by the server's a moment later. Nothing is read or written for
-// real until that has happened: pSync 1 once RT_SYNC reads 'ok', 2 when it
-// has not after 12 s (a brand-new work nobody has saved in yet, or offline).
+// Entry Sync fills the lists a moment after the work starts. Nothing is read
+// or written for real until that has happened: pSync 1 once ?!rank has its
+// items, 2 when it has not after SYWAIT s (a brand-new work nobody has saved
+// in yet) - or at once when the extension is missing ('?!' still 0 after 3 s:
+// the session plays offline).
 let pSync = 0;
 let pVerT = 0;              // seconds until the last save is checked
 let pVerN = 0;              // saves retried
@@ -439,29 +441,45 @@ let pRkTk = 0;              // circuit whose ranking write is being checked
 let pRkLt = 0;
 function syncStep() {
     if (pSync < 1) {
-        if (RT_SYNC == 'ok') { pSync = 1; }
-        else if (gt > 12) { pSync = 2; }
+        if (SY_rank.length >= NTRK) { pSync = 1; }
+        else if (gt > SYWAIT) { pSync = 2; }
+        else if (gt > 3) { if (SY_ == 0) { pSync = 2; } }
         if (pSync > 0) { loadProfile(1); }
     } else if (pSync == 2) {
-        // the server's values turned up late after all: take them in
-        if (RT_SYNC == 'ok') { pSync = 1; loadProfile(0); }
+        // the server's lists turned up late after all: take them in
+        if (SY_ > 0) { if (SY_rank.length >= NTRK) { pSync = 1; loadProfile(0); } }
     }
 }
 
+// the menu's online line (oSyL)
+let oSyL = BLANK;
+function syLabel() {
+    oSyL = 'ONLINE';
+    if (SY_ < 0) { oSyL = 'SYNC: NO SERVER'; }
+    else if (SY_ < 1) { oSyL = 'OFFLINE'; }
+}
+
+// the player's item in their save list: oMine 1 and its index oMineI,
+// parsed into pF
 function findMine() {
-    rtGetS(pSh);
     oMine = 0;
-    let v = oRT;
-    let p = indexOf(v, str('|', pNick, ','));
-    if (p > 0) { parseRec(v, p + 1); oMine = 1; }
+    oMineI = 0;
+    let key = str('|', pNick, ',');
+    shLen(pSh);
+    let n = oSN;
+    let i = 1;
+    while (i <= n) {
+        shGet(pSh, i);
+        if (indexOf(oRT, key) == 1) { oMineI = i; oMine = 1; parseRec(oRT, 2); i = n; }
+        i = i + 1;
+    }
 }
 let oMine = 0;
+let oMineI = 0;
 
 function loadProfile(addMode) {
     whoAmI();
     if (pGuest < 1) {
-        rtGetS(pSh);
-        if (strlen(oRT) > 2) { pCache = oRT; }
         findMine();
         if (oMine > 0) { mergeRec(addMode); }
     }
@@ -480,66 +498,46 @@ function saveProfile() {
         findMine();
         if (oMine > 0) { mergeRec(0); }
         buildRec();
-        rtGetS(pSh);
-        let v = oRT;
-        // a read that has come back empty after a good one is not trusted
-        if (strlen(v) < 3) { if (strlen(pCache) > 2) { v = pCache; } }
-        let p = indexOf(v, str('|', pNick, ','));
-        if (p > 0) {
-            let L = strlen(v);
-            let e = p + 1;
-            while (e <= L) {
-                if (charAt(v, e) == '|') { break; }
-                e = e + 1;
-            }
-            v = str(substr(v, 1, p - 1), substr(v, e, L));
-        }
-        v = str(v, pRec);
-        // the least recently saved records go when the shard is full
-        let guard = 0;
-        while (strlen(v) > SHCAP) {
-            let L2 = strlen(v);
-            let q = 2;
-            while (q <= L2) {
-                if (charAt(v, q) == '|') { break; }
-                q = q + 1;
-            }
-            v = substr(v, q, L2);
-            guard = guard + 1;
-            if (guard > 200) { break; }
-        }
-        rtSetS(pSh, v);
-        pCache = v;
+        syInit();
+        // one change when the item is already the last, else out and onto the end
+        if (oMine > 0) {
+            shLen(pSh);
+            if (oMineI == oSN) { shSet(pSh, oMineI, pRec); }
+            else { shDel(pSh, oMineI); shAdd(pSh, pRec); }
+        } else { shAdd(pSh, pRec); }
+        // the least recently saved records go when the list is full
+        shLen(pSh);
+        let n = oSN;
+        while (n > SHCAP) { shDel(pSh, 1); n = n - 1; }
         pSavedXP = pXP;
         pSavedRec = pRec;
-        if (RT_SYNC != 'ok') { RT_SYNC = 'ok'; }
-        // someone else may have written the same shard at the same moment:
+        // someone else may have written the same list at the same moment:
         // look again once the dust has settled
         pVerT = 2;
     }
 }
 
-// was the last save kept? (a record with at least the XP it wrote must be there)
+// was the last save kept? (the very record written must be there)
 let pSavedXP = 0;
 let pSavedRec = '|';
 function verifySave() {
-    // v9: the exact record written must be there. Comparing only the XP let a
-    // change without XP (a garage upgrade or setup) be rolled back silently by
-    // another player who wrote the shard from an older read.
-    rtGetS(pSh);
+    // v9: the exact record written, not only its XP: a change without XP (a
+    // garage upgrade or setup) could be rolled back silently by another
+    // player who wrote the list from an older copy.
+    findMine();
     let good = 0;
-    if (indexOf(str(oRT, '|'), str(pSavedRec, '|')) > 0) { good = 1; }
-    else {
+    if (oMine > 0) {
+        shGet(pSh, oMineI);
+        if (strlen(oRT) == strlen(pSavedRec)) { if (indexOf(oRT, pSavedRec) == 1) { good = 1; } }
         // or a newer copy of it (this player saved again from elsewhere)
-        findMine();
-        if (oMine > 0) { if (pF[2] * 1 > pSavedXP) { good = 1; } }
+        if (pF[2] * 1 > pSavedXP) { good = 1; }
     }
     if (good > 0) { pVerN = 0; }
     else {
         // back off a random, growing moment so writers stop colliding
         pVerN = pVerN + 1;
         pDirty = 1;
-        pSaveT = rand(0.2, 1.6) * Math.min(6, pVerN);
+        pSaveT = rand(20, 160) / 100 * Math.min(6, pVerN);
     }
 }
 
@@ -556,6 +554,8 @@ function rankStep() {
                 if (rkN[i] == pNick) { if (rkT[i] <= pRkLt + 0.0005) { there = 1; } }
                 i = i + 1;
             }
+            // v2.0.0: kept an eye on from now on (selfCheck)
+            if (there > 0) { if (rkOk[pRkTk] <= 0) { rkOk[pRkTk] = pRkLt; } else if (pRkLt < rkOk[pRkTk]) { rkOk[pRkTk] = pRkLt; } }
             // v9: two new P1s at once could leave the ghost of the one who
             // ended up second in the ghost slot. The P1 checks it is theirs.
             if (there > 0) {
@@ -576,7 +576,7 @@ function rankStep() {
                 if (fits > 0) {
                     pRkN = pRkN + 1;
                     pendRk[pRkTk] = pRkLt;
-                    pRkT = 0 - rand(0.2, 1.6) * Math.min(6, pRkN);
+                    pRkT = 0 - rand(20, 160) / 100 * Math.min(6, pRkN);
                 }
             }
             if (pRkT > 0 - 0.001) { if (pRkT < 1) { pRkT = 0; } }
@@ -602,6 +602,61 @@ function rankStep() {
     }
 }
 
+// v2.0.0: Entry Sync never sends a write back to its writer. A player whose
+// write was overtaken by another can hold - and later send - an older copy
+// of a list, rolling back somebody else's newer entry. So every player keeps
+// an eye on their own entries while playing and puts them back: the record
+// they saved last, and each lap of theirs that made the ranking.
+let pChkT = 0;              // seconds to the next look
+let pChkTk = 0;             // the circuit the last look was on
+let pHealN = 0;
+function selfCheck() {
+    if (pGuest < 1) {
+        if (strlen(pSavedRec) > 1) {
+            findMine();
+            let good = 0;
+            if (oMine > 0) {
+                shGet(pSh, oMineI);
+                if (strlen(oRT) == strlen(pSavedRec)) { if (indexOf(oRT, pSavedRec) == 1) { good = 1; } }
+                // or newer (the same player saved from elsewhere)
+                if (pF[2] * 1 > pSavedXP) { good = 1; }
+                // the same XP with other details is two devices of one player: not for ever
+                if (good < 1) { if (pF[2] * 1 == pSavedXP) { if (pHealN >= 10) { good = 1; } } }
+            }
+            if (good < 1) { pDirty = 1; pHealN = pHealN + 1; }
+        }
+        // one ranked circuit a look
+        if (pRkT == 0) {
+            let k = 0;
+            while (k < NTRK) {
+                pChkTk = mod(pChkTk, NTRK) + 1;
+                if (rkOk[pChkTk] > 0) { rankHeal(pChkTk); k = NTRK; }
+                k = k + 1;
+            }
+        }
+    }
+}
+function rankHeal(t) {
+    rankParse(t);
+    let there = 0;
+    let i = 1;
+    while (i <= rkC) {
+        if (rkN[i] == pNick) { if (rkT[i] <= rkOk[t] + 0.0005) { there = 1; } }
+        i = i + 1;
+    }
+    if (there < 1) {
+        let out = 0;
+        if (rkC >= NRANK) { if (rkT[NRANK] <= rkOk[t]) { out = 1; } }
+        // pushed out fairly by ten quicker laps, or else put back
+        if (out > 0) { rkOk[t] = 0; }
+        else if (pendRk[t] <= 0) { pendRk[t] = rkOk[t]; }
+    } else if (rkN[1] == pNick) {
+        // the record holder's ghost
+        rtGetG(t);
+        if (indexOf(oRT, str(pNick, ',', Math.round(rkT[1] * 1000), ',')) != 1) { if (pendG[t] > 0) { wrUpload(t, rkT[1]); } }
+    }
+}
+
 // save at a quiet moment, at most every few seconds
 function profileStep() {
     popStep();
@@ -621,6 +676,7 @@ function profileStep() {
             if (quiet > 0) {
                 if (pVerT > 0) { pVerT = pVerT - dt; if (pVerT <= 0) { verifySave(); } }
                 else if (pDirty > 0) { if (pSaveT <= 0) { saveProfile(); } }
+                else { pChkT = pChkT - dt; if (pChkT <= 0) { pChkT = 2; selfCheck(); } }
                 rankStep();
             }
         }
@@ -637,25 +693,25 @@ function rankParse(tk) {
     rkMe = 0;
     let L = strlen(s);
     let k = 1;
-    let nm = '';
-    let tm = '';
+    let a = 1;              // where the name began (v2.0.0: cut out whole - see whoAmI on '')
+    let c = 0;              // its comma
     let fld = 0;            // 0 before a record, 1 name, 2 time
     while (k <= L + 1) {
         let ch = '|';
         if (k <= L) { ch = charAt(s, k); }
         if (ch == '|') {
             if (fld == 2) {
-                if (rkC < NRANK) {
-                    rkC = rkC + 1;
-                    rkN[rkC] = nm;
-                    rkT[rkC] = tm / 1000;
-                    if (nm == pNick) { if (pGuest < 1) { rkMe = rkC; } }
-                }
+                if (c > a) { if (k - 1 > c) {
+                    if (rkC < NRANK) {
+                        rkC = rkC + 1;
+                        rkN[rkC] = substr(s, a, c - 1);
+                        rkT[rkC] = substr(s, c + 1, k - 1) / 1000;
+                        if (rkN[rkC] == pNick) { if (pGuest < 1) { rkMe = rkC; } }
+                    }
+                } }
             }
-            fld = 1; nm = ''; tm = '';
-        } else if (ch == ',') { fld = 2; }
-        else if (fld == 1) { nm = str(nm, ch); }
-        else if (fld == 2) { tm = str(tm, ch); }
+            fld = 1; a = k + 1;
+        } else if (ch == ',') { if (fld == 1) { fld = 2; c = k; } }
         k = k + 1;
     }
 }
@@ -678,6 +734,8 @@ function rankAll() {
         recWR[t] = 0;
         recNm[t] = '-';
         if (rkC > 0) { recWR[t] = rkT[1]; recNm[t] = rkN[1]; }
+        // v2.0.0: the player's own ranked laps, to be kept an eye on
+        if (rkMe > 0) { if (rkOk[t] <= 0) { rkOk[t] = rkT[rkMe]; } else if (rkT[rkMe] < rkOk[t]) { rkOk[t] = rkT[rkMe]; } }
         t = t + 1;
     }
 }

@@ -21,12 +21,16 @@ export function createSim({ fps = 30 } = {}) {
     const js = Object.entries(D.consts).map(([k, v]) => 'const ' + k + '=' + JSON.stringify(v) + ';').join('\n') + '\n' + compileToJS(srcs);
 
     const R = { handlers: [], $i: 0, data: D.lists, snd: { plays: 0, stops: 0, vol: 100, speed: 1, last: null } };
-    // v8: Entry real-time variables. Alone they are plain values; t7/multi.mjs
-    // plugs in a model of Entry's cloud-variable server (R.rtNet).
-    R.rtDefaults = {}; R.rtLocal = {};
-    R.rtDefault = (n, v) => { R.rtDefaults[n] = v; R.rtLocal[n] = v; };
-    R.rtGet = (n) => (R.rtNet ? R.rtNet.get(n) : R.rtLocal[n]);
-    R.rtSet = (n, v) => { if (R.rtNet) R.rtNet.set(n, v); else R.rtLocal[n] = v; };
+    // v2.0.0: Entry Sync ('?!' names, SY_* in the source). Alone they are plain
+    // values and lists; t7/multi.mjs plugs in a model of the extension and its
+    // server (R.syNet): it replaces a list's contents in place when another
+    // player's copy arrives, and hears of every local change (syChanged).
+    R.syDefaults = {}; R.syLocal = {}; R.syLists = {};
+    R.syDefault = (n, v) => { R.syDefaults[n] = v; R.syLocal[n] = v; };
+    R.syGet = (n) => R.syLocal[n];
+    R.sySet = (n, v) => { R.syLocal[n] = v; };
+    R.syList = (n, init) => (R.syLists[n] = init.slice());
+    R.syChanged = (n, a) => { if (R.syNet) R.syNet.changed(n, a.slice()); };
     const keys = new Set();
     const mouse = { x: 0, y: 0, down: false };
     let simTime = 0;
