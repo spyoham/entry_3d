@@ -375,7 +375,7 @@ function drawTrkSel() {
 function hudMenu() {
     tx(9, 'F1 ONLINE 3D', 0 - 232, 116, 21, C_WHITE, 1);
     syLabel();
-    tx(10, str('v2.0.0  /  ', oSyL), 0 - 232, 96, 8, C_WHITE, 1);
+    tx(10, str('v2.1.1  /  ', oSyL), 0 - 232, 96, 8, C_WHITE, 1);
     let lvl = pLoaded > 0 ? str('LV ', pLv, '  ', pNick) : 'LOADING SAVE...';
     tx(13, lvl, 0 - 80, 96, 8, C_GOLD, 1);
     let crumb = 'MAIN MENU';

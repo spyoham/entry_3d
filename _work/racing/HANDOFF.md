@@ -1,3 +1,24 @@
+# F1 ONLINE 3D — 작업 인계 메모 (2026-09-30, v2.1.1)
+
+산출물: `F1 Online 3D v2.1.1.ent`, 설명서 `F1 Online 3D v2.1.1 설명서.md` (v2.1.0은 루트 `old/`로)
+빌드: `node build.mjs f1online211.ent` → **project.json 15.45 MB**(v2.1.0 17.23 MB; 변수·리스트 3.21 → 1.16 MB, 함수 14.20 MB). 문턱 약 16.17 MB, 남은 여유 약 0.7 MB.
+
+## 요청과 한 것
+사용자가 v2.1.0을 올리자 "변수 또는 리스트의 값이 너무 많아 저장할 수 없어요" → "리스트랑 변수 값 중 시작한 후 채울 수 있는 값은 시작하고 채우는 방식으로"
+- 이 문구는 사이트 번들(`2629-*.js`)의 `file_size_exceeded`. `/rest/project/upload`가 502면 SIZE_EXCEEDED. 결국 크기 초과(앞서 "용량 제한은 없다고 봐줘"라고 했던 것과 달리 한도는 실제로 있음).
+- build.mjs `packLists(lists)`(buildData 안, longTail 전)
+  - 대상: 100개 이상인 리스트 중 **숫자**(0만 있는 것 제외, 10^d배가 정수가 되는 가장 작은 d ≤ 10, 안 맞는 값 8개까지 허용) 또는 **'#rrggbb' 색**. tx*·pkS·pkV는 제외.
+  - 정수 − 최솟값을 폭 w의 10진수로 이어 붙여 `pkS` 항목에 담음. 항목마다 데이터 최대 8000자, 맨 앞에 'P'(tessvm이 숫자로 보이는 글자를 숫자로 바꾸므로).
+  - 안 맞는 값은 `ex`로 따로 두고 코드에서 대입(ctlSL 2개).
+  - 대상 리스트는 작품에 빈 채로 들어감. `NOPACK=1`이면 끔(비교용).
+- declPrelude가 `unpackLists()` 생성: 리스트마다 `unpack(c0,n,w,sc,mn,jit)` → pkV → 원래 리스트에 push(현재 길이부터) → ex 대입.
+- main.js `unpack()`: 값 = (substr×1 + mn)/sc. jit이고 소수면 × `PKK`(= 1 + π·1e-10, longTail과 같은 수). sc 0이면 '#'+6글자. pen3 start에서 allocLists 바로 뒤.
+- 결과: 41개 리스트, 값 62,540개. sim에서 NOPACK 빌드와 완전히 같음(`t9/unpack.mjs`, -0/0만 같게 봄). sim 첫 프레임 80 ms, 엔트리 본체 시작 속도 v2.1.0과 같음.
+- 메뉴 버전 글자 v2.0.0 → v2.1.1(v2.1.0 때 못 바꿨음).
+- 시험: unpack PASS, netsim race 12/12, nettess PASS(1.7 m), tessvm 메뉴 오류 0, 엔트리 본체 오류 0, 오프라인 회귀 `ab/tests211.txt`.
+
+---
+
 # F1 ONLINE 3D — 작업 인계 메모 (2026-09-30, v2.1.0)
 
 산출물: `F1 Online 3D v2.1.0.ent`, 설명서 `F1 Online 3D v2.1.0 설명서.md` (v2.0.0은 루트 `old/`로)

@@ -430,9 +430,38 @@ function editKeys() {
     }
 }
 
+// v2.1.1: the packed list data (build.mjs packLists): n values of w digits
+// from pkS item c0 on (each item starts with 'P'), into pkV. sc 0: colours
+// ('#' + six hex digits); else value = (digits + mn) / sc, given the same
+// long tail as the build gives constants (longTail) when jit is 1
+function unpack(c0, n, w, sc, mn, jit) {
+    let c = c0;
+    let s = pkS[c];
+    let L = strlen(s);
+    let p = 2;
+    let i = 1;
+    while (i <= n) {
+        if (p > L) { c = c + 1; s = pkS[c]; L = strlen(s); p = 2; }
+        if (sc < 1) { pkV[i] = str('#', substr(s, p, p + 5)); }
+        else {
+            let v = substr(s, p, p + w - 1) * 1 + mn;
+            if (sc > 1) {
+                let r = v / sc;
+                if (jit > 0) { if (mod(v, sc) != 0) { r = r * PKK; } }
+                pkV[i] = r;
+            } else { pkV[i] = v; }
+        }
+        p = p + w;
+        i = i + 1;
+    }
+}
+
 on('start', 'pen3', function () {
     // v3.3: the zero-filled work buffers are made here, not stored in the work
     allocLists();
+    // v2.1.1: and the long data lists are unpacked (the work is too big for
+    // online Entry with them stored item by item)
+    unpackLists();
     hide();
     penSize(1);
     initGame();

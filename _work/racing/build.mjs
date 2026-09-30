@@ -1475,6 +1475,14 @@ export function buildData() {
     // slow path spreads from the model data into the whole frame. Nudging each
     // fractional constant by a relative 3e-10 gives it a full-length mantissa
     // (the fast path) without changing anything that can be seen.
+    // v2.1.1: online Entry refused the work again ("변수 또는 리스트의 값이 너무
+    // 많아 저장할 수 없어요"): 17.2 MB, a fifth of it list items, each item
+    // stored as {id, data} (~40 bytes for a number). Every long list of short
+    // decimals (or of '#rrggbb' colours) now goes into the work empty; its
+    // values ride in pkS as fixed-width decimal digits and unpackLists()
+    // (declPrelude) fills it first thing at the start - long tail included.
+    const pack = packLists(lists);
+    consts.PKK = 1 + Math.PI * 1e-10;     // (longTail's factor, for unpack)
     for (const k of Object.keys(lists)) {
         if (NO_JITTER.has(k)) continue;
         lists[k] = lists[k].map(longTail);
@@ -1493,7 +1501,52 @@ export function buildData() {
             lists[k] = [];
         }
     }
-    return { lists, consts, mats, idx, alloc };
+    return { lists, consts, mats, idx, alloc, pack };
+}
+
+// v2.1.1: see buildData. Each packed list's values are ints (x 10^d, minus the
+// smallest) written as w decimal digits, in chunks of pkS that each start with
+// 'P' (tessvm would make a number of an all-digit text).
+const PACKMIN = 100;         // lists at least this long are packed
+const PKCH = 8000;           // characters of data per pkS item
+function packLists(lists) {
+    const out = [];
+    const chunks = [];
+    for (const [k, v] of Object.entries(lists)) {
+        if (process.env.NOPACK) break;           // (t9/unpack.mjs compares against this)
+        if (v.length < PACKMIN || k.startsWith('tx') || k === 'pkS' || k === 'pkV') continue;
+        let col = 0, d = -1, ints = null, ex = [];
+        if (v.every((x) => typeof x === 'string' && /^#[0-9a-f]{6}$/.test(x))) col = 1;
+        else if (v.every((x) => typeof x === 'number' && isFinite(x))) {
+            if (v.every((x) => x === 0)) continue;             // (allocLists makes those)
+            // the fewest decimals that write (almost) every value exactly; up to
+            // 8 odd ones are put back afterwards one by one (ex)
+            const fits = (x, sc) => Math.round(x * sc) / sc === x && Math.abs(Math.round(x * sc)) < 1e15;
+            for (let dd = 0; dd <= 10 && d < 0; dd++) {
+                const sc = 10 ** dd;
+                if (v.filter((x) => !fits(x, sc)).length <= 8) d = dd;
+            }
+            if (d < 0) continue;
+            const sc = 10 ** d;
+            v.forEach((x, i) => { if (!fits(x, sc)) ex.push([i + 1, NO_JITTER.has(k) ? x : longTail(x)]); });
+            ints = v.map((x) => (fits(x, sc) ? Math.round(x * sc) : 0));
+        } else continue;
+        let w, mn = 0, body;
+        if (col) { w = 6; body = v.map((x) => x.slice(1)).join(''); }
+        else {
+            mn = Math.min(...ints);
+            w = String(Math.max(...ints) - mn).length;
+            body = ints.map((x) => String(x - mn).padStart(w, '0')).join('');
+        }
+        const per = Math.floor(PKCH / w) * w;
+        const c0 = chunks.length + 1;
+        for (let i = 0; i < body.length; i += per) chunks.push('P' + body.slice(i, i + per));
+        out.push({ k, n: v.length, w, sc: col ? 0 : 10 ** d, mn, jit: col || NO_JITTER.has(k) || d === 0 ? 0 : 1, c0, ex });
+        lists[k] = [];
+    }
+    lists.pkS = chunks;
+    lists.pkV = new Array(5000).fill(0);
+    return out;
 }
 
 const ALLOCMIN = 64;         // v3.3: all-zero lists this long are filled at run time
@@ -1503,7 +1556,11 @@ export function declPrelude(D) {
     // the length, should Entry have kept a list's contents from a last run)
     const loops = Object.entries(D.alloc || {}).map(([n, ks]) =>
         `    let i${n} = ${ks[0]}.length;\n    while (i${n} < ${n}) { ${ks.map(k => k + '.push(0);').join(' ')} i${n} = i${n} + 1; }`).join('\n');
-    return decl + '\nfunction allocLists() {\n' + (loops || '    let n = 0;') + '\n}';
+    // v2.1.1: the packed lists, decoded into pkV and pushed on (up to their length)
+    const unp = (D.pack || []).map((p, j) =>
+        `    unpack(${p.c0}, ${p.n}, ${p.w}, ${p.sc}, ${p.mn}, ${p.jit});\n    let u${j} = ${p.k}.length + 1;\n    while (u${j} <= ${p.n}) { ${p.k}.push(pkV[u${j}]); u${j} = u${j} + 1; }` +
+        p.ex.map(([i, x]) => `\n    ${p.k}[${i}] = ${String(x)};`).join('')).join('\n');
+    return decl + '\nfunction allocLists() {\n' + (loops || '    let n = 0;') + '\n}' + '\nfunction unpackLists() {\n' + (unp || '    let n = 0;') + '\n}';
 }
 export function sources() { return SRC_FILES.map(f => fs.readFileSync(path.join(process.env.RSRC || path.join(HERE, 'src'), f), 'utf8')); }   // (RSRC: another src folder, for A/B frame checks)
 
