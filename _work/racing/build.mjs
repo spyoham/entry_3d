@@ -92,6 +92,7 @@ export const C = {
     NSH: 8,             // v2.0.0: save lists (?!save1..8, Entry Sync)
     SHCAP: 60,          // records a save list is allowed to hold
     SYWAIT: 20,         // s to wait for Entry Sync's lists before assuming a new work
+    SYFRESH: 1.5,       // v2.1.3: s before lists already there are trusted (a restarted work's are old)
     NRANK: 10,          // ranking entries per circuit
     LVMAX: 50,
     UPMAX: 5,           // upgrade steps per part
@@ -1447,6 +1448,7 @@ export function buildData() {
     lists.rkN = new Array(C.NRANK + 2).fill('-'); lists.rkT = zeros(C.NRANK + 2);
     lists.achGot = zeros(C.NACH + 1); lists.popQ = zeros(33);
     lists.recNm = new Array(C.NTRK + 1).fill('-'); lists.recWR = zeros(C.NTRK + 1);
+    lists.rkSeen = new Array(C.NTRK + 1).fill('-');     // v2.1.3: each ?!rank item as last read (rankWatch)
     // v2.1.0 online: what each slot says (ns*), the cars' online state (ca*), chat
     for (const k of ['nsV', 'nsT', 'nsSeen', 'nsStale', 'nsLive', 'nsSid', 'nsSt', 'nsRoom', 'nsRSid', 'nsRid', 'nsCar', 'nsChS', 'nsRst', 'nsTrk',
         'nsLaps', 'nsRules', 'nsWx', 'nsCon', 'nsMax', 'nsCode', 'nsGrid', 'nsLap', 'nsSeg', 'nsU', 'nsOff', 'nsYaw', 'nsSpd', 'nsFl', 'nsFin',

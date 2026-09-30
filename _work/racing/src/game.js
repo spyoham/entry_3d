@@ -185,6 +185,12 @@ function initCars(ct) {
 
 function setupRace(tk, ct) {
     pmOn = 0;
+    // v2.1.3: every car is driven on this computer until an online race says
+    // otherwise (netDoStart, after this). An online race used to leave its
+    // cars marked remote: the AI cars of the next race stood still, and after
+    // watching one the player's own car could not be driven nor its laps timed.
+    let cn = 1;
+    while (cn <= NCAR + 1) { caNet[cn] = 0; cn = cn + 1; }
     buildTrack(tk);
     selTrk = tk;
     nLaps = lapOpt[lapSel];

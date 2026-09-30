@@ -1,3 +1,35 @@
+# F1 ONLINE 3D — 작업 인계 메모 (2026-10-01, v2.1.3)
+
+산출물: `F1 Online 3D v2.1.3.ent`, 설명서 `F1 Online 3D v2.1.3 설명서.md` (v2.1.2는 루트 `old/`로)
+빌드: `node build.mjs f1online213.ent` → project.json 15.68 MB(문턱 약 16.17 MB)
+
+## 요청과 한 것
+"레이싱게임에서 개인/세계 최고기록 갱신이 안되는 버그 해결"
+- sim에서 한 사람 흐름(TT → 메뉴)은 원래 정상이었음. 실제로 막히던 경우 네 가지를 고침.
+1. **새 기록 저장이 조용한 화면에서만**(profileStep quiet): TT는 랩이 끝없어서 메뉴에 안 가고 정지·닫으면 기록·랭킹이 사라짐.
+   - lapDone이 `pRecNow = 1`. 그동안 profileStep은 ST_LOAD 말고는 quiet로 봄(save·verify·rankStep이 주행 중 돎).
+   - 저장·확인·랭킹이 다 끝나면(pDirty 0, pVerT ≤ 0, pRkT 0, pendRk 없음) 0으로 돌아감.
+2. **recWR/recNm은 시작(loadProfile)과 PROFILE 열 때만 읽었음** → 다른 사람의 새 기록이 안 보임.
+   - `rankSee(t)`(rankAll 한 서킷분 + `rkSeen[t]`), `rankWatch()`: quiet 프레임마다 서킷 하나씩 ?!rank 항목을 rkSeen과 비교해서 바뀌었을 때만 다시 읽음.
+3. **다른 곳에서 저장된 내 기록**: selfCheck가 findMine한 서버 항목이 `pSeenRec`와 다르면 `mergeRec(0)`(랩 최소·XP 최대 등). MY BEST가 다음 저장을 기다리지 않음.
+4. **엔트리 정지 → 시작(새로고침 없이)**: 엔트리 loadSnapshot으로 ?! 리스트가 inject.js가 맞춘 snapshot_(= 서버가 마지막으로 보낸 값, 내 쓰기는 에코가 없어서 빠짐)으로 돌아감.
+   - 첫 프레임에 pSync 1 → 옛 값으로 로드되던 것. 이제 `gt > SYFRESH`(1.5 s) 뒤부터 믿음. 늦어도 2·3이 다시 맞춤.
+5. **caNet이 온라인 경주 뒤에도 남음**(initCars·setupRace가 안 지움).
+   - 관전 뒤: 1번 차가 caNet 1이라 playerInput·updateLap이 안 돎 → 운전도 기록도 안 됨.
+   - 참가 뒤: 오프라인 경주에서 그 번호의 AI 차가 멈춰 있음.
+   - setupRace 첫머리에서 1..NCAR+1을 0으로(netDoStart는 setupRace 뒤에 다시 정함).
+- 메뉴 버전 글자 v2.1.3.
+
+## 시험
+- `t9/rec.mjs [서킷]`(새로 만듦, Entry Sync 모델): 불러오기, TT 3랩(각 랩 8 s 뒤 주행 중 서버 확인), 메뉴 카드, bob의 원격 기록, 다른 컴퓨터의 내 랩, 다음 세션, 정지·재시작(옛 리스트 + 0.8 s 뒤 방 값), 온라인(관전·참가) 뒤 오프라인.
+  - v2.1.3 14/14 PASS. v2.1.2 소스(`RSRC=`)로는 6개 FAIL.
+  - 주의: peek한 리스트는 0-based(`caNet[0]`이 1번 차).
+- `t9/syncreal.mjs`(엔트리 본체): 원격 ?!rank 뒤 recNm이 bob인지 항목 추가, 기본 파일 f1online213.ent. 모두 PASS. `t9/synctess.mjs`(tessvm) 모두 PASS.
+- 회귀 `ab/tests213.txt`, `ab/netsim213.txt`(44 PASS), `ab/multi213.txt`, `ab/prof213.txt`(tuned top speed는 예전부터 FAIL).
+  - multi E는 원래 가끔 3/4(무작위 저장 경쟁). 같은 조건 반복: v2.1.3 34/36, v2.1.2 34/36(`ab/multiE213.txt` / `ab/multiE212.txt`) → 이번 변경과 무관.
+
+---
+
 # F1 ONLINE 3D — 작업 인계 메모 (2026-09-30, v2.1.2)
 
 산출물: `F1 Online 3D v2.1.2.ent`, 설명서 `F1 Online 3D v2.1.2 설명서.md` (v2.1.1은 루트 `old/`로)

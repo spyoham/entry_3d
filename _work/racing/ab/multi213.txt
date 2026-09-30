@@ -1,0 +1,12 @@
+latency 120 ms, welcome after 3 s
+PASS A late lists: new work sync 1, saved XP 5000, +300 earned before the save arrived -> 5300 (level 9, sync 1)
+PASS A2 lists 9 s late: zoe kept 777, bob saved 200 (writes 1)
+PASS B same-moment saves in one list, 10 rounds: 0 rounds lost a record (alice 1000/1000, bob 1000/1000)
+PASS C same-moment ranking entries: 3 of 3 kept: ||alice,80000|bob,81000|carol,82000
+PASS D ranking with a lap set before the lists came: ||zed,70000|amy,75000
+FAIL E 4 players, one list, 60 s: 4/4 saves current, 3/4 best laps ranked; 120 server writes
+PASS F garage-only change vs a same-moment save, 6 rounds: 0 rounds lost the change
+PASS G two record laps at once, 5 rounds: 0 rounds left a ghost that is not P1's
+PASS H without the extension: sync 2 at 5 s, 'OFFLINE', 0 server writes, local save kept
+PASS I full list: 60 records, oldest dropped, newest last
+PASS J rolled back by an old copy (record 0, ranking '|') -> put back: record 600, ranking '||alice,70250'

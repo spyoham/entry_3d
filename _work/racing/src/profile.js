@@ -285,8 +285,9 @@ function lapDone(lt) {
         setMsg('NEW CIRCUIT BEST!', 2.6);
         if (gMode >= M_TT) { addXP(30); }
         pDirty = 1;
-        // the ranking is written later, at a quiet moment (profileStep)
+        // the ranking is written by profileStep - v2.1.3: at once, even on track
         if (tk <= NTRK) { if (rsAssist < 1) { pendRk[tk] = lt; pendG[tk] = lgOk; } }
+        pRecNow = 1;
     }
     if (gMode == M_TT) { addXP(15); }
     if (gMode == M_PR) { addXP(10); }
@@ -441,7 +442,10 @@ let pRkTk = 0;              // circuit whose ranking write is being checked
 let pRkLt = 0;
 function syncStep() {
     if (pSync < 1) {
-        if (SY_rank.length >= NTRK) { pSync = 1; }
+        // (v2.1.3: not in the very first moment - a work stopped and started
+        // again without reloading holds its old lists until Entry Sync puts
+        // the room's in)
+        if (SY_rank.length >= NTRK) { if (gt > SYFRESH) { pSync = 1; } }
         else if (gt > SYWAIT) { pSync = 2; }
         else if (gt > 3) { if (SY_ == 0) { pSync = 2; } }
         if (pSync > 0) { loadProfile(1); }
@@ -610,6 +614,7 @@ function rankStep() {
 let pChkT = 0;              // seconds to the next look
 let pChkTk = 0;             // the circuit the last look was on
 let pHealN = 0;
+let pSeenRec = '|';         // v2.1.3: the server's copy of the record last taken in
 function selfCheck() {
     if (pGuest < 1) {
         if (strlen(pSavedRec) > 1) {
@@ -617,6 +622,10 @@ function selfCheck() {
             let good = 0;
             if (oMine > 0) {
                 shGet(pSh, oMineI);
+                // v2.1.3: a copy saved from another computer (or the server's
+                // when the work started on old lists) is taken in: its better
+                // laps, XP and records show at once, not after the next save
+                if (oRT != pSeenRec) { pSeenRec = oRT; mergeRec(0); }
                 if (strlen(oRT) == strlen(pSavedRec)) { if (indexOf(oRT, pSavedRec) == 1) { good = 1; } }
                 // or newer (the same player saved from elsewhere)
                 if (pF[2] * 1 > pSavedXP) { good = 1; }
@@ -672,6 +681,18 @@ function profileStep() {
     if (raceState == ST_PAUSE) { quiet = 1; }
     if (raceState == ST_PHOTO) { quiet = 1; }
     if (raceState == ST_NET) { quiet = 1; }
+    // v2.1.3: a new best lap is saved and ranked at once, on track too. It
+    // used to wait for a quiet screen, so a time trial stopped or closed
+    // straight after its record kept neither the lap nor its ranking.
+    if (pRecNow > 0) {
+        if (raceState != ST_LOAD) { quiet = 1; }
+        if (pDirty < 1) { if (pVerT <= 0) { if (pRkT == 0) {
+            let t = 1;
+            let pend = 0;
+            while (t <= NTRK) { if (pendRk[t] > 0) { pend = 1; } t = t + 1; }
+            if (pend < 1) { pRecNow = 0; }
+        } } }
+    }
     if (pLoaded > 0) {
         if (pSync > 0) {
             if (quiet > 0) {
@@ -679,10 +700,12 @@ function profileStep() {
                 else if (pDirty > 0) { if (pSaveT <= 0) { saveProfile(); } }
                 else { pChkT = pChkT - dt; if (pChkT <= 0) { pChkT = 2; selfCheck(); } }
                 rankStep();
+                rankWatch();
             }
         }
     }
 }
+let pRecNow = 0;            // v2.1.3: a new best lap still being saved / ranked
 
 // ---- ranking ----------------------------------------------------------------------------
 let rkC = 0;                // rows parsed into rkN / rkT
@@ -727,18 +750,32 @@ function rankBuild(tk) {
     rtSetK(tk, s);
 }
 
-// the circuit's world record, for the records table
+// each circuit's world record, for the records table
 function rankAll() {
     let t = 1;
     while (t <= NTRK) {
-        rankParse(t);
-        recWR[t] = 0;
-        recNm[t] = '-';
-        if (rkC > 0) { recWR[t] = rkT[1]; recNm[t] = rkN[1]; }
-        // v2.0.0: the player's own ranked laps, to be kept an eye on
-        if (rkMe > 0) { if (rkOk[t] <= 0) { rkOk[t] = rkT[rkMe]; } else if (rkT[rkMe] < rkOk[t]) { rkOk[t] = rkT[rkMe]; } }
+        rankSee(t);
         t = t + 1;
     }
+}
+function rankSee(t) {
+    rankParse(t);
+    rkSeen[t] = oRT;
+    recWR[t] = 0;
+    recNm[t] = '-';
+    if (rkC > 0) { recWR[t] = rkT[1]; recNm[t] = rkN[1]; }
+    // v2.0.0: the player's own ranked laps, to be kept an eye on
+    if (rkMe > 0) { if (rkOk[t] <= 0) { rkOk[t] = rkT[rkMe]; } else if (rkT[rkMe] < rkOk[t]) { rkOk[t] = rkT[rkMe]; } }
+}
+// v2.1.3: the records as they are now. Another player's lap - or this
+// player's from another computer - reaches ?!rank at any moment, and the
+// menu showed the record as it was when the work started. One circuit a
+// frame is looked at, and read again only when its item changed.
+let rkLook = 0;
+function rankWatch() {
+    rkLook = mod(rkLook, NTRK) + 1;
+    rtGetK(rkLook);
+    if (oRT != rkSeen[rkLook]) { rankSee(rkLook); }
 }
 
 function rankSubmit(tk, lt) {

@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 const require = createRequire(new URL('../../../entry-vibe-coding/package.json', import.meta.url));
 const { chromium } = require('@playwright/test');
-const file = process.argv[2] || 'f1online200.ent';
+const file = process.argv[2] || 'f1online213.ent';
 const inject = fs.readFileSync(new URL('../../entrysync/inject.js', import.meta.url), 'utf8');
 const ok = (c, m) => console.log((c ? 'PASS ' : 'FAIL ') + m);
 
@@ -94,5 +94,6 @@ await page.evaluate((a) => window.postMessage({ type: 'ENTRY_SYNC_REMOTE_LIST_UP
 await page.waitForTimeout(3000);
 const st2 = await read();
 ok(String(st2.rank5).startsWith('||bob,60000'), `a remote ranking update lands in the list: ${st2.rank5}`);
+ok(st2.wr5 === 'bob', `v2.1.3: and the menu's world record follows it: ${st2.wr5}`);
 ok(errors.length === 0, `page errors: ${errors.length ? errors.slice(0, 3).join(' | ') : 'none'}`);
 await browser.close();
