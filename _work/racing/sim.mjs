@@ -186,9 +186,10 @@ export function createSim({ fps = 30 } = {}) {
         nickname: () => (R.nick !== undefined ? R.nick : ' '),
         soundSpeed: (v) => { R.snd.speed = Math.max(0.5, Math.min(2, +v)); },
         tableSet: (t, r, c, v) => { (R.tables ||= {})[`${t}:${r}:${c}`] = v; }, tableShow: (t) => { R.shownTable = t; },
-        ask: (q) => { R.asked = String(q); }, answer: () => (R.answerText !== undefined ? R.answerText : ''), hideAnswer: () => { }, textColor: () => { }, textColorHex: () => { }, dateSec: () => (R.dateSecFn ? R.dateSecFn() : Math.floor(Date.now() / 1000) % 60),
+        ask: (q) => { R.asked = String(q); }, answer: () => (R.answerText !== undefined ? R.answerText : ''), hideAnswer: () => { }, textColor: () => { }, textColorHex: () => { }, dateSec: () => (R.dateSecFn ? R.dateSecFn() : R.wallNow ? new Date(R.wallNow()).getSeconds() : Math.floor(Date.now() / 1000) % 60),
         // (v2.1.0: the wall clock, for the online slots; R.wallMs moves it in tests)
-        dateMin: () => new Date(Date.now() + (R.wallMs || 0)).getMinutes(), dateHour: () => new Date(Date.now() + (R.wallMs || 0)).getHours(), dateDay: () => new Date(Date.now() + (R.wallMs || 0)).getDate(),
+        // (R.wallNow: a wall clock of the test's own, e.g. one that follows sim time)
+        dateMin: () => new Date(R.wallNow ? R.wallNow() : Date.now() + (R.wallMs || 0)).getMinutes(), dateHour: () => new Date(R.wallNow ? R.wallNow() : Date.now() + (R.wallMs || 0)).getHours(), dateDay: () => new Date(R.wallNow ? R.wallNow() : Date.now() + (R.wallMs || 0)).getDate(),
         broadcast: () => { }, toFront: () => { }, toBack: () => { },
         stopAll: () => { }, stopThread: () => { }, waitSec: () => { }, waitUntil: () => { },
     };

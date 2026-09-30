@@ -93,8 +93,20 @@ let netOver = 0;
 let netFrom = 0;            // watching from: 0 the lobby, 1 the room
 let netHostGone = 0;        // the host left during the race
 let netFinN = 0;            // cars finished, as last counted
-let netGoT = 0;
-let netGoneT = 0;           // how long the room has looked gone             // host: seconds until its own go
+let netGoT = 0;             // host: seconds until its own go
+let netGoneT = 0;           // how long the room has looked gone
+let netWhy = BLANK;
+// v2.1.2: a lost connection, and a work stopped in the middle
+let netLostT = 0;           // seconds the connection has looked lost
+let netFrozen = 0;          // while it does (up to a grace), nobody is taken for gone
+let netWasOn = 0;           // Entry Sync has said "connected" in this session
+let netLastIn = 0;          // gt of the last change heard from another slot
+let netOthers = 0;          // other slots live, last frame
+let netOldMy = 0;           // the slot held before one had to be given up
+let netRj = 0;              // rejoin the race where this player left it (netResume)
+let rjLap = 0;
+let rjSeg = 1;
+let rjOff = 0;
 // the offline settings, put back on leaving
 let nbMode = 1;
 let nbRules = 1;
@@ -256,6 +268,9 @@ function netParse(i, v) {
             let d = Math.abs(oWall - substr(v, 11, 15) * 1);
             if (d > 50000) { d = 100000 - d; }
             if (d > NSTALE * 2) { nsStale[i] = 1; }
+            // (v2.1.2: and it is as old as its clock says - a work stopped a
+            // few seconds ago must not look live for another few)
+            nsT[i] = gt - d;
             nsChS[i] = substr(v, 29, 30) * 1;
         }
         nsSid[i] = sid;
@@ -319,40 +334,131 @@ function netParse(i, v) {
 
 function netScan() {
     netAlive = 0;
+    let others = 0;
     let i = 1;
     while (i <= NPS) {
         netGet(i);
         let v = oNV;
-        if (v != nsV[i]) { nsV[i] = v; nsT[i] = gt; netParse(i, v); }
+        if (v != nsV[i]) {
+            nsV[i] = v; nsT[i] = gt; netParse(i, v);
+            if (i != netMy) { if (nsStale[i] < 1) { netLastIn = gt; } }
+        }
         let live = 0;
+        // (v2.1.2: a racer reports 6 times a second - quiet for NSTALER s is gone,
+        // e.g. the work was stopped; building a circuit can take a minute)
         let lim = NSTALE;
+        if (nsSt[i] >= NS_LOADED) { if (nsSt[i] <= NS_FIN) { lim = NSTALER; } }
         if (nsSt[i] == NS_LOADING) { lim = 60; }
         if (nsSeen[i] > 0) { if (nsStale[i] < 1) { if (gt - nsT[i] < lim) { live = 1; } } }
+        // our own connection looks lost: the others are not taken for gone
+        if (netFrozen > 0) { if (nsLive[i] > 0) { if (nsStale[i] < 1) { live = 1; } } }
         if (i == netMy) { live = 1; }
+        if (i != netMy) { others = others + live; }
         nsLive[i] = live;
         netAlive = netAlive + live;
         i = i + 1;
     }
+    netOthers = others;
 }
 
+// how long slot i has been quiet
+let oAge = 0;
+function netAgeOf(i) { oAge = gt - nsT[i]; }
+
 // a free slot, picked at random so two players arriving at once rarely pick the same
+// v2.1.2: first this player's own slot from before, if the work was stopped
+// (or the page reloaded) a moment ago - same nickname, quiet, under NETREJ s:
+// taken back with its session id, so the others keep them where they were.
+// Otherwise a free one, those empty the longest first (a slot quiet for a
+// few seconds may be someone whose connection dropped).
 function netClaim() {
-    let n = 0;
+    let mine = 0;
     let i = 1;
-    while (i <= NPS) {
-        if (nsLive[i] < 1) { n = n + 1; nfL[n] = i; }
-        i = i + 1;
-    }
+    if (netPg == 0) { if (pGuest < 1) {
+        netNick();
+        while (i <= NPS) {
+            if (nsLive[i] < 1) { if (nsSid[i] > 0) { if (nsNick[i] == oNm) {
+                netAgeOf(i);
+                if (oAge < NETREJ) { mine = i; }
+            } } }
+            i = i + 1;
+        }
+    } }
     netFull = 0;
-    if (n > 0) {
-        netMy = nfL[rand(1, n)];
-        netSt = NS_LOBBY;
-        netRoom = 0;
-        netRSid = 0;
+    if (mine > 0) { netResume(mine); }
+    else {
+        let n = 0;
+        let n2 = 0;
+        i = 1;
+        while (i <= NPS) {
+            if (nsLive[i] < 1) {
+                netAgeOf(i);
+                if (nsSid[i] < 1) { n = n + 1; nfL[n] = i; }
+                else if (oAge > 30) { n = n + 1; nfL[n] = i; }
+                else { n2 = n2 + 1; nfL[NPS - n2 + 1] = i; }
+            }
+            i = i + 1;
+        }
+        let pick = 0;
+        if (n > 0) { pick = nfL[rand(1, n)]; } else if (n2 > 0) { pick = nfL[NPS - rand(1, n2) + 1]; }
+        if (pick > 0) {
+            netMy = pick;
+            if (netPg == 0) {
+                netSt = NS_LOBBY;
+                netRoom = 0;
+                netRSid = 0;
+                netPg = 1;
+                netRow = 1;
+            } else if (netRoom == netOldMy) { if (netRoom > 0) { netRoom = netMy; } }
+            netPush();
+            nsLive[netMy] = 1;
+        } else { netFull = 1; }
+    }
+}
+
+// back into slot i, left by this same player a moment ago: into its room if
+// that is still there, and into its race if that is still on
+function netResume(i) {
+    netMy = i;
+    netSid = nsSid[i];
+    netSeq = mod(nsSeq[i] + 1, 1000);
+    chSeq = nsChS[i];
+    netSt = NS_LOBBY;
+    netRoom = 0;
+    netRSid = 0;
+    netPg = 1;
+    netRow = 1;
+    nrRst = 0;
+    let h = nsRoom[i];
+    let wasRace = 0;
+    if (nsSt[i] >= NS_LOADED) { if (nsSt[i] <= NS_RACE) { if (nsFin[i] <= 0) { wasRace = 1; } } }
+    if (h == i) {
+        // it was their own room: open it again as it was
+        nrTitle = nsTitle[i]; nrTrk = nsTrk[i]; nrRules = nsRules[i]; nrWx = nsWx[i]; nrCon = nsCon[i]; nrMax = nsMax[i]; nrCode = nsCode[i];
+        let k = 1;
+        while (k <= NLAPO) { if (lapOpt[k] == nsLaps[i]) { nrLapSel = k; } k = k + 1; }
+        netRoom = i; netRSid = netSid; netSt = NS_ROOM; netPg = 3;
+        netRid = nsRid[i];
+        nrGrid = nsGrid[i];
+        if (wasRace > 0) { if (nsRst[i] == 2) { nrRst = 2; } }
+    } else if (h > 0) {
+        if (nsLive[h] > 0) { if (nsSid[h] == nsRSid[i]) { if (nsRoom[h] == h) {
+            netRoom = h; netRSid = nsRSid[i]; netSt = NS_ROOM; netPg = 3;
+            netRid = nsRid[i];
+            if (wasRace > 0) { if (nsRst[h] == 2) { if (nsRid[h] == nsRid[i]) { netRj = 2; } } }
+        } } }
+    }
+    if (nrRst == 2) { netRj = 2; }
+    if (netRj > 1) {
+        // back into the race, where they were (lap, ring, side), from a standstill
+        netRj = 1;
+        rjLap = nsLap[i]; rjSeg = nsSeg[i]; rjOff = nsOff[i];
+        netSay('BACK IN THE RACE YOU LEFT', C_SKY);
+        netBegin(netRoom, 0);
+    } else {
+        if (netPg == 3) { netSay('BACK IN YOUR ROOM', C_SKY); } else { netSay('WELCOME BACK', C_SKY); }
         netPush();
-        nsLive[netMy] = 1;
-        if (netPg == 0) { netPg = 1; netRow = 1; }
-    } else { netFull = 1; }
+    }
 }
 
 // ---- chat ----------------------------------------------------------------------------------
@@ -626,7 +732,40 @@ function netDoStart() {
         let c3 = 1;
         while (c3 <= nCars) { caHold[c3] = 0; c3 = c3 + 1; }
     } else { netSt = NS_LOADED; }
+    if (netRj > 0) { netRejoin(); }
     netPush();
+}
+
+// (netDoStart) the car put back where its driver left the race, with the
+// race clock of the others; the lap it was on does not count
+function netRejoin() {
+    netRj = 0;
+    if (rjLap >= 1) {
+        let s = Math.max(1, Math.min(NSEG, rjSeg));
+        let w = sgW[s] * 0.8;
+        placeCar(1, s, Math.max(0 - w, Math.min(w, rjOff)));
+        caLap[1] = rjLap;
+        let k = 1;
+        while (k < nCP) { if (cpSeg[k + 1] <= s) { k = k + 1; } else { break; } }
+        caCP[1] = k;
+    }
+    raceT = 0;
+    let c = 2;
+    while (c <= nCars) {
+        let sl = caSlot[c];
+        if (nsLive[sl] > 0) { raceT = Math.max(raceT, nsRT[sl] + Math.min(1, gt - nsRcv[sl])); }
+        c = c + 1;
+    }
+    caLapT[1] = raceT;
+    lapBad = 1;
+    secCur = 0;
+    netWait = 0;
+    lightsOut = 1;
+    raceState = ST_RACE;
+    let c2 = 1;
+    while (c2 <= nCars) { caHold[c2] = 0; c2 = c2 + 1; }
+    netSt = NS_RACE;
+    setBanner('BACK IN THE RACE', 1.6);
 }
 
 function netWatchRace(h) {
@@ -651,6 +790,7 @@ function netCars() {
             if (gone > 0) {
                 if (caFin[c] < 1) { if (caDNF[c] < 1) { caDNF[c] = 1; caSpd[c] = 0; caVX[c] = 0; caVZ[c] = 0; netSay(str(nsNick[s], '  LEFT THE RACE'), C_DIM); } }
             } else {
+                if (caDNF[c] > 0) { if (caFin[c] < 1) { netSay(str(nsNick[s], '  IS BACK IN THE RACE'), C_SKY); } }
                 caDNF[c] = 0;
                 let el = Math.min(0.9, gt - nsRcv[s] + nsRtt[s] / 2);
                 let sp = nsSpd[s];
@@ -714,9 +854,23 @@ function netFinOrder() {
 
 // ---- once a frame, whatever the screen ------------------------------------------------------
 function netStep() {
+    // v2.1.2: is our connection lost? Entry Sync says so ('?!' below 1), or
+    // every other player has gone quiet at once (it has no ping: a dead line
+    // can look connected). Up to a grace nobody is taken for gone meanwhile.
+    if (SY_ > 0) { netWasOn = 1; }
+    let lost = 0;
+    if (netWasOn > 0) { if (SY_ < 1) { lost = 1; } }
+    if (netOthers >= 2) { if (gt - netLastIn > NETQUIET) { lost = 1; } }
+    if (lost > 0) { netLostT = netLostT + dt; } else { netLostT = 0; }
+    netFrozen = 0;
+    if (netLostT > 0) {
+        let grace = 12;
+        if (SY_ < 1) { grace = NETGRACE; }
+        if (netLostT < grace) { netFrozen = 1; }
+    }
     netScan();
     if (netMy < 1) {
-        if (SY_ > 0) { if (gt - netT0 > 1.5) { netClaim(); } }
+        if (SY_ > 0) { if (gt - netT0 > 1.5) { if (netLostT <= 0) { netClaim(); } } }
     } else {
         // somebody else wrote this slot: the lower session id keeps it
         netGet(netMy);
@@ -724,7 +878,8 @@ function netStep() {
         if (charAt(v, 1) == 'F') { if (strlen(v) > 8) {
             let other = substr(v, 2, 7) * 1;
             if (other != netSid) {
-                if (other < netSid) { netMy = 0; netPg = 0; }
+                // (v2.1.2: another free slot, keeping the room and the race)
+                if (other < netSid) { netOldMy = netMy; netMy = 0; }
                 else { netPush(); }
             }
         } }
@@ -735,11 +890,18 @@ function netStep() {
         if (netRoom > 0) { if (netRoom != netMy) {
             let h = netRoom;
             let gone = 0;
-            if (nsLive[h] < 1) { gone = 1; } else if (nsSid[h] != netRSid) { gone = 2; } else if (nsRoom[h] != h) { gone = 3; }
+            // (v2.1.2: a quiet host - slow plain Entry, a long frame - closes the
+            // room only after NETROOMT s; one who closes it says so at once)
+            if (nsLive[h] < 1) { if (gt - nsT[h] > NETROOMT) { gone = 1; } } else if (nsSid[h] != netRSid) { gone = 2; } else if (nsRoom[h] != h) { gone = 3; }
+            if (netFrozen > 0) { gone = 0; }
+            // (the host is back: it stopped its work and came back in time)
+            if (gone < 1) { netHostGone = 0; }
             // (only when it stays so for 2 s: one odd read is not a closed room)
             if (gone > 0) { netGoneT = netGoneT + dt; } else { netGoneT = 0; }
             if (netGoneT > 2) {
                 netGoneT = 0;
+                // (why, for the tests: what the host's slot looked like)
+                netWhy = str(gone, ' live ', nsLive[h], ' sid ', nsSid[h], '/', netRSid, ' room ', nsRoom[h], ' st ', nsSt[h], ' age ', gt - nsT[h], ' lost ', netLostT);
                 if (netRace < 1) { netToLobby('THE ROOM WAS CLOSED'); }
                 else { netHostGone = 1; }
             }
@@ -1073,6 +1235,13 @@ function netHudChat() {
         k = k + 1;
     }
     if (inRace > 0) { tx(87, 'Y  CHAT', 232, 0 - 124, 7, C_DIM, 2); } else { txOff(87); }
+    // v2.1.2: the connection
+    if (netLostT > 1) {
+        let t = 'NO NEWS FROM THE SERVER - WAITING';
+        if (SY_ < 1) { t = str('CONNECTION LOST - RECONNECTING  ', Math.floor(netLostT), ' s'); }
+        if (netFrozen < 1) { t = 'CONNECTION LOST - THE OTHERS ARE TAKEN AS GONE'; }
+        tx(88, t, 0, 36, 11, '#ff6a5a', 0);
+    } else { txOff(88); }
 }
 
 // the race screen when watching

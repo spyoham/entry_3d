@@ -8,6 +8,7 @@ import { createSim } from '../sim.mjs';
 const LAT = (+(process.argv[2] || 120)) / 1000;
 const JIT = (+(process.argv[3] || 60)) / 1000;
 const fps = 10;
+const WALL0 = Date.UTC(2026, 8, 30, 3, 0, 0);
 const want = (k) => !process.env.ONLY || process.env.ONLY.split(',').includes(k);
 const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) process.exitCode = 1; };
 
@@ -26,6 +27,8 @@ class Client {
         this.sim = createSim({ fps });
         this.sim.R.nick = nick;
         this.sim.R.syNet = this;
+        // the wall clock runs with the simulated time (wallMs: this machine's clock error)
+        this.sim.R.wallNow = () => WALL0 + srv.t * 1000 + (this.sim.R.wallMs || 0);
         this.starting = true;
         srv.clients.push(this);
         srv.at(srv.t + 0.05, () => { this.sim.R.syLocal.SY_ = 1; });
@@ -38,7 +41,7 @@ class Client {
     }
     applyList(n, a) { const L = this.sim.R.syLists[n]; if (L) L.splice(0, L.length, ...a); }
     send(f) {
-        if (this.starting || !this.on) return;
+        if (this.starting || !this.on || this.cut) return;
         const s = this.srv;
         this.up = Math.max(s.t + LAT + Math.random() * JIT, (this.up || 0) + 1e-6);
         s.at(this.up, () => {
@@ -47,10 +50,22 @@ class Client {
     }
     relay(apply) {
         const s = this.srv;
-        for (const c of s.clients) if (c !== this && c.on) {
+        for (const c of s.clients) if (c !== this && c.on && !c.cut) {
             c.down = Math.max(s.t + LAT + Math.random() * JIT, (c.down || 0) + 1e-6);
-            s.at(c.down, () => apply(c));
+            s.at(c.down, () => { if (!c.cut) apply(c); });
         }
+    }
+    // (v2.1.2) the line goes dead: nothing out, nothing in, '?!' -1 ...
+    lineDown() { this.cut = true; this.sim.R.syLocal.SY_ = -1; }
+    // ... and comes back: Entry Sync reconnects and sends the room's values
+    lineUp() {
+        const s = this.srv;
+        this.cut = false;
+        s.at(s.t + LAT, () => {
+            for (const [n, v] of Object.entries(s.vars)) this.sim.R.syLocal[n] = v;
+            for (const [n, a] of Object.entries(s.lists)) this.applyList(n, a);
+            this.sim.R.syLocal.SY_ = 1;
+        });
     }
     changed(n, a) { this.send((s) => { s.lists[n] = a; this.relay((c) => c.applyList(n, a)); }); }
     varChanged(n, v) { this.send((s) => { s.vars[n] = v; this.relay((c) => { c.sim.R.syLocal[n] = v; }); }); }
@@ -172,7 +187,8 @@ if (want('slots')) {
     run(srv, [F, G], 4);
     const f = +F.g('netMy'), gg = +G.g('netMy');
     ok(f > 0 && gg > 0 && f !== gg, `same-moment claim of slot ${k}: fay ${f}, gus ${gg} (the lower session id kept it)`);
-    ok(+G.L('nsLive', old) === 0, `the slot left an hour ago (${old}) counts as free at once for a newcomer`);
+    // (free on gus's screen - unless one of them has since taken it, which is right too)
+    ok(+G.L('nsLive', old) === 0 || [F, G].some((c) => +c.g('netMy') === old), `the slot left an hour ago (${old}) counts as free at once for a newcomer`);
     G.g('netLeave()');
     run(srv, [F, G], 1);
     ok(+F.L('nsLive', gg) === 0 && +F.g('netAlive') === 1 && +G.g('raceState') === 0, 'gus left: his slot is free for fay right away, gus is back in the menu');
@@ -233,7 +249,7 @@ if (want('rules')) {
     run(srv, all, 14);
     ok(+A.g('netRid') === rid1 + 1 && +B.g('netRid') === rid1 + 1 && +B.g('raceState') === 3, `second race, race id ${rid1} -> ${B.g('netRid')}`);
     A.on = false;
-    run(srv, all, 14);
+    run(srv, all, 25);
     let hc = 0;
     for (let c = 1; c <= +B.g('nCars'); c++) if (+B.L('caSlot', c) === h) hc = c;
     ok(+B.g('netHostGone') === 1 && hc > 0 && +B.L('caDNF', hc) === 1, 'the host vanished: ben races on, the host is out');
@@ -289,4 +305,102 @@ if (want('keys')) {
     ok(+A.g('netPg') === 1 && +A.g('netRoom') === 0, 'ESC closes the room');
     tap(27); run(srv, [A], 1);
     ok(+A.g('raceState') === 0 && +A.g('netOn') === 0, 'ESC in the lobby: back to the main menu');
+}
+
+// ---- v2.1.2: a race with three; connections drop, a work stops and comes back ----
+const carOf = (X, Y) => { const n = +X.g('nCars'); for (let c = 1; c <= n; c++) if (+X.L('caSlot', c) === +Y.g('netMy')) return c; return 0; };
+const raceOf3 = (srv, names, trk = 5, laps = 3) => {
+    const cs = names.map((n) => new Client(srv, n));
+    run(srv, cs, 2);
+    for (const c of cs) { c.g('netEnter()'); drive(c); }
+    run(srv, cs, 4);
+    cs[0].g(`nrTrk = ${trk}; nrLapSel = ${laps}; netOpenRoom()`);
+    run(srv, cs, 2);
+    const h = +cs[0].g('netMy');
+    for (const c of cs.slice(1)) c.g(`netJoin(${h})`);
+    run(srv, cs, 2);
+    for (const c of cs.slice(1)) c.g('netSt = NS_READY; netPush()');
+    run(srv, cs, 3, () => cs.slice(1).every((c) => +cs[0].L('nsSt', +c.g('netMy')) === 3));
+    cs[0].g('netStart()');
+    run(srv, cs, 25, () => cs.every((c) => +c.g('raceState') === 3));
+    return { cs, h };
+};
+if (want('drop')) {
+    // (a) bob's line dies for 10 s in the race, then comes back
+    {
+        const srv = new Server();
+        const { cs: [A, B, C] } = raceOf3(srv, ['ann', 'bob', 'cat']);
+        run(srv, [A, B, C], 5);
+        B.lineDown();
+        let bFroze = true, bBanner = false, aOut = false;
+        run(srv, [A, B, C], 10, () => {
+            if (+B.L('caDNF', carOf(B, A)) === 1 || +B.L('caDNF', carOf(B, C)) === 1) bFroze = false;
+            if (String(B.L('txS', 88)).includes('CONNECTION LOST')) bBanner = true;
+            if (+A.L('caDNF', carOf(A, B)) === 1) aOut = true;
+        });
+        const bSeg0 = +B.L('caSeg', 1), bLap0 = +B.L('caLap', 1);
+        B.lineUp();
+        run(srv, [A, B, C], 4);
+        const cb = carOf(A, B);
+        const err = Math.hypot(A.L('caX', cb) - B.L('caX', 1), A.L('caZ', cb) - B.L('caZ', 1));
+        ok(bFroze && bBanner, `bob, line dead 10 s: banner shown, ann and cat not taken as gone on his screen`);
+        ok(aOut && +A.L('caDNF', cb) === 0 && chatHas(A, 'bob  IS BACK') && err < 15, `ann saw bob out, then back (drawn ${err.toFixed(1)} m off; he drove on: lap ${bLap0} ring ${bSeg0})`);
+        ok(+B.g('netLostT') === 0 && !String(B.L('txS', 88)).includes('CONNECTION'), 'bob: the banner is gone again');
+    }
+    // (b) cat's work stops in the race; she starts it again and goes back online
+    {
+        const srv = new Server();
+        const { cs: [A, B, C], h } = raceOf3(srv, ['ann', 'bob', 'cat'], 5, 1);
+        run(srv, [A, B, C], 25);
+        const lap = +C.L('caLap', 1), seg = +C.L('caSeg', 1), slot = +C.g('netMy'), sid = +C.g('netSid');
+        C.on = false;
+        srv.clients = srv.clients.filter((c) => c !== C);
+        run(srv, [A, B], 7);
+        ok(+A.L('caDNF', carOf(A, C)) === 1 && chatHas(B, 'cat  LEFT THE RACE'), 'cat\'s work stopped: out on the others\' screens within 7 s');
+        // a newcomer meanwhile must not take her slot
+        const D = new Client(srv, 'dan');
+        run(srv, [A, B, D], 1);
+        D.g('netEnter()');
+        run(srv, [A, B, D], 3);
+        ok(+D.g('netMy') > 0 && +D.g('netMy') !== slot, `a newcomer takes another slot (${D.g('netMy')}, not cat's ${slot})`);
+        // cat again
+        const C2 = new Client(srv, 'cat');
+        drive(C2);
+        run(srv, [A, B, D, C2], 2);
+        C2.g('netEnter()');
+        run(srv, [A, B, D, C2], 12, () => +C2.g('raceState') === 3);
+        run(srv, [A, B, D, C2], 3);
+        const ca = carOf(A, C2);
+        ok(+C2.g('netMy') === slot && +C2.g('netSid') === sid && +C2.g('raceState') === 3 && +C2.g('nCars') === 3,
+            `cat back in her slot ${C2.g('netMy')} (same session), in the race with ${C2.g('nCars')} cars`);
+        ok(+C2.L('caLap', 1) === lap && Math.abs(+C2.L('caSeg', 1) - seg) < 60 && Math.abs(C2.g('raceT') - A.g('raceT')) < 1.5,
+            `where she left it: lap ${C2.L('caLap', 1)} (was ${lap}), ring ${C2.L('caSeg', 1)} (was ${seg}), clock ${(+C2.g('raceT')).toFixed(1)} vs ann ${(+A.g('raceT')).toFixed(1)}`);
+        ok(+A.L('caDNF', ca) === 0 && chatHas(A, 'cat  IS BACK IN THE RACE'), 'the others see her back');
+        run(srv, [A, B, D, C2], 400, () => [A, B, C2].every((c) => +c.g('netOver') === 1));
+        const ords = [A, B, C2].map((c) => { const r = []; for (let i = 1; i <= 3; i++) r.push(+c.L('caFin', i)); return r.join(''); });
+        ok([A, B, C2].every((c) => +c.g('netOver') === 1) && +C2.L('caFin', 1) > 0, `the race finishes for all three (cat P${C2.L('caFin', 1)}; places per screen ${ords.join(' ')})`);
+    }
+    // (c) the host stops the work in the room and comes back: the room stays
+    {
+        const srv = new Server();
+        const A = new Client(srv, 'ann'), B = new Client(srv, 'bob');
+        run(srv, [A, B], 2);
+        A.g('netEnter()'); B.g('netEnter()');
+        run(srv, [A, B], 4);
+        A.g("nrTitle = 'Stay'; nrTrk = 4; netOpenRoom()");
+        run(srv, [A, B], 2);
+        B.g(`netJoin(${A.g('netMy')})`);
+        run(srv, [A, B], 2);
+        A.on = false;
+        srv.clients = srv.clients.filter((c) => c !== A);
+        run(srv, [B], 5);
+        const A2 = new Client(srv, 'ann');
+        run(srv, [B, A2], 2);
+        A2.g('netEnter()');
+        run(srv, [B, A2], 4);
+        ok(+A2.g('netPg') === 3 && +A2.g('netRoom') === +A2.g('netMy') && A2.g('nrTitle') === 'Stay' && +A2.g('nrTrk') === 4 && +B.g('netPg') === 3 && +B.g('netRoom') === +A2.g('netMy'),
+            `the host came back to her room '${A2.g('nrTitle')}' and bob is still in it`);
+        run(srv, [B], 25);
+        ok(+B.g('netPg') === 1 && String(B.g('netWhy')).startsWith('1 live 0'), 'and when a host does not come back, the room closes after 20 s (bob pg ' + B.g('netPg') + ' msg ' + B.g('msg') + ' why ' + B.g('netWhy') + ')');
+    }
 }

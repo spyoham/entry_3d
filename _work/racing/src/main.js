@@ -192,8 +192,10 @@ function applyWeather() {
 // (and everything the renderer precomputes, see ringFast / hillPrep) two
 // ticks later, with the card on screen instead of a frozen menu
 let ldT = 0;
+let ldS = 0;
 function startRace() {
     ldT = 0;
+    ldS = 0;
     raceState = ST_LOAD;
 }
 function doStartRace() {
@@ -524,8 +526,11 @@ on('start', 'pen3', function () {
             else if (actKey == 79) { photoEnter(); }
         } else if (raceState == ST_LOAD) {
             ldT = ldT + 1;
+            ldS = ldS + dt;
             drawLoad();
-            if (ldT >= 2) { doStartRace(); }
+            // (v2.1.2 online: half a second first, so the "loading" report is out
+            // before the long frame that builds the circuit)
+            if (ldT >= 2) { if (netRace < 1) { doStartRace(); } else if (ldS > 0.5) { doStartRace(); } }
         } else if (raceState == ST_PHOTO) {
             photoStep();
         } else if (raceState == ST_REPLAY) {

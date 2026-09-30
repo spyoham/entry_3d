@@ -47,6 +47,11 @@ export const C = {
     NSTALE: 8,          // s without a change before a slot counts as empty (60 while it says it is loading)
     NETHB: 1,           // s between heartbeats off the track
     NETHZ: 6,           // reports a second in a race
+    NSTALER: 4,         // v2.1.2: s a racer may be quiet (the work stopped?) before it is out
+    NETGRACE: 30,       // s a lost connection may last before the others are taken as gone
+    NETQUIET: 5,        // s with every other player quiet: our connection is taken as lost
+    NETROOMT: 20,       // s a room's host may be quiet before its room counts as closed
+    NETREJ: 120,        // s within which a player's own slot can be taken back (stop, reload)
     TXW: 1000, TXH: 28, TXF: 20,     // text box: fixed width/height, font px
     TXCW: 0.5,          // monospace advance, em per character
     NMAP: 64,           // centreline samples in the 3D circuit map           // car slot of the time-trial ghost (NCAR + 1)

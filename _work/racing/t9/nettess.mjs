@@ -47,7 +47,13 @@ const A = await player('alice');
 const B = await player('bob');
 const P = [A, B];
 
-// the room server: relay every change to the other page after LAT ms
+// the room server: relay every change to the other page after LAT ms (and keep
+// the room's values, for a page that reconnects)
+const room = { variables: {}, lists: {} };
+const reconnect = (p) => p.page.evaluate((room) => {
+    window.postMessage({ type: 'ENTRY_SYNC_STATUS_UPDATE', connected: true }, '*');
+    window.postMessage({ type: 'ENTRY_SYNC_APPLY_INITIAL_DATA', connected: true, payload: { syncData: room } }, '*');
+}, room);
 let relayed = 0;
 let stopRelay = false;
 (async () => {
@@ -55,8 +61,10 @@ let stopRelay = false;
         for (const p of P) {
             const q = await p.page.evaluate(() => window.__q.splice(0)).catch(() => []);
             for (const d of q) {
+                if (p.cut) continue;                    // (a dead line: lost)
                 relayed++;
-                for (const o of P) if (o !== p) setTimeout(() => {
+                if (d.type === 'ENTRY_SYNC_VAR_CHANGED') room.variables[d.name] = d.value; else room.lists[d.name] = d.array;
+                for (const o of P) if (o !== p && !o.cut) setTimeout(() => {
                     const m = d.type === 'ENTRY_SYNC_VAR_CHANGED' ? { type: 'ENTRY_SYNC_REMOTE_VAR_UPDATE', name: d.name, value: d.value } : { type: 'ENTRY_SYNC_REMOTE_LIST_UPDATE', name: d.name, array: d.array };
                     o.page.evaluate((m) => window.postMessage(m, '*'), m).catch(() => {});
                 }, LAT);
@@ -138,6 +146,42 @@ await A.page.keyboard.type('see you', { delay: 20 });
 await A.page.keyboard.press('Enter');
 ok(await until(async () => chatHas(B, 'alice:  see you'), 8000), 'chat in the race reaches bob');
 await shot(B, 'net_race_chat.png');
+
+// v2.1.2 (a): bob's connection drops for 10 s
+const carOn = async (X, Y) => { const ys = +(await V(Y, 'netMy')); for (let c = 1; c <= 2; c++) if (+(await L(X, 'caSlot', c)) === ys) return c; return 0; };
+B.cut = true;
+await B.page.evaluate(() => window.postMessage({ type: 'ENTRY_SYNC_STATUS_UPDATE', connected: false }, '*'));
+await sleep(8000);
+const bannerB = String(await L(B, 'txS', 88));
+const aOnB = await L(B, 'caDNF', await carOn(B, A));
+const bOnA = await L(A, 'caDNF', await carOn(A, B));
+await shot(B, 'net_lost.png');
+B.cut = false;
+await reconnect(B);
+await sleep(4000);
+ok(bannerB.includes('CONNECTION LOST') && +aOnB === 0, `bob's line dead: '${bannerB}', alice kept on his screen`);
+ok(+bOnA === 1 && +(await L(A, 'caDNF', await carOn(A, B))) === 0 && +(await V(B, 'netLostT')) === 0, 'alice saw bob out while he was cut off, and back after');
+
+// (b) bob's work is stopped in the race, then started again: ONLINE puts him back in
+const bSlot = +(await V(B, 'netMy')), bLap = +(await L(B, 'caLap', 1));
+await key(B, 'keyup', 'w');
+await B.page.evaluate(() => window.__handle.stop());
+await sleep(7000);
+if (process.env.DBG) console.log('A view of bob', JSON.stringify(await A.page.evaluate((s) => { const vs = window.__vm.variables; const V = (n) => vs.find((v) => v.name === n && !v.isList).value; const L = (n) => vs.find((v) => v.name === n && v.isList).array[s - 1].data; return { live: L('nsLive'), st: L('nsSt'), age: V('gt') - L('nsT'), v: String(L('nsV')).slice(0, 30), cur: String(V('?!p' + s)).slice(0, 30), frozen: V('netFrozen'), lost: V('netLostT') }; }, bSlot)));
+const carOfSlot = async (X, sl) => { for (let c = 1; c <= 2; c++) if (+(await L(X, 'caSlot', c)) === sl) return c; return 0; };
+ok(+(await L(A, 'caDNF', await carOfSlot(A, bSlot))) === 1 && await chatHas(A, 'bob  LEFT THE RACE'), "bob's work stopped: out on alice's screen");
+await B.page.evaluate(() => window.__handle.start());
+await sleep(300);
+await reconnect(B);
+await sleep(2500);
+await tap(B, 'down');
+await tap(B, 'enter');
+ok(await until(async () => +(await V(B, 'raceState')) === 3 && +(await V(B, 'nCars')) === 2, 40000),
+    `bob started again and chose ONLINE: back in the race (slot ${await V(B, 'netMy')} was ${bSlot}, lap ${await L(B, 'caLap', 1)} was ${bLap})`);
+await key(B, 'keydown', 'w');
+await sleep(3000);
+ok(+(await L(A, 'caDNF', await carOn(A, B))) === 0 && await chatHas(A, 'bob  IS BACK IN THE RACE'), 'alice sees him back');
+await shot(B, 'net_rejoin.png');
 for (const p of P) await key(p, 'keyup', 'w');
 ok(errors.length === 0, `page errors: ${errors.length ? errors.slice(0, 3).join(' | ') : 'none'} (${relayed} messages relayed)`);
 stopRelay = true;

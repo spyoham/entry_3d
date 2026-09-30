@@ -1,3 +1,46 @@
+# F1 ONLINE 3D — 작업 인계 메모 (2026-09-30, v2.1.2)
+
+산출물: `F1 Online 3D v2.1.2.ent`, 설명서 `F1 Online 3D v2.1.2 설명서.md` (v2.1.1은 루트 `old/`로)
+빌드: `node build.mjs f1online212.ent` → project.json 15.62 MB(문턱 약 16.17 MB)
+
+## 요청과 한 것
+"온라인 접속이 끊어졌을 때 또는 플레이 도중 작품이 정지되었을 때의 게임 조치"
+- 끊김 감지(`netStep` 첫머리)
+  - `?!` < 1(한 번이라도 1이었던 뒤), 또는 다른 live 자리 2개 이상이 NETQUIET 5 s 동안 모두 조용함(netLastIn). Entry Sync에 ping이 없어 죽은 선도 "연결됨"일 수 있어서.
+  - netLostT가 쌓이고, 유예(`?!`<1이면 NETGRACE 30 s, 조용함만이면 12 s) 동안 netFrozen 1.
+    - netScan이 live였던 자리를 live로 둠. 방 닫힘 판단도 안 함. netClaim도 멈춤.
+  - HUD 슬롯 88 빨간 글씨(`netHudChat`).
+  - 다시 연결되면 Entry Sync가 방 값을 다시 넣어 주고, 내 다음 보고로 다른 화면에서 "IS BACK IN THE RACE"(netCars에서 caDNF가 1→0일 때).
+- 정지 감지: 경주 상태(LOADED..FIN) 자리는 NSTALER 4 s(+2 s 디바운스)면 OUT. 다른 상태는 NSTALE 8 s, LOADING은 60 s.
+- 처음 보는 기록은 `nsT = gt − 벽시계 차이`로 나이를 되돌림(방금 정지한 사람의 자리가 몇 초 더 살아 보이지 않게). `netAgeOf`.
+- `netClaim`
+  1. 새로 들어올 때(netPg 0, 손님 아님): 같은 닉네임 + live 아님 + 나이 < NETREJ 120 s인 자리 → `netResume`.
+  2. 아니면 빈자리. sid 0이거나 30 s 넘게 조용한 자리 먼저, 없으면 최근에 조용해진 자리.
+  3. 세션 도중 자리를 빼앗겨 다시 잡을 때는 방·경주 상태 유지(netOldMy; 호스트였으면 netRoom을 새 자리로).
+- `netResume(i)`: 그 자리의 sid·seq·채팅 번호 이어받기.
+  - 자기 방이었으면 nr*를 기록에서 복원해 다시 연다.
+  - 남의 방이 살아 있으면 그 방으로.
+  - 기록이 경주 중(LOADED/RACE, 미완주)이고 그 방의 경주(rst 2, 같은 rid)가 진행 중이면 netRj → netBegin → netDoStart 끝에서 `netRejoin()`.
+    - placeCar(기록 seg·off, 도로 폭 0.8 안으로), caLap, caCP(cpSeg로), raceT = 다른 차 nsRT의 최댓값 + 경과.
+    - lapBad 1, 신호등 없이 ST_RACE.
+- main.js ST_LOAD: 온라인이면 0.5 s(ldS) 뒤에 빌드. LOADING 보고가 긴 프레임 전에 나가도록.
+- 참가자가 방을 닫힌 것으로 보는 기준: 호스트가 NETROOMT 20 s 조용할 때(+2 s 디바운스). 호스트가 room 0을 보내면 즉시.
+  - 원인: 엔트리 본체가 부하로 느릴 때 참가자가 시작 직전에 로비로 떨어지던 문제(하네스에서 가끔 재현).
+  - `netWhy`에 닫힌 이유(1 조용함, 2 sid, 3 room)를 남김.
+- 메뉴 버전 글자 v2.1.2.
+
+## 시험
+- `t9/netsim.mjs`(ONLY=drop) 44개 PASS.
+  - 모델에 `lineDown()/lineUp()` 추가(끊긴 동안 보내기·받기 없음, `?!` −1, 다시 연결되면 방 값 전체).
+  - sim 벽시계는 이제 sim 시간을 따름(`R.wallNow`; 예전엔 실제 시계라 sim이 빨리 돌면 "방금"이 됨).
+- `t9/nettess.mjs`: tessvm 두 창.
+  - 8 s 끊김(STATUS false + 중계 끊기), 작품 stop → start → 재연결(중계가 방 값을 APPLY_INITIAL_DATA로) → 아래·ENTER로 ONLINE → 같은 자리로 경주 복귀. 모두 PASS.
+- `t9/netreal.mjs`(엔트리 본체): 부하가 큰 상태에서 참가자가 시작을 놓치는 경우가 한 번 다시 나옴 → 위 ST_LOAD 0.5 s로 대응.
+  - 하네스 중계는 페이지가 한가할 때만 메시지를 가져와서, 실제 확장보다 이 문제에 더 약함.
+- 오프라인 회귀 `ab/tests212.txt`. stuck 랩 수는 원래 회차마다 3~4로 흔들림(무작위, 시드 없음).
+
+---
+
 # F1 ONLINE 3D — 작업 인계 메모 (2026-09-30, v2.1.1)
 
 산출물: `F1 Online 3D v2.1.1.ent`, 설명서 `F1 Online 3D v2.1.1 설명서.md` (v2.1.0은 루트 `old/`로)
