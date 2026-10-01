@@ -86,7 +86,9 @@ export const C = {
     NZ: 16,             // weather zones round a lap (rain, water, the dry line)
     FUELRACE: 100,      // kg a full-length race is fuelled for
     VSCK: 0.62,         // virtual safety car: speed as a share of the reference lap
-    NPK: 23,            // v3.2: menu keys polled (19) + the editor's K and I (v6.0: + O)
+    NPK: 30,            // v3.2: menu keys polled (19) + the editor's K and I (v6.0: + O; v2.1.0 Y; v2.4.0 3-9)
+    NQC: 7,             // v2.4.0: quick chat phrases, keys 3-9
+    QCGAP: 1.0,         // s between two quick chat lines
     NTY: 5,             // tyre compounds
     // ---- v8 ----
     NACH: 20,           // achievements
@@ -1463,6 +1465,8 @@ export function buildData() {
     lists.dyTN = new Array(6).fill('-'); lists.dyTT = zeros(6);
     lists.monName = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
     lists.dkName = ['HOT LAP', '3-LAP STINT'];
+    // v2.4.0 quick chat (keys 3-9 online)
+    lists.qcTx = ['GOOD LUCK!', 'NICE PASS!', 'SORRY!', 'THANKS!', 'GG', 'WATCH OUT!', "LET'S GO!"];
     // time into the lap at each ring: best lap and the current one (live delta)
     lists.bsT = zeros(R + 1); lists.csT = zeros(R + 1);
     lists.sgDRS = zeros(R); lists.sgGrid = zeros(R);

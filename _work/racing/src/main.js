@@ -43,6 +43,16 @@ function pollAction() {
     if (key(79)) { if (pkSt[22] < 1) { if (k == 0) { k = 79; } } } else { pkSt[22] = 0; }
     // v2.1.0: Y chats online
     if (key(89)) { if (pkSt[23] < 1) { if (k == 0) { k = 89; } } } else { pkSt[23] = 0; }
+    // v2.4.0: 3-9 quick chat (polled only online; a key block needs a fixed key)
+    if (netOn > 0) {
+        if (key(51)) { if (pkSt[24] < 1) { if (k == 0) { k = 51; } } } else { pkSt[24] = 0; }
+        if (key(52)) { if (pkSt[25] < 1) { if (k == 0) { k = 52; } } } else { pkSt[25] = 0; }
+        if (key(53)) { if (pkSt[26] < 1) { if (k == 0) { k = 53; } } } else { pkSt[26] = 0; }
+        if (key(54)) { if (pkSt[27] < 1) { if (k == 0) { k = 54; } } } else { pkSt[27] = 0; }
+        if (key(55)) { if (pkSt[28] < 1) { if (k == 0) { k = 55; } } } else { pkSt[28] = 0; }
+        if (key(56)) { if (pkSt[29] < 1) { if (k == 0) { k = 56; } } } else { pkSt[29] = 0; }
+        if (key(57)) { if (pkSt[30] < 1) { if (k == 0) { k = 57; } } } else { pkSt[30] = 0; }
+    }
     actKey = 0;
     if (k != keyPrev) {
         keyPrev = k;

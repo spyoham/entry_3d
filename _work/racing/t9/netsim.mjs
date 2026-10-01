@@ -463,3 +463,57 @@ if (want('cars')) {
     B.g(`netParse(10, '${rec.replace(/'/g, "\'")}')`);
     ok(+B.L('nsCarR', 10) === 4 && B.L('nsNick', 10) === 'ann' && B.L('nsTitle', 10) === 'Equal', `a new slot: rule ${B.L('nsCarR', 10)}, nick '${B.L('nsNick', 10)}'`);
 }
+
+// ---- v2.4.0 quick chat: keys 3-9, in the room, on the grid and racing ----------
+if (want('quick')) {
+    const srv = new Server();
+    const A = new Client(srv, 'ann'), B = new Client(srv, 'ben'), C = new Client(srv, 'cy');
+    const all = [A, B, C];
+    // a key held for a moment, as a player presses it (through pollAction)
+    const press = (c, k) => { c.sim.keys.add(k); run(srv, all, 0.2); c.sim.keys.delete(k); run(srv, all, 0.2); };
+    run(srv, all, 2);
+    // offline a number key does nothing (and 3-9 are not even polled)
+    A.g('rules = R_SIM');
+    press(A, 51);
+    ok(+A.g('netOn') === 0 && +A.g('chSeq') === 0, 'offline: 3 does nothing');
+    for (const c of all) { c.g('netEnter()'); drive(c); }
+    run(srv, all, 4);
+    A.g("nrTitle = 'Talk'; nrTrk = 6; nrLapSel = 1; netOpenRoom()");
+    run(srv, all, 2);
+    const h = +A.g('netMy');
+    B.g(`netJoin(${h})`);
+    run(srv, all, 2);
+    press(B, 51);
+    run(srv, all, 1);
+    ok(chatHas(A, 'ben:  GOOD LUCK!') && chatHas(B, 'ben:  GOOD LUCK!') && !chatHas(C, 'GOOD LUCK'), 'in the room: 3 sends GOOD LUCK! to the room (not the lobby)');
+    A.g('raceState = ST_NET; netPg = 3; hudNet()');
+    ok(String(A.L('txS', 47)).includes('3 GOOD LUCK!') && String(A.L('txS', 48)).includes("9 LET'S GO!"), `the room shows the keys: '${A.L('txS', 47)}' / '${A.L('txS', 48)}'`);
+    // two at once: the second waits for QCGAP
+    const n0 = +B.g('chSeq');
+    B.sim.keys.add(52); run(srv, all, 0.1); B.sim.keys.delete(52); run(srv, all, 0.1);
+    B.sim.keys.add(53); run(srv, all, 0.1); B.sim.keys.delete(53); run(srv, all, 1);
+    ok(+B.g('chSeq') === n0 + 1 && chatHas(A, 'ben:  NICE PASS!') && !chatHas(A, 'ben:  SORRY!'), 'a second phrase within a second is not sent');
+    // race: the keys on the grid, then a phrase while driving
+    B.g('netSt = NS_READY; netPush()');
+    run(srv, all, 1);
+    A.g('netStart()');
+    let gridTx = '';
+    run(srv, all, 14, () => { if (+A.g('raceState') === 4 && String(A.L('txS', 47)).length > 2) gridTx = String(A.L('txS', 47)); return false; });
+    ok(+A.g('raceState') === 3 && gridTx.includes('QUICK CHAT') && String(A.L('txS', 47)).length <= 1, `the grid shows the keys ('${gridTx}'), gone after the start`);
+    run(srv, all, 5);
+    press(A, 57);
+    run(srv, all, 1);
+    ok(chatHas(B, "ann:  LET'S GO!") && +A.g('raceState') === 3, 'racing: 9 sends LET\'S GO!, the race goes on');
+    ok(String(A.L('txS', 87)).includes('3-9 QUICK'), `the race hint: '${A.L('txS', 87)}'`);
+    // realistic: 1 and 2 are still the brake balance
+    A.g('rules = R_SIM; bbAdj = 0');
+    const b0 = +A.L('caBias', 1);
+    press(A, 50);
+    ok(+A.L('caBias', 1) === b0 + 1 && !chatHas(B, 'ann:  GOOD'), 'realistic: 2 still moves the brake balance');
+    // cy watches and says something too
+    C.g(`netFrom = 0; netWatchRace(${h})`);
+    run(srv, all, 3);
+    press(C, 56);
+    run(srv, all, 1);
+    ok(chatHas(A, 'cy:  THANKS!') || chatHas(A, 'cy:  WATCH OUT!'), 'the watcher can quick chat too');
+}

@@ -1,3 +1,28 @@
+# F1 ONLINE 3D — 작업 인계 메모 (2026-10-01, v2.4.0)
+
+산출물: `F1 Online 3D v2.4.0.ent`, 설명서 `F1 Online 3D v2.4.0 설명서.md` (v2.3.0은 루트 `old/`로)
+빌드: `node build.mjs f1online240.ent` → project.json 16.06 MB
+
+## 요청과 한 것
+기능 목록 3번 "빠른 채팅"(다음: 커리어 모드).
+- 키 3–9(keyCode 51–57)를 pollAction에서 **netOn일 때만** 읽음. pkSt 24–30, NPK 23 → 30.
+  - 엔트리 키 블록은 상수 키만 받아서(ejs "not a constant") 7줄로 풀어 씀.
+- net.js
+  - `netQKey()`(oQK = 1..NQC). `netQuick(q)`: QCGAP 1 s에 한 번, chTx = qcTx[q], chSeq + 1, netSay, netPush. 전달은 Y 채팅과 같은 길.
+  - netKeys·netRaceKeys·netDoneKeys가 Y 다음에 처리(관전도 netRaceKeys).
+  - `netQLines()`(netEnter): qcL1/qcL2 두 줄.
+  - 방 화면 tx 47·48(규칙 아래). 출발선(ST_COUNT, 관전 아님) netHudChat의 tx 47·48, 그 밖의 경주 화면에서는 끔.
+  - 경주 힌트 87 'Y CHAT   3-9 QUICK'.
+- build: NQC 7, QCGAP 1.0, lists.qcTx. 버전 글자 v2.4.0.
+
+## 시험
+- `t9/netsim.mjs quick`(새) 9 PASS. sim.keys로 실제 누름(pollAction 경유).
+  - ST_COUNT는 4, 지운 텍스트 슬롯은 '' 아니라 BLANK(폭 없는 글자).
+- `t9/nettess.mjs`에 키 4(Digit4) 단계 추가 → 15 PASS(`ab/nettess240.txt`).
+- 회귀 `ab/netsim240.txt`, `ab/daily240.txt`, `ab/tests240.txt`, `ab/rec240.txt`, `ab/prof240.txt`.
+
+---
+
 # F1 ONLINE 3D — 작업 인계 메모 (2026-10-01, v2.3.0)
 
 산출물: `F1 Online 3D v2.3.0.ent`, 설명서 `F1 Online 3D v2.3.0 설명서.md` (v2.2.0은 루트 `old/`로)

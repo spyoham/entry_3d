@@ -1,0 +1,31 @@
+PASS day number 20727 (Thu Oct 01 2026)
+PASS the day's challenge: {"trk":4,"kind":1,"wx":1,"car":3,"rules":1}
+PASS 19 days: 19 circuits, stints 6, rain 5, realistic 8, cars 4
+PASS the main menu's third row is DAILY CHALLENGE
+PASS started: time trial on circuit 4, rules 1, weather 1, 1 car
+PASS the day's car (type 3), base setup, no upgrades: 86.0000 16.8000 1.1200 1.0000 1.0000 0.0000 1.0000
+PASS in her own colours
+PASS laps timed: 2, best 144.000
+PASS on track: the server has today's ranking 'D20727||alice,144000' and the ghost (1455 chars)
+PASS done today: streak 1, +130 XP (100 + 15 a lap)
+PASS the ordinary circuit record and ranking are left alone
+PASS the card and HUD see her P1
+PASS settings back: {"mode":1,"rules":1,"wx":1,"trk":3,"gh":1,"car":2}
+PASS the save has the daily fields: 20727,1,20727,144000
+PASS driving again: racing the leader's ghost (360 samples, 144.000)
+PASS bob's time shows: top bob, alice P2
+PASS card: 'DAILY CHALLENGE' / 'P1  bob' / '1 DAY  -  DONE TODAY'
+PASS next day 20728: circuit 12, yesterday's ranking gone (0 rows)
+PASS streak still 1 (yesterday done)
+PASS day 2 done: streak 2, +140 XP
+PASS a new ranking for the new day: 'D20728||alice,91500'
+PASS a missed day: the streak shows 0
+PASS after the gap: streak 1
+PASS stint: two laps rank nothing yet
+PASS after a deleted lap, two more still rank nothing
+PASS the third clean lap ranks the sum: 243 'D20732||alice,243000'
+PASS the stint rolls on: the last three 233
+PASS next session: last 20732, streak 1, best 233 P1
+PASS backup code (152 letters): daily fields back
+PASS an older save (58 fields) still loads
+all passed

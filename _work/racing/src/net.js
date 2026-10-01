@@ -502,6 +502,36 @@ function netChat() {
     }
 }
 
+// v2.4.0 quick chat: keys 3-9 send a phrase (at most one a QCGAP s)
+let qcT = 0 - 9;
+let oQK = 0;
+let qcL1 = BLANK;           // the phrases as two lines, for the room and the grid
+let qcL2 = BLANK;
+function netQKey() {
+    oQK = 0;
+    if (actKey >= 51) { if (actKey < 51 + NQC) { oQK = actKey - 50; } }
+}
+function netQuick(q) {
+    if (netMy > 0) { if (gt - qcT >= QCGAP) {
+        qcT = gt;
+        chTx = qcTx[q];
+        chSeq = mod(chSeq + 1, 100);
+        netNick();
+        netSay(str(oNm, ':  ', chTx), C_GOLD);
+        netPush();
+    } }
+}
+function netQLines() {
+    qcL1 = 'QUICK CHAT   ';
+    qcL2 = '             ';
+    let q = 1;
+    while (q <= NQC) {
+        let s = str(q + 2, ' ', qcTx[q], '   ');
+        if (q <= 4) { qcL1 = str(qcL1, s); } else { qcL2 = str(qcL2, s); }
+        q = q + 1;
+    }
+}
+
 // ---- rooms -----------------------------------------------------------------------------------
 let nrN = 0;                // rooms open (their host slots in nrL)
 function netRooms() {
@@ -530,6 +560,7 @@ function netMembers(h) {
 function netEnter() {
     nbMode = gMode; nbRules = rules; nbWx = wx; nbLapSel = lapSel; nbTrk = selTrk;
     whoAmI();
+    netQLines();
     netOn = 1;
     netPg = 0;
     netRow = 1;
@@ -1030,7 +1061,9 @@ function netBackToRoom() {
 
 // ---- keys -----------------------------------------------------------------------------------------
 function netKeys() {
+    netQKey();
     if (actKey == 89) { if (netMy > 0) { netChat(); } }
+    else if (oQK > 0) { netQuick(oQK); }
     else if (netPg == 0) { if (actKey == 27) { netLeave(); } }
     else if (netPg == 1) {
         netNRow = nrN + 2;
@@ -1101,7 +1134,9 @@ function netForm(d) {
 
 // in a race: the online keys (the rest is raceKeys)
 function netRaceKeys() {
+    netQKey();
     if (actKey == 89) { netChat(); }
+    else if (oQK > 0) { netQuick(oQK); }
     else if (netWatch > 0) {
         if (actKey == 37) { camCar = mod(camCar + nCars - 2, nCars) + 1; }
         else if (actKey == 39) { camCar = mod(camCar, nCars) + 1; }
@@ -1111,7 +1146,9 @@ function netRaceKeys() {
 }
 // the results screen of an online race: watch the others, or go back
 function netDoneKeys() {
+    netQKey();
     if (actKey == 89) { netChat(); }
+    else if (oQK > 0) { netQuick(oQK); }
     else if (actKey == 37) { camCar = mod(camCar + nCars - 2, nCars) + 1; }
     else if (actKey == 39) { camCar = mod(camCar, nCars) + 1; }
     else if (actKey == 13) { netBackToRoom(); }
@@ -1256,6 +1293,9 @@ function hudNet() {
         tx(45, str(ruleName[ru], '   ', wxName[wxx], '   CONTACT ', cn > 0 ? 'ON' : 'OFF'), 0 - 226, 28, 8, C_DIM, 1);
         netCarTxt(cr, 1);
         tx(46, str('CARS:  ', oCrT), 0 - 226, 14, 8, cr > 0 ? C_GOLD : C_DIM, 1);
+        // v2.4.0: the quick chat keys
+        tx(47, qcL1, 0 - 226, 0 - 6, 7, '#c9d1de', 1);
+        tx(48, qcL2, 0 - 226, 0 - 17, 7, '#c9d1de', 1);
     }
     tx(12, help, 0, 0 - 125, 8, '#c9d1de', 0);
 }
@@ -1277,7 +1317,14 @@ function netHudChat() {
         } else { txOff(80 + k); }
         k = k + 1;
     }
-    if (inRace > 0) { tx(87, 'Y  CHAT', 232, 0 - 124, 7, C_DIM, 2); } else { txOff(87); }
+    if (inRace > 0) { tx(87, 'Y CHAT   3-9 QUICK', 232, 0 - 124, 7, C_DIM, 2); } else { txOff(87); }
+    // v2.4.0: the quick chat keys on the grid
+    let qg = 0;
+    if (inRace > 0) { if (raceState == ST_COUNT) { if (netWatch < 1) { qg = 1; } } }
+    if (qg > 0) {
+        tx(47, qcL1, 0, 0 - 80, 8, '#e0e6f2', 0);
+        tx(48, qcL2, 0, 0 - 92, 8, '#e0e6f2', 0);
+    } else if (inRace > 0) { txOff(47); txOff(48); }
     // v2.1.2: the connection
     if (netLostT > 1) {
         let t = 'NO NEWS FROM THE SERVER - WAITING';

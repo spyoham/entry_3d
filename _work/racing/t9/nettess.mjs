@@ -76,7 +76,7 @@ let stopRelay = false;
 
 const V = (p, n) => p.page.evaluate((n) => { const v = window.__vm.variables.find((v) => v.name === n && !v.isList); return v && v.value; }, n);
 const L = (p, n, i) => p.page.evaluate(([n, i]) => { const l = window.__vm.variables.find((v) => v.name === n && v.isList); return l && l.array[i - 1] && l.array[i - 1].data; }, [n, i]);
-const KC = { up: ['ArrowUp', 38], down: ['ArrowDown', 40], left: ['ArrowLeft', 37], right: ['ArrowRight', 39], enter: ['Enter', 13], esc: ['Escape', 27], w: ['KeyW', 87], y: ['KeyY', 89] };
+const KC = { up: ['ArrowUp', 38], down: ['ArrowDown', 40], left: ['ArrowLeft', 37], right: ['ArrowRight', 39], enter: ['Enter', 13], esc: ['Escape', 27], w: ['KeyW', 87], y: ['KeyY', 89], d4: ['Digit4', 52] };
 const key = (p, type, k) => p.page.evaluate(([type, code, kc]) => document.body.dispatchEvent(new KeyboardEvent(type, { code, key: code, keyCode: kc, which: kc, bubbles: true })), [type, KC[k][0], KC[k][1]]);
 const tap = async (p, k, n = 1) => { for (let i = 0; i < n; i++) { await key(p, 'keydown', k); await sleep(90); await key(p, 'keyup', k); await sleep(140); } };
 const shot = async (p, name) => { const c = await p.page.$('canvas'); await c.screenshot({ path: path.join(shots, name) }); };
@@ -120,6 +120,9 @@ await B.page.keyboard.type('hi alice', { delay: 20 });
 await B.page.keyboard.press('Enter');
 const chatHas = async (p, s) => { for (let k = 1; k <= 6; k++) if (String(await L(p, 'chL', k)).includes(s)) return true; return false; };
 ok(await until(async () => chatHas(A, 'bob:  hi alice'), 8000), 'bob\'s chat line reaches alice');
+// v2.4.0: quick chat - bob presses 4
+await tap(B, 'd4');
+ok(await until(async () => chatHas(A, 'bob:  NICE PASS!'), 8000), "bob's quick chat (key 4) reaches alice");
 await shot(A, 'net_room.png');
 // alice starts
 await tap(A, 'enter');
