@@ -216,7 +216,16 @@ function carPhys(c) {
     if (vRef < 1.4) { vRef = 1.4; }
     let yrRad = caYR[c] / RAD;
     atan2d(vLat + yrRad * WBF, vRef);
-    let slipF = oAtan - steer;
+    // v3.0.1: the steered wheel's slip takes the direction of travel. Going
+    // backwards a wheel turned right slides the other way, so the car turns as
+    // a real one does in reverse (and as the low-speed model below always
+    // did). It was "- steer" either way: above 4 m/s in reverse the nose
+    // turned with the key, so the car went the opposite way to the key, and
+    // below 4 m/s the two models fought - left and right seemed to swap.
+    let sdir = vLong / 1.5;
+    if (sdir > 1) { sdir = 1; }
+    if (sdir < 0 - 1) { sdir = 0 - 1; }
+    let slipF = oAtan - steer * sdir;
     atan2d(vLat - yrRad * WBR, vRef);
     let slipR = oAtan;
     let gripF = mu * 0.50 * (1 - 0.28 * dmg);
