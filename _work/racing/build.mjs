@@ -10,6 +10,7 @@ import url from 'node:url';
 import { compileProgram } from './ejs.mjs';
 import { buildF1 } from './f1tracks.mjs';
 import { f1Car } from './f1car.mjs';
+import { roadCar } from './sccar.mjs';
 import { engineMp3, aiMp3, REF_RPM, LOOP_SEC, AI_RATIOS, AI_LEVELS, AI_LOOP } from './enginewav.mjs';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
@@ -1126,6 +1127,18 @@ export function buildData() {
     // face f when n . camLocal > cfP[f]
     lists.cfP = CM.F.map((f, i) => { const v = CM.V[f.q[0] - 1], n = CM.N[i]; return Math.round((n[0] * v[0] + n[1] * v[1] + n[2] * v[2]) * 1000 * 1024); });
     lists.coLo = CM.ordLo; lists.coHi = CM.ordHi;
+    // v3.3.0: the safety car's road coupe (sccar.mjs), the same layout under rc*;
+    // drawn into the car model's projection slots, so no more vertices than it
+    const RC = roadCar();
+    if (RC.V.length > C.NCARV) throw new Error('safety car verts ' + RC.V.length);
+    consts.NRV = RC.V.length; consts.NRVLO = RC.vLo; consts.NRFLO = RC.fLo; consts.NRFHI = RC.F.length - RC.fLo;
+    lists.rcvX = RC.V.map(p => mm(p[0])); lists.rcvY = RC.V.map(p => mm(p[1])); lists.rcvZ = RC.V.map(p => mm(p[2]));
+    lists.rcvP = RC.PIV.map(p => p[0]); lists.rcvPX = RC.PIV.map(p => mm(p[1])); lists.rcvPZ = RC.PIV.map(p => mm(p[2]));
+    lists.rcfA = RC.F.map(f => f.q[0]); lists.rcfB = RC.F.map(f => f.q[1]); lists.rcfC = RC.F.map(f => f.q[2]); lists.rcfD = RC.F.map(f => f.q[3]);
+    lists.rcfK = RC.F.map(f => f.k);
+    lists.rcnX = RC.N.map(n => Math.round(n[0] * 1024)); lists.rcnY = RC.N.map(n => Math.round(n[1] * 1024)); lists.rcnZ = RC.N.map(n => Math.round(n[2] * 1024));
+    lists.rcfP = RC.F.map((f, i) => { const v = RC.V[f.q[0] - 1], n = RC.N[i]; return Math.round((n[0] * v[0] + n[1] * v[1] + n[2] * v[2]) * 1000 * 1024); });
+    lists.rcoLo = RC.ordLo; lists.rcoHi = RC.ordHi;
     // liveries: primary, accent, helmet; slot 9 is the ghost
     const LIV = [
         { n: 'ROSSO', a: [214, 26, 32], b: [236, 236, 236], h: [250, 206, 40] },

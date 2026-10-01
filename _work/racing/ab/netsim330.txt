@@ -1,0 +1,65 @@
+latency 120 ms + jitter 60 ms
+PASS 4 players online, own slots 10,14,5,1, each sees 4/4/4/4
+PASS the room shows in the others' lobbies: 'Alice Cup' 2 1 lap(s)
+PASS bob and carol joined: 3 in the room
+PASS room chat reaches the room only
+PASS lobby chat stays in the lobby
+PASS start waits for ready: 'WAITING FOR EVERYONE TO PRESS READY'
+PASS all three started together: lights out within 0.00 s, 3 cars on each screen
+PASS dave watches: 3 cars, off by 6.3 / 6.3 / 6.1 m
+PASS the watcher hears the room
+PASS others drawn near where they are: median 3.5 m, 95% 7.6 m, max 13.5 m (866 samples)
+PASS race over on every screen, same order: alice > carol > bob  |  alice > carol > bob  |  alice > carol > bob  |  alice > carol > bob
+PASS back in the room (dave in the lobby)
+PASS same-moment claim of slot 1: fay 15, gus 1 (the lower session id kept it)
+PASS the slot left an hour ago (15) counts as free at once for a newcomer
+PASS gus left: his slot is free for fay right away, gus is back in the menu
+PASS a wrong code is refused
+PASS the right code gets in; a third player finds it full (max 2)
+PASS racing, contact 1
+PASS contact: ann's car pushed back 1.95 m, ben's stays where his screen puts it
+PASS contact off: they pass through each other
+PASS ben left mid-race: out on ann's screen, ben back in the room
+PASS ann finishes alone: the race is over (state 5 lap 2 fin 1 finishPos 1 dnf2 1 nCars 2 raceT 128)
+PASS second race, race id 1 -> 2
+PASS the host vanished: ben races on, the host is out
+PASS back to the lobby: 'THE HOST LEFT THE ROOM'
+PASS cy joined during the race and watches it (2 cars)
+PASS RIGHT switches the watched car: 2
+PASS ESC: back in the room, not the lobby
+PASS DOWN, ENTER: online, in the lobby (slot 3)
+PASS ENTER on CREATE: the settings form
+PASS room opened on circuit 3
+PASS ESC closes the room
+PASS ESC in the lobby: back to the main menu
+PASS bob, line dead 10 s: banner shown, ann and cat not taken as gone on his screen
+PASS ann saw bob out, then back (drawn 1.0 m off; he drove on: lap 1 ring 54)
+PASS bob: the banner is gone again
+PASS cat's work stopped: out on the others' screens within 7 s
+PASS a newcomer takes another slot (15, not cat's 13)
+PASS cat back in her slot 13 (same session), in the race with 3 cars
+PASS where she left it: lap 1 (was 1), ring 78 (was 74), clock 42.7 vs ann 43.1
+PASS the others see her back
+PASS the race finishes for all three (cat P3; places per screen 123 213 321)
+PASS the host came back to her room 'Stay' and bob is still in it
+PASS and when a host does not come back, the room closes after 20 s (bob pg 1 msg ​ why 1 live 0 sid 636969/636969 room 7 st 2 age 21.900000000133925 lost 0)
+PASS the CARS row steps 0 -> 1 -> 2 -> 3 -> 4 (now 4)
+PASS ben's lobby reads the rule: 4
+PASS racing in the same car: ann 86.0000 16.8000 1.1200 1.0000 1.0000 0.0000 0.0000 1.0000 0.0000 0.0000 0.0000 = ben 86.0000 16.8000 1.1200 1.0000 1.0000 0.0000 0.0000 1.0000 0.0000 0.0000 0.0000 = type 3 base (86.0000 16.8000 1.1200 1.0000 1.0000 0.0000 0.0000 1.0000 0.0000 0.0000 0.0000)
+PASS each still in their own colours (7 / 2)
+PASS ben's own upgrades, setup and car are kept for later
+PASS the grid says so: 'SAME CAR  AZURE RB FOR EVERYBODY'
+PASS brake balance key: from the base setup (bias 1)
+PASS rule 0: own car and setup, no upgrades
+PASS rule 1: own car with the upgrades, as offline
+PASS an older slot: rule 0, nick 'ann', title 'Equal'
+PASS a new slot: rule 4, nick 'ann'
+PASS offline: 3 does nothing
+PASS in the room: 3 sends GOOD LUCK! to the room (not the lobby)
+PASS the room shows the keys: 'QUICK CHAT   3 GOOD LUCK!   4 NICE PASS!   5 SORRY!   6 THANKS!   ' / '             7 GG   8 WATCH OUT!   9 LET'S GO!   '
+PASS a second phrase within a second is not sent
+PASS the grid shows the keys ('QUICK CHAT   3 GOOD LUCK!   4 NICE PASS!   5 SORRY!   6 THANKS!   '), gone after the start
+PASS racing: 9 sends LET'S GO!, the race goes on
+PASS the race hint: 'Y CHAT   3-9 QUICK'
+PASS realistic: 2 still moves the brake balance
+PASS the watcher can quick chat too

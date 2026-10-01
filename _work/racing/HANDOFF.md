@@ -1,3 +1,29 @@
+# F1 ONLINE 3D — 작업 인계 메모 (2026-10-01, v3.3.0)
+
+산출물: `F1 Online 3D v3.3.0.ent`, 설명서 `F1 Online 3D v3.3.0 설명서.md` (v3.2.0은 루트 `old/`로)
+빌드: `node build.mjs f1online330.ent` → project.json 17.61 MB
+
+## 요청과 한 것
+기능 목록 7번 "세이프티카를 진짜 로드카 모델로". 다음: 8번 온라인 리매치·서킷 투표.
+- 새 `sccar.mjs` `roadCar()`: f1car.mjs의 빌더를 복사.
+  - 정점 200(≤ NCARV 272), 면 100, 단순 단계 48/30.
+  - 면 종류 0 차체, 1 줄무늬, 2 트림, 3 타이어, 4 휠, 6 후미등, 8 유리, 9 경광등, 10 전조등.
+  - 부분마다 cen을 줘서 면 방향을 맞춤(앞유리·뒷유리처럼 면이 일부만 있는 로프트).
+- build.mjs: 리스트 rcv*/rcf*/rcn*/rco*(cv*·cf*… 구조 그대로), 상수 NRV, NRVLO, NRFLO, NRFHI.
+- render.js: `drawSC(c, tier)` = drawCar 복사본.
+  - rc 리스트를 쓰고, 날개·열·고스트 투명을 뺌. 경광등(gt·4 짝홀), 전조등·후미등 색.
+  - 투영은 같은 CARBASE 칸(차는 한 대씩 투영하고 바로 그리므로 같이 써도 됨).
+  - `drawCarAt`: c == GHOST이고 scCar > 0이면 drawSC. 고스트(scCar 0)는 drawCar. 버전 v3.3.0.
+- 예전 메모의 "버퍼 여유가 없어 두 번째 모델 불가"는 틀렸음: 버퍼 한도는 투영 칸에만 걸리고 원본 정점 리스트는 따로임.
+
+## 시험
+- `t9/scmodel.mjs`(새): 모델·면 종류, SC가 나오면 drawSC만(drawCar 래퍼로 셈), 경광등, 고스트 자리 분기. PASS.
+- `t9/scpreview.mjs`(새, `ab/scprev.png`), `t9/scshot.mjs`(새, sim 렌더러 사진 모드 카메라로 `ab/sc_*.png`).
+- 가까이서 보면 뒷바퀴가 차체 위에 조금 겹침(8방향 순서의 한계, F1 차와 같은 방식).
+- 회귀 `ab/*330.txt`.
+
+---
+
 # F1 ONLINE 3D — 작업 인계 메모 (2026-10-01, v3.2.0)
 
 산출물: `F1 Online 3D v3.2.0.ent`, 설명서 `F1 Online 3D v3.2.0 설명서.md` (v3.1.0은 루트 `old/`로)

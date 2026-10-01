@@ -1,0 +1,6 @@
+PASS model: 200 vertices (car slots 272), 100 faces, silhouette 48/30, 8 face orders per tier
+PASS face kinds: 0,1,2,3,4,6,8,9,10 (body, stripe, trim, tyre, rim, tail, glass, light bar, headlight)
+PASS safety car out: drawn as the coupe 5 times (21 faces a frame), never as the open-wheeler; the field 9 draws
+PASS the light bar is on and off a quarter of a second each
+PASS ghost slot: open-wheeler without the safety car (1), the coupe with it (1)
+all passed

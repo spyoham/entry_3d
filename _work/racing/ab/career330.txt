@@ -1,0 +1,28 @@
+PASS the main menu's fourth row is CAREER
+PASS a new career: season 1, team tier 8, goal P7
+PASS every car in its own team (8,4,5,6,7,1,2,3); the rival A. SILVA drives for tier 7
+PASS screen: 'SEASON 1   NERO RACING   (CAR RANK 8 OF 8)' / 'RACE ROUND 1:  SINGAPORE'
+PASS round 1: a grand prix on circuit 6, 8 cars, 1 lap
+PASS her car: team car type 4, her setup, no upgrades, pace x0.965: 82.1406 18.2887 0.9530 1.0900 1.0000 1.0000
+PASS every car in its team's livery: 8,5,4,6,3,1,7,2
+PASS the top team's AI car is 1.0561x its offline pace (team pace and livery character)
+PASS the grid after qualifying keeps the team's car: 82.1406 18.2887 0.9530 1.0900 1.0000 1.0000
+PASS quit mid-round: back in the menu, the round still to race, settings back
+PASS the round is over (finish P4)
+PASS points by place: 2:25 4:18 6:15 1:12 3:10 5:8 8:6 7:4
+PASS round 1 counted; head to head 1 - 0; the standings
+PASS standings screen: 'SEASON 1   -   AFTER ROUND 1 OF 6   -   NEXT: BAHRAIN   -   RIVAL 1 - 0'
+PASS ENTER: back on the career screen, her settings back
+PASS saved: fields 63-78 '1,8,1,0,0,1,0,0,12,25,10,18,8,15,4,6'
+PASS season over: P3, reputation 42, +440 XP
+PASS offers: tiers 6, 7, 8
+PASS offer rows: 'MOVE UP TO VIOLA RACING  (CAR RANK 6)' / 'STAY WITH NERO RACING  (CAR RANK 8)'; 'SEASON 1:  P3  -  GOAL MET  -  RIVAL BEATEN  -  +440 XP'
+PASS season 2 with tier 6: goal P5, points reset
+PASS drivers moved teams (6,8,1,2,3,4,5,7); the rival drives for tier 5
+PASS P8 against a goal of P2: one offer, tier 4; reputation 0
+PASS champion: titles 1, achievement 14, reputation 75
+PASS next session: season 2, tier 1, phase 1, titles 1
+PASS backup code (194 letters): the career is back
+PASS NEW CAREER: the first ENTER only asks
+PASS the second starts over (titles kept)
+all passed
