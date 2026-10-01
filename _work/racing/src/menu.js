@@ -384,7 +384,7 @@ function drawTrkSel() {
 function hudMenu() {
     tx(9, 'F1 ONLINE 3D', 0 - 232, 116, 21, C_WHITE, 1);
     syLabel();
-    tx(10, str('v3.0.1  /  ', oSyL), 0 - 232, 96, 8, C_WHITE, 1);
+    tx(10, str('v3.1.0  /  ', oSyL), 0 - 232, 96, 8, C_WHITE, 1);
     let lvl = pLoaded > 0 ? str('LV ', pLv, '  ', pNick) : 'LOADING SAVE...';
     tx(13, lvl, 0 - 80, 96, 8, C_GOLD, 1);
     let crumb = 'MAIN MENU';
@@ -828,6 +828,9 @@ function drawReplayUI() {
     // position in the buffer
     let f = 0;
     if (rpN > 1) { f = rpT / ((rpN - 1) * RPDT); }
+    // (v3.1.0: in the whole race, or in the clip)
+    if (rpSrc == 1) { if (rfN > 1) { f = rfT / ((rfN - 1) * rfDT); } }
+    if (rpSrc == 2) { f = (rfT - hcA[hcK]) / Math.max(0.1, hcB[hcK] - hcA[hcK]); }
     box(0 - 150, 0 - 102, 150, 0 - 105, '#2a3240');
     box(0 - 150, 0 - 102, 0 - 150 + 300 * f, 0 - 105, C_RED);
 }

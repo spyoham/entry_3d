@@ -752,6 +752,7 @@ function netDoStart() {
     camYawS = caYaw[1];
     camX = caX[1]; camZ = caZ[1]; camY = caY[1] + 3;
     rpReset();
+    rfReset();
     statsReset();
     ghostOn = 0;
     showLine = 0;

@@ -43,6 +43,8 @@ function pollAction() {
     if (key(79)) { if (pkSt[22] < 1) { if (k == 0) { k = 79; } } } else { pkSt[22] = 0; }
     // v2.1.0: Y chats online
     if (key(89)) { if (pkSt[23] < 1) { if (k == 0) { k = 89; } } } else { pkSt[23] = 0; }
+    // v3.1.0: H highlights
+    if (key(72)) { if (pkSt[31] < 1) { if (k == 0) { k = 72; } } } else { pkSt[31] = 0; }
     // v2.4.0: 3-9 quick chat (polled only online; a key block needs a fixed key)
     if (netOn > 0) {
         if (key(51)) { if (pkSt[24] < 1) { if (k == 0) { k = 51; } } } else { pkSt[24] = 0; }
@@ -541,6 +543,7 @@ on('start', 'pen3', function () {
             else if (actKey == 82) { restartRace(); }
             else if (actKey == 77) { toMenu(); }
             else if (actKey == 86) { enterReplay(); }
+            else if (actKey == 72) { rfEnter(2); }
             else if (actKey == 79) { photoEnter(); }
         } else if (raceState == ST_LOAD) {
             ldT = ldT + 1;
@@ -575,7 +578,8 @@ on('start', 'pen3', function () {
                 else { toMenu(); }
             }
             else if (actKey == 82) { restartRace(); }
-            else if (actKey == 86) { enterReplay(); }
+            else if (actKey == 86) { rfEnter(1); }
+            else if (actKey == 72) { rfEnter(2); }
             else { stepRace(); renderWorld(); }
         } else if (raceState == ST_STAND) {
             if (actKey == 13) {

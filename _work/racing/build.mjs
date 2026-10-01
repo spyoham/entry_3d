@@ -13,7 +13,7 @@ import { f1Car } from './f1car.mjs';
 import { engineMp3, aiMp3, REF_RPM, LOOP_SEC, AI_RATIOS, AI_LEVELS, AI_LOOP } from './enginewav.mjs';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'rules.js', 'race3.js', 'fx.js', 'sound.js', 'share.js', 'profile.js', 'savecode.js', 'editor.js', 'daily.js', 'career.js', 'net.js', 'menu.js', 'hud.js', 'main.js'];
+export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'rules.js', 'race3.js', 'fx.js', 'replay.js', 'sound.js', 'share.js', 'profile.js', 'savecode.js', 'editor.js', 'daily.js', 'career.js', 'net.js', 'menu.js', 'hud.js', 'main.js'];
 
 // ============================================================
 // constants shared with the EJS sources
@@ -76,6 +76,10 @@ export const C = {
     // ---- v7 ----
     RPN: 550,           // replay samples kept (a ring buffer: the last RPN * RPDT s)
     RPDT: 0.1,          // replay sample interval, seconds
+    RFH: 550,           // v3.1.0 whole-race replay: samples per list (two lists of RFH x RPC)
+    RFDT0: 0.5,         // ...seconds between samples at the start (doubles when full)
+    HLN: 24,            // highlight moments written down per race
+    HLMAX: 8,           // ...and clips shown
     RPC: 9,             // cars per replay sample: the field plus the safety car
     NSPK: 40,           // spark particles
     NTV: 48,            // trackside TV cameras per circuit, at most
@@ -86,7 +90,7 @@ export const C = {
     NZ: 16,             // weather zones round a lap (rain, water, the dry line)
     FUELRACE: 100,      // kg a full-length race is fuelled for
     VSCK: 0.62,         // virtual safety car: speed as a share of the reference lap
-    NPK: 30,            // v3.2: menu keys polled (19) + the editor's K and I (v6.0: + O; v2.1.0 Y; v2.4.0 3-9)
+    NPK: 31,            // v3.2: menu keys polled (19) + the editor's K and I (v6.0: + O; v2.1.0 Y; v2.4.0 3-9)
     NTEAM: 8,           // v3.0.0 career: teams (the eight liveries)
     NCRR: 6,            // ...rounds in a season
     NQC: 7,             // v2.4.0: quick chat phrases, keys 3-9
@@ -1473,6 +1477,12 @@ export function buildData() {
     lists.tmPowC = [1.035, 1.025, 1.015, 1.005, 0.995, 0.985, 0.975, 0.965];
     lists.tmCarC = [1, 2, 3, 4, 1, 2, 3, 4];
     lists.crTm = zeros(C.NCAR + 1); lists.crPts = zeros(C.NCAR + 1); lists.crOff = zeros(4);
+    // v3.1.0 whole-race replay and highlights
+    lists.rfA = zeros(C.RFH * C.RPC); lists.rfB = zeros(C.RFH * C.RPC);
+    for (const k of ['hxT', 'hxK', 'hxC', 'hxO', 'hxW', 'hxL', 'hxU']) lists[k] = zeros(C.HLN + 1);
+    for (const k of ['hcA', 'hcB', 'hcC', 'hcI']) lists[k] = zeros(C.HLMAX + 1);
+    lists.hxOf = zeros(C.RPC + 1); lists.hxDn = zeros(C.RPC + 1);
+    lists.rpSpdV = [0.5, 1, 2, 4, 8];
     // v2.4.0 quick chat (keys 3-9 online)
     lists.qcTx = ['GOOD LUCK!', 'NICE PASS!', 'SORRY!', 'THANKS!', 'GG', 'WATCH OUT!', "LET'S GO!"];
     // time into the lap at each ring: best lap and the current one (live delta)

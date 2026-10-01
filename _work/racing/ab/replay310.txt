@@ -1,0 +1,18 @@
+PASS the race is over at 662 s (5 laps, P2)
+PASS buffer: 662 samples 1 s apart (661 s of race)
+PASS at the samples: 5288 places, median 0.04 m, 99% 0.08 m, worst 0.10 m
+PASS every frame of car 1: median 0.36 m, 95% 1.37 m off (between samples 1 s apart)
+PASS moments: 10 (start 1, passes 5, passed 1, lead 1, off 0, retired 0, finish 1, win 1)
+PASS 5 clips in race order, apart, inside the race: 0-7s car 1, 10-27s car 1, 52-59s car 1, 82-89s car 1, 613-620s car 2
+PASS captions: 'THE START' ... 'LAP 5   M. ROSSI WINS'
+PASS V: the whole race from the start
+PASS UP twice: x4, 8.0 s of race in 2 s
+PASS HUD: 'FULL RACE' '0:09.300 / 11:01.000   x4'
+PASS H: the highlights from the first clip
+PASS clips play one after another (1, 2, 3), caption 'LAP 1   YOU PASS L. BERG'
+PASS ENTER: back to the results, the cars where they were
+PASS H straight from the results: the highlights
+PASS pause, V: the last minute in detail (as before)
+PASS pause, H: the highlights so far (3 clips)
+PASS and back to the pause menu
+all passed

@@ -296,6 +296,7 @@ function enterReplay() {
         rpGhost = ghostOn;
         rpSC = scCar;
         raceState = ST_REPLAY;
+        rpSrc = 0;
         rpT = 0;
         rpCar = 1;
         rpCam = 0;
@@ -452,6 +453,9 @@ function replayPose() {
 }
 
 function replayStep() {
+    // (v3.1.0: or the whole race / its highlights, replay.js)
+    if (rpSrc > 0) { rfStep(); }
+    else {
     if (actKey == 32) { rpPause = 1 - rpPause; }
     if (actKey == 37) { rpCar = mod(rpCar + nCars - 2, nCars) + 1; tvFind(caSeg[rpCar]); }
     if (actKey == 39) { rpCar = mod(rpCar, nCars) + 1; tvFind(caSeg[rpCar]); }
@@ -461,6 +465,7 @@ function replayStep() {
         if (rpT > (rpN - 1) * RPDT) { rpT = 0; tvFind(caSeg[rpCar]); }
     }
     replayPose();
+    }
     camCar = rpCar;
     if (rpCam == 0) { tvCam(); }
     else {

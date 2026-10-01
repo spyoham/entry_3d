@@ -1,3 +1,42 @@
+# F1 ONLINE 3D — 작업 인계 메모 (2026-10-01, v3.1.0)
+
+산출물: `F1 Online 3D v3.1.0.ent`, 설명서 `F1 Online 3D v3.1.0 설명서.md` (v3.0.1은 루트 `old/`로)
+빌드: `node build.mjs f1online310.ent` → project.json 16.99 MB
+
+## 요청과 한 것
+기능 목록 5번 "레이스 전체 리플레이 + 하이라이트". 다음: 6번 손상 확장.
+- 새 `src/replay.js`(SRC_FILES에서 fx.js 뒤).
+- 버퍼 rfA/rfB(RFH 550 × RPC 9 each)
+  - 샘플 v = round(p·100)·1000 + round((off + 50)·10), p = ring − 1 + u. 0이면 없음.
+  - `rfRec()`(stepRace 끝, lightsOut이고 ST_RACE/ST_DONE): raceT ≥ rfNext면 기록. 꽉 차면 `rfHalve()`(하나 걸러, rfDT × 2). RFDT0 0.5.
+  - **기록은 `rfInv(x, z)`**: sampleTrack의 u는 링 방향 투영이라 코너 바깥에서 1–3 m 어긋남.
+    - 뉴턴 3회로 "링점 + 현·u + 섞은 법선·off = x, z"를 정확히 푸는 u, off를 구함. 이렇게 해서 샘플 오차 최대 0.10 m.
+    - (참고: caSeg/caU/caOff는 하위 단계 시작 때 값이라 늦음 — 쓰지 말 것.)
+  - `rfAt(c, t)`: 진행도를 랩 경계를 고려해(±NSEG/2) 보간해서 oRX/oRZ를 구함. `rfPose(t)`: t와 t + 0.25로 yaw·속도, sampleTrack으로 높이.
+- 하이라이트 이름은 **hx\***(hlN·hgN은 트랙 리스트라 충돌했음).
+  - `hxStep()`(ST_RACE 매 프레임)
+    - 시작 1회 START(9). raceT > 6부터 선두 교체 LEAD(7).
+    - 내 순위 변화 PASS(6)/PASSED(4), 3 s 간격. 코스 이탈 caOffT > 1(내 5, 남 2). DNF(내 6, 남 4).
+  - `hxFinish(c)`(updateLap): 내 FIN(8), 우승 WIN(8). HLN 24, 가득 차면 가장 가벼운 것을 바꿈.
+  - `hxClips()`: 무거운 HLMAX 8개를 시간순으로.
+    - 창 [t − 3, t + 4], START [0, 7], FIN/WIN [t − 5, t + 2]. 겹치면 앞 클립을 늘림.
+  - `hxCaption(k)` → oHC.
+- 재생: `rfEnter(src)`(1 전체, 2 하이라이트, 클립 없으면 1). ST_REPLAY에서 rpSrc > 0이면 fx.js replayStep이 `rfStep()`.
+  - ↑/↓ rpSpd(rpSpdV 0.5..8), H 전환. 하이라이트는 클립 끝에서 다음 클립 차로 tvFind.
+- 키
+  - 결과 화면 V = rfEnter(1)(예전엔 마지막 1분), H = rfEnter(2). 일시정지 V = 예전 enterReplay, H = rfEnter(2).
+  - H(72) 폴링 pkSt[31], NPK 31.
+- HUD: hudReplay 제목 FULL RACE/HIGHLIGHTS, 시간·속도·클립, 캡션 tx 14. drawReplayUI 막대. 결과·일시정지 안내 문구. 버전 v3.1.0.
+
+## 시험
+- `t9/replay.mjs [trk] [lapSel]`(새): 5랩 GP(AI 운전, 약 15초).
+  - 샘플 5,296곳 최대 0.10 m, 매 프레임 중앙값 0.35 m. 장면·클립·글자, 키(V, ↑, H, ENTER 복원, 일시정지 V/H).
+  - 주의: 결과 화면에서는 완주한 차가 계속 움직이므로 ENTER 바로 그 프레임에서 비교할 것.
+- `t9/replayshot.mjs`(새, tessvm): `ab/replay_pause.png`, `ab/replay_hl.png`.
+- 회귀 `ab/*310.txt`.
+
+---
+
 # F1 ONLINE 3D — 작업 인계 메모 (2026-10-01, v3.0.1)
 
 산출물: `F1 Online 3D v3.0.1.ent`, 설명서 `F1 Online 3D v3.0.1 설명서.md` (v3.0.0은 루트 `old/`로)
