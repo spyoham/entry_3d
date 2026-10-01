@@ -1,0 +1,14 @@
+PASS both online, each sees 2 players (slots 16, 1; nick alice)
+PASS bob's lobby lists alice's room: 'alice ROOM'
+PASS bob joined and is ready (on alice's screen)
+PASS bob's chat line reaches alice
+PASS both loaded, got the go and the lights went out (cars: 2 / 2)
+PASS same car for both (rule 2): top 90.00 / 90.00
+PASS racing (alice 170 km/h): the other car drawn 1.2 m from where it is (median; max 37.1 m)
+PASS chat in the race reaches bob
+PASS bob's line dead: 'CONNECTION LOST - RECONNECTING  8 s', alice kept on his screen
+PASS alice saw bob out while he was cut off, and back after
+PASS bob's work stopped: out on alice's screen
+PASS bob started again and chose ONLINE: back in the race (slot 1 was 1, lap 1 was 1)
+PASS alice sees him back
+PASS page errors: none (608 messages relayed)

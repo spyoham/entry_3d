@@ -297,7 +297,7 @@ if (want('keys')) {
     ok(+A.g('netPg') === 2, 'ENTER on CREATE: the settings form');
     tap(40); tap(39); tap(39);                      // circuit + 2
     const trk = +A.g('nrTrk');
-    for (let i = 0; i < 7; i++) tap(40);            // down to OPEN THE ROOM (row 9)
+    for (let i = 0; i < 8; i++) tap(40);            // down to OPEN THE ROOM (row 10 since v2.2.0)
     tap(13);
     run(srv, [A], 1);
     ok(+A.g('netPg') === 3 && +A.g('netRoom') === +A.g('netMy') && trk === 3, `room opened on circuit ${trk}`);
@@ -403,4 +403,63 @@ if (want('drop')) {
         run(srv, [B], 25);
         ok(+B.g('netPg') === 1 && String(B.g('netWhy')).startsWith('1 live 0'), 'and when a host does not come back, the room closes after 20 s (bob pg ' + B.g('netPg') + ' msg ' + B.g('msg') + ' why ' + B.g('netWhy') + ')');
     }
+}
+
+// ---- v2.2.0 the cars rule: own car / upgrades too / everybody the same car ----------
+if (want('cars')) {
+    const srv = new Server();
+    const A = new Client(srv, 'ann'), B = new Client(srv, 'ben');
+    const all = [A, B];
+    run(srv, all, 2);
+    // both have bought upgrades and moved the setup, in different cars
+    A.g('selCar = 2; upE = 3; upA = 2; upB = 1; upT = 2; suW = 2; suG = -1; suB = 1; suS = 1; suF = 2; suD = 1; suP = -1');
+    B.g('selCar = 3; upE = 1; upA = 3; upB = 3; upT = 0; suW = -2; suG = 2; suB = -1; suS = -1; suF = -1; suD = -2; suP = 2');
+    const KS = ['caTop', 'caAcc', 'caGrip', 'caAeroK', 'caBrkK', 'caBias', 'caSusp', 'caWearK', 'caFWb', 'caDiff', 'caPres'];
+    const stats = (c) => KS.map((k) => (+c.L(k, 1)).toFixed(4)).join(' ');
+    // what car 1 would be offline, with these upgrades / setup changed first
+    const ref = (c, ct, pre) => {
+        c.g(`oRef = [upE, upA, upB, upT, suW, suG, suB, suS, suF, suD, suP]; ${pre}; carStats(1, ${ct}); upE = oRef[0]; upA = oRef[1]; upB = oRef[2]; upT = oRef[3]; suW = oRef[4]; suG = oRef[5]; suB = oRef[6]; suS = oRef[7]; suF = oRef[8]; suD = oRef[9]; suP = oRef[10]`);
+        return stats(c);
+    };
+    const NOUP = 'upE = 0; upA = 0; upB = 0; upT = 0';
+    const BASE = 'suW = 0; suG = 0; suB = 0; suS = 0; suF = 0; suD = 0; suP = 0';
+    for (const c of all) { c.g('netEnter()'); drive(c); }
+    run(srv, all, 4);
+    // ann's room: everybody in car type 3 (rule 4)
+    A.g("nrTitle = 'Equal'; nrTrk = 3; nrLapSel = 1; nrCon = 0; netOpenRoom()");
+    A.g('netRow = 7; netForm(1); netForm(1); netForm(1); netForm(1)');
+    ok(+A.g('nrCarR') === 4, `the CARS row steps 0 -> 1 -> 2 -> 3 -> 4 (now ${A.g('nrCarR')})`);
+    run(srv, all, 2);
+    const h = +A.g('netMy');
+    ok(+B.L('nsCarR', h) === 4, `ben's lobby reads the rule: ${B.L('nsCarR', h)}`);
+    B.g(`netJoin(${h})`);
+    run(srv, all, 2);
+    B.g('netSt = NS_READY; netPush()');
+    run(srv, all, 1);
+    A.g('netStart()');
+    let saw = '';
+    run(srv, all, 14, () => { const m = String(B.g('msg')); if (m.includes('SAME CAR')) saw = m; });
+    const cols = [+A.L('caCol', 1), +B.L('caCol', 1)];
+    const want4 = ref(A, 3, `${NOUP}; ${BASE}`);
+    ok(+A.g('raceState') === 3 && +B.g('raceState') === 3 && +B.g('netCarR') === 4 && stats(A) === stats(B) && stats(B) === want4,
+        `racing in the same car: ann ${stats(A)} = ben ${stats(B)} = type 3 base (${want4})`);
+    ok(cols[0] === +A.L('ctCol', 2) && cols[1] === +B.L('ctCol', 3), `each still in their own colours (${cols.join(' / ')})`);
+    ok(+B.g('upE') === 1 && +B.g('upA') === 3 && +B.g('suW') === -2 && +B.g('suP') === 2 && +B.g('selCar') === 3, "ben's own upgrades, setup and car are kept for later");
+    ok(saw.includes('AZURE RB'), `the grid says so: '${saw}'`);
+    // realistic brake balance from the cockpit starts at the base setup too
+    B.g('rules = R_SIM; bbAdj = 0; cockpitKey(50)');
+    ok(+B.L('caBias', 1) === 1, `brake balance key: from the base setup (bias ${B.L('caBias', 1)})`);
+    // the other two rules, on ben's car
+    B.g('netCarR = NCR_OWN; netCarStats()');
+    ok(stats(B) === ref(B, 3, NOUP), 'rule 0: own car and setup, no upgrades');
+    B.g('netCarR = NCR_UPG; netCarStats()');
+    ok(stats(B) === ref(B, 3, 'oRef = oRef') && stats(B) !== ref(B, 3, NOUP), 'rule 1: own car with the upgrades, as offline');
+    // a slot written by an older game (no rule character before the '|') still reads right
+    A.g('netRecord()');
+    const rec = String(A.g('oRec'));
+    const old = rec.slice(0, 102) + rec.slice(103);
+    B.g(`netParse(9, '${old.replace(/'/g, "\'")}')`);
+    ok(+B.L('nsCarR', 9) === 0 && B.L('nsNick', 9) === 'ann' && B.L('nsTitle', 9) === 'Equal', `an older slot: rule ${B.L('nsCarR', 9)}, nick '${B.L('nsNick', 9)}', title '${B.L('nsTitle', 9)}'`);
+    B.g(`netParse(10, '${rec.replace(/'/g, "\'")}')`);
+    ok(+B.L('nsCarR', 10) === 4 && B.L('nsNick', 10) === 'ann' && B.L('nsTitle', 10) === 'Equal', `a new slot: rule ${B.L('nsCarR', 10)}, nick '${B.L('nsNick', 10)}'`);
 }

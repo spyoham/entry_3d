@@ -1451,7 +1451,7 @@ export function buildData() {
     lists.rkSeen = new Array(C.NTRK + 1).fill('-');     // v2.1.3: each ?!rank item as last read (rankWatch)
     // v2.1.0 online: what each slot says (ns*), the cars' online state (ca*), chat
     for (const k of ['nsV', 'nsT', 'nsSeen', 'nsStale', 'nsLive', 'nsSid', 'nsSt', 'nsRoom', 'nsRSid', 'nsRid', 'nsCar', 'nsChS', 'nsRst', 'nsTrk',
-        'nsLaps', 'nsRules', 'nsWx', 'nsCon', 'nsMax', 'nsCode', 'nsGrid', 'nsLap', 'nsSeg', 'nsU', 'nsOff', 'nsYaw', 'nsSpd', 'nsFl', 'nsFin',
+        'nsLaps', 'nsRules', 'nsWx', 'nsCon', 'nsMax', 'nsCarR', 'nsCode', 'nsGrid', 'nsLap', 'nsSeg', 'nsU', 'nsOff', 'nsYaw', 'nsSpd', 'nsFl', 'nsFin',
         'nsRT', 'nsRcv', 'nsNick', 'nsTitle', 'nfL', 'nsSeq', 'nsRtt']) lists[k] = zeros(C.NPS + 1);
     lists.netSentT = zeros(1000);
     for (const k of ['caNet', 'caSlot', 'caNP', 'caNOff', 'caNGo']) lists[k] = zeros(C.NCAR + 3);

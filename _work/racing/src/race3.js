@@ -334,16 +334,19 @@ function blueStep(step) {
 // ---- the cockpit (realistic): F fuel mix, 1 / 2 brake balance --------------------------
 function cockpitKey(k) {
     if (rules == R_SIM) {
+        // (v2.2.0: from the base setup when the online room gives everybody the same car)
+        let b0 = suB;
+        if (netRace > 0) { if (netCarR > NCR_UPG) { b0 = 0; } }
         if (k == 70) {
             caMix[1] = mod(caMix[1], 3) + 1;
             setMsg(str('FUEL MIX  ', mixName[caMix[1]]), 1.4);
         } else if (k == 49) {
             if (bbAdj > 0 - 4) { bbAdj = bbAdj - 1; }
-            caBias[1] = suB + bbAdj;
+            caBias[1] = b0 + bbAdj;
             setMsg(str('BRAKE BALANCE  ', 55 + 2.5 * caBias[1], '% FRONT'), 1.4);
         } else if (k == 50) {
             if (bbAdj < 4) { bbAdj = bbAdj + 1; }
-            caBias[1] = suB + bbAdj;
+            caBias[1] = b0 + bbAdj;
             setMsg(str('BRAKE BALANCE  ', 55 + 2.5 * caBias[1], '% FRONT'), 1.4);
         }
     }

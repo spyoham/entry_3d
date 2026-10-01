@@ -1,3 +1,39 @@
+# F1 ONLINE 3D — 작업 인계 메모 (2026-10-01, v2.2.0)
+
+산출물: `F1 Online 3D v2.2.0.ent`, 설명서 `F1 Online 3D v2.2.0 설명서.md` (v2.1.3은 루트 `old/`로)
+빌드: `node build.mjs f1online220.ent` → project.json 15.73 MB(전체 크기는 이제 제한으로 보지 않음)
+
+## 요청과 한 것
+"레이싱 게임에 추가할 기능 추천" → 사용자가 11개를 골라 "각각 끊어서 순서대로" 진행하기로 함. 이번이 1번(온라인 공정 모드).
+- 남은 순서(사용자 승인): 2 오늘의 도전, 3 빠른 채팅, 4 커리어 모드, 5 레이스 전체 리플레이·하이라이트, 6 손상 확장, 7 세이프티카 로드카 모델,
+  8 리매치·서킷 투표, 9 온라인 페널티·트랙 리밋, 10 도색, 11 스프린트 주말. 야간 경기는 제외.
+- 용량: 사용자 "리스트/변수 항목에 너무 긴 값만 없으면 용량 제한은 없다고 보면 돼(저장은 한 번, 오류는 console로)". 전체 크기 때문에 기능을 줄이지 않음. 항목 하나는 8000자 이하 유지(pkS).
+- **방 규칙 CARS** `nrCarR`(NCR_OWN 0 내 차·세팅·업그레이드 없음 = v2.1.0 방식, NCR_UPG 1 업그레이드까지, 2+ = 모두 차 종류 `nrCarR − 1`, 기본 세팅, 업그레이드 없음).
+  - 슬롯 고정 머리 102 → **NHDR 103**: 103번째 글자 = 규칙(ack 뒤). `netParse`는 103번째가 '|'면 옛 칸(규칙 0, 글은 104부터).
+    - 옛 v2.1.x 페이지는 새 칸의 닉네임을 한 글자 밀려 읽음(새로고침하면 끝).
+  - netBegin이 방장 칸에서 `netCarR`. netDoStart의 내 차는 `netCarStats()`.
+    - 업그레이드(upE/A/B/T)·세팅(suW/G/B/S/F/D/P)을 잠시 바꿔 carStats(1, ct), 그다음 되돌림.
+    - 색은 항상 `ctCol[selCar]`(내 색).
+  - race3.js cockpitKey 브레이크 밸런스: SAME CAR면 suB 대신 0에서.
+  - 화면
+    - 설정 줄 7 CARS(←→ 0..NCARTYPE+1 순환), 8 PLAYERS, 9 PRIVATE, 10 OPEN/SAVE. `< BACK` 줄을 없앰(ESC).
+    - 방 화면은 규칙을 왼쪽 슬롯 45·46으로 옮김(오른쪽 위 51 줄이 잘려 보였음).
+    - 로비 목록에 규칙이 0이 아니면 짧은 글. 출발 시 SAME CAR면 msg 5 s.
+  - netResume이 nrCarR 복원. build.mjs ns 리스트에 nsCarR.
+- 메뉴 버전 글자 v2.2.0.
+
+## 시험
+- `t9/netsim.mjs cars`(새): 11 PASS. 서로 다른 차·업그레이드·세팅의 두 사람.
+  - SAME CAR 성능 11항목 일치와 기준값, 색, 경주 뒤 보존, 출발 안내, 밸런스 키, 규칙 0·1, 옛 칸·새 칸 읽기.
+  - 주의: 기준값을 carStats(1, …)로 구하면 caCol[1]도 덮이므로 색은 먼저 읽을 것.
+- `keys`는 OPEN THE ROOM이 10번째 줄이 되어 아래 8번으로 고침. 전체 `ab/netsim220.txt`.
+- `t9/nettess.mjs`: 키로 CARS를 SAME CAR(차 1)로 바꿔 방을 열고 두 화면 caTop 같음 확인 추가. 14 PASS(`ab/nettess220.txt`).
+  - `t9/netreal.mjs`는 아래 9번으로 고침(이번에 돌리지 않음).
+- `t9/netform.mjs`(새): tessvm 한 창, 방 설정 화면 스크린숏 `ab/net_form.png`. tessvm 서버 `node ../tessvm/tsrv.mjs 3100`이 떠 있어야 함.
+- 오프라인 회귀 `ab/tests220.txt`, 기록 `ab/rec220.txt`, `ab/prof220.txt`.
+
+---
+
 # F1 ONLINE 3D — 작업 인계 메모 (2026-10-01, v2.1.3)
 
 산출물: `F1 Online 3D v2.1.3.ent`, 설명서 `F1 Online 3D v2.1.3 설명서.md` (v2.1.2는 루트 `old/`로)

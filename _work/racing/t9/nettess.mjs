@@ -100,10 +100,11 @@ if (process.env.DBG) {
     console.log(' A gt', await V(A, 'gt'), 'B gt', await V(B, 'gt'), 'A wall?', await A.page.evaluate(() => { const d = new Date(); return ((d.getDate() * 24 + d.getHours()) * 60 + d.getMinutes()) * 60 + d.getSeconds(); }) % 100000);
 }
 await shot(A, 'net_lobby.png');
-// alice: CREATE A ROOM, circuit +1, down to OPEN THE ROOM
+// alice: CREATE A ROOM, circuit +1, (v2.2.0) CARS two to the right = SAME CAR in car type 1, down to OPEN THE ROOM
 await tap(A, 'enter');
 await tap(A, 'down'); await tap(A, 'right');
-await tap(A, 'down', 7);
+await tap(A, 'down', 5); await tap(A, 'right', 2);
+await tap(A, 'down', 3);
 await tap(A, 'enter');
 ok(await until(async () => +(await V(B, 'nrN')) === 1), `bob's lobby lists alice's room: '${await L(B, 'nsTitle', +(await V(A, 'netMy')))}'`);
 await shot(B, 'net_lobby_room.png');
@@ -124,6 +125,9 @@ await shot(A, 'net_room.png');
 await tap(A, 'enter');
 ok(await until(async () => +(await V(A, 'raceState')) === 3 && +(await V(B, 'raceState')) === 3, 60000),
     `both loaded, got the go and the lights went out (cars: ${await V(A, 'nCars')} / ${await V(B, 'nCars')})`);
+// v2.2.0: the cars rule went across with the room
+ok(+(await V(A, 'netCarR')) === 2 && +(await V(B, 'netCarR')) === 2 && +(await L(A, 'caTop', 1)) === +(await L(B, 'caTop', 1)),
+    `same car for both (rule ${await V(B, 'netCarR')}): top ${(+(await L(A, 'caTop', 1))).toFixed(2)} / ${(+(await L(B, 'caTop', 1))).toFixed(2)}`);
 for (const p of P) await key(p, 'keydown', 'w');
 let err = [];
 for (let i = 0; i < 16; i++) {

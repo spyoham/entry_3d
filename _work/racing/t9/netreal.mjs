@@ -84,7 +84,7 @@ ok(await until(async () => +(await V(A, 'netAlive')) === 2 && +(await V(B, 'netA
     `both online, each sees 2 (nicks ${await V(A, 'pNick')}, ${await V(B, 'pNick')})`);
 const g1 = await A.page.evaluate(() => { const t = performance.now(); return new Promise((r) => { let n = 0; const e0 = Entry.engine; setTimeout(() => r(0), 10); }); });
 await tap(A, 'enter');
-await tap(A, 'down', 8);
+await tap(A, 'down', 9);
 await tap(A, 'enter');
 ok(await until(async () => +(await V(B, 'nrN')) === 1), `bob sees alice's room: '${await L(B, 'nsTitle', +(await V(A, 'netMy')))}'`);
 await tap(B, 'enter');

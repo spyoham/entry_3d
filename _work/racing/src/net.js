@@ -7,7 +7,8 @@
 // fight over: a slot is one line of fixed-width fields
 //   F sid seq wall st room rsid rid car chat# | host: rst trk laps rules wx
 //   contact max code grid | race: lap seg u off yaw spd flags finish time |
-//   ack: another slot, the last seq heard from it and how long ago
+//   ack: another slot, the last seq heard from it and how long ago |
+//   v2.2.0, host: the cars rule (a slot without it is read as rule 0)
 //   then '|' nick '|' last chat line '|' room title
 // sent again every NETHB s in the menus (a heartbeat) and NETHZ times a
 // second in a race. A slot that has not changed for NSTALE s is empty.
@@ -48,7 +49,10 @@ const NS_RACE = 5;
 const NS_FIN = 6;
 const NS_WATCH = 7;
 const NS_LOADING = 8;       // building the circuit: plain Entry can go quiet for many seconds
-const NHDR = 102;           // characters before the '|' and the texts
+const NHDR = 103;           // characters before the '|' and the texts (102 before v2.2.0)
+const NCR_OWN = 0;          // v2.2.0 the cars rule: own car and setup, no upgrades
+const NCR_UPG = 1;         // own car, setup and upgrades
+                            // 2 and on: everybody in car type rule-1, base setup, no upgrades
 
 let netOn = 0;              // the player is in the online part of the game
 let netMy = 0;              // the slot they hold (0: none yet)
@@ -75,6 +79,7 @@ let nrRules = 1;
 let nrWx = 1;
 let nrCon = 1;
 let nrMax = 8;
+let nrCarR = 0;             // v2.2.0 the cars rule (NCR_)
 let nrCode = 0;
 let nrRst = 0;
 let nrGrid = 'G0000000000000000';     // (G first: tessvm makes a number of a variable that looks like one)
@@ -88,6 +93,7 @@ let netWatch = 0;           // watching: every car is someone else's
 let netWait = 0;            // on the grid until the host's go
 let netLaps = 3;
 let netCon = 0;             // contact between cars in this race
+let netCarR = 0;            // v2.2.0 the cars rule of this race
 let netEndT = 0;            // seconds since the first car finished
 let netOver = 0;
 let netFrom = 0;            // watching from: 0 the lobby, 1 the room
@@ -236,6 +242,7 @@ function netRecord() {
     if (ak > 0) { aq = nsSeq[ak]; hold = Math.min(999, (gt - nsRcv[ak]) * 1000); }
     npad(aq, 3); r = str(r, oPd);
     npad(hold, 3); r = str(r, oPd);
+    r = str(r, nrCarR);
     netNick();
     oRec = str(r, '|', oNm, '|', chTx, '|', nrTitle);
 }
@@ -253,7 +260,7 @@ function netPush() {
 // ---- everybody else's -----------------------------------------------------------------
 function netParse(i, v) {
     let ok = 0;
-    if (charAt(v, 1) == 'F') { if (strlen(v) > NHDR + 3) { ok = 1; } }
+    if (charAt(v, 1) == 'F') { if (strlen(v) > NHDR + 2) { ok = 1; } }
     if (ok > 0) {
         let sid = substr(v, 2, 7) * 1;
         let first = 0;
@@ -306,9 +313,13 @@ function netParse(i, v) {
                 if (nsRtt[i] > 0) { nsRtt[i] = nsRtt[i] * 0.8 + rtt * 0.2; } else { nsRtt[i] = rtt; }
             } }
         } }
+        // v2.2.0: the cars rule - a slot of an older game has the '|' there
+        let hd = NHDR;
+        nsCarR[i] = 0;
+        if (charAt(v, NHDR) == '|') { hd = NHDR - 1; } else { nsCarR[i] = charAt(v, NHDR) * 1; }
         // the texts: nick | chat | title (none of them is ever empty)
         let L = strlen(v);
-        let rest = substr(v, NHDR + 2, L);
+        let rest = substr(v, hd + 2, L);
         let p = indexOf(rest, '|');
         if (p > 1) {
             nsNick[i] = substr(rest, 1, p - 1);
@@ -434,7 +445,7 @@ function netResume(i) {
     if (nsSt[i] >= NS_LOADED) { if (nsSt[i] <= NS_RACE) { if (nsFin[i] <= 0) { wasRace = 1; } } }
     if (h == i) {
         // it was their own room: open it again as it was
-        nrTitle = nsTitle[i]; nrTrk = nsTrk[i]; nrRules = nsRules[i]; nrWx = nsWx[i]; nrCon = nsCon[i]; nrMax = nsMax[i]; nrCode = nsCode[i];
+        nrTitle = nsTitle[i]; nrTrk = nsTrk[i]; nrRules = nsRules[i]; nrWx = nsWx[i]; nrCon = nsCon[i]; nrMax = nsMax[i]; nrCode = nsCode[i]; nrCarR = nsCarR[i];
         let k = 1;
         while (k <= NLAPO) { if (lapOpt[k] == nsLaps[i]) { nrLapSel = k; } k = k + 1; }
         netRoom = i; netRSid = netSid; netSt = NS_ROOM; netPg = 3;
@@ -632,13 +643,14 @@ function netStart() {
 // the race of host h: set up from its slot, and loaded (w 1: to watch)
 function netBegin(h, w) {
     netWatch = w;
-    let tk = nrTrk; let lp = lapOpt[nrLapSel]; let ru = nrRules; let wxx = nrWx; let cn = nrCon;
-    if (h != netMy) { tk = nsTrk[h]; lp = nsLaps[h]; ru = nsRules[h]; wxx = nsWx[h]; cn = nsCon[h]; netRid = nsRid[h]; }
+    let tk = nrTrk; let lp = lapOpt[nrLapSel]; let ru = nrRules; let wxx = nrWx; let cn = nrCon; let cr = nrCarR;
+    if (h != netMy) { tk = nsTrk[h]; lp = nsLaps[h]; ru = nsRules[h]; wxx = nsWx[h]; cn = nsCon[h]; cr = nsCarR[h]; netRid = nsRid[h]; }
     selTrk = tk;
     netLaps = lp;
     rules = ru;
     wx = wxx;
     netCon = cn;
+    netCarR = cr;
     gMode = M_GP;
     applyWeather();
     netRace = 1;
@@ -686,13 +698,7 @@ function netDoStart() {
         let row = idiv(slot - 1, 2);
         let sd = mod(slot - 1, 2) < 1 ? 0 - 1 : 1;
         let seg = mod(NSEG - 3 - row * 3 - 1, NSEG) + 1;
-        if (caNet[c] < 1) {
-            // online races are on the car and its setup, not on the upgrades bought
-            let e = upE; let a = upA; let b = upB; let t = upT;
-            upE = 0; upA = 0; upB = 0; upT = 0;
-            carStats(1, selCar);
-            upE = e; upA = a; upB = b; upT = t;
-        } else {
+        if (caNet[c] < 1) { netCarStats(); } else {
             carStats(c, selCar);
             caCol[c] = nsCar[caSlot[c]];
         }
@@ -720,6 +726,7 @@ function netDoStart() {
     showLine = 0;
     setBanner(BLANK, 0);
     setMsg(BLANK, 0);
+    if (netCarR > NCR_UPG) { netCarTxt(netCarR, 0); setMsg(str(oCrT, ' FOR EVERYBODY'), 5); }
     netFinN = 0;
     netHostGone = 0;
     netNick();
@@ -734,6 +741,25 @@ function netDoStart() {
     } else { netSt = NS_LOADED; }
     if (netRj > 0) { netRejoin(); }
     netPush();
+}
+
+// (netDoStart) this player's car as the room's cars rule has it: by default
+// on the car and its setup, not on the upgrades bought (v2.1.0); v2.2.0 also
+// with the upgrades, or everybody in the same car with the base setup (and
+// still in their own colours)
+function netCarStats() {
+    let e = upE; let a = upA; let b = upB; let t = upT;
+    let sw = suW; let sg = suG; let sb = suB; let ss = suS; let sf = suF; let sd = suD; let sp = suP;
+    let ct = selCar;
+    if (netCarR != NCR_UPG) { upE = 0; upA = 0; upB = 0; upT = 0; }
+    if (netCarR > NCR_UPG) {
+        ct = netCarR - 1;
+        suW = 0; suG = 0; suB = 0; suS = 0; suF = 0; suD = 0; suP = 0;
+    }
+    carStats(1, ct);
+    caCol[1] = ctCol[selCar];
+    upE = e; upA = a; upB = b; upT = t;
+    suW = sw; suG = sg; suB = sb; suS = ss; suF = sf; suD = sd; suP = sp;
 }
 
 // (netDoStart) the car put back where its driver left the race, with the
@@ -1029,16 +1055,15 @@ function netKeys() {
                 netClean(answer(), 24);
                 netAfterAsk();
                 if (oAns != BLANK) { nrTitle = oAns; }
-            } else if (netRow == 8) {
+            } else if (netRow == 9) {
                 ask('A CODE OF UP TO 4 DIGITS FOR A PRIVATE ROOM (EMPTY: OPEN)');
                 let a = answer();
                 netAfterAsk();
                 nrCode = 0;
                 if (strlen(a) >= 1) { if (a * 1 > 0) { nrCode = Math.min(9999, Math.round(a * 1)); } }
-            } else if (netRow == 9) {
+            } else if (netRow == 10) {
                 if (netEdit > 0) { netPg = 3; netRow = 1; netPush(); } else { netOpenRoom(); }
-            } else if (netRow == 10) { netPg = 1 + netEdit * 2; netRow = 1; }
-            else { netForm(1); }
+            } else { netForm(1); }
         }
     } else if (netPg == 3) {
         let host = netRoom == netMy ? 1 : 0;
@@ -1067,7 +1092,8 @@ function netForm(d) {
     else if (netRow == 4) { nrRules = mod(nrRules - 1 + d + 2, 2) + 1; }
     else if (netRow == 5) { nrWx = mod(nrWx - 1 + d + 2, 2) + 1; }
     else if (netRow == 6) { nrCon = 1 - nrCon; }
-    else if (netRow == 7) { nrMax = mod(nrMax - 2 + d + 7, 7) + 2; }
+    else if (netRow == 7) { nrCarR = mod(nrCarR + d + NCARTYPE + 2, NCARTYPE + 2); }
+    else if (netRow == 8) { nrMax = mod(nrMax - 2 + d + 7, 7) + 2; }
     if (netEdit > 0) { netPush(); }
 }
 
@@ -1100,6 +1126,16 @@ function netName(o) {
 }
 
 // ---- screens ---------------------------------------------------------------------------------------
+// v2.2.0: the cars rule cr in words, long (the settings) or short
+let oCrT = BLANK;
+function netCarTxt(cr, lg) {
+    if (cr == NCR_OWN) { oCrT = lg > 0 ? 'OWN CAR  (OWN SETUP, NO UPGRADES)' : 'OWN CARS'; }
+    else if (cr == NCR_UPG) { oCrT = lg > 0 ? 'OWN CAR + UPGRADES  (AS OFFLINE)' : 'UPGRADES ON'; }
+    else {
+        oCrT = str('SAME CAR  ', ctName[cr - 1]);
+        if (lg > 0) { oCrT = str(oCrT, '  (BASE SETUP, NO UPGRADES)'); }
+    }
+}
 function netRowY(i) { oRowY = 78 - (i - 1) * 13; }
 function drawNet() {
     box(0 - 240, 132, 240, 94, C_PANEL);
@@ -1149,6 +1185,7 @@ function hudNet() {
                 let st = 'WAITING';
                 if (nsRst[h] > 0) { st = 'RACING - WATCH'; }
                 val = str(trkName[nsTrk[h]], '  ', nsLaps[h], ' LAPS  ', ruleName[nsRules[h]], '  ', nmN, '/', nsMax[h], '  ', st);
+                if (nsCarR[h] > 0) { netCarTxt(nsCarR[h], 0); val = str(val, '  ', oCrT); }
                 if (nsCode[h] > 0) { val = str(val, '  CODE'); }
             } else if (i == nrN + 1) { lab = '+  CREATE A ROOM'; }
             else if (i == nrN + 2) { lab = '<  BACK TO THE MENU'; }
@@ -1161,6 +1198,7 @@ function hudNet() {
         }
         if (nrN < 1) { tx(51, 'NO ROOMS YET - CREATE ONE', 120, 100, 8, C_DIM, 1); } else { txOff(51); }
     } else if (netPg == 2) {
+        help = 'UP/DOWN select   LEFT/RIGHT change   ENTER choose   Y chat   ESC back';
         tx(50, netEdit > 0 ? 'ROOM SETTINGS' : 'NEW ROOM', 120, 116, 12, C_WHITE, 1);
         while (i <= 10) {
             netRowY(i);
@@ -1172,11 +1210,11 @@ function hudNet() {
             else if (i == 4) { lab = 'RULES'; val = ruleName[nrRules]; }
             else if (i == 5) { lab = 'WEATHER'; val = wxName[nrWx]; }
             else if (i == 6) { lab = 'CONTACT'; val = nrCon > 0 ? 'ON  (CARS PUSH EACH OTHER)' : 'OFF  (GHOST CARS)'; }
-            else if (i == 7) { lab = 'PLAYERS'; val = str('UP TO ', nrMax); }
-            else if (i == 8) { lab = 'PRIVATE'; val = nrCode > 0 ? str('CODE ', nrCode) : 'OPEN   (ENTER TO SET A CODE)'; }
-            else if (i == 9) { lab = netEdit > 0 ? 'SAVE' : 'OPEN THE ROOM'; }
-            else { lab = '<  BACK'; }
-            if (i >= 2) { if (i <= 7) { if (i == netRow) { val = str('< ', val, ' >'); } } }
+            else if (i == 7) { lab = 'CARS'; netCarTxt(nrCarR, 1); val = oCrT; }
+            else if (i == 8) { lab = 'PLAYERS'; val = str('UP TO ', nrMax); }
+            else if (i == 9) { lab = 'PRIVATE'; val = nrCode > 0 ? str('CODE ', nrCode) : 'OPEN   (ENTER TO SET A CODE)'; }
+            else { lab = netEdit > 0 ? 'SAVE' : 'OPEN THE ROOM'; }
+            if (i >= 2) { if (i <= 8) { if (i == netRow) { val = str('< ', val, ' >'); } } }
             tx(23 + i, lab, 0 - 226, oRowY, 9, i == netRow ? C_WHITE : '#dfe5ee', 1);
             tx(36 + i, val, 0 - 120, oRowY, 8, i == netRow ? C_WHITE : C_DIM, 1);
             i = i + 1;
@@ -1184,10 +1222,10 @@ function hudNet() {
     } else {
         let h = netRoom;
         let host = h == netMy ? 1 : 0;
-        let tt = nrTitle; let tk = nrTrk; let lp = lapOpt[nrLapSel]; let ru = nrRules; let wxx = nrWx; let cn = nrCon; let mx = nrMax;
-        if (host < 1) { if (h > 0) { tt = nsTitle[h]; tk = nsTrk[h]; lp = nsLaps[h]; ru = nsRules[h]; wxx = nsWx[h]; cn = nsCon[h]; mx = nsMax[h]; } }
+        let tt = nrTitle; let tk = nrTrk; let lp = lapOpt[nrLapSel]; let ru = nrRules; let wxx = nrWx; let cn = nrCon; let mx = nrMax; let cr = nrCarR;
+        if (host < 1) { if (h > 0) { tt = nsTitle[h]; tk = nsTrk[h]; lp = nsLaps[h]; ru = nsRules[h]; wxx = nsWx[h]; cn = nsCon[h]; mx = nsMax[h]; cr = nsCarR[h]; } }
         tx(50, tt, 120, 116, 12, C_WHITE, 1);
-        tx(51, str(trkName[tk], '  ', lp, ' LAPS  ', ruleName[ru], '  ', wxName[wxx], '  CONTACT ', cn > 0 ? 'ON' : 'OFF'), 120, 102, 7, C_DIM, 1);
+        tx(51, str(trkName[tk], '  ', lp, ' LAPS'), 120, 102, 7, C_DIM, 1);
         while (i <= 10) {
             netRowY(i);
             let lab = BLANK;
@@ -1212,7 +1250,10 @@ function hudNet() {
             } else { txOff(36 + i); }
             i = i + 1;
         }
-        txOff(45); txOff(46);
+        // the rules, under the buttons (v2.2.0: with the cars rule)
+        tx(45, str(ruleName[ru], '   ', wxName[wxx], '   CONTACT ', cn > 0 ? 'ON' : 'OFF'), 0 - 226, 28, 8, C_DIM, 1);
+        netCarTxt(cr, 1);
+        tx(46, str('CARS:  ', oCrT), 0 - 226, 14, 8, cr > 0 ? C_GOLD : C_DIM, 1);
     }
     tx(12, help, 0, 0 - 125, 8, '#c9d1de', 0);
 }
