@@ -127,7 +127,7 @@ const after = { mode: +a.g('gMode'), rules: +a.g('rules'), wx: +a.g('wx'), trk: 
 ok(JSON.stringify(after) === JSON.stringify(before) && +a.g('dyOn') === 0 && +a.g('upE') === 4, `settings back: ${JSON.stringify(after)}`);
 const save = srv.lists['SY_save' + a.g('pSh')].find((r) => r.startsWith('|alice,'));
 const sf = save ? save.split(',') : [];
-ok(sf.length === 62 && +sf[58] === n0 && +sf[59] === 1 && +sf[60] === n0 && +sf[61] === Math.round(best * 1000), `the save has the daily fields: ${sf.slice(58).join(',')}`);
+ok(sf.length >= 62 && +sf[58] === n0 && +sf[59] === 1 && +sf[60] === n0 && +sf[61] === Math.round(best * 1000), `the save has the daily fields: ${sf.slice(58, 62).join(',')}`);
 // again: the ghost is today's leader (her own uploaded lap)
 a.g('dyStart()');
 run(srv, [a], 3);

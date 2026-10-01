@@ -86,8 +86,10 @@ function carStats(c, ct) {
     if (c == 1) {
         caAcc[c] = ctAcc[ct]; caTop[c] = ctTop[ct]; caGrip[c] = ctGrip[ct];
         caMass[c] = ctMass[ct]; caCol[c] = ctCol[ct]; caSkill[c] = 1; caLine[c] = 0;
-        // v8: the garage's upgrades and setup
-        tuneCar();
+        // v8: the garage's upgrades and setup (v3.0.0 career: the setup only,
+        // in the team's colours and pace)
+        if (crOn > 0) { crUpOff(); tuneCar(); crUpOn(); crScale(1); }
+        else { tuneCar(); }
     } else {
         caAeroK[c] = 1; caBrkK[c] = 1; caBias[c] = 0; caSusp[c] = 0; caWearK[c] = 1;
         // opponents: a spread of top speed, grip and commitment, the whole
@@ -102,6 +104,7 @@ function carStats(c, ct) {
         caMass[c] = 1;
         let lv = k;
         if (lv >= ctCol[ct]) { lv = lv + 1; }
+        if (crOn > 0) { lv = tmLvC[crTm[c]]; }
         caCol[c] = lv;
         caSkill[c] = (0.90 + mod(k * 11, 7) * 0.018) * dSkl;
         caLine[c] = (mod(k * 13, 5) - 2) * 0.8;
@@ -112,6 +115,7 @@ function carStats(c, ct) {
         caAeroK[c] = tmAero[lv];
         caWearK[c] = tmWear[lv];
         caFWb[c] = 0; caDiff[c] = 0; caPres[c] = 0;
+        if (crOn > 0) { crScale(c); }
     }
 }
 
@@ -187,6 +191,8 @@ function setupRace(tk, ct) {
     pmOn = 0;
     // v2.3.0: the daily challenge is in the day's car; a stint starts again
     if (dyOn > 0) { ct = dyCar; }
+    // v3.0.0: a career round is in the team's car
+    if (crOn > 0) { ct = tmCarC[crTeam]; }
     dyRunN = 0;
     // v2.1.3: every car is driven on this computer until an online race says
     // otherwise (netDoStart, after this). An online race used to leave its
@@ -273,6 +279,9 @@ function raceReset() {
 
 // the grid and the start lights
 function startGrid(ct) {
+    // (v3.0.0: after qualifying too - ST_QRES starts the grid with selCar)
+    if (crOn > 0) { ct = tmCarC[crTeam]; }
+    if (dyOn > 0) { ct = dyCar; }
     nLaps = lapOpt[lapSel];
     nCars = NCAR;
     if (gMode >= M_TT) { nCars = 1; nLaps = 999; }
@@ -636,7 +645,10 @@ function awardPoints() {
             i = i + 1;
         }
     }
-    // standings order, most points first (a tie goes to the player)
+    chSort();
+}
+// standings order, most points first (a tie goes to the player)
+function chSort() {
     let c = 1;
     while (c <= NCAR) { chOrd[c] = c; c = c + 1; }
     let i2 = 2;

@@ -1,0 +1,188 @@
+== v30
+PASS A qualifying sessions 1>2>3, grid 1,3,7,5,4,2,6,8, out-in 0,0,1,2,0,0,2,1, player P1
+PASS B VSC: the field averaged 83% of the VSC pace, ended true, player penalty 0, delta 6.60
+PASS C blue flags on the backmarker for 15.8 s, lapped by 2, player penalties 0
+PASS D retirement: DNF 1, speed 0.0, last in the order (car 4), VSC/SC out 1, off 9.6 / w 7.2
+PASS E flat spots in the rain: player worst 0.026, AI worst 0.000
+PASS F zones: peak wetness 0.76, biggest zone spread 0.87, dry line 1.00
+PASS G mix RICH, bias 2, wing balance 0.145, diff 2, pressure -3
+PASS H rubber 0.10 -> 0.14 in qualifying, track 40.1 C, grip x0.980
+PASS I AI pit calls 6, of them early (tyres still above 31%: undercut, cover or safety car) 0; finished 0,0,0,0,0,0,0,0, DNF 00000000
+PASS J player retirement: state 5, DNF 1, classified P8, banner ​
+== keys
+PASS A Enter held at the start: state 0 (0 = menu), cars 0
+PASS C Enter let go and pressed again starts the race: state 16
+PASS B after the load: prompt shown 1x, stayed in the profile true, prompt again 0x, Esc to the menu true, Down moved to row 2; msg "BACKUP CODE LOADED - LEVEL 7, 3000 XP"
+== multi
+latency 120 ms, welcome after 3 s
+PASS A late lists: new work sync 1, saved XP 5000, +300 earned before the save arrived -> 5300 (level 9, sync 1)
+PASS A2 lists 9 s late: zoe kept 777, bob saved 200 (writes 1)
+PASS B same-moment saves in one list, 10 rounds: 0 rounds lost a record (alice 1000/1000, bob 1000/1000)
+PASS C same-moment ranking entries: 3 of 3 kept: ||alice,80000|bob,81000|carol,82000
+PASS D ranking with a lap set before the lists came: ||zed,70000|amy,75000
+PASS E 4 players, one list, 60 s: 4/4 saves current, 4/4 best laps ranked; 121 server writes
+PASS F garage-only change vs a same-moment save, 6 rounds: 0 rounds lost the change
+PASS G two record laps at once, 5 rounds: 0 rounds left a ghost that is not P1's
+PASS H without the extension: sync 2 at 5 s, 'OFFLINE', 0 server writes, local save kept
+PASS I full list: 60 records, oldest dropped, newest last
+PASS J rolled back by an old copy (record 0, ranking '|') -> put back: record 600, ranking '||alice,70250'
+== savecode
+code 208 chars: S1MZKR8XPPAJARE2PR0ZSQP34T3Q8G889MAKYHMPWPK8FCA7407V4Q61TZTYR04RK3Y6Z73XF6Y54X11T0WRR16PX2632NNRMYH4M78QG5JEQ0BS364XPBKEQ8QZ7AG5K2Q88SX8G81XNHSRQ34WR92QS7EG6VE8JCC2ZRZKFCC1A7Z2AGKDNV76YSKWA9JXW6C2132HBSB09HWM
+PASS starts with S + version
+PASS only share-code letters
+PASS salt: the same save gives another code
+PASS fresh profile starts empty
+PASS round trip: accepted
+PASS round trip: every field back  {"pXP":123456,"upE":5,"upA":3,"upB":0,"upT":2,"suW":-3,"suG":3,"suB":1,"suS":-1,"stRaces":87,"stWins":12,"stPods":30,"stCirc":173,"stKm":4321,"ach":"100010000000000000010","laps":"83456,0,71002,0,0,0,0,100500,0,0,0,0,0,0,0,0,0,0,0","races":"1002250,0,0,0,0,0,0,2400999,0,0,0,0,0,0,0,0,0,0,0"}
+PASS second code of the same save also loads
+PASS marked for the online save
+PASS messy paste (case, spaces, dashes, text before)
+PASS another nickname rejects it ("코딩재미있어요")
+PASS another nickname rejects it ("코딩재미있다")
+PASS another nickname rejects it ("코딩재미있어 ")
+PASS another nickname rejects it ("GUEST_1")
+PASS another nickname rejects it ("가나다라마바")
+PASS another nickname rejects it ("abc")
+PASS one letter changed: 0 of 6417 accepted  0 accepted
+PASS cut short: none accepted
+PASS a letter added: rejected
+PASS random codes of the same length: 0 of 20000 accepted
+PASS older code loads
+PASS XP kept (larger wins)
+PASS race count kept
+PASS better lap kept
+PASS lap only in the code taken
+PASS load waits for the save
+PASS Entry: code put in table svtb row 2 col 1 and its window opened
+PASS Entry: clipboard left alone
+PASS tessvm: code written to $CLIPBOARD, no table window
+PASS load: asks, then takes the answer  BACKUP CODE LOADED - LEVEL 50, 123456 XP
+PASS load: a bad answer says so
+PASS old plain-Entry code loads for the same player  BACKUP CODE LOADED - LEVEL 50, 123456 XP
+PASS ...and still not for another player
+PASS largest save: 490 letters (limit 600)
+
+all passed
+== slots
+r2 p0 row4     ok
+r2 p0 row5     ok
+r2 p0 row6     ok
+r2 p0 row7     ok
+r2 p0 row8     ok
+r2 p0 row9     ok
+r2 p1 row1     ok
+r2 p1 row2     ok
+r2 p1 row3     ok
+r2 p1 row4     ok
+r2 p1 row5     ok
+r2 p1 row6     ok
+r2 p1 row7     ok
+r2 p1 row8     ok
+r2 p2 row1     ok
+r2 p2 row2     ok
+r2 p2 row3     ok
+r2 p3 row1     ok
+r2 p3 row2     ok
+r2 p3 row3     ok
+menu 9 wx3     ok
+menu 8 TT      ok
+menu 8 PR      ok
+garage         ok
+garage 6       ok
+profile 1      ok
+profile 2      ok
+profile 3      ok
+profile 4      ok
+carsel         ok
+trksel         ok
+editor         ok
+editor code    ok
+quali          REWRITTEN EVERY FRAME 1:46
+quali result   ok
+formation      REWRITTEN EVERY FRAME 1:7
+count          ok
+race           REWRITTEN EVERY FRAME 1:165, 5:0:05.899
+pause          ok
+replay         REWRITTEN EVERY FRAME 13:1.599 / 12 s
+== alloc
+PASS 174 lists allocated at the start, 0 with a wrong length, zeros true, after a second allocLists rpX has 4950
+== share
+code 103 R0EHNG0G90HQGNJ91H7H6V90GDHBE90FNH4E9AF6GTH90ERGFJJ0ECG0G90E9FBE94ESETF90FKENJ90GBEWJ90GTF6F90H8FHE9072 lines 2 [
+  '​R0EHN G0G90 HQGNJ 91H7H 6V90G DHBE9 0FNH4 E9AF6 GTH90 ERGFJ J0ECG 0G90E',
+  '​9FBE9 4ESET F90FK ENJ90 GBEWJ 90GTF 6F90H 8FHE9 072',
+  '​',
+  '​'
+]
+ok 1
+n 283 283 max error x,y,z,w,f 0.00 0.00 0.00 0.00 0.00
+bad checksum rejected: true
+rubbish rejected: true
+== pinned
+PASS wedged car racing again (over 54 km/h) after 2.3 s; lap 1, seg 185 (was 138)
+== tilt
+ok  MONACO            steepest -12.3 deg, bank  14.0:  climb along  11.7/ -0.3 (ground  12.5/ -0.3)  climb sideways   0.3/ 11.7 (ground   0.3/ 12.5)  climb 45   8.6/  8.2 (ground   9.1/  8.7)  bank along   1.9/-12.1 (ground   1.7/-12.1)  bank 30   7.7/ -9.6 (ground   7.6/ -9.7)
+ok  SPA-FRANCORCHAMPS steepest   8.7 deg, bank  14.0:  climb along  -8.4/ -7.4 (ground  -8.7/ -7.4)  climb sideways   7.4/ -8.4 (ground   7.4/ -8.7)  climb 45  -0.7/-11.1 (ground  -0.9/-11.3)  bank along   0.6/-12.8 (ground   0.6/-12.8)  bank 30   7.0/-10.9 (ground   7.0/-10.8)
+ok  SUZUKA            steepest   7.7 deg, bank  14.0:  climb along  -7.2/ 11.0 (ground  -7.4/ 11.0)  climb sideways -11.0/ -7.2 (ground -11.0/ -7.4)  climb 45 -12.8/  2.7 (ground -12.9/  2.6)  bank along   0.1/-13.8 (ground   0.0/-13.8)  bank 30   7.1/-12.0 (ground   7.1/-12.0)
+ok  SILVERSTONE       steepest   4.5 deg, bank  14.0:  climb along  -4.0/ -0.0 (ground  -4.1/ -0.0)  climb sideways  -0.0/ -4.0 (ground   0.0/ -4.1)  climb 45  -2.9/ -2.9 (ground  -2.9/ -2.9)  bank along  -0.1/-13.5 (ground  -0.1/-13.5)  bank 30   6.7/-11.8 (ground   6.8/-11.8)
+ok  MONZA             steepest  -3.8 deg, bank -14.0:  climb along   3.7/  0.0 (ground   3.7/  0.0)  climb sideways  -0.0/  3.7 (ground  -0.0/  3.7)  climb 45   2.6/  2.6 (ground   2.6/  2.6)  bank along  -0.1/ 12.5 (ground  -0.1/ 12.5)  bank 30  -6.4/ 10.9 (ground  -6.4/ 10.9)
+ok  SINGAPORE         steepest   2.5 deg, bank  14.0:  climb along  -2.1/ 14.0 (ground  -2.2/ 14.0)  climb sideways -14.0/ -2.1 (ground -14.0/ -2.2)  climb 45 -11.4/  8.6 (ground -11.5/  8.5)  bank along   0.2/-13.5 (ground   0.2/-13.5)  bank 30   7.0/-11.6 (ground   7.0/-11.6)
+ok  INTERLAGOS        steepest   9.3 deg, bank -14.0:  climb along  -8.7/-10.3 (ground  -9.1/-10.3)  climb sideways  10.3/ -8.7 (ground  10.3/ -9.1)  climb 45   1.2/-13.3 (ground   0.9/-13.6)  bank along   2.2/ 13.4 (ground   2.3/ 13.4)  bank 30  -4.9/ 12.7 (ground  -4.8/ 12.8)
+ok  BAKU              steepest  -6.3 deg, bank -14.0:  climb along   6.3/ -0.0 (ground   6.4/ -0.0)  climb sideways   0.0/  6.3 (ground   0.0/  6.4)  climb 45   4.5/  4.5 (ground   4.6/  4.6)  bank along  -0.2/ 12.3 (ground  -0.4/ 12.3)  bank 30  -6.4/ 10.6 (ground  -6.6/ 10.5)
+ok  BAHRAIN           steepest  -4.4 deg, bank  14.0:  climb along   4.2/ -0.0 (ground   4.7/ -0.0)  climb sideways   0.0/  4.2 (ground   0.0/  4.7)  climb 45   3.0/  3.0 (ground   3.3/  3.3)  bank along  -0.2/-13.1 (ground  -0.1/-13.1)  bank 30   6.4/-11.6 (ground   6.6/-11.5)
+ok  MELBOURNE         steepest  -3.2 deg, bank  14.0:  climb along   2.9/ -5.4 (ground   3.1/ -5.4)  climb sideways   5.4/  2.9 (ground   5.4/  3.1)  climb 45   5.8/ -1.7 (ground   6.0/ -1.6)  bank along  -0.0/-13.8 (ground  -0.0/-13.8)  bank 30   7.0/-12.0 (ground   7.0/-12.0)
+ok  MONTREAL          steepest   3.1 deg, bank -14.0:  climb along  -2.9/ 10.5 (ground  -3.0/ 10.5)  climb sideways -10.5/ -2.9 (ground -10.5/ -3.0)  climb 45  -9.5/  5.5 (ground  -9.5/  5.4)  bank along   0.5/ 13.0 (ground   0.5/ 13.1)  bank 30  -6.1/ 11.6 (ground  -6.2/ 11.6)
+ok  RED BULL RING     steepest  10.8 deg, bank  14.0:  climb along -10.8/ -0.1 (ground -10.7/ -0.1)  climb sideways   0.1/-10.8 (ground   0.1/-10.7)  climb 45  -7.5/ -7.8 (ground  -7.5/ -7.7)  bank along  -4.9/-13.0 (ground  -4.8/-13.0)  bank 30   2.3/-13.6 (ground   2.4/-13.6)
+ok  ZANDVOORT         steepest  -4.2 deg, bank  14.0:  climb along   4.0/-13.1 (ground   4.1/-13.1)  climb sideways  13.1/  4.0 (ground  13.1/  4.1)  climb 45  12.1/ -6.5 (ground  12.1/ -6.5)  bank along  -1.1/-13.7 (ground  -1.1/-13.7)  bank 30   6.0/-12.5 (ground   6.0/-12.5)
+ok  AUSTIN            steepest   8.9 deg, bank -14.0:  climb along  -8.5/ -0.0 (ground  -8.6/ -0.0)  climb sideways   0.0/ -8.5 (ground   0.0/ -8.6)  climb 45  -6.0/ -6.0 (ground  -6.1/ -6.1)  bank along  -2.5/ 13.3 (ground  -2.7/ 13.3)  bank 30  -8.9/ 10.4 (ground  -9.1/ 10.3)
+ok  IMOLA             steepest  -7.5 deg, bank -14.0:  climb along   7.4/ -0.4 (ground   7.4/ -0.4)  climb sideways   0.4/  7.4 (ground   0.4/  7.4)  climb 45   5.5/  5.0 (ground   5.5/  4.9)  bank along   0.0/ 13.0 (ground   0.0/ 13.0)  bank 30  -6.6/ 11.3 (ground  -6.6/ 11.3)
+ok  HUNGARORING       steepest   5.8 deg, bank  14.0:  climb along  -5.5/-13.9 (ground  -5.6/-14.0)  climb sideways  13.9/ -5.5 (ground  14.0/ -5.6)  climb 45   6.2/-13.7 (ground   6.1/-13.8)  bank along   1.6/-13.2 (ground   1.7/-13.2)  bank 30   8.1/-10.6 (ground   8.1/-10.6)
+ok  BARCELONA         steepest   6.1 deg, bank  14.0:  climb along  -5.8/  0.2 (ground  -6.2/  0.2)  climb sideways  -0.2/ -5.8 (ground  -0.2/ -6.2)  climb 45  -4.2/ -4.0 (ground  -4.5/ -4.3)  bank along  -0.4/-13.3 (ground  -0.4/-13.3)  bank 30   6.4/-11.7 (ground   6.4/-11.7)
+ok  JEDDAH            steepest   1.7 deg, bank  14.0:  climb along  -1.7/ -1.4 (ground  -1.7/ -1.4)  climb sideways   1.4/ -1.7 (ground   1.4/ -1.7)  climb 45  -0.2/ -2.2 (ground  -0.2/ -2.2)  bank along   0.2/-10.8 (ground   0.2/-10.8)  bank 30   5.7/ -9.3 (ground   5.7/ -9.3)
+ok  LAS VEGAS         steepest  -1.8 deg, bank -14.0:  climb along   1.7/  7.2 (ground   1.7/  7.2)  climb sideways  -7.2/  1.7 (ground  -7.2/  1.7)  climb 45  -3.9/  6.3 (ground  -3.9/  6.3)  bank along   1.0/ 13.6 (ground   1.0/ 13.6)  bank 30  -6.1/ 12.3 (ground  -6.0/ 12.3)
+PASS all circuits
+== wall
+fps 60, walled ring 59; start 216 km/h, full throttle
+   0.5 deg into the wall: 214 km/h after 0.5 s, 187 km/h after 1 s
+     2 deg into the wall: 205 km/h after 0.5 s, 175 km/h after 1 s
+     5 deg into the wall: 188 km/h after 0.5 s, 156 km/h after 1 s
+    15 deg into the wall: 144 km/h after 0.5 s, 124 km/h after 1 s
+    30 deg into the wall: 105 km/h after 0.5 s, 96 km/h after 1 s
+== pitgame
+{"A":{"t":2.3999999999999964,"pressed":4,"radio":"PERFECT STOP  2.342 s  -  MEDIUM","res":"1111"},"B":{"t":5.33333333333332,"pressed":0,"radio":"SLOW STOP  5.275 s  -  MEDIUM","res":"3333"},"C":{"t":5.049999999999987,"pressed":275,"radio":"SLOW STOP  4.992 s  -  MEDIUM","res":"3333"},"D":{"t":4.216666666666657,"pressed":4,"radio":"PERFECT STOP  4.169 s  -  MEDIUM","res":"1111"}}
+PASS A perfect: 2.40 s, wheels 1111, "PERFECT STOP  2.342 s  -  MEDIUM"
+PASS B nothing pressed: 5.33 s, wheels 3333
+PASS C too early: 5.05 s, wheels 3333
+PASS D perfect with a new nose: 4.22 s (at least the repair)
+== photoauto
+PASS A pause 6 -> photo 15, flew 12.0 m in 1 s (yaw -30), help 0, back to 6
+PASS B replay 11 -> photo 15 -> 11
+PASS C 30 fps (30): quality 0.45, gfx 2; then 60 fps (60) for 240 s: 1, gfx 3
+== intrude
+ok  MONACO             objects 855, on the road 0
+ok  SPA-FRANCORCHAMPS  objects 1057, on the road 0
+ok  SUZUKA             objects 952, on the road 0
+ok  SILVERSTONE        objects 723, on the road 0
+ok  MONZA              objects 1012, on the road 0
+ok  SINGAPORE          objects 676, on the road 0
+ok  INTERLAGOS         objects 1209, on the road 0
+ok  BAKU               objects 1105, on the road 0
+ok  BAHRAIN            objects 483, on the road 0
+ok  MELBOURNE          objects 1364, on the road 0
+ok  MONTREAL           objects 1234, on the road 0
+ok  RED BULL RING      objects 879, on the road 0
+ok  ZANDVOORT          objects 570, on the road 0
+ok  AUSTIN             objects 289, on the road 0
+ok  IMOLA              objects 1282, on the road 0
+ok  HUNGARORING        objects 885, on the road 0
+ok  BARCELONA          objects 825, on the road 0
+ok  JEDDAH             objects 714, on the road 0
+ok  LAS VEGAS          objects 771, on the road 0
+PASS nothing on the road
+== stuck
+end 394.5008775039568 laps 4,4,4,4,4,4,3,4 DNF 00000000
+== offdiag 1
+0 excursions
+== offdiag 2
+0 excursions
+== offdiag 19
+0 excursions

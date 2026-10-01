@@ -1,3 +1,48 @@
+# F1 ONLINE 3D — 작업 인계 메모 (2026-10-01, v3.0.0)
+
+산출물: `F1 Online 3D v3.0.0.ent`, 설명서 `F1 Online 3D v3.0.0 설명서.md` (v2.4.0은 루트 `old/`로)
+빌드: `node build.mjs f1online300.ent` → project.json 16.51 MB
+
+## 요청과 한 것
+기능 목록 4번 "커리어 모드"(큰 기능이라 3.0.0). 다음: 레이스 전체 리플레이·하이라이트.
+- 새 `src/career.js`(SRC_FILES에서 daily.js 뒤). 새 화면 **ST_CAR = 18**.
+  - 메뉴 0쪽 줄 4 = 26 CAREER(mnBack 줄도 고침). main 루프·drawMenuUI·updateHud(sub = crPhase, 9부터 지움)·조용한 화면 목록에 추가.
+- 팀(build lists)
+  - `tmLvC`(리버리) [1,7,2,5,4,6,3,8], `tmPowC` 1.035…0.965, `tmCarC` [1,2,3,4,1,2,3,4]. 등급 1이 가장 빠름. NTEAM 8, NCRR 6.
+- `crAssign()`
+  - 내 팀 crTeam. AI 차 c의 팀 = 나머지 등급을 (c − 2 + 3·season) mod 7로 돌림.
+  - 라이벌 = 등급 crTeam − 1 팀의 차(1등급이면 2). 목표 crGoal = max(1, crTeam − 1).
+- 서킷 `crTrk(r)` = (5·season + 3(r − 1)) mod 19 + 1. 비 `crWxOf(r)` = (13·season + 7r) mod 6 == 0. 둘 다 결과를 **oCT**에 씀(둘을 연달아 부르면 덮임 — hudCareer 버그였음).
+- 경주: `crRace()`
+  - gMode·wx·selTrk를 cb*에 보관 → M_GP, crOn 1, chPts = crPts, startRace.
+  - setupRace·startGrid가 crOn이면 ct = tmCarC[crTeam]. startGrid는 예선 뒤 ST_QRES가 selCar로 부르기 때문(daily도 같이 막음).
+  - carStats
+    - 1번: crOn이면 업그레이드만 빼고(crUpOff/On) tuneCar → `crScale(1)`.
+    - AI: 리버리 lv = tmLvC[crTm[c]], 끝에 crScale(c).
+    - crScale은 top·acc × f, grip × (1 + (f − 1)/2), caCol = 팀 리버리.
+- ST_DONE ENTER → `crAfter()`: awardPoints, crPts, 맞대결(clsI 순서), crRound + 1, 6이면 `crSeasonOver()`, ST_STAND.
+  - ST_STAND ENTER → `crBack()`(설정 복원, ST_CAR). toMenu는 crOn이면 crEnd(라운드 안 셈).
+- `crSeasonOver()`
+  - 평판 += 8(목표 − 순위) + (맞대결 이기면 10, 아니면 −5) + (우승 15), 0..100.
+  - XP 200 + 40·max(0, 9 − P), 우승 +400·타이틀·unlock(14). crPhase 1.
+- `crOffers()`: P ≤ 목표 − 2 또는 우승 → 두 단계 위. P ≤ 목표(또는 평판 ≥ 60) → 한 단계 위. P ≤ 목표 + 2 → 잔류, 아니면 한 단계 아래만. `crSign(t)`.
+- game.js: awardPoints 뒤쪽 정렬을 `chSort()`로 분리(crSort가 씀).
+- 저장 필드 63–78: season, team, round, rep, titles, rivW, rivL, phase, crPts 1–8.
+  - `crMerge()`는 season·1000 + round·10 + phase가 큰 쪽. pF 64 → 100. 백업 코드는 nF 78 허용.
+- HUD
+  - ST_STAND·ST_DONE 안내, ST_LOAD 글자('CAREER ROUND n', 'DAILY CHALLENGE').
+  - 카드 26. 커리어 화면 hudCareer/drawCareer(줄은 netRowY(i + 5)).
+- 버전 글자 v3.0.0.
+
+## 시험
+- `t9/career.mjs`(새) 모두 PASS(`ab/career300.txt`). 실제 1랩 GP 1회(AI 운전) + 직접 넣은 시즌 끝 상황들.
+  - 주의: 메인 루프가 매 프레임 actKey를 덮으므로 키는 sim.keys로 누를 것(또는 crKeys를 직접 부름).
+- `t9/careershot.mjs`(새, tessvm): `ab/career_card.png`, `career_hub.png`, `career_race.png`.
+  - W만 누르면 싱가포르 첫 코너 벽에서 멈춤(스크립트 탓, 정상).
+- 회귀 `ab/*300.txt`.
+
+---
+
 # F1 ONLINE 3D — 작업 인계 메모 (2026-10-01, v2.4.0)
 
 산출물: `F1 Online 3D v2.4.0.ent`, 설명서 `F1 Online 3D v2.4.0 설명서.md` (v2.3.0은 루트 `old/`로)

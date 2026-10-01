@@ -347,6 +347,11 @@ function buildRec() {
     while (t <= NTRK) { pRec = str(pRec, ',', recRace[t] > 0 ? Math.round(recRace[t] * 1000) : 0); t = t + 1; }
     // v2.3.0: fields 59-62, the daily challenge (last day done, streak, best day and result)
     pRec = str(pRec, ',', dyLastN, ',', dyStreak, ',', dyBestN, ',', Math.round(dyBestT * 1000));
+    // v3.0.0: fields 63-78, the career (season, team, round, reputation, titles,
+    // head to head, phase, then the eight cars' points)
+    pRec = str(pRec, ',', crSeason, ',', crTeam, ',', crRound, ',', crRep, ',', crTitles, ',', crRivW, ',', crRivL, ',', crPhase);
+    t = 1;
+    while (t <= NCAR) { pRec = str(pRec, ',', crPts[t]); t = t + 1; }
 }
 
 // split the record starting at character `from` of s into pF[1..nF]
@@ -429,6 +434,7 @@ function mergeRec(addMode) {
             t = t + 1;
         }
         dyMerge();
+        crMerge();
     }
     levelFromXP();
     countAch();
@@ -690,6 +696,7 @@ function profileStep() {
     if (raceState == ST_PAUSE) { quiet = 1; }
     if (raceState == ST_PHOTO) { quiet = 1; }
     if (raceState == ST_NET) { quiet = 1; }
+    if (raceState == ST_CAR) { quiet = 1; }
     // v2.1.3: a new best lap is saved and ranked at once, on track too. It
     // used to wait for a quiet screen, so a time trial stopped or closed
     // straight after its record kept neither the lap nor its ranking.

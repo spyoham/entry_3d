@@ -13,7 +13,7 @@ import { f1Car } from './f1car.mjs';
 import { engineMp3, aiMp3, REF_RPM, LOOP_SEC, AI_RATIOS, AI_LEVELS, AI_LOOP } from './enginewav.mjs';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'rules.js', 'race3.js', 'fx.js', 'sound.js', 'share.js', 'profile.js', 'savecode.js', 'editor.js', 'daily.js', 'net.js', 'menu.js', 'hud.js', 'main.js'];
+export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'rules.js', 'race3.js', 'fx.js', 'sound.js', 'share.js', 'profile.js', 'savecode.js', 'editor.js', 'daily.js', 'career.js', 'net.js', 'menu.js', 'hud.js', 'main.js'];
 
 // ============================================================
 // constants shared with the EJS sources
@@ -87,6 +87,8 @@ export const C = {
     FUELRACE: 100,      // kg a full-length race is fuelled for
     VSCK: 0.62,         // virtual safety car: speed as a share of the reference lap
     NPK: 30,            // v3.2: menu keys polled (19) + the editor's K and I (v6.0: + O; v2.1.0 Y; v2.4.0 3-9)
+    NTEAM: 8,           // v3.0.0 career: teams (the eight liveries)
+    NCRR: 6,            // ...rounds in a season
     NQC: 7,             // v2.4.0: quick chat phrases, keys 3-9
     QCGAP: 1.0,         // s between two quick chat lines
     NTY: 5,             // tyre compounds
@@ -1446,7 +1448,7 @@ export function buildData() {
     for (const k of ['pbX3', 'pbZ3', 'pbW3']) lists[k] = zeros((C.DAYK - 16) * C.PBN);
     lists.pbN = zeros(C.DAYK + 1);
     // v8 profile scratch: parsed save fields, ranking rows, achievements
-    lists.pF = new Array(64).fill(0);
+    lists.pF = new Array(100).fill(0);
     lists.svV = zeros(C.SVMAX + 1);
     lists.rkN = new Array(C.NRANK + 2).fill('-'); lists.rkT = zeros(C.NRANK + 2);
     lists.achGot = zeros(C.NACH + 1); lists.popQ = zeros(33);
@@ -1465,6 +1467,12 @@ export function buildData() {
     lists.dyTN = new Array(6).fill('-'); lists.dyTT = zeros(6);
     lists.monName = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
     lists.dkName = ['HOT LAP', '3-LAP STINT'];
+    // v3.0.0 career: the teams by tier (1 the strongest) - livery, pace, car type;
+    // each car's team, the points, the offers
+    lists.tmLvC = [1, 7, 2, 5, 4, 6, 3, 8];
+    lists.tmPowC = [1.035, 1.025, 1.015, 1.005, 0.995, 0.985, 0.975, 0.965];
+    lists.tmCarC = [1, 2, 3, 4, 1, 2, 3, 4];
+    lists.crTm = zeros(C.NCAR + 1); lists.crPts = zeros(C.NCAR + 1); lists.crOff = zeros(4);
     // v2.4.0 quick chat (keys 3-9 online)
     lists.qcTx = ['GOOD LUCK!', 'NICE PASS!', 'SORRY!', 'THANKS!', 'GG', 'WATCH OUT!', "LET'S GO!"];
     // time into the lap at each ring: best lap and the current one (live delta)

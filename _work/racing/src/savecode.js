@@ -179,6 +179,8 @@ function svDecode(s) {
                 if (nF == 58) { nOk = 1; }
                 // v2.3.0: + the daily challenge (62)
                 if (nF == 62) { nOk = 1; }
+                // v3.0.0: + the career (78)
+                if (nF == 78) { nOk = 1; }
                 if (nOk > 0) {
                     svSane();
                     if (oSvOk > 0) {

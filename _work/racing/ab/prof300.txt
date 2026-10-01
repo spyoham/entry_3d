@@ -1,0 +1,18 @@
+PASS profile loaded for alice (shard 2)
+PASS race finished at P1 in 125.9 s
+PASS XP 874, level 3, line "+174 XP   P1  x0.6  +CLEAN"
+PASS achievements: FIRST FINISH, WINNER, PODIUM, COMEBACK, CLEAN RACE, WORLD RECORD, OVERTAKER
+PASS alice saved in her shard: |alice,874,0,0,0,0,3,3,3,3,67639,1,1,1,6,16,0,0,0,0,120900,0,0,0,0,0,0,0,125900,0,0,0,3,3,3,4,0,0,0,0,0,0,0,0,0,0,0,0,0,
+PASS ranking 5: ||alice,120900
+PASS world-record ghost 1223 chars: alice,120900,D0SDP7G9JKG8JPG8JRG8JVG9JYG...
+PASS bob starts fresh (shard 4)
+PASS alice reloaded: XP 874 (was 874), best lap 120.900 (was 120.900)
+PASS bob reloaded: XP 1234, engine 2, wing 1, level 4, points 1
+PASS guest: nothing written to the ranking
+PASS save list 1 after 70 saves: 60 records (cap 60)
+PASS world-record ghost decoded: 302 samples, time 120.900; starts -609.4,-607.6,-606.0,-604.4,-602.8
+PASS ghost on track: ghostOn 1 seg 120
+FAIL tuned top speed 327.3 km/h, aero x0.86
+PASS practice brake assist engaged (showLine 1)
+PASS B puts the car back on the track
+pop-ups queued 0 current LEVEL UP!  LEVEL 8

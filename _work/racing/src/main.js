@@ -217,7 +217,7 @@ function doStartRace() {
 // v9: the menu in pages. Page 0 is the top level; RACE SETUP (1), CAR &
 // GARAGE (2) and SETTINGS (3) open their own list with a BACK row. The rows
 // hold item ids (the v8 row numbers, plus 20-22 for the categories and 23 for
-// BACK; 24 ONLINE RACE, v2.3.0 25 DAILY CHALLENGE), so menuSel is still the v8 item and everything keyed on it stays.
+// BACK; 24 ONLINE RACE, v2.3.0 25 DAILY CHALLENGE, v3.0.0 26 CAREER), so menuSel is still the v8 item and everything keyed on it stays.
 let mnPage = 0;
 let mnRow = 1;
 let mnN = 6;
@@ -225,7 +225,7 @@ let mnItem = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 function mnAdd(k) { mnN = mnN + 1; mnItem[mnN] = k; }
 function mnBuild() {
     mnN = 0;
-    if (mnPage == 0) { mnAdd(1); mnAdd(24); mnAdd(25); mnAdd(20); mnAdd(21); mnAdd(12); mnAdd(22); mnAdd(13); }
+    if (mnPage == 0) { mnAdd(1); mnAdd(24); mnAdd(25); mnAdd(26); mnAdd(20); mnAdd(21); mnAdd(12); mnAdd(22); mnAdd(13); }
     else if (mnPage == 1) { mnAdd(2); mnAdd(3); mnAdd(6); mnAdd(7); mnAdd(8); mnAdd(9); mnAdd(1); mnAdd(23); }
     else if (mnPage == 2) { mnAdd(4); mnAdd(5); mnAdd(23); }
     else { mnAdd(10); mnAdd(11); mnAdd(23); }
@@ -237,8 +237,8 @@ function mnOpen(p) { mnPage = p; mnRow = 1; mnBuild(); }
 function mnBack() {
     let p = mnPage;
     mnPage = 0;
-    mnRow = 7;
-    if (p == 1) { mnRow = 4; } else if (p == 2) { mnRow = 5; }
+    mnRow = 8;
+    if (p == 1) { mnRow = 5; } else if (p == 2) { mnRow = 6; }
     mnBuild();
 }
 
@@ -252,6 +252,7 @@ function menuKeys() {
         if (menuSel == 1) { startRace(); }
         else if (menuSel == 24) { netEnter(); }
         else if (menuSel == 25) { dyStart(); }
+        else if (menuSel == 26) { crEnter(); }
         else if (menuSel == 20) { mnOpen(1); }
         else if (menuSel == 21) { mnOpen(2); }
         else if (menuSel == 22) { mnOpen(3); }
@@ -313,6 +314,7 @@ function raceKeys() {
 
 function toMenu() {
     if (dyOn > 0) { dyEnd(); }
+    if (crOn > 0) { crEnd(); }
     nCars = 0;
     ghostOn = 0;
     scCar = 0;
@@ -520,6 +522,10 @@ on('start', 'pen3', function () {
             nCars = 0;
             menuCam();
             renderWorld();
+        } else if (raceState == ST_CAR) {
+            // v3.0.0 the career screen
+            crKeys();
+            if (raceState == ST_CAR) { menuCam(); renderWorld(); }
         } else if (raceState == ST_NET) {
             // v2.1.0 online: lobby, room settings, room
             netKeys();
@@ -560,7 +566,8 @@ on('start', 'pen3', function () {
         } else if (raceState == ST_DONE) {
             if (netRace > 0) { netDoneKeys(); if (raceState == ST_DONE) { stepRace(); renderWorld(); } }
             else if (actKey == 13) {
-                if (gMode == M_CH) {
+                if (crOn > 0) { crAfter(); }
+                else if (gMode == M_CH) {
                     awardPoints();
                     raceState = ST_STAND;
                     if (chRound >= NTRK) { if (chOrd[1] == 1) { unlock(14); } }
@@ -572,7 +579,8 @@ on('start', 'pen3', function () {
             else { stepRace(); renderWorld(); }
         } else if (raceState == ST_STAND) {
             if (actKey == 13) {
-                if (chRound < NTRK) { chRound = chRound + 1; setupRace(chRound, selCar); }
+                if (crOn > 0) { crBack(); }
+                else if (chRound < NTRK) { chRound = chRound + 1; setupRace(chRound, selCar); }
                 else { toMenu(); }
             } else { stepRace(); renderWorld(); }
         } else {

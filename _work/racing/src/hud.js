@@ -190,6 +190,7 @@ function updateHud() {
     if (page == ST_EDIT) { sub = shShow; }
     if (page == ST_PROF) { sub = prTab; }
     if (page == ST_NET) { sub = netPg; }
+    if (page == ST_CAR) { sub = crPhase; }
     if (page == ST_RACE) { sub = netWatch; }
     if (page != hudPage) { txClear(); hudPage = page; hudSub = sub; }
     else if (sub != hudSub) {
@@ -198,11 +199,13 @@ function updateHud() {
         if (page == ST_EDIT) { i = 28; }
         if (page == ST_PROF) { i = 24; }
         if (page == ST_NET) { i = 9; }
+        if (page == ST_CAR) { i = 9; }
         if (page == ST_RACE) { i = 1; }
         while (i <= NTX) { txOff(i); i = i + 1; }
     }
     if (raceState == ST_MENU) { hudMenu(); }
     else if (raceState == ST_NET) { hudNet(); }
+    else if (raceState == ST_CAR) { hudCareer(); }
     else if (raceState == ST_CARSEL) { hudCarSel(); }
     else if (raceState == ST_TUNE) { hudTune(); }
     else if (raceState == ST_PROF) { hudProf(); }
@@ -226,8 +229,10 @@ function updateHud() {
     } else if (raceState == ST_LOAD) {
         let tn = trkName[selTrk];
         if (gMode == M_CH) { tn = trkName[1]; }
+        let mn = modeName[gMode];
+        if (crOn > 0) { mn = str('CAREER  ROUND ', crRound + 1); } else if (dyOn > 0) { mn = 'DAILY CHALLENGE'; }
         tx(9, 'LOADING', 0, 30, 30, C_WHITE, 0);
-        tx(10, str(tn, '   ', modeName[gMode], '   ', ruleName[rules]), 0, 4, 11, '#e0e6f2', 0);
+        tx(10, str(tn, '   ', mn, '   ', ruleName[rules]), 0, 4, 11, '#e0e6f2', 0);
         tx(11, 'PREPARING THE CIRCUIT AND GRAPHICS', 0, 0 - 44, 9, C_DIM, 0);
     } else if (raceState == ST_PHOTO) {
         // v6.0 photo mode: nothing on the picture but the help (SPACE hides it)
@@ -254,7 +259,14 @@ function updateHud() {
     } else if (raceState == ST_REPLAY) {
         hudReplay();
     } else if (raceState == ST_STAND) {
-        if (chRound >= NTRK) {
+        if (crOn > 0) {
+            // v3.0.0 a career season
+            tx(9, crRound >= NCRR ? 'SEASON OVER' : 'STANDINGS', 0, 106, 30, crRound >= NCRR ? C_GOLD : C_WHITE, 0);
+            let nx = BLANK;
+            if (crRound < NCRR) { crTrk(crRound + 1); nx = str('   -   NEXT: ', trkName[oCT]); }
+            tx(10, str('SEASON ', crSeason, '   -   AFTER ROUND ', crRound, ' OF ', NCRR, nx, '   -   RIVAL ', crRivW, ' - ', crRivL), 0, 82, 11, '#e0e6f2', 0);
+            tx(12, 'ENTER  career', 0, 0 - 112, 11, C_DIM, 0);
+        } else if (chRound >= NTRK) {
             tx(9, 'CHAMPIONS', 0, 106, 30, C_GOLD, 0);
             tx(10, str('FINAL STANDINGS   -   ', drvName[chOrd[1]], ' WINS THE TITLE'), 0, 82, 11, '#e0e6f2', 0);
             tx(12, 'ENTER  main menu', 0, 0 - 112, 11, C_DIM, 0);
@@ -278,7 +290,8 @@ function updateHud() {
         tx(11, str(rsLine, '     LEVEL ', pLv, '  (', pLvXP, ' / ', pLvNeed, ')'), 0, 0 - 94, 9, C_GOLD, 0);
         let rp = BLANK;
         if (gfx > 1) { rp = '     V  replay'; }
-        if (gMode == M_CH) { tx(12, str('ENTER  championship standings     R  restart', rp), 0, 0 - 112, 11, C_DIM, 0); }
+        if (crOn > 0) { tx(12, str('ENTER  career standings     R  restart', rp), 0, 0 - 112, 11, C_DIM, 0); }
+        else if (gMode == M_CH) { tx(12, str('ENTER  championship standings     R  restart', rp), 0, 0 - 112, 11, C_DIM, 0); }
         else { tx(12, str('ENTER  menu     R  restart', rp), 0, 0 - 112, 11, C_DIM, 0); }
     } } else if (netWatch > 0) { netHudWatch(); }
     else { hudRace(); }

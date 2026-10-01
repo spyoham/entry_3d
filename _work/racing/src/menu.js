@@ -163,6 +163,7 @@ function drawMenuUI() {
     else if (raceState == ST_TUNE) { drawTune(); }
     else if (raceState == ST_PROF) { drawProf(); }
     else if (raceState == ST_NET) { drawNet(); }
+    else if (raceState == ST_CAR) { drawCareer(); }
 }
 
 function drawTablePanel() {
@@ -277,6 +278,9 @@ function drawMainMenu() {
         fillOct(cardX0 + 40, 48, 18, C_PANEL);
         box(cardX0 + 76, 36, cardX1 - 12, 30, C_PANEL2);
         box(cardX0 + 76, 36, cardX0 + 76 + (cardX1 - 88 - cardX0) * pLvXP / pLvNeed, 30, C_GOLD);
+    } else if (m == 26) {
+        // v3.0.0: the team's colour
+        if (crSeason > 0) { box(cardX0 + 6, 76, cardX0 + 9, 52, lvHex[tmLvC[crTeam]]); }
     } else if (m == 25) {
         // v2.3.0: a calendar leaf with today's date
         box(196, 80, 232, 70, C_RED);
@@ -380,7 +384,7 @@ function drawTrkSel() {
 function hudMenu() {
     tx(9, 'F1 ONLINE 3D', 0 - 232, 116, 21, C_WHITE, 1);
     syLabel();
-    tx(10, str('v2.4.0  /  ', oSyL), 0 - 232, 96, 8, C_WHITE, 1);
+    tx(10, str('v3.0.0  /  ', oSyL), 0 - 232, 96, 8, C_WHITE, 1);
     let lvl = pLoaded > 0 ? str('LV ', pLv, '  ', pNick) : 'LOADING SAVE...';
     tx(13, lvl, 0 - 80, 96, 8, C_GOLD, 1);
     let crumb = 'MAIN MENU';
@@ -422,6 +426,7 @@ function hudMenu() {
         else if (k == 11) { lab = 'SOUND'; val = sndName[sndSel]; }
         else if (k == 12) { lab = 'PROFILE'; val = str('LEVEL ', pLv); }
         else if (k == 24) { lab = 'ONLINE RACE'; val = SY_ > 0 ? 'ROOMS  /  WATCH  /  CHAT' : 'NEEDS ENTRY SYNC'; }
+        else if (k == 26) { lab = 'CAREER'; if (crSeason > 0) { crTeamName(crTeam); val = str('SEASON ', crSeason, '  /  ', oNm); } else { val = 'START AS A ROOKIE'; } }
         else if (k == 25) { lab = 'DAILY CHALLENGE'; val = str(dkName[dyKind], '  /  ', trkName[dyTrk]); if (dyLastN == dyN) { val = str(val, '  /  DONE'); } }
         else { lab = 'TRACK EDITOR'; }
         let x = 0 - 226 + (sel > 0 ? 4 * menuSlide : 0);
@@ -640,6 +645,29 @@ function hudCard() {
             else { txOff(56 + r); txOff(66 + r); }
             r = r + 1;
         }
+        tx(75, mod(Math.floor(gt * 2), 2) < 1 ? 'PRESS ENTER' : BLANK, 121, 0 - 84, 10, C_GOLD, 0);
+    } else if (m == 26) {
+        // v3.0.0 the career
+        tx(50, 'CAREER', cardX0 + 10, 84, 11, C_WHITE, 1);
+        if (crSeason > 0) {
+            crTeamName(crTeam);
+            tx(71, oNm, cardX0 + 10, 64, 13, lvHex[tmLvC[crTeam]], 1);
+            tx(73, str('SEASON ', crSeason, '   -   CAR RANK ', crTeam, ' OF ', NTEAM), cardX0 + 10, 50, 7, C_WHITE, 1);
+            cardRow(1, 'ROUND', crPhase > 0 ? 'SEASON OVER - OFFERS' : str(crRound + 1, ' / ', NCRR), 34);
+            cardRow(2, 'STANDINGS', str('P', crPos, '   (GOAL P', crGoal, ')'), 22);
+            cardRow(3, 'RIVAL', str(drvName[crRival], '   ', crRivW, ' - ', crRivL), 10);
+            cardRow(4, 'REPUTATION', str(crRep, '   TITLES ', crTitles), 0 - 2);
+            txOff(74);
+        } else {
+            tx(71, 'FROM ROOKIE TO CHAMPION', cardX0 + 10, 64, 11, C_GOLD, 1);
+            tx(73, 'START IN THE SLOWEST OF EIGHT TEAMS', cardX0 + 10, 48, 8, C_WHITE, 1);
+            tx(74, 'MEET THE TEAM GOAL, BEAT YOUR RIVAL', cardX0 + 10, 36, 8, C_WHITE, 1);
+            cardRow(1, 'SEASON', str(NCRR, ' ROUNDS, POINTS AS IN F1'), 14);
+            cardRow(2, 'CONTRACTS', 'BETTER TEAMS WANT WINNERS', 2);
+            cardRow(3, 'YOUR CAR', 'TEAM CAR, OWN SETUP', 0 - 10);
+            txOff(65);
+        }
+        cardTx(76, 'RULES, LAPS AND AI LEVEL: RACE SETUP', 0 - 62, 7, C_DIM);
         tx(75, mod(Math.floor(gt * 2), 2) < 1 ? 'PRESS ENTER' : BLANK, 121, 0 - 84, 10, C_GOLD, 0);
     } else if (m == 12) {
         tx(50, 'PROFILE', cardX0 + 10, 84, 11, C_WHITE, 1);
