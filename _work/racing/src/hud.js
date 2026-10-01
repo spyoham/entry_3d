@@ -444,8 +444,11 @@ function hudSim() {
         dm = str('WING ', Math.round(caDmg[1] * 100), '%');
         if (caWing[1] > 0) { dm = 'NO FRONT WING'; }
     }
+    // v3.2.0: suspension, a puncture, the engine
+    dmgLine();
+    if (oNm != BLANK) { dm = dm == BLANK ? oNm : str(dm, '  ', oNm); }
     if (caFail[1] > 0) { dm = str(failName[caFail[1]], ' PROBLEM'); }
-    tx(26, dm, 100, 18, 8, caWing[1] + caFail[1] > 0 ? '#ff6a5a' : '#ffc27a', 1);
+    tx(26, dm, 100, 18, 8, caWing[1] + caFail[1] + caPunc[1] > 0 ? '#ff6a5a' : '#ffc27a', 1);
     // the tyre the pit crew has ready (or, on the grid, the one fitted)
     let pl = str('PIT TYRE: ', tyName[pitNext], '  (T)');
     if (raceState == ST_COUNT) { pl = str('START TYRE: ', tyName[caTy[1]], '  (T)'); }
@@ -487,7 +490,8 @@ function hudSim() {
         if (mod(k, 2) == 0) { x = 0 - 145; al = 2; }
         let y = 0 - 31;
         if (k >= 3) { y = 0 - 51; }
-        tx(39 + k, str(Math.round(whT[k]), '° ', Math.round(whW[k] * 100), '%'), x, y, 7, whStC[whSt[k]], al);
+        if (caPunc[1] == k) { tx(39 + k, 'FLAT!', x, y, 7, '#ff3b30', al); }
+        else { tx(39 + k, str(Math.round(whT[k]), '° ', Math.round(whW[k] * 100), '%'), x, y, 7, whStC[whSt[k]], al); }
         k = k + 1;
     }
     // ...and the check panel (I)
@@ -499,7 +503,8 @@ function hudSim() {
             let gp = Math.round(whG[k] * 100);
             let fs = BLANK;
             if (whFS[k] > 0.02) { fs = '  FLAT SPOT'; }
-            tx(44 + k, str(whName[k], '  ', Math.round(whT[k]), '°C  WEAR ', Math.round(whW[k] * 100), '%  GRIP ', gp, '%  ', whStN[whSt[k]], fs), 0 - 112, 42 - (k - 1) * 13, 8, whStC[whSt[k]], 1);
+            if (caPunc[1] == k) { tx(44 + k, str(whName[k], '  PUNCTURE - BOX FOR NEW TYRES'), 0 - 112, 42 - (k - 1) * 13, 8, '#ff3b30', 1); }
+            else { tx(44 + k, str(whName[k], '  ', Math.round(whT[k]), '°C  WEAR ', Math.round(whW[k] * 100), '%  GRIP ', gp, '%  ', whStN[whSt[k]], fs), 0 - 112, 42 - (k - 1) * 13, 8, whStC[whSt[k]], 1); }
             k = k + 1;
         }
         // v3.0: the car's balance - front against rear grip from the tyres,

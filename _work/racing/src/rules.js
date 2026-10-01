@@ -376,6 +376,8 @@ function addDamage(c, d) {
                 }
             }
             if (c == 1) { if (d > 0.08) { setMsg(str('DAMAGE ', Math.round(v * 100), '%'), 1.6); } }
+            // v3.2.0: suspension, a puncture, the engine
+            dmgHit(c, d);
             if (d > 0.3) {
                 incident(c);
                 maybeSC(Math.min(0.8, (d - 0.3) * 1.6));
@@ -490,6 +492,8 @@ function pitStop(c) {
     caVX[c] = 0; caVZ[c] = 0; caYR[c] = 0; caSpd[c] = 0;
     let t = 2.2 + rand(0.0001, 0.6);
     if (caDmg[c] > 0.05) { t = t + 2 + caDmg[c] * 4; }
+    t = t + caDmgS[c] * 6;
+    dmgPit(c);
     caPitT[c] = t;
     let ny = caPitN[c];
     if (c == 1) { ny = pitNext; }
@@ -646,6 +650,9 @@ function aiStrategy(c) {
                                 if (scOn == 1) { if (caWear[c] < 0.55) { if (left >= 2) { want = 1; } } }
                                 if (vscOn == 1) { if (caWear[c] < 0.50) { if (left >= 2) { want = 1; } } }
                                 if (caDmg[c] > 0.45) { if (left >= 1) { want = 1; } }
+                                // v3.2.0: a flat tyre at once, a badly bent car
+                                if (caPunc[c] > 0) { if (left >= 1) { want = 1; } }
+                                if (caDmgS[c] > 0.5) { if (left >= 1) { want = 1; } }
                                 if (caStrat[c] == 3) { if (left >= 2) { want = 1; } }
                                 // the undercut: close behind the car ahead, both on used tyres
                                 if (caUcL[c] != caLap[c]) {
@@ -834,6 +841,7 @@ function deploySC() {
     caCol[g] = GHOST + 1;
     caAcc[g] = 16; caTop[g] = 70; caGrip[g] = 1; caMass[g] = 1; caSkill[g] = 0.95; caLine[g] = 0;
     caHold[g] = 0; caPit[g] = 0; caLim[g] = 0; caWK[g] = 1; caDmg[g] = 0; caWing[g] = 0;
+    caDmgS[g] = 0; caPunc[g] = 0; caDmgE[g] = 0;
     caErsOn[g] = 0; caTow[g] = 0; caDRS[g] = 0; caThr[g] = 0; caBrk[g] = 0; caSteer[g] = 0; caHB[g] = 0;
     caFin[g] = 0; caRoll[g] = 0; caPitch[g] = 0; caStuck[g] = 0; caMisT[g] = 0; caDefT[g] = 0 - 3;
     caPace[g] = 1; caHeat[g] = 0; caSpd[g] = v; caOffT[g] = 0; caLap[g] = caLap[L];

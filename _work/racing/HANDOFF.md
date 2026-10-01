@@ -1,3 +1,35 @@
+# F1 ONLINE 3D — 작업 인계 메모 (2026-10-01, v3.2.0)
+
+산출물: `F1 Online 3D v3.2.0.ent`, 설명서 `F1 Online 3D v3.2.0 설명서.md` (v3.1.0은 루트 `old/`로)
+빌드: `node build.mjs f1online320.ent` → project.json 17.24 MB
+
+## 요청과 한 것
+기능 목록 6번 "손상 확장". 다음: 7번 세이프티카 로드카 모델.
+- 새 `src/damage.js`(SRC_FILES에서 race3.js 뒤). 리스트 caDmgS, caDmgSd, caPunc(1 FL 2 FR 3 RL 4 RR), caPuT, caDmgE, caEngT. placeCar·SC 초기화에서 0.
+- addDamage(rules.js, R_SIM만) 끝에서 `dmgHit(c, d)`.
+  - d > 0.12 → 서스펜션 += 0.8d. d > 0.08 → 확률 min(0.6, 1.2d)로 펑크. d > 0.35 → 반반 확률로 엔진 += 1.5(d − 0.35).
+  - 방향은 전역 **dmgSide**(+1 차의 오른쪽) / **dmgFront**(1 앞).
+    - 벽: phys.js에서 법선·차 방향으로 정함.
+    - 차끼리: lon/lat. 옆으로 닿은 hv > 3.5면 R_SIM에서 6% 확률로 펑크.
+- 물리(carPhys): `dmgOn = caDmgS + caPunc > 0`일 때만 `dmgGrip()`.
+  - **쏠림은 steer에 더함(slipF 계산 전에 — 처음엔 뒤에 넣어서 효과가 없었음)**.
+  - 쏠림: 서스펜션 1.2°·s·side, 펑크 앞 1.2° / 뒤 0.6°. 그립: 앞 펑크 × 0.5, 뒤 × 0.7.
+  - 처음 값(3°, 뒤 × 0.5)은 뒤 펑크에서 1.5 s에 52° 스핀이라 줄임.
+- body attitude: `dmgLean()` 기울기. carSparks: `dmgFx()`(바퀴 불꽃, 엔진 연기 emitSmoke).
+- race3 carTick3: `dmgTick()`(타이어 whW < 0.08이면 초당 3% 펑크, 엔진 ≥ 0.9면 25 s 뒤 caFail 1 + retireCar), `dmgPower()`로 pd/td.
+- pitStop: + caDmgS·6 s, `dmgPit()`(펑크·서스펜션 0, 엔진 그대로). AI 피트 판단: 펑크, 서스펜션 > 0.5. ai.js 속도 계수.
+- HUD: hudSim 26번 줄에 `dmgLine()`('FLAT FL  SUSP n%  ENG n%'). 타이어 미니 패널·I 창에 FLAT. 버전 v3.2.0.
+
+## 시험
+- `t9/damage.mjs`(새) 모두 PASS(`ab/damage320.txt`).
+  - 확률은 Math.random = () => 0으로 고정. **Math는 한 프로세스의 sim들이 같이 쓰므로, 새 sim을 만들기 전에 꼭 되돌릴 것**(안 그러면 시작 중 무작위 반복이 끝나지 않음).
+  - 플레이어 차의 pitStop 시간은 휠건 게임이 정하므로 AI 차로 시험.
+- `t9/dmgtrace.mjs`(새): 손상 없는 차 20 s 궤적이 v3.1.0 소스와 비트 단위로 같음(`ab/dmgtrace320.txt`).
+  - 주의: createSim이 블록 id에 Math.random을 씀(코드가 길면 더 씀). 그래서 sim을 만든 **뒤**에 씨앗을 맞춤.
+- `t9/damageshot.mjs`(새, tessvm): `ab/damage_race.png`. 회귀 `ab/*320.txt`. multi E가 한 번 3/4(알려진 무작위 저장 경쟁) → 6번 다시 돌려 모두 4/4.
+
+---
+
 # F1 ONLINE 3D — 작업 인계 메모 (2026-10-01, v3.1.0)
 
 산출물: `F1 Online 3D v3.1.0.ent`, 설명서 `F1 Online 3D v3.1.0 설명서.md` (v3.0.1은 루트 `old/`로)

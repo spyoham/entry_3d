@@ -13,7 +13,7 @@ import { f1Car } from './f1car.mjs';
 import { engineMp3, aiMp3, REF_RPM, LOOP_SEC, AI_RATIOS, AI_LEVELS, AI_LOOP } from './enginewav.mjs';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'rules.js', 'race3.js', 'fx.js', 'replay.js', 'sound.js', 'share.js', 'profile.js', 'savecode.js', 'editor.js', 'daily.js', 'career.js', 'net.js', 'menu.js', 'hud.js', 'main.js'];
+export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'rules.js', 'race3.js', 'damage.js', 'fx.js', 'replay.js', 'sound.js', 'share.js', 'profile.js', 'savecode.js', 'editor.js', 'daily.js', 'career.js', 'net.js', 'menu.js', 'hud.js', 'main.js'];
 
 // ============================================================
 // constants shared with the EJS sources
@@ -1416,6 +1416,8 @@ export function buildData() {
         'snVX', 'snVZ', 'snSp', 'snB', 'snSt',
         // v8 tuning multipliers (1 / 0 for the AI): aero, brakes, brake bias, suspension, wear
         'caAeroK', 'caBrkK', 'caBias', 'caSusp', 'caWearK',
+        // v3.2.0 damage: suspension (and its side), puncture wheel and time, engine (and its clock)
+        'caDmgS', 'caDmgSd', 'caPunc', 'caPuT', 'caDmgE', 'caEngT',
         // v2.6: grip of the front / rear axle against the four-wheel mean, wheel clock
         'caAxF', 'caAxR', 'caWhT',
         // v3.0: brakes, fuel, faults, flags, setup, formation lap, Q1-Q3, strategy

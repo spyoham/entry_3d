@@ -174,6 +174,11 @@ function carTick3(c, wt, sp) {
         if (fk == 5) { pd = pd + 0.5; if (caFailT[c] > 6) { retireCar(c); } }
         if (fk == 6) { retireCar(c); }
     }
+    // v3.2.0: a flat tyre, a damaged engine
+    if (raceState == ST_RACE) { dmgTick(c, wt); }
+    dmgPower(c);
+    pd = pd + oDP;
+    td = td + oDT;
     if (f <= 0) { if (raceState == ST_RACE) { pd = 1; if (caDNF[c] < 1) { if (sp < 3) { retireCar(c); } } } }
     if (caDNF[c] > 0) { pd = 1; }
     caPowD[c] = pd;

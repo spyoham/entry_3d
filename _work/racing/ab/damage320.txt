@@ -1,0 +1,19 @@
+PASS a 0.3 hit on the right front: suspension 0.24 (right), puncture wheel 2 (FR), no engine damage
+PASS radio: 'PUNCTURE - FRONT RIGHT! BOX, BOX'
+PASS a 0.6 hit on the left rear: puncture wheel 3 (RL), engine 0.38
+PASS a light touch (0.05): only the wing
+PASS suspension bent on the right pulls right (5.83 deg), on the left pulls left (-5.58), undamaged straight (0.000)
+PASS a flat front left pulls left (-3.55 deg in 1.5 s), a flat rear right right (10.14) - no spin
+PASS and the car leans onto the flat (roll 2.50 / -2.11)
+PASS turning on full lock: yaw rate 34 clean, 17 with a flat front, 29 with the suspension gone
+PASS a flat tyre and half an engine: power -25%, top speed -30%
+PASS a rear-left tyre worn to 5%: puncture wheel 3
+PASS engine at 95%: still running after 24 s
+PASS ...retired at 26 s: 'ENGINE FAILURE - WE HAVE TO STOP, SORRY'
+PASS pit stop: puncture and suspension fixed, engine not (0.4); 2.2 s -> 5.2 s with the suspension
+PASS HUD: 'FLAT FL  SUSP 30%  ENG 20%'
+PASS a flat tyre drags its rim: 20 sparks
+PASS arcade: hits do no damage (as before)
+PASS an AI car with a flat tyre pits and comes out on new tyres (stops 0 -> 1)
+TRACE -543.918744733 200.527449213 5.096306878
+all passed

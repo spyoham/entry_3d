@@ -134,7 +134,8 @@ function placeCar(c, seg, off) {
     caTow[c] = 0; caDRS[c] = 0; caDOk[c] = 0; caFinT[c] = 0; caGap[c] = 0;
     caHold[c] = 1;
     // v7 state
-    caDmg[c] = 0; caWing[c] = 0; caErs[c] = 0.8; caErsH[c] = 0; caErsOn[c] = 0;
+    caDmg[c] = 0; caWing[c] = 0; caErs[c] = 0.8;
+    caDmgS[c] = 0; caDmgSd[c] = 1; caPunc[c] = 0; caPuT[c] = 0; caDmgE[c] = 0; caEngT[c] = 0; caErsH[c] = 0; caErsOn[c] = 0;
     caPit[c] = 0; caPitT[c] = 0; caPitN[c] = TY_M; caLim[c] = 0; caStops[c] = 0;
     caPen[c] = 0; caTL[c] = 0; caTLon[c] = 0; caYelT[c] = 0; caYelS[c] = 1;
     caMisT[c] = 0; caDefT[c] = 0 - 3; caDefO[c] = 0; caPace[c] = 1; caHeat[c] = 0;

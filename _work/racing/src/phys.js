@@ -194,6 +194,10 @@ function carPhys(c) {
     // than they can use is not on offer at speed
     let maxSteer = 30 - 22 * Math.min(1, spA / 42);
     let steer = caSteer[c] * maxSteer;
+    // v3.2.0: bent suspension, a flat tyre - the pull towards it, the grip each
+    // axle keeps (only worked out for a damaged car)
+    let dmgOn = caDmgS[c] + caPunc[c];
+    if (dmgOn > 0) { dmgGrip(c, spA); steer = steer + oPull; }
 
     // ---- tyre grip ----
     // Total lateral grip in m/s^2: mechanical grip plus downforce that grows
@@ -231,6 +235,7 @@ function carPhys(c) {
     let gripF = mu * 0.50 * (1 - 0.28 * dmg);
     if (caWing[c] > 0) { gripF = gripF * 0.86; }
     let gripR = mu * 0.53;
+    if (dmgOn > 0) { gripF = gripF * oGF; gripR = gripR * oGR; }
     // v2.6 realistic: the axles' own tyres (heat and wear per wheel, rules.js)
     gripF = gripF * (1 + caAxF[c]);
     gripR = gripR * (1 + caAxR[c]);
@@ -367,7 +372,13 @@ function carPhys(c) {
             let vn = caVX[c] * sgNX[s] + caVZ[c] * sgNZ[s];
             // v7: a real hit damages the car (realistic) and throws sparks
             let avn = Math.abs(vn);
-            if (avn > 6) { addDamage(c, (avn - 6) * 0.075); }
+            if (avn > 6) {
+                // (v3.2.0: which side of the car met the wall, and which end)
+                let wn = hit > 0 ? 1 : 0 - 1;
+                dmgSide = wn * (sgNX[s] * fz - sgNZ[s] * fx) > 0 ? 1 : 0 - 1;
+                dmgFront = wn * (sgNX[s] * fx + sgNZ[s] * fz) > 0 ? 1 : 0;
+                addDamage(c, (avn - 6) * 0.075);
+            }
             if (avn > 2.5) { sparkBurst(caX[c] + sgNX[s] * (hit > 0 ? 0.9 : 0 - 0.9), caY[c], caZ[c] + sgNZ[s] * (hit > 0 ? 0.9 : 0 - 0.9), caVX[c], caVZ[c], s, 3); }
             // v12: what a wall costs depends on how hard it is hit, not on
             // touching it. (Before, every physics step in contact took 16 %
@@ -454,6 +465,8 @@ function carPhys(c) {
     if (tgtPitch < 0 - 7) { tgtPitch = 0 - 7; }
     tgtRoll = tgtRoll + grRoll;
     tgtPitch = tgtPitch + grPitch;
+    // v3.2.0: a damaged car sits crooked
+    if (caDmgS[c] + caPunc[c] > 0) { dmgLean(c); tgtRoll = tgtRoll + oDR; tgtPitch = tgtPitch + oDPi; }
     // in the air: the nose follows the flight path, the roll it left with
     if (caAir[c] > 0) {
         atan2d(caVY[c], Math.max(8, spA));
@@ -503,6 +516,8 @@ function carPhys(c) {
 // lost its front wing scrapes the nose. Only for cars close to the camera.
 function carSparks(c) {
     let sp = Math.abs(caSpd[c]);
+    // v3.2.0: a rim on the road, a smoking engine
+    if (caPunc[c] + caDmgE[c] > 0) { dmgFx(c, sp); }
     if (sp > 20) {
         let ddx = caX[c] - camX;
         let ddz = caZ[c] - camZ;
@@ -583,12 +598,21 @@ function carCollisions() {
                             let hv = 0 - rel;
                             if (pl < pw) {
                                 if (hv > 4.5) {
+                                    dmgFront = 1;
+                                    dmgSide = lat > 0 ? 1 : 0 - 1;
                                     if (lon > 0) { if (ka > 0) { addDamage(a, (hv - 4.5) * 0.09); } }
-                                    else { if (kb > 0) { addDamage(b, (hv - 4.5) * 0.09); } }
+                                    else { dmgSide = 0 - dmgSide; if (kb > 0) { addDamage(b, (hv - 4.5) * 0.09); } }
                                 }
-                            } else if (hv > 6) {
-                                if (ka > 0) { addDamage(a, (hv - 6) * 0.03); }
-                                if (kb > 0) { addDamage(b, (hv - 6) * 0.03); }
+                            } else {
+                                // v3.2.0: side by side - wheel against wheel can cut a tyre
+                                dmgFront = lon > 0 ? 1 : 0;
+                                dmgSide = lat > 0 ? 1 : 0 - 1;
+                                if (hv > 6) { if (ka > 0) { addDamage(a, (hv - 6) * 0.03); } }
+                                if (hv > 3.5) { if (rules == R_SIM) { if (ka > 0) { if (rand(0, 99) < 6) { dmgPuncture(a, (dmgFront > 0 ? 1 : 3) + (dmgSide > 0 ? 1 : 0)); } } } }
+                                dmgFront = 1 - dmgFront;
+                                dmgSide = 0 - dmgSide;
+                                if (hv > 6) { if (kb > 0) { addDamage(b, (hv - 6) * 0.03); } }
+                                if (hv > 3.5) { if (rules == R_SIM) { if (kb > 0) { if (rand(0, 99) < 6) { dmgPuncture(b, (dmgFront > 0 ? 1 : 3) + (dmgSide > 0 ? 1 : 0)); } } } }
                             }
                             if (hv > 2.5) { sparkBurst((caX[a] + caX[b]) / 2, (caY[a] + caY[b]) / 2 + 0.2, (caZ[a] + caZ[b]) / 2, caVX[a], caVZ[a], caSeg[a], 3); }
                             let j = rel * 0.75;

@@ -42,6 +42,9 @@ function aiPlan(c) {
     let gk = caGrip[c] * marg * skill * caWK[c] * trkGripK / (1 + 0.5 * caMassD[c]);
     // a damaged front end turns in less: drive to what is left of it
     if (caDmg[c] > 0) { gk = gk * (1 - 0.30 * caDmg[c]); if (caWing[c] > 0) { gk = gk * 0.90; } }
+    // v3.2.0: and the suspension and a flat tyre
+    if (caDmgS[c] > 0) { gk = gk * (1 - 0.15 * caDmgS[c]); }
+    if (caPunc[c] > 0) { gk = gk * 0.6; }
     let bk2 = 1;
     // a mistake: too much speed into the next corner and a late, soft stop
     if (caMisT[c] > 0) { if (caMisK[c] < 2) { gk = gk * 1.07; bk2 = 0.85; } }
