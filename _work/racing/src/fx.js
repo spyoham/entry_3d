@@ -143,13 +143,10 @@ function todStep() {
 }
 
 // ---- replay ----------------------------------------------------------------------------
-// While racing on HIGH or ULTRA every car's position is sampled every RPDT
-// seconds into a ring buffer (the last RPN samples, about a minute). The
-// replay plays that back, watched from trackside TV cameras by default.
-let rpHead = 0;             // slot of the newest sample
-let rpN = 0;                // samples held
-let rpAcc = 0;
-let rpT = 0;                // playback position, seconds from the oldest sample
+// v3.1.0 / v3.4.0: the replay plays the whole-race buffer of replay.js
+// (the last minute in detail that lived here went: its 0.1 s x/y/z ring
+// buffer was too big for the work's size limit), watched from trackside TV
+// cameras by default. Here: the cameras, and the race put aside and back.
 let rpCar = 1;              // car being watched
 let rpCam = 0;              // 0 TV, 1 chase, 2 onboard, 3 high
 let rpPause = 0;
@@ -158,43 +155,6 @@ let rpGhost = 0;
 let rpSC = 0;
 let tvN = 0;                // cameras on this circuit
 let tvK = 1;                // camera in use
-
-function rpReset() {
-    rpHead = 0;
-    rpN = 0;
-    rpAcc = 0;
-}
-
-function rpRec() {
-    if (gfx > 1) {
-        let rec = 0;
-        if (raceState == ST_RACE) { rec = 1; }
-        if (raceState == ST_COUNT) { rec = 1; }
-        if (raceState == ST_DONE) { rec = 1; }
-        if (rec > 0) {
-            rpAcc = rpAcc + dt;
-            if (rpAcc >= RPDT) {
-                rpAcc = rpAcc - RPDT;
-                if (rpAcc > RPDT) { rpAcc = 0; }
-                rpHead = mod(rpHead, RPN) + 1;
-                if (rpN < RPN) { rpN = rpN + 1; }
-                let b = (rpHead - 1) * RPC;
-                let c = 1;
-                while (c <= RPC) {
-                    let k = b + c;
-                    let on = 0;
-                    if (c <= nCars) { if (caFin[c] < 2) { on = 1; } }
-                    if (c == GHOST) { if (scCar > 0) { on = 1; } if (ghostOn > 0) { on = 1; } }
-                    if (on > 0) {
-                        rpX[k] = caX[c]; rpY[k] = caY[c]; rpZ[k] = caZ[c];
-                        rpW[k] = caYaw[c]; rpS[k] = caSeg[c]; rpV[k] = caSpd[c];
-                    } else { rpS[k] = 0; }
-                    c = c + 1;
-                }
-            }
-        }
-    }
-}
 
 // Trackside cameras, placed once per circuit: one every few hundred metres,
 // on the outside of the corners (on the straights, either side), a few
@@ -284,26 +244,6 @@ function rpSnap(save) {
             caVX[c] = snVX[c]; caVZ[c] = snVZ[c]; caSpd[c] = snSp[c]; caBrk[c] = snB[c]; caSteer[c] = snSt[c];
         }
         c = c + 1;
-    }
-}
-
-function enterReplay() {
-    if (gfx < 2) { setMsg('REPLAYS NEED GRAPHICS HIGH OR ULTRA', 2); }
-    else if (rpN < 20) { setMsg('NOTHING TO REPLAY YET', 1.5); }
-    else {
-        rpSnap(1);
-        rpPrev = raceState;
-        rpGhost = ghostOn;
-        rpSC = scCar;
-        raceState = ST_REPLAY;
-        rpSrc = 0;
-        rpT = 0;
-        rpCar = 1;
-        rpCam = 0;
-        rpPause = 0;
-        camCar = 1;
-        replayPose();
-        tvFind(caSeg[1]);
     }
 }
 
@@ -407,65 +347,9 @@ function photoStep() {
     }
 }
 
-// put every car where it was at playback time rpT
-function replayPose() {
-    let fi = rpT / RPDT;
-    let n = Math.floor(fi);
-    let f = fi - n;
-    let old = 1;
-    if (rpN >= RPN) { old = mod(rpHead, RPN) + 1; }
-    let j = mod(old - 1 + n, RPN) + 1;
-    let j2 = mod(j, RPN) + 1;
-    if (n >= rpN - 1) { j2 = j; f = 0; }
-    let c = 1;
-    while (c <= RPC) {
-        let k1 = (j - 1) * RPC + c;
-        let k2 = (j2 - 1) * RPC + c;
-        let vis = rpS[k1] > 0 ? 1 : 0;
-        if (rpS[k2] < 1) { k2 = k1; }
-        if (vis > 0) {
-            let x = rpX[k1] + (rpX[k2] - rpX[k1]) * f;
-            let z = rpZ[k1] + (rpZ[k2] - rpZ[k1]) * f;
-            caVX[c] = (rpX[k2] - rpX[k1]) / RPDT;
-            caVZ[c] = (rpZ[k2] - rpZ[k1]) / RPDT;
-            caX[c] = x;
-            caZ[c] = z;
-            caY[c] = rpY[k1] + (rpY[k2] - rpY[k1]) * f;
-            wrapAng(rpW[k2] - rpW[k1]);
-            caYaw[c] = rpW[k1] + oWrap * f;
-            caSteer[c] = oWrap * 0.25;
-            if (caSteer[c] > 1) { caSteer[c] = 1; }
-            if (caSteer[c] < 0 - 1) { caSteer[c] = 0 - 1; }
-            caSpd[c] = rpV[k1] + (rpV[k2] - rpV[k1]) * f;
-            caBrk[c] = rpV[k1] - rpV[k2] > 0.5 ? 1 : 0;
-            sampleTrack(x, z, rpS[k1]);
-            caSeg[c] = sfSeg; caU[c] = sfU; caOff[c] = sfT;
-            caRoll[c] = 0; caPitch[c] = 0;
-            caFin[c] = 0;
-        } else { caFin[c] = 9; }
-        c = c + 1;
-    }
-    ghostOn = 0;
-    scCar = 0;
-    if (caFin[GHOST] < 1) {
-        if (rpSC > 0) { scCar = 1; } else { ghostOn = 1; }
-    }
-}
-
 function replayStep() {
-    // (v3.1.0: or the whole race / its highlights, replay.js)
-    if (rpSrc > 0) { rfStep(); }
-    else {
-    if (actKey == 32) { rpPause = 1 - rpPause; }
-    if (actKey == 37) { rpCar = mod(rpCar + nCars - 2, nCars) + 1; tvFind(caSeg[rpCar]); }
-    if (actKey == 39) { rpCar = mod(rpCar, nCars) + 1; tvFind(caSeg[rpCar]); }
-    if (actKey == 67) { rpCam = mod(rpCam + 1, 4); camYawS = caYaw[rpCar]; }
-    if (rpPause < 1) {
-        rpT = rpT + dt;
-        if (rpT > (rpN - 1) * RPDT) { rpT = 0; tvFind(caSeg[rpCar]); }
-    }
-    replayPose();
-    }
+    // (the whole race / its highlights, replay.js)
+    rfStep();
     camCar = rpCar;
     if (rpCam == 0) { tvCam(); }
     else {

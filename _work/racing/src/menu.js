@@ -827,7 +827,6 @@ function drawReplayUI() {
     if (rpPause < 1) { if (mod(Math.floor(gt * 2), 2) < 1) { fillOct(0 - 224, 120, 5, C_RED); } }
     // position in the buffer
     let f = 0;
-    if (rpN > 1) { f = rpT / ((rpN - 1) * RPDT); }
     // (v3.1.0: in the whole race, or in the clip)
     if (rpSrc == 1) { if (rfN > 1) { f = rfT / ((rfN - 1) * rfDT); } }
     if (rpSrc == 2) { f = (rfT - hcA[hcK]) / Math.max(0.1, hcB[hcK] - hcA[hcK]); }

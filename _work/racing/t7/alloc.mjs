@@ -12,7 +12,7 @@ for (const [len, ks] of Object.entries(D.alloc)) for (const k of ks) {
     if (L !== +len) { bad++; console.log('length', k, L, 'want', len); }
 }
 // a fresh buffer is all zeros before the game touches it (rp* replay: only written in a race)
-const z = g('rpX.every(v => v === 0) && pbX.every(v => v === 0)');
+const z = g('rfA.every(v => v === 0) && pbX.every(v => v === 0)');
 g('allocLists()');
-const again = +g('rpX.length');
-console.log(`${bad === 0 && z && again === 4950 ? 'PASS' : 'FAIL'} ${n} lists allocated at the start, ${bad} with a wrong length, zeros ${z}, after a second allocLists rpX has ${again}`);
+const again = +g('rfA.length');
+console.log(`${bad === 0 && z && again === 4950 ? 'PASS' : 'FAIL'} ${n} lists allocated at the start, ${bad} with a wrong length, zeros ${z}, after a second allocLists rfA has ${again}`);

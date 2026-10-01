@@ -1,7 +1,7 @@
 // ============================================================
-// replay.js - v3.1.0 the whole race and its highlights. The replay of fx.js
-// keeps the last minute in full detail (0.1 s, x/y/z); this keeps the whole
-// race, small: every RFDT s each car's place ON the track - how far round
+// replay.js - v3.1.0 the whole race and its highlights (v3.4.0: and the
+// pause menu's last minute - the old 0.1 s x/y/z buffer went). It keeps the
+// whole race, small: every RFDT s each car's place ON the track - how far round
 // the lap (ring + fraction) and how far off the centre line - packed into
 // one number
 //   v = round(p * 100) * 1000 + round((off + 50) * 10),  p = ring - 1 + u
@@ -367,6 +367,15 @@ function rfEnter(src) {
         hcK = 1;
         if (src == 2) { rfT = hcA[1]; rpCar = hcC[1]; }
         camCar = rpCar;
+        rfPose(rfT);
+        tvFind(caSeg[rpCar]);
+    }
+}
+// the pause menu's V: the race so far from a minute ago
+function rfLast() {
+    rfEnter(1);
+    if (raceState == ST_REPLAY) {
+        rfT = Math.max(0, (rfN - 1) * rfDT - 60);
         rfPose(rfT);
         tvFind(caSeg[rpCar]);
     }

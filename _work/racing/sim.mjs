@@ -6,6 +6,8 @@ import path from 'node:path';
 import url from 'node:url';
 import { buildData, sources, declPrelude } from './build.mjs';
 import { compileToJS, compileProgram } from './ejs.mjs';
+import { tabulate } from './tabulate.mjs';
+import { inlineOnce } from './inline.mjs';
 import { createRequire } from 'node:module';
 const require = createRequire(new URL('../../entry-vibe-coding/package.json', import.meta.url));
 const sharp = require('sharp');
@@ -16,7 +18,7 @@ const W = 480 * SS, H = 270 * SS;
 
 export function createSim({ fps = 30 } = {}) {
     const D = buildData();
-    const srcs = [declPrelude(D), ...sources()];
+    const srcs = tabulate(inlineOnce([declPrelude(D), ...sources()], { keep: true }).srcs, D.consts).srcs;
     const prog = compileProgram(srcs, { consts: D.consts });     // syntax check with the real backend
     const js = Object.entries(D.consts).map(([k, v]) => 'const ' + k + '=' + JSON.stringify(v) + ';').join('\n') + '\n' + compileToJS(srcs);
 

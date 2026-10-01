@@ -306,7 +306,6 @@ function startGrid(ct) {
     camMode = 0;
     camYawS = caYaw[1];
     camX = caX[1]; camZ = caZ[1]; camY = caY[1] + 3;
-    rpReset();
     rfReset();
     // v8: this race's stats; the time trial's ghost; practice assists
     statsReset();
@@ -899,7 +898,6 @@ function stepRace() {
     if (lightsT > 0) { lightsT = lightsT - dt; }
     stepSmoke();
     fxStep();
-    rpRec();
     rfRec();
     updateCam();
 }

@@ -247,8 +247,7 @@ function updateHud() {
         tx(24, 'P   RESUME', 0, 0 - 6, 12, C_WHITE, 0);
         tx(25, 'R   RESTART', 0, 0 - 24, 12, C_WHITE, 0);
         tx(26, 'M   MAIN MENU', 0, 0 - 42, 12, C_WHITE, 0);
-        if (gfx > 1) { tx(27, 'V   REPLAY      H   HIGHLIGHTS      O   PHOTO', 0, 0 - 60, 12, C_WHITE, 0); }
-        else { tx(27, 'H   HIGHLIGHTS      O   PHOTO', 0, 0 - 60, 12, C_WHITE, 0); }
+        tx(27, 'V   REPLAY      H   HIGHLIGHTS      O   PHOTO', 0, 0 - 60, 12, C_WHITE, 0);
         // v3.0: the cockpit keys of the realistic rules
         if (rules == R_SIM) { tx(28, 'F FUEL MIX   1/2 BRAKE BALANCE   I TYRE CHECK   T PIT TYRE   Q/SHIFT ERS', 0, 0 - 84, 8, C_DIM, 0); }
     } else if (raceState == ST_QRES) {
@@ -528,32 +527,25 @@ function hudSim() {
 
 // ---- v7 replay HUD ------------------------------------------------------------
 function hudReplay() {
-    tx(9, rpSrc == 1 ? 'FULL RACE' : (rpSrc == 2 ? 'HIGHLIGHTS' : 'REPLAY'), 0 - 212, 120, 14, C_WHITE, 1);
+    tx(9, rpSrc == 2 ? 'HIGHLIGHTS' : 'FULL RACE', 0 - 212, 120, 14, C_WHITE, 1);
     padR(drvName[rpCar], 12);
     tx(10, str(oPad, lvName[caCol[rpCar]]), 0 - 120, 122, 10, lvHex[caCol[rpCar]], 1);
     let cn = 'TV CAMERA';
     if (rpCam == 1) { cn = 'CHASE'; } else if (rpCam == 2) { cn = 'ONBOARD'; } else if (rpCam == 3) { cn = 'HIGH CHASE'; }
     if (rpPause > 0) { cn = str(cn, '   PAUSED'); }
     tx(11, cn, 0 - 120, 110, 8, C_DIM, 1);
-    if (rpSrc > 0) {
-        // v3.1.0 the whole race / its highlights
-        let sp = str('   x', rpSpdV[rpSpd]);
-        if (rpSrc == 1) {
-            fmtTime(rfT);
-            let a = oTime;
-            fmtTime((rfN - 1) * rfDT);
-            tx(13, str(a, ' / ', oTime, sp), 100, 118, 9, C_WHITE, 1);
-            txOff(14);
-        } else {
-            tx(13, str('CLIP ', hcK, ' / ', hcN, sp), 120, 118, 9, C_WHITE, 1);
-            hxCaption(hcK);
-            tx(14, oHC, 0, 0 - 94, 13, C_GOLD, 0);
-        }
-        tx(12, 'LEFT/RIGHT car   C camera   UP/DOWN speed   H highlights / full race   SPACE pause   ENTER back', 0, 0 - 123, 7, '#c9d1de', 0);
-    } else {
-        fmtSec(rpT);
-        tx(13, str(oSec, ' / ', Math.round((rpN - 1) * RPDT), ' s'), 150, 118, 9, C_WHITE, 1);
+    // v3.1.0 the whole race / its highlights
+    let sp = str('   x', rpSpdV[rpSpd]);
+    if (rpSrc == 1) {
+        fmtTime(rfT);
+        let a = oTime;
+        fmtTime((rfN - 1) * rfDT);
+        tx(13, str(a, ' / ', oTime, sp), 100, 118, 9, C_WHITE, 1);
         txOff(14);
-        tx(12, 'LEFT/RIGHT car   C camera   SPACE pause   O photo   ENTER back', 0, 0 - 123, 9, '#c9d1de', 0);
+    } else {
+        tx(13, str('CLIP ', hcK, ' / ', hcN, sp), 120, 118, 9, C_WHITE, 1);
+        hxCaption(hcK);
+        tx(14, oHC, 0, 0 - 94, 13, C_GOLD, 0);
     }
+    tx(12, 'LEFT/RIGHT car   C camera   UP/DOWN speed   H highlights / full race   SPACE pause   ENTER back', 0, 0 - 123, 7, '#c9d1de', 0);
 }

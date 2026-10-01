@@ -11,6 +11,7 @@ const SMOKEZ = 3.0;        // puffs nearer than this would swallow the screen
 const CULLBACK = 4;        // rings scanned behind the camera
 const SCNM = 120;          // scenery reaches this far out, so cull wider
 const CARBASE = (NSEG + 1) * PPR;
+let drMdl = 0;              // (v3.3.0: the model drawCar drew last - 1 the coupe; for the tests)
 const SCRBASE = CARBASE + NCARV;
 const SCNBASE = SCRBASE + 8;
 // v6: screen positions (psX/psY, clipX/clipY) are kept as whole numbers of
@@ -967,10 +968,24 @@ function drawCar(c, tier) {
         let sa = caSteer[c] * 20;
         let wc = cosd(sa);
         let ws = sind(sa);
+        // v3.3.0: the safety car is the road coupe that follows the
+        // open-wheeler in the model lists (vertices after NCV, projected into
+        // the same slots; face orders after the car's)
+        let sc = 0;
+        if (c == GHOST) { if (scCar > 0) { sc = 1; } }
+        drMdl = sc;
+        let vb = 0;
         let v0 = 1;
         let vn = NCVLO;
         let fn = NCFLO;
+        let ob0 = 0;
         if (tier > 0) { v0 = NCVLO + 1; vn = NCV; fn = NCFHI; }
+        if (sc > 0) {
+            vb = NCV;
+            v0 = NCV + 1; vn = NCV + NRVLO; fn = NRFLO; ob0 = 8 * NCFLO;
+            if (tier > 0) { v0 = NCV + NRVLO + 1; vn = NCV + NRV; fn = NRFHI; ob0 = 8 * NCFHI; }
+        }
+        let sb = CARBASE - vb;
         let v = v0;
         while (v <= vn) {
             let lx = cvX[v];
@@ -984,7 +999,7 @@ function drawCar(c, tier) {
                 lx = Math.round(ox + ex * wc + ez * ws);
                 lz = Math.round(oz - ex * ws + ez * wc);
             }
-            let s = CARBASE + v;
+            let s = sb + v;
             let vz = b20 * lx + b21 * ly + b22 * lz + i2;
             pvZ[s] = vz;
             let vx = b00 * lx + b01 * ly + b02 * lz + i0;
@@ -1000,7 +1015,7 @@ function drawCar(c, tier) {
         }
         // which way round the camera sees the car: 0 from ahead, 2 from its right
         atan2d(lcx, lcz);
-        let ob = mod(Math.round(oAtan / 45) + 8, 8) * fn;
+        let ob = mod(Math.round(oAtan / 45) + 8, 8) * fn + ob0;
         let col = caCol[c];
         let lR = lvR[col]; let lG = lvG[col]; let lB = lvB[col];
         let lit = 0;
@@ -1013,6 +1028,8 @@ function drawCar(c, tier) {
         if (gfx > 2) { heat = caHeat[c]; }
         let see = 0;
         if (c == GHOST) { if (gfx > 1) { if (scCar < 1) { see = 45; penTr = see; penAlpha(see); } } }
+        // (the safety car's light bar: amber on and off four times a second)
+        let bar = mod(Math.floor(gt * 4), 2);
         let k = 1;
         while (k <= fn) {
             let f = 0;
@@ -1035,12 +1052,19 @@ function drawCar(c, tier) {
                 else if (kd == 4) { r = 150; g = 152; b = 162; }
                 else if (kd == 5) { r = lvHR[col]; g = lvHG[col]; b = lvHB[col]; }
                 else if (kd == 7) { r = lR * 0.55; g = lG * 0.55; b = lB * 0.55; }
+                else if (kd == 8) { r = 38; g = 50; b = 66; }
                 let l = (nx * lsi + ny * lsj + nz * lsk) / 1048576;
                 if (l < 0) { l = 0; }
                 l = kA + kB * l;
                 if (kd == 6) {
                     l = kf;
                     if (lit > 0) { r = 255; g = 64; b = 52; } else { r = 96; g = 24; b = 24; }
+                }
+                // v3.3.0 the safety car: its light bar and headlights
+                if (kd > 8) {
+                    l = kf;
+                    if (kd == 10) { r = 255; g = 244; b = 200; }
+                    else if (bar > 0) { r = 255; g = 170; b = 0; } else { r = 110; g = 70; b = 12; }
                 }
                 if (kd == 4) {
                     if (heat > 0.05) {
@@ -1059,163 +1083,6 @@ function drawCar(c, tier) {
             k = k + 1;
         }
         if (see > 0) { penTr = 0; penAlpha(0); }
-    }
-}
-
-// v3.3.0: the safety car - its road coupe (sccar.mjs, the rc* lists) drawn
-// as drawCar draws the open-wheeler, into the same projection slots; its own
-// colours for the glass, the flashing light bar and the headlights
-function drawSC(c, tier) {
-    let yc = cosd(caYaw[c]);
-    let ys = sind(caYaw[c]);
-    let rc = cosd(caRoll[c]);
-    let rs = sind(caRoll[c]);
-    let pc = cosd(caPitch[c]);
-    let ps = sind(caPitch[c]);
-    // where the car's own x, y and z axes point in the world (roll, then
-    // pitch, then yaw)
-    let xX = rc * yc + rs * ps * ys; let xY = rs * pc; let xZ = rs * ps * yc - rc * ys;
-    let yX = rc * ps * ys - rs * yc; let yY = rc * pc; let yZ = rs * ys + rc * ps * yc;
-    let zX = pc * ys; let zY = 0 - ps; let zZ = pc * yc;
-    // model space straight to view space: one 3x3 matrix and an offset per
-    // car, so each vertex costs nine multiplies instead of a world pass and
-    // a camera pass
-    let a00 = crX * xX + crY * xY + crZ * xZ; let a01 = crX * yX + crY * yY + crZ * yZ; let a02 = crX * zX + crY * zY + crZ * zZ;
-    let a10 = cuX * xX + cuY * xY + cuZ * xZ; let a11 = cuX * yX + cuY * yY + cuZ * yZ; let a12 = cuX * zX + cuY * zY + cuZ * zZ;
-    let a20 = cfX * xX + cfY * xY + cfZ * xZ; let a21 = cfX * yX + cfY * yY + cfZ * yZ; let a22 = cfX * zX + cfY * zY + cfZ * zZ;
-    let dx = caX[c] - camX;
-    let dy = caY[c] - camY;
-    let dz = caZ[c] - camZ;
-    let o2 = cfX * dx + cfY * dy + cfZ * dz;
-    // the whole car off screen: nothing to transform (radius 3.2 m)
-    let o0 = crX * dx + crY * dy + crZ * dz;
-    let o1 = cuX * dx + cuY * dy + cuZ * dz;
-    let vis = 1;
-    if (o2 < 0 - 3.2) { vis = 0; }
-    if (o0 - frKX * o2 > 3.2 * frFX) { vis = 0; }
-    if (0 - o0 - frKX * o2 > 3.2 * frFX) { vis = 0; }
-    if (o1 - frKY * o2 > 3.2 * frFY) { vis = 0; }
-    if (0 - o1 - frKY * o2 > 3.2 * frFY) { vis = 0; }
-    if (vis > 0) {
-        // integer versions: model mm -> view units (1/ZU m)
-        let dxi = Math.round(caX[c] * WU) - camXi;
-        let dyi = Math.round(caY[c] * WU) - camYi;
-        let dzi = Math.round(caZ[c] * WU) - camZi;
-        let i0 = dxi * crXi + dyi * crYi + dzi * crZi;
-        let i1 = dxi * cuXi + dyi * cuYi + dzi * cuZi;
-        let i2 = dxi * cfXi + dyi * cfYi + dzi * cfZi;
-        let m = BS / 10;
-        let b00 = Math.round(a00 * m); let b01 = Math.round(a01 * m); let b02 = Math.round(a02 * m);
-        let b10 = Math.round(a10 * m); let b11 = Math.round(a11 * m); let b12 = Math.round(a12 * m);
-        let b20 = Math.round(a20 * m); let b21 = Math.round(a21 * m); let b22 = Math.round(a22 * m);
-        // the camera and the sun as the car sees them: back faces and lighting
-        // are then one dot product per face against constants from the build
-        let lcx = 0 - (xX * dx + xY * dy + xZ * dz);
-        let lcy = 0 - (yX * dx + yY * dy + yZ * dz);
-        let lcz = 0 - (zX * dx + zY * dy + zZ * dz);
-        // camera (mm) and sun (x1024) in car space, whole numbers for the face loop
-        let lci = Math.round(lcx * 1000); let lcj = Math.round(lcy * 1000); let lck = Math.round(lcz * 1000);
-        let lsi = Math.round((xX * SUNX + xY * SUNY + xZ * SUNZ) * 1024);
-        let lsj = Math.round((yX * SUNX + yY * SUNY + yZ * SUNZ) * 1024);
-        let lsk = Math.round((zX * SUNX + zY * SUNY + zZ * SUNZ) * 1024);
-        // one fog level for the whole car
-        let t = o2 / fogFar;
-        if (t > 1) { t = 1; }
-        if (t < 0) { t = 0; }
-        let kf = 1 - t;
-        // face light = (0.44 + 0.56 * sun) * kf, folded per car
-        // v7 ULTRA: the light fades with the afternoon
-        let dk = 1 - 0.32 * todK;
-        let kA = 0.44 * kf * dk;
-        let kB = 0.56 * kf * dk;
-        let fr = skyR * t;
-        let fg = skyG * t;
-        let fb = skyB * t;
-        // the front wheels turn with the steering
-        let sa = caSteer[c] * 20;
-        let wc = cosd(sa);
-        let ws = sind(sa);
-        let v0 = 1;
-        let vn = NRVLO;
-        let fn = NRFLO;
-        if (tier > 0) { v0 = NRVLO + 1; vn = NRV; fn = NRFHI; }
-        let v = v0;
-        while (v <= vn) {
-            let lx = rcvX[v];
-            let ly = rcvY[v];
-            let lz = rcvZ[v];
-            if (rcvP[v] > 0) {
-                let ox = rcvPX[v];
-                let oz = rcvPZ[v];
-                let ex = lx - ox;
-                let ez = lz - oz;
-                lx = Math.round(ox + ex * wc + ez * ws);
-                lz = Math.round(oz - ex * ws + ez * wc);
-            }
-            let s = CARBASE + v;
-            let vz = b20 * lx + b21 * ly + b22 * lz + i2;
-            pvZ[s] = vz;
-            let vx = b00 * lx + b01 * ly + b02 * lz + i0;
-            let vy = b10 * lx + b11 * ly + b12 * lz + i1;
-            if (vz > NEARZI) {
-                psX[s] = Math.round(vx * camQ / vz) + scrOX;
-                psY[s] = Math.round(vy * camQ / vz) + scrOY;
-            } else {
-                pvX[s] = vx / ZU;
-                pvY[s] = vy / ZU;
-            }
-            v = v + 1;
-        }
-        // which way round the camera sees the car: 0 from ahead, 2 from its right
-        atan2d(lcx, lcz);
-        let ob = mod(Math.round(oAtan / 45) + 8, 8) * fn;
-        let col = caCol[c];
-        let lR = lvR[col]; let lG = lvG[col]; let lB = lvB[col];
-        let lit = 0;
-        if (caBrk[c] > 0.05) { lit = 1; }
-        if (rainVis > 0.3) { lit = 1; }
-        // the light bar: amber on and off four times a second
-        let bar = mod(Math.floor(gt * 4), 2);
-        let k = 1;
-        while (k <= fn) {
-            let f = 0;
-            if (tier > 0) { f = rcoHi[ob + k]; } else { f = rcoLo[ob + k]; }
-            let nx = rcnX[f];
-            let ny = rcnY[f];
-            let nz = rcnZ[f];
-            // a face turned clearly away is skipped before any colour work
-            // (the margin covers the steered front wheels); quad() makes the
-            // exact call on the rest
-            if (nx * lci + ny * lcj + nz * lck - rcfP[f] > 0 - 307200) {
-                let kd = rcfK[f];
-                let r = 30; let g = 31; let b = 35;
-                if (kd == 0) { r = lR; g = lG; b = lB; }
-                else if (kd == 1) { r = lvR2[col]; g = lvG2[col]; b = lvB2[col]; }
-                else if (kd == 2) { r = 40; g = 42; b = 48; }
-                else if (kd == 3) { r = 22; g = 22; b = 25; }
-                else if (kd == 4) { r = 170; g = 172; b = 182; }
-                else if (kd == 8) { r = 38; g = 50; b = 66; }
-                let l = (nx * lsi + ny * lsj + nz * lsk) / 1048576;
-                if (l < 0) { l = 0; }
-                l = kA + kB * l;
-                if (kd == 6) {
-                    l = kf;
-                    if (lit > 0) { r = 255; g = 64; b = 52; } else { r = 120; g = 26; b = 26; }
-                }
-                if (kd == 9) {
-                    l = kf;
-                    if (bar > 0) { r = 255; g = 170; b = 0; } else { r = 110; g = 70; b = 12; }
-                }
-                if (kd == 10) { l = kf; r = 255; g = 244; b = 200; }
-                // Entry's rgb() packs with (r << 16) + (g << 8) + b: the shifts
-                // truncate red and green, but a fractional blue would leak into a
-                // hex string with a decimal point in it, so only blue is floored
-                qHex = rgb(r * l + fr, g * l + fg, Math.floor(b * l + fb));
-                let a = CARBASE + rcfA[f];
-                quad(a, CARBASE + rcfB[f], CARBASE + rcfC[f], CARBASE + rcfD[f], 0 - 1);
-            }
-            k = k + 1;
-        }
     }
 }
 
@@ -1244,11 +1111,9 @@ function drawCarFar(c) {
 // one car at whatever detail it has been given this frame (pickCarDetail)
 function drawCarAt(c, near, i, b0, b1, d2) {
     if (near > 0) { if (c <= NCAR) { drawShadow(c, i, b0, b1); } }
-    // (v3.3.0: the safety car is its own model)
-    let sc = 0;
-    if (c == GHOST) { if (scCar > 0) { sc = 1; } }
-    if (caTr[c] > 1) { if (sc > 0) { drawSC(c, 1); } else { drawCar(c, 1); } }
-    else if (caTr[c] > 0) { if (sc > 0) { drawSC(c, 0); } else { drawCar(c, 0); } }
+    // (v3.3.0: drawCar draws the safety car as its own model)
+    if (caTr[c] > 1) { drawCar(c, 1); }
+    else if (caTr[c] > 0) { drawCar(c, 0); }
     else { drawCarFar(c); }
 }
 

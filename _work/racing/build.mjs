@@ -11,6 +11,8 @@ import { compileProgram } from './ejs.mjs';
 import { buildF1 } from './f1tracks.mjs';
 import { f1Car } from './f1car.mjs';
 import { roadCar } from './sccar.mjs';
+import { tabulate } from './tabulate.mjs';
+import { inlineOnce } from './inline.mjs';
 import { engineMp3, aiMp3, REF_RPM, LOOP_SEC, AI_RATIOS, AI_LEVELS, AI_LOOP } from './enginewav.mjs';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
@@ -75,8 +77,6 @@ export const C = {
     MMW: 1.9,           // half the width of the drawn ribbon, in pixels
     SCRW: 240, SCRH: 135,
     // ---- v7 ----
-    RPN: 550,           // replay samples kept (a ring buffer: the last RPN * RPDT s)
-    RPDT: 0.1,          // replay sample interval, seconds
     RFH: 550,           // v3.1.0 whole-race replay: samples per list (two lists of RFH x RPC)
     RFDT0: 0.5,         // ...seconds between samples at the start (doubles when full)
     HLN: 24,            // highlight moments written down per race
@@ -1115,30 +1115,28 @@ export function buildData() {
     // v6: whole millimetres, so the renderer's per-vertex transform is integer
     // arithmetic (see QS/BS in render.js)
     const mm = (x) => Math.round(x * 1000);
-    lists.cvX = CM.V.map(p => mm(p[0])); lists.cvY = CM.V.map(p => mm(p[1])); lists.cvZ = CM.V.map(p => mm(p[2]));
-    lists.cvP = CM.PIV.map(p => p[0]); lists.cvPX = CM.PIV.map(p => mm(p[1])); lists.cvPZ = CM.PIV.map(p => mm(p[2]));
-    lists.cfA = CM.F.map(f => f.q[0]); lists.cfB = CM.F.map(f => f.q[1]); lists.cfC = CM.F.map(f => f.q[2]); lists.cfD = CM.F.map(f => f.q[3]);
-    lists.cfK = CM.F.map(f => f.k);
-    // v7: 1 on the faces of the front wing (they go when it is knocked off)
-    lists.cfW = CM.F.map(f => (f.w ? 1 : 0));
-    // normals x1024, plane offsets in mm x1024
-    lists.cnX = CM.N.map(n => Math.round(n[0] * 1024)); lists.cnY = CM.N.map(n => Math.round(n[1] * 1024)); lists.cnZ = CM.N.map(n => Math.round(n[2] * 1024));
-    // plane offset of each face along its normal: the camera is in front of
-    // face f when n . camLocal > cfP[f]
-    lists.cfP = CM.F.map((f, i) => { const v = CM.V[f.q[0] - 1], n = CM.N[i]; return Math.round((n[0] * v[0] + n[1] * v[1] + n[2] * v[2]) * 1000 * 1024); });
-    lists.coLo = CM.ordLo; lists.coHi = CM.ordHi;
-    // v3.3.0: the safety car's road coupe (sccar.mjs), the same layout under rc*;
-    // drawn into the car model's projection slots, so no more vertices than it
+    // v3.3.0: the safety car's road coupe (sccar.mjs) follows the open-wheeler
+    // in the same lists - its vertices after NCV (drawn into the same
+    // projection slots, so no more of them than the car's), its faces after
+    // NCF (their corners numbered within the coupe), its face orders after
+    // the car's (as face numbers in these lists). drawCar picks the ranges.
     const RC = roadCar();
     if (RC.V.length > C.NCARV) throw new Error('safety car verts ' + RC.V.length);
     consts.NRV = RC.V.length; consts.NRVLO = RC.vLo; consts.NRFLO = RC.fLo; consts.NRFHI = RC.F.length - RC.fLo;
-    lists.rcvX = RC.V.map(p => mm(p[0])); lists.rcvY = RC.V.map(p => mm(p[1])); lists.rcvZ = RC.V.map(p => mm(p[2]));
-    lists.rcvP = RC.PIV.map(p => p[0]); lists.rcvPX = RC.PIV.map(p => mm(p[1])); lists.rcvPZ = RC.PIV.map(p => mm(p[2]));
-    lists.rcfA = RC.F.map(f => f.q[0]); lists.rcfB = RC.F.map(f => f.q[1]); lists.rcfC = RC.F.map(f => f.q[2]); lists.rcfD = RC.F.map(f => f.q[3]);
-    lists.rcfK = RC.F.map(f => f.k);
-    lists.rcnX = RC.N.map(n => Math.round(n[0] * 1024)); lists.rcnY = RC.N.map(n => Math.round(n[1] * 1024)); lists.rcnZ = RC.N.map(n => Math.round(n[2] * 1024));
-    lists.rcfP = RC.F.map((f, i) => { const v = RC.V[f.q[0] - 1], n = RC.N[i]; return Math.round((n[0] * v[0] + n[1] * v[1] + n[2] * v[2]) * 1000 * 1024); });
-    lists.rcoLo = RC.ordLo; lists.rcoHi = RC.ordHi;
+    const V2 = [...CM.V, ...RC.V], PIV2 = [...CM.PIV, ...RC.PIV], F2 = [...CM.F, ...RC.F], N2 = [...CM.N, ...RC.N];
+    const NF = CM.F.length;
+    lists.cvX = V2.map(p => mm(p[0])); lists.cvY = V2.map(p => mm(p[1])); lists.cvZ = V2.map(p => mm(p[2]));
+    lists.cvP = PIV2.map(p => p[0]); lists.cvPX = PIV2.map(p => mm(p[1])); lists.cvPZ = PIV2.map(p => mm(p[2]));
+    lists.cfA = F2.map(f => f.q[0]); lists.cfB = F2.map(f => f.q[1]); lists.cfC = F2.map(f => f.q[2]); lists.cfD = F2.map(f => f.q[3]);
+    lists.cfK = F2.map(f => f.k);
+    // v7: 1 on the faces of the front wing (they go when it is knocked off)
+    lists.cfW = F2.map(f => (f.w ? 1 : 0));
+    // normals x1024, plane offsets in mm x1024
+    lists.cnX = N2.map(n => Math.round(n[0] * 1024)); lists.cnY = N2.map(n => Math.round(n[1] * 1024)); lists.cnZ = N2.map(n => Math.round(n[2] * 1024));
+    // plane offset of each face along its normal: the camera is in front of
+    // face f when n . camLocal > cfP[f] (each face's corner from its own model)
+    lists.cfP = F2.map((f, i) => { const v = (i < NF ? CM.V : RC.V)[f.q[0] - 1], n = N2[i]; return Math.round((n[0] * v[0] + n[1] * v[1] + n[2] * v[2]) * 1000 * 1024); });
+    lists.coLo = [...CM.ordLo, ...RC.ordLo.map(f => f + NF)]; lists.coHi = [...CM.ordHi, ...RC.ordHi.map(f => f + NF)];
     // liveries: primary, accent, helmet; slot 9 is the ghost
     const LIV = [
         { n: 'ROSSO', a: [214, 26, 32], b: [236, 236, 236], h: [250, 206, 40] },
@@ -1448,8 +1446,6 @@ export function buildData() {
     lists.gOrd = zeros(NC + 1);
     // v3.2: keys the menus poll that have not been let go since a start / an answer
     lists.pkSt = zeros(C.NPK);
-    // v7 replay: RPN samples x RPC cars, oldest overwritten first
-    for (const k of ['rpX', 'rpY', 'rpZ', 'rpW', 'rpS', 'rpV']) lists[k] = zeros(C.RPN * C.RPC);
     // v7 sparks, TV cameras, share-code scratch
     for (const k of ['spX', 'spY', 'spZ', 'spVX', 'spVY', 'spVZ', 'spL', 'spSeg', 'spC']) lists[k] = zeros(C.NSPK + 1);
     for (const k of ['tvS', 'tvO', 'tvH']) lists[k] = zeros(C.NTV + 1);
@@ -1624,7 +1620,11 @@ const TEXTBOX = { font: 'bold 20px Nanum Gothic Coding' };
 export async function buildEnt(outFile, opts = {}) {
     const { packEnt } = await import('./pack.mjs');
     const D = buildData();
-    const prog = compileProgram([declPrelude(D), ...sources()], { consts: D.consts, funcWeights: FUNC_WEIGHTS });
+    // (v3.4.0: calls with constant arguments read them from tables - tabulate.mjs)
+    // (v3.4.0: and a function called from one place is written out there - inline.mjs)
+    const IN = inlineOnce([declPrelude(D), ...sources()]);
+    const TB = tabulate(IN.srcs, D.consts);
+    const prog = compileProgram(TB.srcs, { consts: D.consts, funcWeights: FUNC_WEIGHTS });
     for (const v of prog.variables) {
         if (v.variableType === 'list' && D.lists[v.name]) v.array = D.lists[v.name].map((d, i) => ({ id: `${v.id}_${i}`, data: d }));
     }

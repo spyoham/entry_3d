@@ -39,4 +39,4 @@ g('formSkip(); formEnd();'); check('count');
 for (let i = 0; i < 90; i++) s.frame();
 check('race');
 g('prevState = raceState; raceState = ST_PAUSE; drawPausePanel();'); check('pause');
-g('raceState = prevState; enterReplay()'); check('replay');
+g('raceState = prevState; rfLast()'); check('replay');

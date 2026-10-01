@@ -542,7 +542,7 @@ on('start', 'pen3', function () {
             }
             else if (actKey == 82) { restartRace(); }
             else if (actKey == 77) { toMenu(); }
-            else if (actKey == 86) { enterReplay(); }
+            else if (actKey == 86) { rfLast(); }
             else if (actKey == 72) { rfEnter(2); }
             else if (actKey == 79) { photoEnter(); }
         } else if (raceState == ST_LOAD) {

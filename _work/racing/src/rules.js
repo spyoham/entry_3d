@@ -931,7 +931,6 @@ function aiQualiTimes(ct) {
 }
 
 function beginQuali(ct) {
-    rpReset();
     aiQualiTimes(ct);
     // v3.0: Q1 / Q2 / Q3, a green track that rubbers in as the sessions go
     qBegin();

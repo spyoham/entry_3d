@@ -1,5 +1,5 @@
-// v3.3.0: the safety car is drawn as the road coupe (drawSC), the time-trial
-// ghost and every racing car still as the open-wheeler (drawCar); the model
+// v3.3.0: the safety car is drawn as the road coupe, the time-trial ghost and
+// every racing car still as the open-wheeler (both by drawCar; drMdl); the model
 // fits the car's projection slots; the light bar flashes.
 // usage: node t9/scmodel.mjs
 import { createSim } from '../sim.mjs';
@@ -24,8 +24,8 @@ g('deploySC()');
 for (let i = 0; i < 200; i++) s.frame();
 // count who is drawn how in a frame with the camera behind the safety car
 g('R.nSC = 0; R.nCar9 = 0; R.nCar = 0; R.qSC = 0;');
-g('drawSC = (function (f) { return function (c, t) { R.nSC++; const q0 = drawnQuads; f(c, t); R.qSC += drawnQuads - q0; }; })(drawSC)');
-g('drawCar = (function (f) { return function (c, t) { if (c == GHOST) { R.nCar9++; } else { R.nCar++; } f(c, t); }; })(drawCar)');
+// (drawCar draws both; drMdl says which model it took)
+g('drawCar = (function (f) { return function (c, t) { const q0 = drawnQuads; f(c, t); if (drMdl == 1) { R.nSC++; R.qSC += drawnQuads - q0; } else if (c == GHOST) { R.nCar9++; } else { R.nCar++; } }; })(drawCar)');
 g('camCar = GHOST; camMode = 0');
 for (let i = 0; i < 5; i++) s.frame();
 ok(+g('scCar') === 1 && +g('R.nSC') >= 5 && +g('R.nCar9') === 0 && +g('R.nCar') > 0, `safety car out: drawn as the coupe ${g('R.nSC')} times (${(+g('R.qSC') / +g('R.nSC')).toFixed(0)} faces a frame), never as the open-wheeler; the field ${g('R.nCar')} draws`);

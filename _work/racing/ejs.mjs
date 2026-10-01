@@ -109,7 +109,10 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
     function declareLocal(scope, name, node) {
         if (scope.fn) {
             if (scope.fn.params.includes(name) && !(scope.shadow && scope.shadow.has(name))) err(node, 'local shadows param ' + name);
-            if (!scope.fn.locals.has(name)) scope.fn.locals.set(name, `${scope.fn.id}_${newId(4)}`);
+            // (v3.4.0: a 3-character id, unique in the work - Entry looks a local
+            // up in its own function, and 23,000 references at 9 characters were
+            // 0.14 MB of a work that has to stay under the site's size limit)
+            if (!scope.fn.locals.has(name)) scope.fn.locals.set(name, newId(3));
         } else {
             if (!scope.hlocals.has(name)) {
                 const gname = `${scope.handlerKey}$${name}`;
@@ -216,6 +219,13 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
                     const t = newTemp(scope); const r = localRef(scope, t);
                     pre.push(setRef(r, A(0)));
                     for (let i = 1; i < args.length; i++) {
+                        // v3.4.0: a literal or a plain variable is simply read twice -
+                        // if (b < t) t = b - without a second temporary (2 blocks less)
+                        const a = args[i];
+                        if (a.type === 'Literal' || a.type === 'Identifier') {
+                            pre.push(B('_if', [B('boolean_basic_operator', [A(i), m === 'min' ? 'LESS' : 'GREATER', getRef(r)]), null], [[setRef(r, A(i))]]));
+                            continue;
+                        }
                         const bi = A(i);
                         // if (b < t) t = b   (value evaluated twice; fine for simple operands)
                         const t2 = newTemp(scope); const r2 = localRef(scope, t2);
