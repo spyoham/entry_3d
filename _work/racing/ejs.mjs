@@ -298,6 +298,9 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
             case 'dateMin': return B('get_date', [null, 'MINUTE', null]);
             case 'dateHour': return B('get_date', [null, 'HOUR', null]);
             case 'dateDay': return B('get_date', [null, 'DAY', null]);
+            // v2.3.0 the daily challenge (Entry's MONTH is 1-12)
+            case 'dateMonth': return B('get_date', [null, 'MONTH', null]);
+            case 'dateYear': return B('get_date', [null, 'YEAR', null]);
             case 'broadcast': return B('message_cast', [messageId(evalConst(args[0])), null]);
             case 'timerReset': return B('choose_project_timer_action', [null, 'RESET', null, null]);
             case 'timerStart': return B('choose_project_timer_action', [null, 'START', null, null]);

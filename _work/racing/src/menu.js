@@ -277,6 +277,11 @@ function drawMainMenu() {
         fillOct(cardX0 + 40, 48, 18, C_PANEL);
         box(cardX0 + 76, 36, cardX1 - 12, 30, C_PANEL2);
         box(cardX0 + 76, 36, cardX0 + 76 + (cardX1 - 88 - cardX0) * pLvXP / pLvNeed, 30, C_GOLD);
+    } else if (m == 25) {
+        // v2.3.0: a calendar leaf with today's date
+        box(196, 80, 232, 70, C_RED);
+        box(196, 70, 232, 44, '#e8ecf2');
+        box(cardX0 + 6, 0 - 26, cardX1 - 6, 0 - 27, '#2a3240');
     } else if (m == 13) {
         // a little node-and-spline sketch
         let k = 0;
@@ -375,7 +380,7 @@ function drawTrkSel() {
 function hudMenu() {
     tx(9, 'F1 ONLINE 3D', 0 - 232, 116, 21, C_WHITE, 1);
     syLabel();
-    tx(10, str('v2.2.0  /  ', oSyL), 0 - 232, 96, 8, C_WHITE, 1);
+    tx(10, str('v2.3.0  /  ', oSyL), 0 - 232, 96, 8, C_WHITE, 1);
     let lvl = pLoaded > 0 ? str('LV ', pLv, '  ', pNick) : 'LOADING SAVE...';
     tx(13, lvl, 0 - 80, 96, 8, C_GOLD, 1);
     let crumb = 'MAIN MENU';
@@ -417,6 +422,7 @@ function hudMenu() {
         else if (k == 11) { lab = 'SOUND'; val = sndName[sndSel]; }
         else if (k == 12) { lab = 'PROFILE'; val = str('LEVEL ', pLv); }
         else if (k == 24) { lab = 'ONLINE RACE'; val = SY_ > 0 ? 'ROOMS  /  WATCH  /  CHAT' : 'NEEDS ENTRY SYNC'; }
+        else if (k == 25) { lab = 'DAILY CHALLENGE'; val = str(dkName[dyKind], '  /  ', trkName[dyTrk]); if (dyLastN == dyN) { val = str(val, '  /  DONE'); } }
         else { lab = 'TRACK EDITOR'; }
         let x = 0 - 226 + (sel > 0 ? 4 * menuSlide : 0);
         tx(23 + i, lab, x, oRowY, 10, sel > 0 ? C_WHITE : (k >= 20 ? '#ffd9d4' : '#c9d1de'), 1);
@@ -608,8 +614,33 @@ function hudCard() {
         cardTx(54, 'RULES, CONTACT, PLAYERS, A CODE - OR', 18, 8, C_WHITE);
         cardTx(55, 'JOIN ONE. WATCH A RACE, CHAT WITH Y.', 6, 8, C_WHITE);
         cardTx(56, 'EVERYONE NEEDS THE ENTRY SYNC EXTENSION', 0 - 14, 7, C_DIM);
-        cardTx(57, 'UPGRADES ARE OFF ONLINE (SETUP STAYS)', 0 - 26, 7, C_DIM);
+        cardTx(57, 'THE ROOM SAYS: OWN CARS, UPGRADES, SAME CAR', 0 - 26, 7, C_DIM);
         tx(71, SY_ > 0 ? 'ENTER  GO ONLINE' : 'ENTRY SYNC IS NOT CONNECTED', 121, 0 - 80, 8, SY_ > 0 ? C_GOLD : C_ACC, 0);
+    } else if (m == 25) {
+        // v2.3.0 the daily challenge
+        tx(50, 'DAILY CHALLENGE', cardX0 + 10, 84, 11, C_WHITE, 1);
+        tx(76, monName[dyMon], 214, 74.5, 6, C_WHITE, 0);
+        tx(72, str(dyDom), 214, 57, 15, C_PANEL, 0);
+        tx(71, dkName[dyKind], cardX0 + 10, 64, 13, C_GOLD, 1);
+        tx(73, dyKind == DK_LAP ? 'YOUR FASTEST SINGLE LAP RANKS' : 'THREE CLEAN LAPS IN A ROW, ADDED UP', cardX0 + 10, 50, 7, C_WHITE, 1);
+        cardRow(1, 'CIRCUIT', trkName[dyTrk], 34);
+        cardRow(2, 'CAR', str(ctName[dyCar], '  BASE SETUP'), 22);
+        cardRow(3, 'CONDITIONS', str(ruleName[dyRules], '  /  ', wxName[dyWx]), 10);
+        let mb = '-';
+        if (dyBestN == dyN) { if (dyBestT > 0) { fmtTime(dyBestT); mb = oTime; if (dyMe > 0) { mb = str(mb, '   P', dyMe); } } }
+        cardRow(4, 'MY BEST TODAY', mb, 0 - 4);
+        dyStreakNow();
+        let sk = str(oDS, oDS == 1 ? ' DAY' : ' DAYS');
+        if (dyLastN == dyN) { sk = str(sk, '  -  DONE TODAY'); } else { sk = str(sk, '  -  +', 100 + 25 * Math.min(oDS, 4), ' XP TODAY'); }
+        cardRow(5, 'STREAK', sk, 0 - 16);
+        tx(74, dyTopC > 0 ? 'TOP TODAY' : 'NOBODY HAS SET A TIME TODAY - BE THE FIRST', cardX0 + 10, 0 - 32, 7, dyTopC > 0 ? C_WHITE : C_DIM, 1);
+        let r = 1;
+        while (r <= 3) {
+            if (r <= dyTopC) { fmtTime(dyTT[r]); cardRow(5 + r, str('P', r, '  ', dyTN[r]), oTime, 0 - 33 - r * 12); }
+            else { txOff(56 + r); txOff(66 + r); }
+            r = r + 1;
+        }
+        tx(75, mod(Math.floor(gt * 2), 2) < 1 ? 'PRESS ENTER' : BLANK, 121, 0 - 84, 10, C_GOLD, 0);
     } else if (m == 12) {
         tx(50, 'PROFILE', cardX0 + 10, 84, 11, C_WHITE, 1);
         tx(72, str(pLv), cardX0 + 40, 48, 18, C_WHITE, 0);

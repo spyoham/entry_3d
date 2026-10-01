@@ -177,6 +177,8 @@ function svDecode(s) {
                 if (nF == 48) { nOk = 1; }
                 // v6.0: + circuits 15-19 (58)
                 if (nF == 58) { nOk = 1; }
+                // v2.3.0: + the daily challenge (62)
+                if (nF == 62) { nOk = 1; }
                 if (nOk > 0) {
                     svSane();
                     if (oSvOk > 0) {

@@ -185,6 +185,9 @@ function initCars(ct) {
 
 function setupRace(tk, ct) {
     pmOn = 0;
+    // v2.3.0: the daily challenge is in the day's car; a stint starts again
+    if (dyOn > 0) { ct = dyCar; }
+    dyRunN = 0;
     // v2.1.3: every car is driven on this computer until an online race says
     // otherwise (netDoStart, after this). An online race used to leave its
     // cars marked remote: the AI cars of the next race stood still, and after
@@ -279,6 +282,8 @@ function startGrid(ct) {
     if (rules == R_SIM) { trkReset(0); if (qDone > 0) { trkRub = Math.max(rub, 0.30); } }
     vscOn = 0; bluT = 0;
     initCars(ct);
+    // v2.3.0: the daily challenge's car has the base setup and no upgrades
+    if (dyOn > 0) { carRule(NCR_UPG + dyCar); }
     tyreGrip(1);
     let gk = 1;
     if (rules == R_SIM) { gk = oTyG; }
@@ -295,7 +300,7 @@ function startGrid(ct) {
     // v8: this race's stats; the time trial's ghost; practice assists
     statsReset();
     ghostOn = 0;
-    if (gMode == M_TT) { pickGhost(selTrk); }
+    if (gMode == M_TT) { if (dyOn > 0) { dyGhost(); } else { pickGhost(selTrk); } }
     if (gMode == M_PR) { showLine = paSel < 3 ? 1 : 0; }
 }
 
@@ -323,7 +328,7 @@ function updateLap(c) {
                     lastLap = lt;
                     qLapOk = lapBad < 1 ? 1 : 0;
                     sectorDone(3);
-                    if (lapBad > 0) { setMsg('LAP DELETED - TRACK LIMITS', 2.4); }
+                    if (lapBad > 0) { setMsg('LAP DELETED - TRACK LIMITS', 2.4); dyRunN = 0; }
                     else {
                         let pb = 0;
                         if (bestLap < 0) { pb = 1; }

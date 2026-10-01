@@ -13,7 +13,7 @@ import { f1Car } from './f1car.mjs';
 import { engineMp3, aiMp3, REF_RPM, LOOP_SEC, AI_RATIOS, AI_LEVELS, AI_LOOP } from './enginewav.mjs';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'rules.js', 'race3.js', 'fx.js', 'sound.js', 'share.js', 'profile.js', 'savecode.js', 'editor.js', 'net.js', 'menu.js', 'hud.js', 'main.js'];
+export const SRC_FILES = ['util.js', 'track.js', 'render.js', 'phys.js', 'ai.js', 'game.js', 'rules.js', 'race3.js', 'fx.js', 'sound.js', 'share.js', 'profile.js', 'savecode.js', 'editor.js', 'daily.js', 'net.js', 'menu.js', 'hud.js', 'main.js'];
 
 // ============================================================
 // constants shared with the EJS sources
@@ -30,6 +30,7 @@ export const C = {
     NFOG: 16,           // fog levels baked per material
     NTRK: 19,           // built-in circuits (v4.4: 8 -> 14, v6.0: 19)
     EDTRK: 20,          // slot of the editor's own circuit
+    DAYK: 21,           // v2.3.0: the daily challenge's slot (?!rank / ?!ghost item, its ghost store)
     NCP: 4,             // default checkpoints per lap
     NCPMAX: 10,         // upper bound the editor may place
     LAPS: 3,
@@ -96,7 +97,7 @@ export const C = {
     NRANK: 10,          // ranking entries per circuit
     LVMAX: 50,
     UPMAX: 5,           // upgrade steps per part
-    SVMAX: 520,         // v11 backup code: letters read back (v6.0: 400 -> 520, 58 fields)
+    SVMAX: 600,         // v11 backup code: letters read back (v6.0: 400 -> 520, 58 fields)
 };
 // point slots inside a ring
 // ordered so a ring's LOD levels are contiguous prefixes: road edges alone for
@@ -1440,15 +1441,15 @@ export function buildData() {
     // (v6.0: 9-16 in pb*2, 17 on - and the editor's - in pb*3)
     for (const k of ['pbX', 'pbZ', 'pbW']) lists[k] = zeros(8 * C.PBN);
     for (const k of ['pbX2', 'pbZ2', 'pbW2']) lists[k] = zeros(8 * C.PBN);
-    for (const k of ['pbX3', 'pbZ3', 'pbW3']) lists[k] = zeros((C.EDTRK - 16) * C.PBN);
-    lists.pbN = zeros(C.EDTRK + 1);
+    for (const k of ['pbX3', 'pbZ3', 'pbW3']) lists[k] = zeros((C.DAYK - 16) * C.PBN);
+    lists.pbN = zeros(C.DAYK + 1);
     // v8 profile scratch: parsed save fields, ranking rows, achievements
     lists.pF = new Array(64).fill(0);
     lists.svV = zeros(C.SVMAX + 1);
     lists.rkN = new Array(C.NRANK + 2).fill('-'); lists.rkT = zeros(C.NRANK + 2);
     lists.achGot = zeros(C.NACH + 1); lists.popQ = zeros(33);
-    lists.recNm = new Array(C.NTRK + 1).fill('-'); lists.recWR = zeros(C.NTRK + 1);
-    lists.rkSeen = new Array(C.NTRK + 1).fill('-');     // v2.1.3: each ?!rank item as last read (rankWatch)
+    lists.recNm = new Array(C.DAYK + 1).fill('-'); lists.recWR = zeros(C.DAYK + 1);
+    lists.rkSeen = new Array(C.DAYK + 1).fill('-');     // v2.1.3: each ?!rank item as last read (rankWatch)
     // v2.1.0 online: what each slot says (ns*), the cars' online state (ca*), chat
     for (const k of ['nsV', 'nsT', 'nsSeen', 'nsStale', 'nsLive', 'nsSid', 'nsSt', 'nsRoom', 'nsRSid', 'nsRid', 'nsCar', 'nsChS', 'nsRst', 'nsTrk',
         'nsLaps', 'nsRules', 'nsWx', 'nsCon', 'nsMax', 'nsCarR', 'nsCode', 'nsGrid', 'nsLap', 'nsSeg', 'nsU', 'nsOff', 'nsYaw', 'nsSpd', 'nsFl', 'nsFin',
@@ -1457,7 +1458,11 @@ export function buildData() {
     for (const k of ['caNet', 'caSlot', 'caNP', 'caNOff', 'caNGo']) lists[k] = zeros(C.NCAR + 3);
     lists.nrL = zeros(9); lists.nmL = zeros(9);
     lists.chL = zeros(C.NCH + 1); lists.chC = zeros(C.NCH + 1); lists.chA = zeros(C.NCH + 1);
-    lists.pendRk = zeros(C.NTRK + 1); lists.pendG = zeros(C.NTRK + 1); lists.rkOk = zeros(C.NTRK + 1);
+    lists.pendRk = zeros(C.DAYK + 1); lists.pendG = zeros(C.DAYK + 1); lists.rkOk = zeros(C.DAYK + 1);
+    // v2.3.0 the daily challenge: today's top five as last read; month names
+    lists.dyTN = new Array(6).fill('-'); lists.dyTT = zeros(6);
+    lists.monName = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    lists.dkName = ['HOT LAP', '3-LAP STINT'];
     // time into the lap at each ring: best lap and the current one (live delta)
     lists.bsT = zeros(R + 1); lists.csT = zeros(R + 1);
     lists.sgDRS = zeros(R); lists.sgGrid = zeros(R);
@@ -1469,7 +1474,7 @@ export function buildData() {
     for (const k of ['mkX1', 'mkZ1', 'mkX2', 'mkZ2', 'mkY', 'mkA']) lists[k] = zeros(R * C.MKS + 1);
     lists.mkN = zeros(R);
     // records: 4 tracks x (best lap, best race)
-    lists.recLap = new Array(C.NTRK + 1).fill(0); lists.recRace = new Array(C.NTRK + 1).fill(0);
+    lists.recLap = new Array(C.DAYK + 1).fill(0); lists.recRace = new Array(C.NTRK + 1).fill(0);
     // sorting scratch
     lists.srtI = zeros(NC + 1); lists.srtV = zeros(NC + 1);
     // checkpoint segment indices

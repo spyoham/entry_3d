@@ -324,6 +324,7 @@ function hudRace() {
     } else if (gMode >= M_TT) {
         tx(3, str('LAP ', lp), 104, 112, 18, C_WHITE, 1);
         tx(4, gMode == M_TT ? 'TIME TRIAL' : 'PRACTICE', 104, 88, 18, C_GOLD, 1);
+        if (dyOn > 0) { tx(4, str('DAILY  ', dkName[dyKind]), 104, 88, 14, C_GOLD, 1); }
     } else {
         if (lp > nLaps) { lp = nLaps; }
         txOff(12);
@@ -373,6 +374,13 @@ function hudRace() {
     if (raceState == ST_COUNT) { if (lightN < 1) { sb = 'GET READY'; if (netWait > 0) { sb = 'WAITING FOR THE OTHER DRIVERS'; } } }
     tx(10, sb, 0, 0 - 26, 14, '#e0e6f2', 0);
     if (solo > 0) { let i = 16; while (i <= 23) { txOff(i); i = i + 1; } }
+    // v2.3.0: the daily challenge - today's best (and its place), the stint so far
+    if (dyOn > 0) {
+        let t = 'TODAY  -';
+        if (dyBestN == dyN) { if (dyBestT > 0) { fmtTime(dyBestT); t = str('TODAY  ', oTime); if (dyMe > 0) { t = str(t, '   P', dyMe); } } }
+        if (dyKind == DK_STINT) { t = str('CLEAN LAPS ', Math.min(dyRunN, 3), '/3     ', t); }
+        tx(16, t, 104, 72, 9, C_WHITE, 1);
+    }
     // v3.0: a blue flag (both rule sets) or the VSC delta under the flag panel
     let fl2 = BLANK;
     let fc2 = '#7cc4ff';

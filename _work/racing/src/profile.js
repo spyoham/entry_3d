@@ -19,6 +19,7 @@
 //               SHCAP items the first (least recently saved) goes.
 //   ?!rank      one item per circuit: '|nick,ms|nick,ms...' fastest first
 //   ?!ghost     one item per circuit: the world record's ghost
+// (v2.3.0: item DAYK of both is the daily challenge's - daily.js)
 // ?!rank has NTRK items once anybody has saved: seeing that means the
 // server's lists have arrived. Two writes to one list at the same moment
 // lose one of them, so every write is checked a moment later and redone.
@@ -44,9 +45,9 @@ let oSN = 0;
 
 // the ranking and ghost items of circuit i
 function rtGetK(i) { oRT = '|'; if (SY_rank.length >= i) { oRT = SY_rank[i]; } }
-function rtSetK(i, v) { syInit(); SY_rank[i] = v; }
+function rtSetK(i, v) { syInit(); while (SY_rank.length < i) { SY_rank.push('|'); } SY_rank[i] = v; }
 function rtGetG(i) { oRT = '|'; if (SY_ghost.length >= i) { oRT = SY_ghost[i]; } }
-function rtSetG(i, v) { syInit(); SY_ghost[i] = v; }
+function rtSetG(i, v) { syInit(); while (SY_ghost.length < i) { SY_ghost.push('|'); } SY_ghost[i] = v; }
 // the first save ever gives ?!rank and ?!ghost their NTRK items
 function syInit() {
     while (SY_rank.length < NTRK) { SY_rank.push('|'); }
@@ -271,8 +272,12 @@ function circDone(tk) {
 }
 
 // a valid lap by the player (game.js updateLap): circuit best, its ghost,
-// the ranking, and lap XP when driving alone
+// the ranking, and lap XP when driving alone (v2.3.0: in the daily
+// challenge its own best, ranking and ghost instead)
 function lapDone(lt) {
+    if (dyOn > 0) { dyLap(lt); } else { lapRec(lt); }
+}
+function lapRec(lt) {
     let tk = curTrk;
     let best = 0;
     if (recLap[tk] <= 0) { best = 1; } else if (lt < recLap[tk]) { best = 1; }
@@ -340,6 +345,8 @@ function buildRec() {
     while (t <= NTRK) { pRec = str(pRec, ',', recLap[t] > 0 ? Math.round(recLap[t] * 1000) : 0); t = t + 1; }
     t = 15;
     while (t <= NTRK) { pRec = str(pRec, ',', recRace[t] > 0 ? Math.round(recRace[t] * 1000) : 0); t = t + 1; }
+    // v2.3.0: fields 59-62, the daily challenge (last day done, streak, best day and result)
+    pRec = str(pRec, ',', dyLastN, ',', dyStreak, ',', dyBestN, ',', Math.round(dyBestT * 1000));
 }
 
 // split the record starting at character `from` of s into pF[1..nF]
@@ -421,6 +428,7 @@ function mergeRec(addMode) {
             }
             t = t + 1;
         }
+        dyMerge();
     }
     levelFromXP();
     countAch();
@@ -590,7 +598,7 @@ function rankStep() {
         if (pRkT >= 0) { pRkT = 0; }
     } else {
         let t = 1;
-        while (t <= NTRK) {
+        while (t <= DAYK) {
             if (pendRk[t] > 0) {
                 pRkTk = t;
                 pRkLt = pendRk[t];
@@ -598,7 +606,7 @@ function rankStep() {
                 if (pRkN < 1) { pRkN = 0; }
                 rankSubmit(t, pRkLt);
                 pRkT = 2;
-                t = NTRK;
+                t = DAYK;
             }
             t = t + 1;
         }
@@ -637,9 +645,9 @@ function selfCheck() {
         // one ranked circuit a look
         if (pRkT == 0) {
             let k = 0;
-            while (k < NTRK) {
-                pChkTk = mod(pChkTk, NTRK) + 1;
-                if (rkOk[pChkTk] > 0) { rankHeal(pChkTk); k = NTRK; }
+            while (k < DAYK) {
+                pChkTk = mod(pChkTk, DAYK) + 1;
+                if (rkOk[pChkTk] > 0) { rankHeal(pChkTk); k = DAYK; }
                 k = k + 1;
             }
         }
@@ -669,6 +677,7 @@ function rankHeal(t) {
 // save at a quiet moment, at most every few seconds
 function profileStep() {
     popStep();
+    dyStep();
     syncStep();
     if (pSaveT > 0) { pSaveT = pSaveT - dt; }
     let quiet = 0;
@@ -689,7 +698,7 @@ function profileStep() {
         if (pDirty < 1) { if (pVerT <= 0) { if (pRkT == 0) {
             let t = 1;
             let pend = 0;
-            while (t <= NTRK) { if (pendRk[t] > 0) { pend = 1; } t = t + 1; }
+            while (t <= DAYK) { if (pendRk[t] > 0) { pend = 1; } t = t + 1; }
             if (pend < 1) { pRecNow = 0; }
         } } }
     }
@@ -713,6 +722,8 @@ let rkMe = 0;               // the player's row (0: not in the top NRANK)
 function rankParse(tk) {
     rtGetK(tk);
     let s = oRT;
+    // v2.3.0: the daily item counts only on its own day
+    if (tk == DAYK) { if (indexOf(s, str('D', dyN, '|')) != 1) { s = '|'; } }
     rkC = 0;
     rkMe = 0;
     let L = strlen(s);
@@ -742,6 +753,7 @@ function rankParse(tk) {
 
 function rankBuild(tk) {
     let s = '|';
+    if (tk == DAYK) { s = str('D', dyN, '|'); }
     let i = 1;
     while (i <= rkC) {
         s = str(s, '|', rkN[i], ',', Math.round(rkT[i] * 1000));
@@ -757,6 +769,7 @@ function rankAll() {
         rankSee(t);
         t = t + 1;
     }
+    rankSee(DAYK);
 }
 function rankSee(t) {
     rankParse(t);
@@ -764,6 +777,7 @@ function rankSee(t) {
     recWR[t] = 0;
     recNm[t] = '-';
     if (rkC > 0) { recWR[t] = rkT[1]; recNm[t] = rkN[1]; }
+    if (t == DAYK) { dySee(); }
     // v2.0.0: the player's own ranked laps, to be kept an eye on
     if (rkMe > 0) { if (rkOk[t] <= 0) { rkOk[t] = rkT[rkMe]; } else if (rkT[rkMe] < rkOk[t]) { rkOk[t] = rkT[rkMe]; } }
 }
@@ -773,7 +787,8 @@ function rankSee(t) {
 // frame is looked at, and read again only when its item changed.
 let rkLook = 0;
 function rankWatch() {
-    rkLook = mod(rkLook, NTRK) + 1;
+    rkLook = mod(rkLook, NTRK + 1) + 1;
+    if (rkLook > NTRK) { rkLook = DAYK; }
     rtGetK(rkLook);
     if (oRT != rkSeen[rkLook]) { rankSee(rkLook); }
 }
@@ -807,9 +822,10 @@ function rankSubmit(tk, lt) {
                 rkC = rkC + 1;
                 if (rkC > NRANK) { rkC = NRANK; }
                 rankBuild(tk);
-                setRadio(str('RANKING: P', pos, ' ON ', trkName[tk]), 3);
+                if (tk == DAYK) { setRadio(str('DAILY RANKING: P', pos), 3); }
+                else { setRadio(str('RANKING: P', pos, ' ON ', trkName[tk]), 3); }
                 if (pos == 1) {
-                    unlock(12);
+                    if (tk <= NTRK) { unlock(12); }
                     // only with the ghost of this very lap
                     if (pendG[tk] > 0) { wrUpload(tk, lt); }
                 }
@@ -817,6 +833,7 @@ function rankSubmit(tk, lt) {
         }
         recWR[tk] = rkT[1];
         recNm[tk] = rkN[1];
+        if (tk == DAYK) { dySee(); }
     }
 }
 

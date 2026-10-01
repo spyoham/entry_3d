@@ -207,7 +207,7 @@ function doStartRace() {
 // v9: the menu in pages. Page 0 is the top level; RACE SETUP (1), CAR &
 // GARAGE (2) and SETTINGS (3) open their own list with a BACK row. The rows
 // hold item ids (the v8 row numbers, plus 20-22 for the categories and 23 for
-// BACK), so menuSel is still the v8 item and everything keyed on it stays.
+// BACK; 24 ONLINE RACE, v2.3.0 25 DAILY CHALLENGE), so menuSel is still the v8 item and everything keyed on it stays.
 let mnPage = 0;
 let mnRow = 1;
 let mnN = 6;
@@ -215,7 +215,7 @@ let mnItem = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 function mnAdd(k) { mnN = mnN + 1; mnItem[mnN] = k; }
 function mnBuild() {
     mnN = 0;
-    if (mnPage == 0) { mnAdd(1); mnAdd(24); mnAdd(20); mnAdd(21); mnAdd(12); mnAdd(22); mnAdd(13); }
+    if (mnPage == 0) { mnAdd(1); mnAdd(24); mnAdd(25); mnAdd(20); mnAdd(21); mnAdd(12); mnAdd(22); mnAdd(13); }
     else if (mnPage == 1) { mnAdd(2); mnAdd(3); mnAdd(6); mnAdd(7); mnAdd(8); mnAdd(9); mnAdd(1); mnAdd(23); }
     else if (mnPage == 2) { mnAdd(4); mnAdd(5); mnAdd(23); }
     else { mnAdd(10); mnAdd(11); mnAdd(23); }
@@ -227,8 +227,8 @@ function mnOpen(p) { mnPage = p; mnRow = 1; mnBuild(); }
 function mnBack() {
     let p = mnPage;
     mnPage = 0;
-    mnRow = 6;
-    if (p == 1) { mnRow = 3; } else if (p == 2) { mnRow = 4; }
+    mnRow = 7;
+    if (p == 1) { mnRow = 4; } else if (p == 2) { mnRow = 5; }
     mnBuild();
 }
 
@@ -241,6 +241,7 @@ function menuKeys() {
     else if (actKey == 13) {
         if (menuSel == 1) { startRace(); }
         else if (menuSel == 24) { netEnter(); }
+        else if (menuSel == 25) { dyStart(); }
         else if (menuSel == 20) { mnOpen(1); }
         else if (menuSel == 21) { mnOpen(2); }
         else if (menuSel == 22) { mnOpen(3); }
@@ -301,6 +302,7 @@ function raceKeys() {
 }
 
 function toMenu() {
+    if (dyOn > 0) { dyEnd(); }
     nCars = 0;
     ghostOn = 0;
     scCar = 0;

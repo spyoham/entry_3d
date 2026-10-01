@@ -747,13 +747,15 @@ function netDoStart() {
 // on the car and its setup, not on the upgrades bought (v2.1.0); v2.2.0 also
 // with the upgrades, or everybody in the same car with the base setup (and
 // still in their own colours)
-function netCarStats() {
+function netCarStats() { carRule(netCarR); }
+// (v2.3.0: also the daily challenge's car) car 1 under cars rule cr
+function carRule(cr) {
     let e = upE; let a = upA; let b = upB; let t = upT;
     let sw = suW; let sg = suG; let sb = suB; let ss = suS; let sf = suF; let sd = suD; let sp = suP;
     let ct = selCar;
-    if (netCarR != NCR_UPG) { upE = 0; upA = 0; upB = 0; upT = 0; }
-    if (netCarR > NCR_UPG) {
-        ct = netCarR - 1;
+    if (cr != NCR_UPG) { upE = 0; upA = 0; upB = 0; upT = 0; }
+    if (cr > NCR_UPG) {
+        ct = cr - 1;
         suW = 0; suG = 0; suB = 0; suS = 0; suF = 0; suD = 0; suP = 0;
     }
     carStats(1, ct);

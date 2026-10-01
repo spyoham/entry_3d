@@ -337,6 +337,7 @@ function cockpitKey(k) {
         // (v2.2.0: from the base setup when the online room gives everybody the same car)
         let b0 = suB;
         if (netRace > 0) { if (netCarR > NCR_UPG) { b0 = 0; } }
+        if (dyOn > 0) { b0 = 0; }
         if (k == 70) {
             caMix[1] = mod(caMix[1], 3) + 1;
             setMsg(str('FUEL MIX  ', mixName[caMix[1]]), 1.4);

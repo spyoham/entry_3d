@@ -190,6 +190,7 @@ export function createSim({ fps = 30 } = {}) {
         // (v2.1.0: the wall clock, for the online slots; R.wallMs moves it in tests)
         // (R.wallNow: a wall clock of the test's own, e.g. one that follows sim time)
         dateMin: () => new Date(R.wallNow ? R.wallNow() : Date.now() + (R.wallMs || 0)).getMinutes(), dateHour: () => new Date(R.wallNow ? R.wallNow() : Date.now() + (R.wallMs || 0)).getHours(), dateDay: () => new Date(R.wallNow ? R.wallNow() : Date.now() + (R.wallMs || 0)).getDate(),
+        dateMonth: () => new Date(R.wallNow ? R.wallNow() : Date.now() + (R.wallMs || 0)).getMonth() + 1, dateYear: () => new Date(R.wallNow ? R.wallNow() : Date.now() + (R.wallMs || 0)).getFullYear(),
         broadcast: () => { }, toFront: () => { }, toBack: () => { },
         stopAll: () => { }, stopThread: () => { }, waitSec: () => { }, waitUntil: () => { },
     };

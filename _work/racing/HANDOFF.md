@@ -1,3 +1,49 @@
+# F1 ONLINE 3D — 작업 인계 메모 (2026-10-01, v2.3.0)
+
+산출물: `F1 Online 3D v2.3.0.ent`, 설명서 `F1 Online 3D v2.3.0 설명서.md` (v2.2.0은 루트 `old/`로)
+빌드: `node build.mjs f1online230.ent` → project.json 16.00 MB
+
+## 요청과 한 것
+기능 목록 2번 "오늘의 도전". 사용자: "계속 진행해줘. 2번 끝나면 4번, 4번 끝나면 5번..." → 묻지 않고 차례로 진행(다음: 빠른 채팅).
+- 새 `src/daily.js`(SRC_FILES에서 net.js 앞).
+  - `dyToday()`: 날짜 번호 = 1970-01-01부터의 날 수(그레고리력, 3월 시작 공식, 이 컴퓨터의 날짜).
+    - ejs에 `dateYear/dateMonth`(get_date YEAR/MONTH) 추가, sim.mjs에도 추가. tessvm에서도 같은 값(dailyshot).
+  - `dyMake()`: n으로 정함.
+    - 서킷 `(8n mod 19)+1`(19일에 한 번씩). 종목 n mod 3 == 2면 STINT.
+    - 비 (5n+3) mod 7 < 2. 차 (3n+1) mod 4 + 1. 리얼리스틱 (11n+2) mod 5 < 2.
+  - `dyStep()`(profileStep 첫머리): dyOn 아닐 때 날이 바뀌면 다시 만들고 pbN/recLap/rkSeen/rkOk/pendRk[DAYK]를 비움.
+  - `dyStart()`: 메뉴 25번. gMode·rules·wx·selTrk·ghSel을 db*에 보관 → M_TT, ghSel 3, dyOn 1. `toMenu`가 `dyEnd()`로 되돌림.
+  - setupRace는 dyOn이면 ct = dyCar, dyRunN 0. startGrid는 initCars 뒤 `carRule(NCR_UPG + dyCar)`.
+    - net.js의 netCarStats를 `carRule(cr)`로 일반화함. 기본 세팅, 업그레이드 없음, 색은 내 것.
+  - race3 브레이크 밸런스도 기본 세팅에서.
+  - 고스트: startGrid에서 dyOn이면 `dyGhost()`(HOT LAP은 loadWrGhost(DAYK), 없으면 이번 세션 최고 랩 pb 슬롯 DAYK).
+  - 랩: `lapDone`이 dyOn이면 `dyLap`(나머지는 `lapRec` = 예전 lapDone).
+    - 서킷 기록·랭킹은 건드리지 않음. 세션 최고 랩이면 lapGhost(DAYK).
+    - HOT LAP은 랩 시간, STINT는 연속 깨끗한 3랩 합(지워진 랩은 updateLap에서 dyRunN 0).
+    - 첫 결과면 `dyDone()`: 연속 일수, XP 100 + 25·min(연속 − 1, 4).
+    - 새 최고면 dyBest*, pendRk[DAYK](HOT LAP은 pendG도), pRecNow.
+- **DAYK = 21**(EDTRK + 1): `?!rank`·`?!ghost`의 21번 항목.
+  - 형식 `'D<n>|' + '|nick,ms...'`. rankParse(DAYK)는 앞이 오늘 `D<n>|`이 아니면 빈 것으로 봄. rankBuild(DAYK)가 접두어를 붙임.
+  - rtSetK/rtSetG가 i까지 '|'로 늘림(syInit은 그대로 NTRK).
+  - rankStep·selfCheck·pRecNow 대기 루프는 DAYK까지. rankAll·rankWatch에 DAYK 포함(rankWatch는 20을 건너뜀).
+  - rankSee/rankSubmit(DAYK) → `dySee()`(상위 5 dyTN/dyTT, dyMe). 라디오 'DAILY RANKING'. 업적 12는 서킷만.
+  - 리스트 크기를 DAYK + 1로: recNm, recWR, rkSeen, pendRk, pendG, rkOk, recLap, pbN. pbX3/Z3/W3는 (DAYK − 16)·PBN.
+- 저장 필드 59–62: dyLastN, dyStreak, dyBestN, dyBestT(ms).
+  - `dyMerge()`(mergeRec 끝, nF ≥ 62): 더 늦은 날 우선, 같은 날이면 큰 연속·좋은 기록.
+  - 백업 코드는 nF 62를 허용. SVMAX 520 → 600.
+- 메뉴: 0쪽 줄 1 START, 2 ONLINE, **3 DAILY**, 4 RACE SETUP, 5 CAR, 6 PROFILE, 7 SETTINGS, 8 EDITOR(mnBack 줄 번호도 고침).
+  - 카드 25: 달력(monName), 종목(dkName), 조건, 내 오늘 기록, 연속, TOP 3.
+  - HUD: tx 4 'DAILY …', tx 16 오늘 기록·순위·STINT 진행.
+  - ONLINE 카드 문구를 v2.2.0 규칙에 맞게 고침. 버전 글자 v2.3.0.
+
+## 시험
+- `t9/daily.mjs`(새): 모두 PASS(`ab/daily230.txt`). 실제 주행 1회(AI 운전) + 랩을 직접 넣는 단계들.
+  - 주의: 새 sim은 첫 프레임 전에는 리스트가 비어 있음. 서버 없는 클라이언트는 SYWAIT(20 s) 뒤에야 pLoaded.
+- `t9/dailyshot.mjs`(새, tessvm :3100): `ab/daily_card.png`, `ab/daily_race.png`.
+- `t9/nettess.mjs` 14 PASS(`ab/nettess230.txt`). 회귀 `ab/netsim230.txt`, `ab/tests230.txt`, `ab/rec230.txt`, `ab/prof230.txt`.
+
+---
+
 # F1 ONLINE 3D — 작업 인계 메모 (2026-10-01, v2.2.0)
 
 산출물: `F1 Online 3D v2.2.0.ent`, 설명서 `F1 Online 3D v2.2.0 설명서.md` (v2.1.3은 루트 `old/`로)
