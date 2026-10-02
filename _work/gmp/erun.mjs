@@ -4,12 +4,13 @@
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import cp from 'node:child_process';
+import url from 'node:url';
 const require = createRequire(new URL('../../entry-vibe-coding/package.json', import.meta.url));
 const { chromium } = require('@playwright/test');
 
 export async function ensureServer() {
     try { await fetch('http://localhost:3000/editor.html'); return null; } catch { }
-    const p = cp.spawn('node', ['server.js'], { cwd: new URL('../../entry-vibe-coding/', import.meta.url).pathname, stdio: 'ignore', detached: true });
+    const p = cp.spawn('node', ['server.js'], { cwd: url.fileURLToPath(new URL('../../entry-vibe-coding/', import.meta.url)), stdio: 'ignore', detached: true });
     p.unref();
     for (let i = 0; i < 100; i++) { await new Promise(r => setTimeout(r, 200)); try { await fetch('http://localhost:3000/editor.html'); return p; } catch { } }
     throw new Error('server did not start');

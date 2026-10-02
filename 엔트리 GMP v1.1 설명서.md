@@ -2,9 +2,9 @@
 
 `엔트리 GMP v1.1.ent`는 **GNU MP(GMP)처럼 큰 수를 다루는 함수 묶음**을 엔트리 블록만으로 만든 작품입니다. 엔트리의 숫자는 2^53(약 9×10^15)을 넘으면 정확도가 깨지는데, 이 작품의 함수를 쓰면 수천~수십만 자리 정수·분수·소수를 정확하게 계산할 수 있습니다.
 
-- **mpz**(정수), **mpq**(분수), **mpf**(부동소수) 함수 {{NAPI}}개. 이름은 GNU MP와 같습니다(`mpz_add`, `mpz_powm`, `mpf_sqrt`, `mpq_canonicalize` …).
+- **mpz**(정수), **mpq**(분수), **mpf**(부동소수) 함수 193개. 이름은 GNU MP와 같습니다(`mpz_add`, `mpz_powm`, `mpf_sqrt`, `mpq_canonicalize` …).
 - **데모**: 원주율(Chudnovsky 공식, GMP의 `gmp-chudnovsky.c`와 같은 방법), 밀러-라빈 소수 판정, 다음 소수, 큰 수 계산기. 긴 결과는 **스크롤 뷰어**로 모든 자리를 봅니다.
-- 실제 엔트리 엔진(playentry.org가 쓰는 entryjs)에서 시간을 재 가며 최적화했습니다. 예를 들어 π 1000자리는 {{PI1000}}초, 2^521−1 소수 판정은 {{M521}}초가 걸립니다.
+- 실제 엔트리 엔진(playentry.org가 쓰는 entryjs)에서 시간을 재 가며 최적화했습니다. 예를 들어 π 1000자리는 1.6초, 2^521−1 소수 판정은 15초가 걸립니다.
 
 ## v1.1에서 바뀐 것
 - **순정 엔트리에서 π가 오류 나던 문제를 고쳤습니다.** 지금 playentry의 엔트리는 **리스트 한 개에 5000칸까지만** 넣고, 넘으면 맨 앞 칸을 지우며 경고를 띄웁니다. v1.0은 모든 수를 리스트 하나(`M`)에 담아서 π 약 700자리부터 수가 깨지고 화면이 멈췄습니다(tessvm에는 이 한도가 없어서 잘 됐습니다).
@@ -66,8 +66,26 @@ p = mpz_probab_prime_p(b, 25)  // 2 확실히 소수, 1 아마도 소수, 0 합�
 - **메모리**: 모든 수가 합쳐서 **16만 limb(약 112만 자리)**까지 들어갑니다. 큰 계산 뒤에는 `gmp_trim()`을 부르면 라이브러리의 임시 수를 비우고 남는 칸을 돌려준 뒤 빈틈을 당겨 놓습니다(값은 그대로). `gmp_compact()`는 빈틈 당기기만 합니다. 둘 다 다른 함수를 부르는 도중이 아닐 때(계산과 계산 사이)에 부르세요.
 - **오류**: 0으로 나누면 `gmp_errno = 1`, 역원이 없으면 3, 메모리(16만 limb)가 모자라면 4입니다. 메모리가 모자라면 다른 수를 망가뜨리지 않도록 그 자리에서 리스트 오류로 멈춥니다.
 
-### 함수 목록 ({{NAPI}}개)
-{{API}}
+### 함수 목록 (193개)
+### mpz — 99개
+
+- 명령 블록: `mpz_2fac_ui(r, n)`, `mpz_abs(r, a)`, `mpz_add(r, a, b)`, `mpz_add_ui(r, a, v)`, `mpz_addmul(r, a, b)`, `mpz_addmul_ui(r, a, v)`, `mpz_bin_ui(r, n, k)`, `mpz_bin_uiui(r, n, k)`, `mpz_cdiv_q(q, n, d)`, `mpz_cdiv_q_ui(q, n, v)`, `mpz_cdiv_qr(q, r, n, d)`, `mpz_cdiv_qr_ui(q, r, n, v)`, `mpz_cdiv_r(r, n, d)`, `mpz_cdiv_r_ui(r, n, v)`, `mpz_clear(h)`, `mpz_divexact(q, n, d)`, `mpz_divexact_ui(q, n, v)`, `mpz_fac_ui(r, n)`, `mpz_fdiv_q(q, n, d)`, `mpz_fdiv_q_ui(q, n, v)`, `mpz_fdiv_qr(q, r, n, d)`, `mpz_fdiv_qr_ui(q, r, n, v)`, `mpz_fdiv_r(r, n, d)`, `mpz_fdiv_r_ui(r, n, v)`, `mpz_fib_ui(r, n)`, `mpz_fib2_ui(r, r1, n)`, `mpz_gcd(r, a, b)`, `mpz_gcdext(g, s, t, a, b)`, `mpz_lcm(r, a, b)`, `mpz_lcm_ui(r, a, v)`, `mpz_lucnum_ui(r, n)`, `mpz_mod(r, n, d)`, `mpz_mod_ui(r, n, v)`, `mpz_mul(r, a, b)`, `mpz_mul_2exp(r, a, k)`, `mpz_mul_si(r, a, v)`, `mpz_mul_ui(r, a, v)`, `mpz_neg(r, a)`, `mpz_nextprime(r, a)`, `mpz_pow_ui(r, b, v)`, `mpz_powm(r, b, e, m)`, `mpz_powm_ui(r, b, v, m)`, `mpz_primorial_ui(r, n)`, `mpz_set(r, a)`, `mpz_set_f(z, f)`, `mpz_set_si(r, v)`, `mpz_set_str(r, s, base)`, `mpz_set_ui(r, v)`, `mpz_sqrt(r, a)`, `mpz_sqrtrem(r, rem, a)`, `mpz_sub(r, a, b)`, `mpz_sub_ui(r, a, v)`, `mpz_submul(r, a, b)`, `mpz_submul_ui(r, a, v)`, `mpz_swap(a, b)`, `mpz_tdiv_q(q, n, d)`, `mpz_tdiv_q_ui(q, n, v)`, `mpz_tdiv_qr(q, r, n, d)`, `mpz_tdiv_qr_ui(q, r, n, v)`, `mpz_tdiv_r(r, n, d)`, `mpz_tdiv_r_ui(r, n, v)`, `mpz_ui_pow_ui(r, b, v)`, `mpz_ui_sub(r, v, a)`, `mpz_urandomb(r, st, bits)`, `mpz_urandomm(r, st, n)`
+- 값 블록: `mpz_cdiv_ui(n, v)`, `mpz_cmp(a, b)`, `mpz_cmp_si(a, v)`, `mpz_cmp_ui(a, v)`, `mpz_cmpabs(a, b)`, `mpz_cmpabs_ui(a, v)`, `mpz_congruent_p(a, c, d)`, `mpz_divisible_p(n, d)`, `mpz_divisible_ui_p(n, v)`, `mpz_even_p(a)`, `mpz_fdiv_ui(n, v)`, `mpz_gcd_ui(r, a, v)`, `mpz_get_d(a)`, `mpz_get_si(a)`, `mpz_get_str(base, a)`, `mpz_get_ui(a)`, `mpz_init()`, `mpz_init_set(a)`, `mpz_init_set_si(v)`, `mpz_init_set_str(s, base)`, `mpz_init_set_ui(v)`, `mpz_init2(bits)`, `mpz_invert(r, a, m)`, `mpz_jacobi(a, b)`, `mpz_kronecker(a, b)`, `mpz_legendre(a, p)`, `mpz_odd_p(a)`, `mpz_perfect_power_p(a)`, `mpz_perfect_square_p(a)`, `mpz_probab_prime_p(n, reps)`, `mpz_root(r, a, n)`, `mpz_sgn(a)`, `mpz_sizeinbase(a, base)`, `mpz_tdiv_ui(n, v)`
+
+### mpq — 34개
+
+- 명령 블록: `mpq_abs(r, a)`, `mpq_add(r, a, b)`, `mpq_canonicalize(q)`, `mpq_clear(q)`, `mpq_div(r, a, b)`, `mpq_div_2exp(r, a, k)`, `mpq_get_den(z, q)`, `mpq_get_num(z, q)`, `mpq_inv(r, a)`, `mpq_mul(r, a, b)`, `mpq_mul_2exp(r, a, k)`, `mpq_neg(r, a)`, `mpq_set(r, a)`, `mpq_set_d(r, v)`, `mpq_set_den(r, z)`, `mpq_set_f(r, f)`, `mpq_set_num(r, z)`, `mpq_set_si(r, n, d)`, `mpq_set_str(r, s, base)`, `mpq_set_ui(r, n, d)`, `mpq_set_z(r, z)`, `mpq_sub(r, a, b)`, `mpq_swap(a, b)`
+- 값 블록: `mpq_cmp(a, b)`, `mpq_cmp_si(a, n, d)`, `mpq_cmp_ui(a, n, d)`, `mpq_cmp_z(a, z)`, `mpq_denref(q)`, `mpq_equal(a, b)`, `mpq_get_d(q)`, `mpq_get_str(base, q)`, `mpq_init()`, `mpq_numref(q)`, `mpq_sgn(q)`
+
+### mpf — 54개
+
+- 명령 블록: `mpf_abs(r, a)`, `mpf_add(r, a, b)`, `mpf_add_ui(r, a, v)`, `mpf_ceil(r, a)`, `mpf_clear(f)`, `mpf_div(r, a, b)`, `mpf_div_2exp(r, a, k)`, `mpf_div_ui(r, a, v)`, `mpf_floor(r, a)`, `mpf_mul(r, a, b)`, `mpf_mul_2exp(r, a, k)`, `mpf_mul_ui(r, a, v)`, `mpf_neg(r, a)`, `mpf_pow_ui(r, a, v)`, `mpf_reldiff(r, a, b)`, `mpf_set(r, a)`, `mpf_set_d(r, v)`, `mpf_set_default_prec(bits)`, `mpf_set_prec(f, bits)`, `mpf_set_prec_raw(f, bits)`, `mpf_set_q(r, q)`, `mpf_set_si(r, v)`, `mpf_set_str(r, s, base)`, `mpf_set_ui(r, v)`, `mpf_set_z(r, z)`, `mpf_sqrt(r, a)`, `mpf_sqrt_ui(r, v)`, `mpf_sub(r, a, b)`, `mpf_sub_ui(r, a, v)`, `mpf_swap(a, b)`, `mpf_trunc(r, a)`, `mpf_ui_div(r, v, a)`, `mpf_ui_sub(r, v, a)`
+- 값 블록: `mpf_cmp(a, b)`, `mpf_cmp_d(a, v)`, `mpf_cmp_si(a, v)`, `mpf_cmp_ui(a, v)`, `mpf_cmp_z(a, z)`, `mpf_eq(a, b, bits)`, `mpf_get_d(a)`, `mpf_get_default_prec()`, `mpf_get_prec(f)`, `mpf_get_si(a)`, `mpf_get_str(base, n, a)`, `mpf_get_ui(a)`, `mpf_init()`, `mpf_init_set(a)`, `mpf_init_set_d(v)`, `mpf_init_set_si(v)`, `mpf_init_set_str(s, base)`, `mpf_init_set_ui(v)`, `mpf_init2(bits)`, `mpf_integer_p(a)`, `mpf_sgn(a)`
+
+### gmp — 6개
+
+- 명령 블록: `gmp_compact()`, `gmp_randclear(st)`, `gmp_randseed_ui(st, seed)`, `gmp_trim()`
+- 값 블록: `gmp_randinit_default()`, `gmp_randinit_mt()`
 
 ## 3. 어떻게 만들었나
 ### 수 표현
@@ -130,13 +148,71 @@ p = mpz_probab_prime_p(b, 25)  // 2 확실히 소수, 1 아마도 소수, 0 합�
 모든 반복에는 **반복 딜레이 제거 블록**(`<이번 반복 건너뛰기>가 아니다 이(가) 될 때까지 기다리기`)이 들어가 있습니다. 그래서 반복이 프레임마다 쉬지 않고 한 프레임 안에서 돕니다.
 
 ### 블록 비용 (반복 한 바퀴에 더해지는 시간)
-{{MICRO}}
+| 블록 | 시간 |
+|---|---|
+| 반복 한 바퀴 (조건·증가·딜레이 제거 블록) | 4.2 µs |
+| 지역 변수 정하기 | 1.2 µs |
+| `+ − ×` (BigNumber를 거침, 수 크기와 무관) | 약 1.0 µs |
+| `÷` | 2.0 µs |
+| `몫`·`나머지` (일반 계산) | 0.6 µs |
+| `제곱` | 0.4 µs |
+| 리스트 항목 읽기 / 바꾸기 | 0.4 / 1.6 µs |
+| 전역 변수 읽기 / **정하기** | 1.0 / **5.6 µs** |
+| 함수 호출 (지역 변수 0개 / 6개) | 6 / 20 µs |
+| 결과값 함수 (본문이 비면) | **한 프레임 (33 ms)** |
+
+곱셈 안쪽 반복의 방식별 비용 (64×64자리, 곱 하나에):
+
+| 방식 | 시간 |
+|---|---|
+| 이중 반복 (행 단위) | 11.2 µs |
+| 행 단위, 4배 펼침 | 8.9 µs |
+| 열 단위(Comba), 8배 펼침 | 7.3 µs |
+| 파라미터 타일 8×8 | 3.9 µs |
+| **파라미터 타일 16×16** | **3.1 µs** |
+| 파라미터 타일 32×32 | 3.6 µs |
+| 제곱 타일 16×16 / 32×32 (곱 하나 환산) | 2.0 / 1.7 µs |
 
 ### 최적화 단계별 시간 (v1.0, 그때의 엔트리 엔진)
-{{STEPS}}
+| 단계 | π 1000자리 | M127 판정 | M521 판정 |
+|---|---|---|---|
+| 처음 (타일 곱셈, Knuth 나눗셈, 밀러-라빈 10번) | 2.95초 | 4.03초 | 84.15초 |
+| + 올림 정리 2문장·4배 펼침, 타일 크기 고르기, Barrett 지역 변수 | 1.58초 | 3.91초 | 61.15초 |
+| + 0 채우기 없애기, 제곱 2ab 타일 | 1.57초 | 3.49초 | 57.90초 |
+| + BPSW (GMP와 같은 판정 방식) | 1.57초 | **0.94초** | **15.23초** |
+
+- **Newton 나눗셈·제곱근** (π 3000자리): Knuth 방식 20.86초 → Newton 7.74초. 그중 √10005가 12.43초 → 1.02초.
+  - π 300자리에서도 제곱근은 Newton이 빨라서(0.25초 → 0.07초) 8자리부터 씁니다.
+  - 나눗셈은 150자리 근처에서 두 방식이 비슷해서 120자리부터 씁니다.
+- **Karatsuba** (곱셈 한 번): 384자리 507ms → 373ms, 192자리 133ms → 119ms, 128자리 61ms → 58ms, 64자리는 오히려 느림.
+  - 제곱은 학교식 제곱 타일이 곱의 절반만 계산하므로 300자리부터 씁니다.
+  - 기본 크기를 32자리로 줄이면 0 채움 때문에 훨씬 느려졌습니다(384자리 729ms).
 
 ### 지금 판(v1.1, playentry의 2026-09-21 엔트리 엔진)
-{{FINAL}}
+| 작업 | 시간 | 내역 |
+|---|---|---|
+| π 100자리 | 0.21초 | 이진 분할 0.08 · √ 0.07 · 곱셈·나눗셈 0.05 |
+| π 1000자리 | 1.62초 | 이진 분할 0.72 · √ 0.27 · 곱셈·나눗셈 0.61 |
+| π 3000자리 | 7.92초 | 이진 분할 3.71 · √ 0.89 · 곱셈·나눗셈 3.28 |
+| π 10000자리 | 75.23초 | 이진 분할 37.70 · √ 8.22 · 곱셈·나눗셈 29.25 |
+| π 20000자리 | 273.68초 | 이진 분할 132.74 · √ 29.18 · 곱셈·나눗셈 111.66 |
+| 2^127−1 (39자리) 소수 판정 | 1.01초 | `mpz_probab_prime_p` → 1 |
+| 2^521−1 (157자리) 소수 판정 | 15.29초 | `mpz_probab_prime_p` → 1 |
+| 2^607−1 (183자리) 소수 판정 | 25.61초 | `mpz_probab_prime_p` → 1 |
+| 2^1279−1 (386자리) 소수 판정 | 144.56초 | `mpz_probab_prime_p` → 1 |
+
+곱셈 한 번 (`mpz_mul`, 같은 크기 두 수):
+
+| 자리(limb) | 10진 자릿수 | 곱셈 | 제곱 |
+|---|---|---|---|
+| 16 | 112 | 2.2 ms | 1.7 ms |
+| 32 | 224 | 5.8 ms | 4.7 ms |
+| 64 | 448 | 17.3 ms | 13.0 ms |
+| 128 | 896 | 59.0 ms | 42.3 ms |
+| 256 | 1792 | 209.8 ms | 139.9 ms |
+| 512 | 3584 | 750.4 ms | 629.1 ms |
+
+(데모 화면에 나오는 시간은 앞뒤로 한 프레임씩 기다리므로 0.03초쯤 더 깁니다.)
 
 - v1.0과 같은 엔진에서 비교하면 π 700자리(v1.0이 순정 엔트리에서 되는 가장 큰 크기)가 0.90초 → 0.97초입니다. 리스트를 32개로 나눈 비용이 10% 안쪽입니다. 소수 판정은 차이가 없습니다.
 - tessvm에서는 같은 작품이 훨씬 빠릅니다(π 1000자리 약 0.07초).

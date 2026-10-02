@@ -9,6 +9,7 @@ export const LIB_FILES = ['mpn.js', 'kara.js', 'mpz.js', 'numth.js', 'mpf.js', '
 export function libSources(extra = []) {
     return [...LIB_FILES.map(f => fs.readFileSync(path.join(HERE, 'src', f), 'utf8')), kernelSource(), ...extra];
 }
+export const LIST_MAX = Number(process.env.LIST_MAX || 5000);
 const isNum = (v) => typeof v === 'number' || (typeof v === 'string' && /^-?\d+\.?\d*$/.test(v));
 // Entry-like builtins (substring and char_at throw out of range, as Entry)
 export function makeBuiltins(R) {
@@ -21,6 +22,7 @@ export function makeBuiltins(R) {
         indexOf: (s, sub) => String(s).indexOf(String(sub)) + 1,
         rand: (a, b) => Math.floor(+a + Math.random() * (b - a + 1)),
         timer: () => performance.now() / 1000, timerStart: () => { }, timerReset: () => { }, waitSec: () => { }, timerHide: () => { },
+        listShow: () => { }, listHide: () => { }, show: () => { }, hide: () => { }, write: () => { }, ask: () => { }, answer: () => '', key: () => false, mouseX: () => 0, mouseY: () => 0, mouseDown: () => false,
     };
 }
 // value: an object with every function and R.peek/poke for globals
@@ -34,7 +36,9 @@ export function loadLib(extra = []) {
         get: (A, i, name) => { check(A, i, name); return A[i - 1]; },
         set: (A, i, v, name) => { check(A, i, name); A[i - 1] = v; },
         removeAt: (A, i) => { check(A, i); A.splice(i - 1, 1); },
-        insertAt: (A, i, v) => { A.splice(i - 1, 0, v); },
+        insertAt: (A, i, v) => { if (A.length >= LIST_MAX) throw new Error('list over ' + LIST_MAX); A.splice(i - 1, 0, v); },
+        // playentry (2026-09) drops the oldest items past 5000: treat it as an error
+        push: (A, v) => { if (A.length >= LIST_MAX) throw new Error('list over ' + LIST_MAX); A.push(v); },
         // Entry's calc_basic PLUS: text unless both look like numbers
         add: (a, b) => (isNum(a) && isNum(b)) ? (parseFloat(a) || 0) + (parseFloat(b) || 0) : String(a) + String(b),
         cmp: (op, a, b) => {

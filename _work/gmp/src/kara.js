@@ -9,6 +9,7 @@ let KARA_BASE_MAX = 64;       // largest base case (tiles)
 let KARA_LIN = 30;            // the plan's weight of a linear pass against a tile product
 let kara_base = 16;
 let gmp_sres = 1;             // where in S the last product was left
+let MUL_PIECE = 512;          // largest operand made in S at once (10P + 67 <= S_MAX)
 
 // value: |S[x..x+h) - S[y..y+h)| into S[d..d+h); 1 if x >= y, else -1.
 // The limbs are subtracted as they are, then one carry pass (into S[d+h],
@@ -99,24 +100,30 @@ function mpn_kplan(n) {
     return bestP;
 }
 
-// value: limbs of |x|*|y| (xn >= yn), left at S[gmp_sres..]
-function mpn_kmul(x, xn, y, yn) {
+// value: limbs of the product of the heap runs M[px..px+xn) and
+// M[py..py+yn) (xn >= yn), left at S[gmp_sres..]. S holds 8P + 66 limbs
+// (one chunk of x) or 10P + nch P + 67 (the caller keeps it under S_MAX)
+function mpn_kmul(px, xn, py, yn) {
     let P = mpn_kplan(yn);
     let nch = idiv(xn + P - 1, P);
-    let sa = 1; let sb = sa + P; let sr = sb + P; let rn = nch * P + P;
-    let st = sr + rn + 1; let sp = st + P * 2 + 1;
-    mpn_sneed(sp + P * 4 + 64);
-    mpn_sload(sb, zP[y], yn, P);
+    let sa = 1; let sb = sa + P; let sr = sb + P;
     if (nch == 1) {
-        mpn_sload(sa, zP[x], xn, P);
+        let sp = sr + P * 2 + 1;
+        mpn_sneed(sp + P * 4 + 64);
+        mpn_sload(sb, py, yn, P);
+        mpn_sload(sa, px, xn, P);
         mpn_kara(sr, sa, sb, P, sp);
     } else {
+        let rn = nch * P + P;
+        let st = sr + rn + 1; let sp = st + P * 2 + 1;
+        mpn_sneed(sp + P * 4 + 64);
+        mpn_sload(sb, py, yn, P);
         mpn_szero(sr, rn + 1);
         let c = 0; let off = 0;
         while (c < nch) {
             let len = xn - off;
             if (len > P) { len = P; }
-            mpn_sload(sa, zP[x] + off, len, P);
+            mpn_sload(sa, px + off, len, P);
             mpn_kara(st, sa, sb, P, sp);
             let k = 0; let d = sr + off; let e = P * 2;
             while (k < e) { S[d + k] = S[d + k] + S[st + k]; k = k + 1; }
@@ -130,12 +137,12 @@ function mpn_kmul(x, xn, y, yn) {
     return n;
 }
 
-// value: limbs of a^2, left at S[gmp_sres..]
-function mpn_ksqr(a, an) {
+// value: limbs of the square of the heap run M[pa..pa+an), left at S[gmp_sres..]
+function mpn_ksqr(pa, an) {
     let P = mpn_kplan(an);
     let sa = 1; let sr = sa + P; let sp = sr + P * 2 + 1;
     mpn_sneed(sp + P * 4 + 64);
-    mpn_sload(sa, zP[a], an, P);
+    mpn_sload(sa, pa, an, P);
     mpn_ksqr_rec(sr, sa, P, sp);
     let n = an * 2;
     if (S[sr + n - 1] == 0) { n = n - 1; }

@@ -2,6 +2,8 @@
 import { loadLib } from '../lib.mjs';
 const R = loadLib();
 const F = R.fn;
+R.poke('mp_poison', Number(process.env.POISON || 9999991));
+if (process.env.MULP) R.poke('MUL_PIECE', Number(process.env.MULP));
 if (process.env.KARA) { R.poke('KARA_MIN', Number(process.env.KARA)); R.poke('KARA_SQR_MIN', Number(process.env.KARA)); R.poke('KARA_BASE_MAX', Number(process.env.KBASE || 16)); }
 let seed = 777;
 const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };

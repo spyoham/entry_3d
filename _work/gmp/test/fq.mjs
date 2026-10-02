@@ -2,6 +2,7 @@
 import { loadLib } from '../lib.mjs';
 const R = loadLib();
 const F = R.fn;
+R.poke('mp_poison', Number(process.env.POISON || 9999991));
 let fails = 0, count = 0;
 const eq = (what, got, want) => { count++; if (got !== want) { fails++; if (fails < 20) console.log('FAIL', what, '\n got ', String(got).slice(0, 300), '\n want', String(want).slice(0, 300)); } };
 const ok = (what, cond) => eq(what, !!cond, true);

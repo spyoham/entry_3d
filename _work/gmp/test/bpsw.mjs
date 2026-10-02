@@ -1,5 +1,6 @@
 import { loadLib } from '../lib.mjs';
 const R = loadLib(); const F = R.fn;
+R.poke('mp_poison', Number(process.env.POISON || 9999991));
 const modpow = (b, e, m) => { let r = 1n; b %= m; while (e > 0n) { if (e & 1n) r = r * b % m; b = b * b % m; e >>= 1n; } return r; };
 const isPrimeBig = (n) => { if (n < 2n) return false; for (const p of [2n,3n,5n,7n,11n,13n,17n,19n,23n,29n,31n,37n]) { if (n % p === 0n) return n === p; }
   let d = n - 1n, s = 0; while (!(d & 1n)) { d >>= 1n; s++; }

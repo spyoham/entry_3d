@@ -1,8 +1,8 @@
-done true wall 194091 ms []
-pi 100: total 0.19 s (split 0.08, sqrt 0.05, div 0.05)  3.1415926535...3421170679
-pi 1000: total 1.49 s (split 0.64, sqrt 0.24, div 0.59)  3.1415926535...2164201989
-pi 3000: total 7.47 s (split 3.41, sqrt 0.82, div 3.23)  3.1415926535...6494231961
-M127: 0.95 s -> 1
-M521: 15.31 s -> 1
-M607: 25.24 s -> 1
-M1279: 143.19 s -> 1
+done true (pi: 2026-10-03 after the compaction change; M: same session)
+pi 100: total 0.21 s (split 0.08, sqrt 0.07, div 0.05)  3.1415926535...3421170679
+pi 1000: total 1.62 s (split 0.72, sqrt 0.27, div 0.61)  3.1415926535...2164201989
+pi 3000: total 7.92 s (split 3.71, sqrt 0.89, div 3.28)  3.1415926535...6494231961
+M127: 1.01 s -> 1
+M521: 15.29 s -> 1
+M607: 25.61 s -> 1
+M1279: 144.56 s -> 1

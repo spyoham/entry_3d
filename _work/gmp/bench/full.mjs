@@ -13,7 +13,7 @@ for (const n of PI) src += ` pi_compute(${n}); pi${n} = pi_t_all; pib${n} = pi_t
 for (const p of MR) src += ` let m${p} = mpz_init(); mpz_ui_pow_ui(m${p}, 2, ${p}); mpz_sub_ui(m${p}, m${p}, 1); let t${p} = timer(); mrr${p} = mpz_probab_prime_p(m${p}, 10); mr${p} = timer() - t${p};\n`;
 src += ` done = 1;\n});\n`;
 const OUT = process.env.OUT || 'bench/full.ent';
-const prog = buildEnt(OUT, libSources([demo, src]), { hot: ['S', 'M', 'zP', 'zN', 'zA'] });
+const prog = buildEnt(OUT, libSources([demo, src]), { hot: ['S', 'M1', 'M2', 'M3', 'M4', 'zP', 'zN', 'zA', 'U'] });
 const vars = [...PI.flatMap(n => [`pi${n}`, `pib${n}`, `pis${n}`, `pid${n}`, `pit${n}`, `pie${n}`]), ...MR.flatMap(p => [`mr${p}`, `mrr${p}`])];
 if (process.env.NORUN) process.exit(0);
 const r = await runEnt(OUT, { vars, timeout: Number(process.env.TO || 1200000) });

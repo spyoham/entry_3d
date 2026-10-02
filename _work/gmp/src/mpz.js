@@ -37,18 +37,49 @@ function mpz_init2(bits) {
 
 function mpz_clear(h) {
     zN[h] = 0;
+    mpz_shrink(h);
     zFree.push(h);
+}
+
+// give back the heap limbs h does not use (keeps 4)
+function mpz_shrink(h) {
+    let n = Math.abs(zN[h]);
+    if (n < 4) { n = 4; }
+    if (zA[h] > n) { mp_free(zP[h] + n, zA[h] - n); zA[h] = n; }
 }
 
 // make room for n limbs (the value is kept)
 function _mpz_realloc(h, n) {
     if (zA[h] < n) {
-        let na = n + idiv(n, 4) + 4;
+        let na = n + idiv(n, 16) + 4;
         let np = mp_alloc(na);
-        mpn_copyi(np, zP[h], Math.abs(zN[h]));
-        mp_garbage = mp_garbage + zA[h];
-        zP[h] = np;
-        zA[h] = na;
+        if (np > 0) {
+            mpn_copyi(np, zP[h], Math.abs(zN[h]));
+            mp_free(zP[h], zA[h]);
+            zP[h] = np;
+            zA[h] = na;
+        }
+    }
+}
+
+// drop the k low limbs of h's block (no copy: they go back to the heap and
+// the block starts k limbs later); the caller fixes zN
+function mpz_droplow(h, k) {
+    mp_free(zP[h], k);
+    zP[h] = zP[h] + k;
+    zA[h] = zA[h] - k;
+}
+
+// make room for n limbs, the value not kept (the caller writes it all)
+function _mpz_newalloc(h, n) {
+    if (zA[h] < n) {
+        let na = n + idiv(n, 16) + 4;
+        let np = mp_alloc(na);
+        if (np > 0) {
+            mp_free(zP[h], zA[h]);
+            zP[h] = np;
+            zA[h] = na;
+        }
     }
 }
 
@@ -61,7 +92,7 @@ function mpz_swap(a, b) {
 function mpz_set(r, a) {
     if (r != a) {
         let n = Math.abs(zN[a]);
-        _mpz_realloc(r, n);
+        _mpz_newalloc(r, n);
         mpn_copyi(zP[r], zP[a], n);
         zN[r] = zN[a];
     }
@@ -70,7 +101,7 @@ function mpz_set(r, a) {
 // n: a whole number up to 2^53 (Entry numbers)
 function mpz_set_si(r, v) {
     let n = Math.abs(v);
-    _mpz_realloc(r, 3);
+    _mpz_newalloc(r, 3);
     let p = zP[r];
     let k = 0;
     while (n > 0) { M[p + k] = mod(n, BASE); n = idiv(n, BASE); k = k + 1; }
@@ -159,10 +190,10 @@ function mpz_aors(r, a, as, b, bs) {
         let same = 0;
         if (xs > 0) { if (ys > 0) { same = 1; } } else { if (ys < 0) { same = 1; } }
         if (same == 1) {
-            _mpz_realloc(r, an + 1);
+            if (r != x && r != y) { _mpz_newalloc(r, an + 1); } else { _mpz_realloc(r, an + 1); }
             n = mpn_add(zP[r], zP[x], an, zP[y], bn);
         } else {
-            _mpz_realloc(r, an);
+            if (r != x && r != y) { _mpz_newalloc(r, an); } else { _mpz_realloc(r, an); }
             n = mpn_sub(zP[r], zP[x], an, zP[y], bn);
         }
         if (xs < 0) { n = 0 - n; }
@@ -182,7 +213,7 @@ function mpz_mul_small(r, a, v) {
     let an = Math.abs(zN[a]);
     if (an == 0 || v == 0) { zN[r] = 0; }
     else {
-        _mpz_realloc(r, an + 1);
+        if (r != a) { _mpz_newalloc(r, an + 1); } else { _mpz_realloc(r, an + 1); }
         let c = mpn_mul_1(zP[r], zP[a], an, v, 0);
         if (c > 0) { M[zP[r] + an] = c; an = an + 1; }
         zN[r] = an;
@@ -218,50 +249,124 @@ function mpz_mul(r, a, b) {
     }
 }
 
-// r = |x| * |y|, xn >= yn >= 2
-function mpz_mul_abs(r, x, xn, y, yn) {
+// value: limbs of the product of the heap runs M[px..px+xn) and M[py..py+yn),
+// xn >= yn >= 2, xn <= MUL_PIECE: left at S[gmp_sres..]
+function mpn_mul_pos(px, xn, py, yn) {
     let n = 0;
     if (yn >= KARA_MIN) {
-        n = mpn_kmul(x, xn, y, yn);
+        n = mpn_kmul(px, xn, py, yn);
     } else {
         let t = mpn_tile(yn);
         let xp = idiv(xn + t - 1, t) * t; let yp = idiv(yn + t - 1, t) * t;
         let sa = 1; let sb = 1 + xp; let sr = sb + yp;
         mpn_sneed(sr + xp + yp + 2);
-        mpn_sload(sa, zP[x], xn, xp);
-        mpn_sload(sb, zP[y], yn, yp);
+        mpn_sload(sa, px, xn, xp);
+        mpn_sload(sb, py, yn, yp);
         mpn_smul(sr, sa, xp, sb, yp, t);
         n = xn + yn;
         if (S[sr + n - 1] == 0) { n = n - 1; }
         gmp_sres = sr;
     }
-    _mpz_realloc(r, n);
-    mpn_sstore(zP[r], gmp_sres, n);
-    zN[r] = n;
+    return n;
+}
+
+// value: limbs of the square of the heap run M[pa..pa+an), 2 <= an <= MUL_PIECE,
+// left at S[gmp_sres..]
+function mpn_sqr_pos(pa, an) {
+    let n = 0;
+    if (an >= KARA_SQR_MIN) {
+        n = mpn_ksqr(pa, an);
+    } else {
+        let t = mpn_tile(an);
+        let ap = idiv(an + t - 1, t) * t;
+        let sr = 1 + ap;
+        mpn_sneed(sr + ap * 2 + 2);
+        mpn_sload(1, pa, an, ap);
+        mpn_ssqr(sr, 1, ap, t);
+        n = an * 2;
+        if (S[sr + n - 1] == 0) { n = n - 1; }
+        gmp_sres = sr;
+    }
+    return n;
+}
+
+// r = |x| * |y|, xn >= yn >= 2
+function mpz_mul_abs(r, x, xn, y, yn) {
+    if (xn > MUL_PIECE) { mpz_mul_big(r, x, xn, y, yn); }
+    else {
+        let n = mpn_mul_pos(zP[x], xn, zP[y], yn);
+        _mpz_newalloc(r, n);
+        mpn_sstore(zP[r], gmp_sres, n);
+        zN[r] = n;
+    }
 }
 
 // r = a^2 (positive)
 function mpz_sqr_abs(r, a) {
-    let an = Math.abs(zN[a]); let n = 0;
+    let an = Math.abs(zN[a]);
     if (an == 1) { let v = M[zP[a]]; mpz_set_si(r, v * v); }
     else {
-        if (an >= KARA_SQR_MIN) {
-            n = mpn_ksqr(a, an);
-        } else {
-            let t = mpn_tile(an);
-            let ap = idiv(an + t - 1, t) * t;
-            let sr = 1 + ap;
-            mpn_sneed(sr + ap * 2 + 2);
-            mpn_sload(1, zP[a], an, ap);
-            mpn_ssqr(sr, 1, ap, t);
-            n = an * 2;
-            if (S[sr + n - 1] == 0) { n = n - 1; }
-            gmp_sres = sr;
+        if (an > MUL_PIECE) { mpz_mul_big(r, a, an, a, an); }
+        else {
+            let n = mpn_sqr_pos(zP[a], an);
+            _mpz_newalloc(r, n);
+            mpn_sstore(zP[r], gmp_sres, n);
+            zN[r] = n;
         }
-        _mpz_realloc(r, n);
-        mpn_sstore(zP[r], gmp_sres, n);
-        zN[r] = n;
     }
+}
+
+// M[d..) += the n limbs at S[s..], the carry carried up (the caller left room)
+function mpn_addS_at(d, s, n) {
+    let c = M__addS(d, s, n);
+    let k = d + n; let t = 0;
+    while (c > 0) {
+        t = M[k] + c; c = 0;
+        if (t >= BASE) { t = t - BASE; c = 1; }
+        M[k] = t; k = k + 1;
+    }
+}
+
+// r = |x| * |y| for x longer than a piece (S holds at most S_MAX limbs):
+// x and y cut into even pieces of at most MUL_PIECE limbs, every piece
+// product made in S and added into the heap (a square: the pairs below the
+// diagonal once, doubled)
+function mpz_mul_big(r, x, xn, y, yn) {
+    let acc = gmp_tm;
+    let n = xn + yn;
+    _mpz_newalloc(acc, n + 1);
+    let pr = zP[acc];
+    M__fill(pr, n + 1, 0);
+    let px = zP[x]; let py = zP[y];
+    let kx = idiv(xn + MUL_PIECE - 1, MUL_PIECE); let wx = idiv(xn + kx - 1, kx);
+    let ky = idiv(yn + MUL_PIECE - 1, MUL_PIECE); let wy = idiv(yn + ky - 1, ky);
+    let sq = 0;
+    if (x == y) { sq = 1; }
+    let i = 0;
+    while (i < xn) {
+        let li = xn - i;
+        if (li > wx) { li = wx; }
+        let j = 0;
+        if (sq == 1) { j = i; }
+        while (j < yn) {
+            let lj = yn - j;
+            if (lj > wy) { lj = wy; }
+            let m = 0;
+            if (sq == 1 && i == j) { m = mpn_sqr_pos(px + i, li); }
+            else {
+                if (li >= lj) { m = mpn_mul_pos(px + i, li, py + j, lj); }
+                else { m = mpn_mul_pos(py + j, lj, px + i, li); }
+            }
+            mpn_addS_at(pr + i + j, gmp_sres, m);
+            if (sq == 1 && i != j) { mpn_addS_at(pr + i + j, gmp_sres, m); }
+            j = j + lj;
+        }
+        i = i + li;
+    }
+    zN[acc] = mpn_normsize(pr, n + 1);
+    mpz_swap(r, acc);
+    zN[acc] = 0;
+    mpz_shrink(acc);
 }
 
 function mpz_addmul(r, a, b) { mpz_mul(gmp_t8, a, b); mpz_add(r, r, gmp_t8); }
@@ -330,12 +435,14 @@ function mpz_divrem_abs(q, r, n, d) {
             let dv = M[zP[d]];
             let rem = 0;
             if (q > 0) {
-                _mpz_realloc(q, nn);
+                if (q != n) { _mpz_newalloc(q, nn); } else { _mpz_realloc(q, nn); }
                 rem = mpn_divrem_1(zP[q], zP[n], nn, dv);
                 zN[q] = mpn_normsize(zP[q], nn);
             } else { rem = mpn_mod_1(zP[n], nn, dv); }
             if (r > 0) { mpz_set_si(r, rem); }
         } else {
+            if (nn * 2 + dn + 8 > S_MAX) { mpz_divrem_newton(q, r, n, d); }
+            else {
             mpn_sneed(nn * 2 + dn + 8);
             // normalise: the divisor's top limb >= BASE/2
             let f = idiv(BASE, M[zP[d] + dn - 1] + 1);
@@ -346,18 +453,45 @@ function mpz_divrem_abs(q, r, n, d) {
             mpn_sdivrem(su, nn, sv, dn, sq);
             let qn = nn - dn + 1;
             if (q > 0) {
-                _mpz_realloc(q, qn);
+                _mpz_newalloc(q, qn);
                 mpn_sstore(zP[q], sq, qn);
                 zN[q] = mpn_normsize(zP[q], qn);
             }
             if (r > 0) {
                 if (f > 1) { mpn_sdivrem_1(su, dn, f); }
-                _mpz_realloc(r, dn);
+                _mpz_newalloc(r, dn);
                 mpn_sstore(zP[r], su, dn);
                 zN[r] = mpn_normsize(zP[r], dn);
             }
+            }
         }
     }
+}
+
+// the same for numbers too long for algorithm D in S: q0 = |n| / |d| from
+// the floats (Newton's reciprocal) to qn + 3 limbs, at most a few units off,
+// then the remainder |n| - q0 |d| set right one |d| at a time
+let dv_a = 0; let dv_b = 0; let dv_c = 0; let dv_q = 0; let dv_r = 0; let dv_d = 0;
+function mpz_divrem_newton(q, r, n, d) {
+    if (dv_a == 0) { dv_a = mpf_init2(64); dv_b = mpf_init2(64); dv_c = mpf_init2(64); dv_q = mpz_init(); dv_r = mpz_init(); dv_d = mpz_init(); }
+    let nn = Math.abs(zN[n]); let dn = Math.abs(zN[d]);
+    let pl = nn - dn + 4;
+    fR[dv_a] = pl; fR[dv_b] = pl; fR[dv_c] = pl;
+    mpz_set(dv_d, d); zN[dv_d] = dn;
+    mpz_set(dv_r, n); zN[dv_r] = nn;
+    mpf_set_z(dv_a, dv_r);
+    mpf_set_z(dv_b, dv_d);
+    mpf_div(dv_c, dv_a, dv_b);
+    mpf_load(dv_q, dv_c, 0);
+    mpz_mul(dv_d, dv_q, dv_d);
+    mpz_sub(dv_r, dv_r, dv_d);
+    mpz_set(dv_d, d); zN[dv_d] = dn;
+    while (zN[dv_r] < 0) { mpz_sub_ui(dv_q, dv_q, 1); mpz_add(dv_r, dv_r, dv_d); }
+    while (mpz_cmp(dv_r, dv_d) >= 0) { mpz_add_ui(dv_q, dv_q, 1); mpz_sub(dv_r, dv_r, dv_d); }
+    if (q > 0) { mpz_set(q, dv_q); }
+    if (r > 0) { mpz_set(r, dv_r); }
+    zN[dv_q] = 0; mpz_shrink(dv_q); zN[dv_r] = 0; mpz_shrink(dv_r); zN[dv_d] = 0; mpz_shrink(dv_d);
+    mpf_clear_keep(dv_a); mpf_clear_keep(dv_b); mpf_clear_keep(dv_c);
 }
 
 // S[p..p+n) *= v in place (the carry out is dropped: the caller left room)
@@ -575,7 +709,7 @@ function mpz_set_str(r, s, base) {
     else {
         if (b == 10) {
             let nl = idiv(n + BD - 1, BD);
-            _mpz_realloc(r, nl);
+            _mpz_newalloc(r, nl);
             let p = zP[r]; let e = n + 1; let j = 0;
             while (e > 1) {
                 let st = e - BD + 1;
@@ -588,7 +722,7 @@ function mpz_set_str(r, s, base) {
             let c = 1; let bc = b;
             while (bc * b < BASE) { bc = bc * b; c = c + 1; }
             let nl = idiv(n, c) + 2;
-            _mpz_realloc(r, nl);
+            _mpz_newalloc(r, nl);
             let p = zP[r]; let sz = 0; let j = 2;
             while (j <= n + 1) {
                 let v = 0; let m = 1; let t = 0;

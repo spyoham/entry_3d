@@ -18,12 +18,13 @@
 import { createRequire } from 'node:module';
 const require = createRequire(new URL('../../entry-vibe-coding/package.json', import.meta.url));
 const acorn = require('acorn');
+import { expandPagedSource, rewritePaged } from './paged.mjs';
 
 const ALPHA = 'abcdefghijklmnopqrstuvwxyz0123456789';
 
 export function compileProgram(sources, { consts: extConsts = {}, funcWeights = {} } = {}) {
-    const src = sources.join('\n');
-    const ast = acorn.parse(src, { ecmaVersion: 2022, sourceType: 'script', locations: true });
+    const { src, paged } = expandPagedSource(sources.join('\n'));
+    const ast = rewritePaged(acorn.parse(src, { ecmaVersion: 2022, sourceType: 'script', locations: true }), paged);
     const err = (node, msg) => { throw new Error(`${msg} (line ${node.loc ? node.loc.start.line : '?'})`); };
 
     // ---------------- ids ----------------
@@ -293,6 +294,12 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
             case 'tableSet': return B('set_value_from_table', [String(evalConst(args[0])), A(1), A(2), A(3), null]);
             case 'tableShow': return B('open_table', [String(evalConst(args[0])), null]);
             case 'write': return B('text_write', [A(0), null]);
+            // a list's window on the stage
+            case 'listShow': case 'listHide': {
+                const l = lists.get(args[0].name);
+                if (!l) err(node, 'unknown list ' + args[0].name);
+                return B(name === 'listShow' ? 'show_list' : 'hide_list', [l.id, null]);
+            }
             case 'textColor': return B('text_change_font_color', [B('color', [String(evalConst(args[0]))]), null]);
             case 'textColorHex': return B('text_change_font_color', [A(0), null]);
             case 'dateSec': return B('get_date', [null, 'SECOND', null]);
@@ -534,8 +541,8 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
 // with range checks (like Entry, out-of-range reads throw).
 // ============================================================
 export function compileToJS(sources) {
-    const src = sources.join('\n');
-    const ast = acorn.parse(src, { ecmaVersion: 2022, sourceType: 'script', locations: true });
+    const { src, paged } = expandPagedSource(sources.join('\n'));
+    const ast = rewritePaged(acorn.parse(src, { ecmaVersion: 2022, sourceType: 'script', locations: true }), paged);
     const lists = new Set();
     for (const st of ast.body) if (st.type === 'VariableDeclaration' && st.kind !== 'const') for (const d of st.declarations) if (d.init && d.init.type === 'ArrayExpression') lists.add(d.id.name);
     // v2.0.0: SY_* (Entry Sync) - a variable is read / written through R,
@@ -572,7 +579,7 @@ export function compileToJS(sources) {
                 const c = n.callee;
                 if (c.type === 'MemberExpression' && lists.has(c.object.name)) {
                     const L = c.object.name, a = n.arguments.map(E);
-                    if (c.property.name === 'push') return syN(L, `${L}.push(${a[0]})`);
+                    if (c.property.name === 'push') return syN(L, `R.push(${L},${a[0]})`);
                     if (c.property.name === 'removeAt') return syN(L, `R.removeAt(${L},${a[0]})`);
                     if (c.property.name === 'insertAt') return syN(L, `R.insertAt(${L},${a[0]},${a[1]})`);
                     if (c.property.name === 'includes') return `${L}.some(v=>v==${a[0]})`;

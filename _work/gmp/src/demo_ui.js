@@ -39,6 +39,13 @@ function ui_busy(s) { ui_text = s; waitSec(0.05); }
 function ui_setup() {
     if (ui_n == 0) { ui_n = mpz_init(); ui_a = mpz_init(); ui_b = mpz_init(); ui_r = mpz_init(); ui_q = mpz_init(); }
 }
+// before a demo: the last one's numbers go, the heap is compacted
+function ui_reset() {
+    mpz_set_si(ui_n, 0); mpz_set_si(ui_a, 0); mpz_set_si(ui_b, 0); mpz_set_si(ui_r, 0); mpz_set_si(ui_q, 0);
+    gmp_errno = 0;
+    gmp_trim();
+}
+const CALC_MAX = 200000;      // the calculator's largest result (digits): the heap holds 160000 limbs
 
 // value: 1 if the answer was read into ui_n: digits, or M<p> for 2^p - 1
 function ui_read_num(s) {
@@ -74,6 +81,7 @@ function demo_pi() {
         '\n · 이진 분할 ', sec_str(pi_t_bs), '\n · √10005 ', sec_str(pi_t_sqrt), '\n · 곱셈·나눗셈 ', sec_str(pi_t_div),
         '\n모든 자리는 [결과] 리스트에');
     log_put(str('π ', n, '자리 ', sec_str(pi_t_all)));
+    vw_open(str('π = 3.  (', sec_str(pi_t_all), ')'), substr(pi_str, 3, strlen(pi_str)));
 }
 
 // Miller-Rabin, round by round, written with the mpz functions alone
@@ -166,6 +174,8 @@ function demo_next() {
         res_put(mpz_get_str(10, ui_r), 25);
         ui_text = str('다음 소수 =\n', short_str(mpz_get_str(10, ui_r), 60), '\n\n(입력 + ', mpz_get_str(10, ui_a), ')\n', sec_str(t1));
         log_put(str('다음 소수 ', sec_str(t1)));
+        let ps = mpz_get_str(10, ui_r);
+        if (strlen(ps) > 120) { vw_open('다음 소수', ps); }
     }
 }
 
@@ -188,8 +198,21 @@ function demo_calc() {
         }
         if (gmp_errno != 0) { ok = 0; }
     }
+    // the result's size first: a power or a factorial can outgrow the heap
+    let est = 0;
+    if (ok == 1) {
+        let da = mpz_sizeinbase(ui_a, 10); let db = mpz_sizeinbase(ui_b, 10);
+        if (op == '*') { est = da + db; }
+        if (op == '^') { if (db > 7) { est = CALC_MAX + 1; } else { est = da * mpz_get_ui(ui_b); } }
+        if (op == '!') {
+            if (da > 7) { est = CALC_MAX + 1; }
+            else { let n = mpz_get_ui(ui_a); if (n > 2) { est = Math.round(n * (Math.log(n) - 1) / Math.log(10)); } }
+        }
+        if (est > CALC_MAX) { ok = 2; }
+    }
     if (ok == 0) { ui_text = '식을 읽지 못했습니다. 예) 2 ^ 1000'; }
-    else {
+    if (ok == 2) { ui_text = str('결과가 너무 큽니다\n(약 ', est, '자리: 계산기는\n', CALC_MAX, '자리까지 됩니다)'); }
+    if (ok == 1) {
         ui_busy('계산 중…');
         let t0 = timer(); let name = '?';
         if (op == '+') { mpz_add(ui_r, ui_a, ui_b); name = 'mpz_add'; }
@@ -207,7 +230,112 @@ function demo_calc() {
         if (op == '/') { RES.push(str('나머지 ', mpz_get_str(10, ui_q))); }
         ui_text = str(name, '\n→ ', short_str(rs, 70), '\n\n', sec_str(t1), '\n모든 자리는 [결과] 리스트에');
         log_put(str(name, ' ', sec_str(t1)));
+        if (strlen(rs) > 120) { vw_open(str(name, ' 결과'), rs); }
+        gmp_trim();
     }
+}
+
+// ---------------- the digit viewer: every digit, scrolled ----------------
+// a text box over the whole stage: VW_ROWS lines of VW_W digits (groups of
+// ten), each line led by the place of its first digit, and a scroll bar of
+// characters on the right. The keys, dragging the text or the bar move it.
+const VW_W = 50;
+const VW_ROWS = 15;
+const VW_LH = 15.6;           // line height on the stage (12px font)
+const VW_Y0 = 117;            // stage y of the first digit line's middle
+const VW_BARX = 160;          // stage x right of the digits: the bar's side
+const VW_PAD = '                                                                        ';
+let vw_on = 0;                // 1 while the viewer is open
+let vw_want = 0;              // a demo left something to view
+let vw_text = ' ';
+let vw_src = '0';             // the digits
+let vw_head = ' ';
+let vw_n = 0; let vw_lines = 0; let vw_top = 0;
+let vw_ku = 0; let vw_kd = 0; let vw_kpu = 0; let vw_kpd = 0;
+let vw_drag = 0; let vw_bar = 0; let vw_my = 0; let vw_mt = 0; let vw_quit = 0;
+
+// open the viewer on the digits s (head: what they are)
+function vw_open(head, s) {
+    vw_head = head; vw_src = s; vw_n = strlen(s);
+    vw_lines = idiv(vw_n + VW_W - 1, VW_W);
+    vw_top = 0; vw_drag = 0; vw_quit = 1;
+    vw_want = 1;
+}
+
+// vw_text = the lines from vw_top on
+function vw_render() {
+    let maxTop = vw_lines - VW_ROWS;
+    if (maxTop < 0) { maxTop = 0; }
+    if (vw_top > maxTop) { vw_top = maxTop; }
+    if (vw_top < 0) { vw_top = 0; }
+    let first = vw_top * VW_W + 1;
+    let last = (vw_top + VW_ROWS) * VW_W;
+    if (last > vw_n) { last = vw_n; }
+    // the bar: a thumb of th lines at tpos
+    let th = VW_ROWS; let tpos = 0;
+    if (maxTop > 0) {
+        th = Math.round(VW_ROWS * VW_ROWS / vw_lines);
+        if (th < 1) { th = 1; }
+        tpos = Math.round((VW_ROWS - th) * vw_top / maxTop);
+    }
+    let t = str(vw_head, '   ', first, '~', last, '번째 / ', vw_n, '자리');
+    let i = 0;
+    while (i < VW_ROWS) {
+        let ln = vw_top + i;
+        let row = ' ';
+        if (ln < vw_lines) {
+            let a = ln * VW_W + 1;
+            let lab = str('      ', a);
+            row = substr(lab, strlen(lab) - 5, strlen(lab));
+            let g = 0;
+            while (g < 5) {
+                let s0 = a + g * 10;
+                if (s0 <= vw_n) {
+                    let e0 = s0 + 9;
+                    if (e0 > vw_n) { e0 = vw_n; }
+                    row = str(row, ' ', substr(vw_src, s0, e0));
+                }
+                g = g + 1;
+            }
+        }
+        // pad out to the bar's column (the digits take 6 + 5 * 11 characters)
+        row = substr(str(row, VW_PAD), 1, 68);
+        if (i >= tpos && i < tpos + th) { row = str(row, '▓'); } else { row = str(row, '░'); }
+        t = str(t, '\n', row);
+        i = i + 1;
+    }
+    vw_text = str(t, '\n', '↑↓ 한 줄  ←→ 한 쪽  Home·End 처음·끝  끌어서 이동  Enter 메뉴');
+}
+
+// one frame of the viewer: the keys and the mouse move it; vw_on = 0 to leave
+function vw_step() {
+    let top = vw_top;
+    // up / down: a line now, then every frame while held
+    if (key('38')) { vw_ku = vw_ku + 1; if (vw_ku == 1 || vw_ku > 18) { top = top - 1; } } else { vw_ku = 0; }
+    if (key('40')) { vw_kd = vw_kd + 1; if (vw_kd == 1 || vw_kd > 18) { top = top + 1; } } else { vw_kd = 0; }
+    // a page: left, right, page up, page down (every 6th frame while held)
+    if (key('37') || key('33')) { vw_kpu = vw_kpu + 1; if (vw_kpu == 1 || (vw_kpu > 18 && mod(vw_kpu, 6) == 0)) { top = top - VW_ROWS; } } else { vw_kpu = 0; }
+    if (key('39') || key('34')) { vw_kpd = vw_kpd + 1; if (vw_kpd == 1 || (vw_kpd > 18 && mod(vw_kpd, 6) == 0)) { top = top + VW_ROWS; } } else { vw_kpd = 0; }
+    if (key('36')) { top = 0; }
+    if (key('35')) { top = vw_lines; }
+    // the mouse: drag the text, or point at the bar
+    if (mouseDown()) {
+        if (vw_drag == 0) {
+            vw_drag = 1; vw_my = mouseY(); vw_mt = vw_top; vw_bar = 0;
+            if (mouseX() > VW_BARX) { vw_bar = 1; }
+        }
+        if (vw_bar == 1) {
+            let f = (VW_Y0 - mouseY()) / (VW_LH * (VW_ROWS - 1));
+            if (f < 0) { f = 0; }
+            if (f > 1) { f = 1; }
+            top = Math.round(f * (vw_lines - VW_ROWS));
+        } else {
+            top = vw_mt + Math.round((mouseY() - vw_my) / VW_LH);
+        }
+    } else { vw_drag = 0; }
+    // Enter or Esc: back to the menu (once the key that opened it is up)
+    if (key('13') || key('27')) { if (vw_quit == 0) { vw_on = 0; } } else { vw_quit = 0; }
+    if (top != vw_top) { vw_top = top; vw_render(); }
 }
 
 on('start', 'main', function () {
@@ -218,13 +346,34 @@ on('start', 'main', function () {
         ui_text = str(ui_text, '\n[메뉴] 1 π  2 소수 판정  3 다음 소수  4 계산기');
         ask('번호?');
         let c = answer() * 1;
+        vw_want = 0;
+        if (c >= 1 && c <= 4) { ui_reset(); }
         if (c == 1) { demo_pi(); }
         if (c == 2) { demo_prime(); }
         if (c == 3) { demo_next(); }
         if (c == 4) { demo_calc(); }
+        // a long result: the viewer, a frame at a time, until Enter
+        if (vw_want == 1) {
+            listHide(RES); listHide(LOG);
+            vw_render(); vw_on = 1;
+            for (;;) {
+                vw_step();
+                if (vw_on == 0) { break; }
+            }
+            vw_text = ' ';
+            listShow(RES); listShow(LOG);
+        }
     }
 });
 
 on('start', 'screen', function () {
     for (;;) { write(ui_text); }
+});
+
+on('start', 'viewer', function () {
+    hide();
+    for (;;) {
+        if (vw_on == 1) { show(); toFront(); write(vw_text); }
+        else { hide(); }
+    }
 });

@@ -52,17 +52,13 @@ let bOG = 0; let bOM = 0; let bOU = 0; let bOX = 0; let bOY = 0; let bOT = 0; le
 let bmu = 0;                  // mpz handle of mu (made once)
 let bmod = 0;                 // mpz handle: the modulus mu belongs to
 
-// set up S for modulus m (|m| >= BASE, two limbs or more), w: window bits
+// set up S for modulus m (|m| >= BASE, two limbs or more), w: window bits.
+// b_ok = 0 (nothing set up) when the layout does not fit in S: the callers
+// then work with whole mpz numbers
+let b_ok = 0;
 function mpn_bsetup(m, w) {
     bk = Math.abs(zN[m]);
     if (bmu == 0) { bmu = mpz_init(); bmod = mpz_init(); }
-    if (mpz_cmpabs(bmod, m) != 0) {
-        mpz_set(bmod, m); zN[bmod] = bk;
-        mpz_set_si(bmu, 1);
-        let k = 0;
-        while (k < bk * 2) { mpz_mul_small(bmu, bmu, BASE); k = k + 1; }
-        mpz_divrem_abs(bmu, 0, bmu, bmod);
-    }
     bkara = 0;
     if (bk + 1 >= KARA_SQR_MIN) {
         bkara = 1; bkp = mpn_kplan(bk + 1); bkb = kara_base; bt = 16;
@@ -75,9 +71,23 @@ function mpn_bsetup(m, w) {
     bOM = 1; bOU = bOM + bkp; bOX = bOU + bkp; bOY = bOX + bkp; bOT = bOY + bkp;
     bOQ1 = bOT + bkp * 2 + 1; bOQ2 = bOQ1 + bkp; bOQ3 = bOQ2 + bkp * 2 + 1; bOR2 = bOQ3 + bkp;
     bOP = bOR2 + bkp * 2 + 1; bOG = bOP + bkp * np; bSP = bOG + bkp * 8 + 1;
-    mpn_sneed(bSP + bkp * 4 + 64);
-    mpn_sload(bOM, zP[bmod], bk, bkp);
-    mpn_sload(bOU, zP[bmu], Math.abs(zN[bmu]), bkp);
+    let need = bSP;
+    if (bkara == 1) { need = bSP + bkp * 4 + 64; }
+    b_ok = 0;
+    if (need <= S_MAX) {
+        b_ok = 1;
+        if (mpz_cmpabs(bmod, m) != 0) {
+            mpz_set(bmod, m); zN[bmod] = bk;
+            // mu = BASE^2k / m
+            _mpz_newalloc(bmu, bk * 2 + 1);
+            M__fill(zP[bmu], bk * 2, 0);
+            M[zP[bmu] + bk * 2] = 1; zN[bmu] = bk * 2 + 1;
+            mpz_divrem_abs(bmu, 0, bmu, bmod);
+        }
+        mpn_sneed(need);
+        mpn_sload(bOM, zP[bmod], bk, bkp);
+        mpn_sload(bOU, zP[bmu], Math.abs(zN[bmu]), bkp);
+    }
 }
 
 // S[d..d+bkp) = S[s..s+bkp)
@@ -186,7 +196,7 @@ function mpn_bpow(b, w) {
 
 // r = x
 function mpn_bget(r) {
-    _mpz_realloc(r, bk);
+    _mpz_newalloc(r, bk);
     mpn_sstore(zP[r], bOX, bk);
     zN[r] = mpn_normsize(zP[r], bk);
 }
@@ -283,11 +293,12 @@ function mp_lucas() {
             if (go == 1) { if (D > 0) { D = 0 - D - 2; } else { D = 2 - D; } }
         }
     }
+    let Q = 0; let s = 0;
     if (go == 0) {
-        let Q = (1 - D) / 4;
+        Q = (1 - D) / 4;
         // n + 1 = d * 2^s
         mpz_add_ui(lc_d, pp_n, 1);
-        let s = 0;
+        s = 0;
         while (mod(M[zP[lc_d]], 2) == 0) {
             let vz = mpn_divrem_1(zP[lc_d], zP[lc_d], zN[lc_d], 2);
             zN[lc_d] = mpn_normsize(zP[lc_d], zN[lc_d]);
@@ -295,6 +306,10 @@ function mp_lucas() {
         }
         mp_get_bits(lc_d);
         mpn_bsetup(pp_n, 1);
+        if (b_ok == 0) { go = -2; }
+    }
+    if (go == -2) { res = -1; }
+    if (go == 0) {
         let rU = mpn_breg(0); let rV = mpn_breg(1); let rQk = mpn_breg(2); let rD = mpn_breg(3); let rQ = mpn_breg(4); let rT = mpn_breg(5);
         mpn_bsetr(rU, 1); mpn_bsetr(rV, 1); mpn_bsetr(rQk, Q); mpn_bsetr(rD, D); mpn_bsetr(rQ, Q);
         let i = mp_bits - 1;
@@ -367,12 +382,27 @@ function mpz_powm(r, b, e, m) {
                 } else {
                     let w = mp_window(mp_bits);
                     mpn_bsetup(gmp_t2, w);
-                    mpn_bpow(gmp_t3, w);
-                    mpn_bget(r);
+                    if (b_ok == 1) { mpn_bpow(gmp_t3, w); mpn_bget(r); }
+                    else { mp_powm_plain(r); }
                 }
             }
         }
     }
+}
+
+// r = gmp_t3^e mod gmp_t2 with whole mpz products and remainders (a modulus
+// too long for Barrett in S); the bits of e in PB
+let pw_x = 0;
+function mp_powm_plain(r) {
+    if (pw_x == 0) { pw_x = mpz_init(); }
+    mpz_set_si(pw_x, 1);
+    let i = mp_bits;
+    while (i >= 1) {
+        mpz_mul(pw_x, pw_x, pw_x); mpz_divrem_abs(0, pw_x, pw_x, gmp_t2);
+        if (PB[i] == 1) { mpz_mul(pw_x, pw_x, gmp_t3); mpz_divrem_abs(0, pw_x, pw_x, gmp_t2); }
+        i = i - 1;
+    }
+    mpz_set(r, pw_x);
 }
 
 function mpz_powm_ui(r, b, v, m) { mpz_set_si(gmp_t4, Math.abs(v)); mpz_powm(r, b, gmp_t4, m); }
@@ -513,7 +543,7 @@ function mpz_sqrtrem(r, rem, a) {
         let s0 = SQSH[lv];
         // n at this rung: the limbs from 2*s0 up
         let nn = L - s0 * 2;
-        _mpz_realloc(sq_n, nn);
+        _mpz_newalloc(sq_n, nn);
         mpn_copyi(zP[sq_n], zP[gmp_t1] + s0 * 2, nn);
         zN[sq_n] = mpn_normsize(zP[sq_n], nn);
         // start above the root: (x + 1) * BASE^(sh - s0)
@@ -647,7 +677,19 @@ function mpz_probab_prime_p(n, reps) {
             if (mp_miller_rabin(s) == 0) { res = 0; }
             else {
                 if (mpz_perfect_square_p(pp_n) == 1) { res = 0; }
-                else { if (mp_lucas() == 0) { res = 0; } }
+                else {
+                    let lu = mp_lucas();
+                    if (lu == 0) { res = 0; }
+                    // too long for the Lucas test in S: 24 more Miller-Rabin rounds instead
+                    if (lu < 0) {
+                        let r = 0;
+                        while (r < 24) {
+                            mpz_sub_ui(pp_x, pp_n, 3); mpz_urandomm(pp_a, mp_rand_state(), pp_x); mpz_add_ui(pp_a, pp_a, 2);
+                            if (mp_miller_rabin(s) == 0) { res = 0; break; }
+                            r = r + 1;
+                        }
+                    }
+                }
             }
             if (res > 0) {
                 // no Baillie-PSW pseudoprime below 2^64 exists
@@ -680,7 +722,10 @@ function mp_miller_rabin(s) {
         if (zN[pp_n] == 2) { if (M[zP[pp_n] + 1] < 9) { big = 0; } }
         let j = 1;
         while (j < s) {
-            if (big == 1) { mpn_bsqr(); mpn_bget(pp_x); }
+            if (big == 1) {
+                if (b_ok == 1) { mpn_bsqr(); mpn_bget(pp_x); }
+                else { mpz_mul(pp_x, pp_x, pp_x); mpz_divrem_abs(0, pp_x, pp_x, pp_n); }
+            }
             else { let m = mpz_get_si(pp_n); let v = mpz_get_si(pp_x); mpz_set_si(pp_x, mod(v * v, m)); }
             if (mpz_cmp(pp_x, pp_n1) == 0) { ok = 1; break; }
             if (mpz_cmp_si(pp_x, 1) == 0) { break; }
@@ -815,7 +860,7 @@ function mp_rand_limb(st) { return mod(mp_rand_next(st) * 8 + mod(mp_rand_next(s
 // r = a random number in 0 .. 2^bits - 1
 function mpz_urandomb(r, st, bits) {
     let nl = idiv(bits, 23) + 2;
-    _mpz_realloc(r, nl);
+    _mpz_newalloc(r, nl);
     let k = 0;
     while (k < nl) { M[zP[r] + k] = mp_rand_limb(st); k = k + 1; }
     zN[r] = mpn_normsize(zP[r], nl);

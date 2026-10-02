@@ -41,6 +41,9 @@ function chud_bs(a, b, d) {
         mpz_add(chT[d], chT[d], ch_w);
         if (b < chN) { mpz_mul(chP[d], chP[d], chP[d + 1]); }
         mpz_mul(chQ[d], chQ[d], chQ[d + 1]);
+        // the big levels leave holes in the heap: close them once the heap is
+        // big (only handles are held here, so the numbers may move)
+        if (d <= 5 && mp_top > 30000) { zN[chP[d + 1]] = 0; zN[chQ[d + 1]] = 0; zN[chT[d + 1]] = 0; mpz_shrink(chP[d + 1]); mpz_shrink(chQ[d + 1]); mpz_shrink(chT[d + 1]); gmp_compact_if(); }
     }
 }
 
@@ -79,4 +82,9 @@ function pi_compute(n) {
     pi_t_str = timer() - t3;
     pi_t_all = timer() - t0;
     mpf_clear(fq); mpf_clear(ft); mpf_clear(fs);
+    // P, Q, T of every depth: not wanted any more
+    let d = 1;
+    while (d <= chP.length) { zN[chP[d]] = 0; zN[chQ[d]] = 0; zN[chT[d]] = 0; d = d + 1; }
+    zN[ch_w] = 0;
+    gmp_trim();
 }

@@ -48,7 +48,7 @@ const steps = `| 단계 | π 1000자리 | M127 판정 | M521 판정 |
   - 기본 크기를 32자리로 줄이면 0 채움 때문에 훨씬 느려졌습니다(384자리 729ms).`;
 const row = (n) => pi[n] ? `| π ${n}자리 | ${pi[n][0].toFixed(2)}초 | 이진 분할 ${pi[n][1].toFixed(2)} · √ ${pi[n][2].toFixed(2)} · 곱셈·나눗셈 ${pi[n][3].toFixed(2)} |` : '';
 const mrow = (p, d) => mr[p] ? `| 2^${p}−1 (${d}자리) 소수 판정 | ${mr[p][0].toFixed(2)}초 | \`mpz_probab_prime_p\` → ${mr[p][1]} |` : '';
-let final = `| 작업 | 시간 | 내역 |\n|---|---|---|\n` + [row(100), row(1000), row(3000), row(10000), mrow(127, 39), mrow(521, 157), mrow(607, 183), mrow(1279, 386)].filter(Boolean).join('\n');
+let final = `| 작업 | 시간 | 내역 |\n|---|---|---|\n` + [row(100), row(1000), row(3000), row(10000), row(20000), mrow(127, 39), mrow(521, 157), mrow(607, 183), mrow(1279, 386)].filter(Boolean).join('\n');
 if (mul) final += '\n\n곱셈 한 번 (`mpz_mul`, 같은 크기 두 수):\n\n' + mul.trim();
 final += '\n\n(데모 화면에 나오는 시간은 앞뒤로 한 프레임씩 기다리므로 0.03초쯤 더 깁니다.)';
 let doc = fs.readFileSync('doc.md', 'utf8');

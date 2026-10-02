@@ -29,7 +29,9 @@ function mpf_init2(bits) {
     zN[fM[h]] = 0; fE[h] = 0; fR[h] = mp_prec_limbs(bits);
     return h;
 }
-function mpf_clear(f) { fFree.push(f); }
+function mpf_clear(f) { zN[fM[f]] = 0; mpz_shrink(fM[f]); fFree.push(f); }
+// a float kept by its owner: set to 0, its heap given back
+function mpf_clear_keep(f) { zN[fM[f]] = 0; fE[f] = 0; mpz_shrink(fM[f]); }
 function mpf_set_prec(f, bits) { fR[f] = mp_prec_limbs(bits); mpf_round(f); }
 function mpf_set_prec_raw(f, bits) { fR[f] = mp_prec_limbs(bits); }
 function mpf_get_prec(f) { return idiv((fR[f] - 1) * 69, 3); }
@@ -41,7 +43,7 @@ function mpf_round(f) {
     let keep = fR[f] + 1;
     if (n > keep) {
         let d = n - keep;
-        mpn_copyi(zP[z], zP[z] + d, keep);
+        mpz_droplow(z, d);
         if (zN[z] < 0) { zN[z] = 0 - keep; } else { zN[z] = keep; }
         fE[f] = fE[f] + d;
     }
@@ -52,7 +54,7 @@ function mpf_round(f) {
         let p = zP[z]; let k = 0;
         while (M[p + k] == 0) { k = k + 1; }
         if (k > 0) {
-            mpn_copyi(p, p + k, n - k);
+            mpz_droplow(z, k);
             if (zN[z] > 0) { zN[z] = n - k; } else { zN[z] = k - n; }
             fE[f] = fE[f] + k;
         }
@@ -92,20 +94,18 @@ function mpf_load(z, f, lo) {
     else {
         if (e >= lo) {
             let s = e - lo;
-            _mpz_realloc(z, n + s);
+            if (z != m) { _mpz_newalloc(z, n + s); } else { _mpz_realloc(z, n + s); }
             let p = zP[z];
             // (z may be m itself: copy from the top)
-            let k = n - 1;
-            while (k >= 0) { M[p + s + k] = M[zP[m] + k]; k = k - 1; }
-            k = 0;
-            while (k < s) { M[p + k] = 0; k = k + 1; }
+            mpn_copyd(p + s, zP[m], n);
+            if (s > 0) { M__fill(p, s, 0); }
             if (zN[m] < 0) { zN[z] = 0 - n - s; } else { zN[z] = n + s; }
         } else {
             let d = lo - e;
             if (d >= n) { zN[z] = 0; }
             else {
-                _mpz_realloc(z, n - d);
-                mpn_copyi(zP[z], zP[m] + d, n - d);
+                if (z != m) { _mpz_newalloc(z, n - d); mpn_copyi(zP[z], zP[m] + d, n - d); }
+                else { mpz_droplow(z, d); }
                 if (zN[m] < 0) { zN[z] = 0 - n + d; } else { zN[z] = n - d; }
             }
         }
@@ -169,8 +169,14 @@ function mpf_div_school(r, a, b) {
     let k = fR[r] + 2 + nb - na;
     if (k < 0) { k = 0; }
     let ea = fE[a]; let eb = fE[b];
+    let neg = 0;
+    if (zN[fM[a]] < 0) { neg = 1; }
+    if (zN[fM[b]] < 0) { neg = 1 - neg; }
     mpf_load(mpf_ta, a, ea - k);
-    mpz_tdiv_q(fM[r], mpf_ta, fM[b]);
+    // (mpz_divrem_abs, not mpz_tdiv_q: a big mpz division comes here, inside
+    // mpz_div_any, whose scratch integers must stay as they are)
+    mpz_divrem_abs(fM[r], 0, mpf_ta, fM[b]);
+    if (neg == 1) { zN[fM[r]] = 0 - zN[fM[r]]; }
     fE[r] = ea - k - eb;
     mpf_round(r);
 }
@@ -314,7 +320,8 @@ function mpf_get_d(a) {
 function mpf_get_si(a) { mpf_trunc(mpf_td, a); return mpz_get_si(fM[mpf_td]) * mp_pow_base(fE[mpf_td]); }
 function mpf_get_ui(a) { return Math.abs(mpf_get_si(a)); }
 function mp_pow_base(e) { let v = 1; let k = 0; while (k < e) { v = v * BASE; k = k + 1; } return v; }
-function mpz_set_f(z, f) { mpf_trunc(mpf_td, f); mpf_load(z, mpf_td, 0); }
+// (mpf_load at exponent 0 drops the fraction: toward zero, every digit kept)
+function mpz_set_f(z, f) { mpf_load(z, f, 0); }
 
 // value: the significant digits (base 10), mpf_exp set so the number is
 // 0.DIGITS * 10^mpf_exp; n digits (0: as many as the precision holds),
