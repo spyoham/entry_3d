@@ -1,0 +1,78 @@
+wall 101949 ms, blocks 168404048 =>  0.61 us/block
+per function:
+    76823296  45.6% mpn_mul_tile16
+    29592236  17.6% mpn_snorm
+    15523758   9.2% mpn_bred
+     9744064   5.8% mpn_snorm2
+     9488209   5.6% mpn_szero
+     9349920   5.6% mpn_sqr_tile16
+     4628200   2.7% mpn_mul_grid16hi
+     3759620   2.2% mpn_mul_grid16lo
+     3497204   2.1% mpn_sdivrem
+     2182680   1.3% mpn_sqr_grid16
+      856497   0.5% mpn_mul_grid16
+      514374   0.3% mpn_mul_1
+      222550   0.1% mpn_bpow
+      216888   0.1% mpn_ssqr
+      207900   0.1% mpn_scopy
+      166060   0.1% mp_get_bits
+      155097   0.1% mpn_sload
+      146521   0.1% mpn_divrem_1
+      132423   0.1% mpn_copyi
+       85844   0.1% mpn_smul_1
+       82587   0.0% mpn_sstore
+       77400   0.0% mpn_bsqr
+       75702   0.0% mpn_add
+       74152   0.0% mpn_smul
+       64512   0.0% mpn_mul_tile8
+per line:
+    12247880   7.3% L61 t = S[k + 1] + c; c = idiv(t, BASE); S[k + 1] = t - c * BASE;
+     9798304   5.8% L60 t = S[k] + c; c = idiv(t, BASE); S[k] = t - c * BASE;
+     9599472   5.7% L72 while (k < e) { t = S[k] * 2 + c; c = idiv(t, BASE); S[k] = t - c * BASE; k = k + 1; }
+     8948565   5.3% L29 while (k < e) { S[k] = 0; S[k + 1] = 0; S[k + 2] = 0; S[k + 3] = 0; k = k + 4; }
+     8075176   4.8% L2352 S[p + 30] = S[p + 30] + a16 * b16;
+     5657391   3.4% L1010 while (i <= k) { t = S[bOT + i] - S[bOR2 + i] - c; c = 0; if (t < 0) { t = t + BASE; c = 1; } S[bOX + i] = t; i = i + 1;
+     4918431   2.9% L62 k = k + 2;
+     3928464   2.3% L2337 S[p + 15] = S[p + 15] + a1 * b16 + a2 * b15 + a3 * b14 + a4 * b13 + a5 * b12 + a6 * b11 + a7 * b10 + a8 * b9 + a9 * b8 +
+     3710216   2.2% L2336 S[p + 14] = S[p + 14] + a1 * b15 + a2 * b14 + a3 * b13 + a4 * b12 + a5 * b11 + a6 * b10 + a7 * b9 + a8 * b8 + a9 * b7 + 
+     3710216   2.2% L2338 S[p + 16] = S[p + 16] + a2 * b16 + a3 * b15 + a4 * b14 + a5 * b13 + a6 * b12 + a7 * b11 + a8 * b10 + a9 * b9 + a10 * b8 
+     3525040   2.1% L991 while (i <= k) { S[bOQ1 + i] = S[bOT + k - 1 + i]; i = i + 1; }
+     3525040   2.1% L1000 while (i <= k) { S[bOQ3 + i] = S[bOQ2 + k + 1 + i]; i = i + 1; }
+     3491968   2.1% L2335 S[p + 13] = S[p + 13] + a1 * b14 + a2 * b13 + a3 * b12 + a4 * b11 + a5 * b10 + a6 * b9 + a7 * b8 + a8 * b7 + a9 * b6 + a
+     3491968   2.1% L2339 S[p + 17] = S[p + 17] + a3 * b16 + a4 * b15 + a5 * b14 + a6 * b13 + a7 * b12 + a8 * b11 + a9 * b10 + a10 * b9 + a11 * b8
+     3474320   2.1% L2422 if (i + j + 30 >= cut) { mpn_mul_tile16(ri + j, S[ai], S[ai + 1], S[ai + 2], S[ai + 3], S[ai + 4], S[ai + 5], S[ai + 6],
+     3399082   2.0% L596 while (k < dn) { t = S[uj + k] - qh * S[v + k] + c; c = idiv(t, BASE); S[uj + k] = t - c * BASE; k = k + 1; }
+     3273720   1.9% L2334 S[p + 12] = S[p + 12] + a1 * b13 + a2 * b12 + a3 * b11 + a4 * b10 + a5 * b9 + a6 * b8 + a7 * b7 + a8 * b6 + a9 * b5 + a1
+     3273720   1.9% L2340 S[p + 18] = S[p + 18] + a4 * b16 + a5 * b15 + a6 * b14 + a7 * b13 + a8 * b12 + a9 * b11 + a10 * b10 + a11 * b9 + a12 * b
+     3055472   1.8% L2333 S[p + 11] = S[p + 11] + a1 * b12 + a2 * b11 + a3 * b10 + a4 * b9 + a5 * b8 + a6 * b7 + a7 * b6 + a8 * b5 + a9 * b4 + a10
+     3055472   1.8% L2341 S[p + 19] = S[p + 19] + a5 * b16 + a6 * b15 + a7 * b14 + a8 * b13 + a9 * b12 + a10 * b11 + a11 * b10 + a12 * b9 + a13 * 
+     2837224   1.7% L2332 S[p + 10] = S[p + 10] + a1 * b11 + a2 * b10 + a3 * b9 + a4 * b8 + a5 * b7 + a6 * b6 + a7 * b5 + a8 * b4 + a9 * b3 + a10 
+     2837224   1.7% L2342 S[p + 20] = S[p + 20] + a6 * b16 + a7 * b15 + a8 * b14 + a9 * b13 + a10 * b12 + a11 * b11 + a12 * b10 + a13 * b9 + a14 *
+     2618976   1.6% L2331 S[p + 9] = S[p + 9] + a1 * b10 + a2 * b9 + a3 * b8 + a4 * b7 + a5 * b6 + a6 * b5 + a7 * b4 + a8 * b3 + a9 * b2 + a10 * b
+     2618976   1.6% L2343 S[p + 21] = S[p + 21] + a7 * b16 + a8 * b15 + a9 * b14 + a10 * b13 + a11 * b12 + a12 * b11 + a13 * b10 + a14 * b9 + a15 
+     2605740   1.5% L2436 if (i + j < cut) { mpn_mul_tile16(ri + j, S[ai], S[ai + 1], S[ai + 2], S[ai + 3], S[ai + 4], S[ai + 5], S[ai + 6], S[ai 
+     2400728   1.4% L2330 S[p + 8] = S[p + 8] + a1 * b9 + a2 * b8 + a3 * b7 + a4 * b6 + a5 * b5 + a6 * b4 + a7 * b3 + a8 * b2 + a9 * b1;
+     2400728   1.4% L2344 S[p + 22] = S[p + 22] + a8 * b16 + a9 * b15 + a10 * b14 + a11 * b13 + a12 * b12 + a13 * b11 + a14 * b10 + a15 * b9 + a16
+     2182480   1.3% L2329 S[p + 7] = S[p + 7] + a1 * b8 + a2 * b7 + a3 * b6 + a4 * b5 + a5 * b4 + a6 * b3 + a7 * b2 + a8 * b1;
+     2182480   1.3% L2345 S[p + 23] = S[p + 23] + a9 * b16 + a10 * b15 + a11 * b14 + a12 * b13 + a13 * b12 + a14 * b11 + a15 * b10 + a16 * b9;
+     1964232   1.2% L2328 S[p + 6] = S[p + 6] + a1 * b7 + a2 * b6 + a3 * b5 + a4 * b4 + a5 * b3 + a6 * b2 + a7 * b1;
+     1964232   1.2% L2346 S[p + 24] = S[p + 24] + a10 * b16 + a11 * b15 + a12 * b14 + a13 * b13 + a14 * b12 + a15 * b11 + a16 * b10;
+     1895019   1.1% L59 while (k < e) {
+     1745984   1.0% L2327 S[p + 5] = S[p + 5] + a1 * b6 + a2 * b5 + a3 * b4 + a4 * b3 + a5 * b2 + a6 * b1;
+     1745984   1.0% L2347 S[p + 25] = S[p + 25] + a11 * b16 + a12 * b15 + a13 * b14 + a14 * b13 + a15 * b12 + a16 * b11;
+     1527736   0.9% L2326 S[p + 4] = S[p + 4] + a1 * b5 + a2 * b4 + a3 * b3 + a4 * b2 + a5 * b1;
+     1527736   0.9% L2348 S[p + 26] = S[p + 26] + a12 * b16 + a13 * b15 + a14 * b14 + a15 * b13 + a16 * b12;
+     1309488   0.8% L2325 S[p + 3] = S[p + 3] + a1 * b4 + a2 * b3 + a3 * b2 + a4 * b1;
+     1309488   0.8% L2349 S[p + 27] = S[p + 27] + a13 * b16 + a14 * b15 + a15 * b14 + a16 * b13;
+     1091240   0.6% L2324 S[p + 2] = S[p + 2] + a1 * b3 + a2 * b2 + a3 * b1;
+     1091240   0.6% L2350 S[p + 28] = S[p + 28] + a14 * b16 + a15 * b15 + a16 * b14;
+      877200   0.5% L2413 while (i < n) { let ai = a + i; mpn_sqr_tile16(r + i * 2, S[ai], S[ai + 1], S[ai + 2], S[ai + 3], S[ai + 4], S[ai + 5], 
+      872992   0.5% L2323 S[p + 1] = S[p + 1] + a1 * b2 + a2 * b1;
+      872992   0.5% L2351 S[p + 29] = S[p + 29] + a15 * b16 + a16 * b15;
+      856560   0.5% L2385 S[p + 30] = S[p + 30] + sqr(a16);
+      836880   0.5% L992 while (i < bkp) { S[bOQ1 + i] = 0; i = i + 1; }
+      836880   0.5% L1001 while (i < bkp) { S[bOQ3 + i] = 0; i = i + 1; }
+      670800   0.4% L2405 mpn_mul_tile16(r + i + j, S[ai], S[ai + 1], S[ai + 2], S[ai + 3], S[ai + 4], S[ai + 5], S[ai + 6], S[ai + 7], S[ai + 8],
+      654744   0.4% L2322 S[p + 0] = S[p + 0] + a1 * b1;
+      642816   0.4% L2392 mpn_mul_tile16(ri + j, S[ai], S[ai + 1], S[ai + 2], S[ai + 3], S[ai + 4], S[ai + 5], S[ai + 6], S[ai + 7], S[ai + 8], S[
+      509040   0.3% L145 while (k < n) { t = M[a + k] * v + c; c = idiv(t, BASE); M[r + k] = t - c * BASE; k = k + 1; }

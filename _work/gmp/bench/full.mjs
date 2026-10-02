@@ -1,0 +1,22 @@
+// Time the library in the real Entry runtime: pi and Miller-Rabin
+import fs from 'node:fs';
+import { libSources } from '../lib.mjs';
+import { buildEnt } from '../entbuild.mjs';
+import { runEnt } from '../erun.mjs';
+const demo = fs.readFileSync(new URL('../src/demo_calc.js', import.meta.url), 'utf8');
+const PI = (process.env.PI || '100,1000').split(',').map(Number);
+const MR = (process.env.MR ?? '127,521').split(',').filter(Boolean).map(Number);
+const extra = process.env.EXTRA || '';
+let src = `let done = 0;\n${PI.map(n => `let pi${n} = 0; let pib${n} = 0; let pis${n} = 0; let pid${n} = 0; let pit${n} = ''; let pie${n} = '';`).join('\n')}\n${MR.map(p => `let mr${p} = 0; let mrr${p} = 0;`).join('\n')}\n`;
+src += `on('start', 'main', function () {\n ${extra}\n`;
+for (const n of PI) src += ` pi_compute(${n}); pi${n} = pi_t_all; pib${n} = pi_t_bs; pis${n} = pi_t_sqrt; pid${n} = pi_t_div; pit${n} = substr(pi_str, 1, 12); pie${n} = substr(pi_str, strlen(pi_str) - 9, strlen(pi_str));\n`;
+for (const p of MR) src += ` let m${p} = mpz_init(); mpz_ui_pow_ui(m${p}, 2, ${p}); mpz_sub_ui(m${p}, m${p}, 1); let t${p} = timer(); mrr${p} = mpz_probab_prime_p(m${p}, 10); mr${p} = timer() - t${p};\n`;
+src += ` done = 1;\n});\n`;
+const OUT = process.env.OUT || 'bench/full.ent';
+const prog = buildEnt(OUT, libSources([demo, src]), { hot: ['S', 'M', 'zP', 'zN', 'zA'] });
+const vars = [...PI.flatMap(n => [`pi${n}`, `pib${n}`, `pis${n}`, `pid${n}`, `pit${n}`, `pie${n}`]), ...MR.flatMap(p => [`mr${p}`, `mrr${p}`])];
+if (process.env.NORUN) process.exit(0);
+const r = await runEnt(OUT, { vars, timeout: Number(process.env.TO || 1200000) });
+console.log('done', r.done, 'wall', r.ms, 'ms', r.errors.slice(0, 5));
+for (const n of PI) console.log(`pi ${n}: total ${(+r.vars['pi' + n]).toFixed(2)} s (split ${(+r.vars['pib' + n]).toFixed(2)}, sqrt ${(+r.vars['pis' + n]).toFixed(2)}, div ${(+r.vars['pid' + n]).toFixed(2)})  ${r.vars['pit' + n]}...${r.vars['pie' + n]}`);
+for (const p of MR) console.log(`M${p}: ${(+r.vars['mr' + p]).toFixed(2)} s -> ${r.vars['mrr' + p]}`);

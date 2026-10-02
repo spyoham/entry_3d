@@ -1,0 +1,4 @@
+.pack/
+*.ent
+*.ent.lines.json
+bench/*.png

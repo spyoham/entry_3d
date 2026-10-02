@@ -1,0 +1,2 @@
+done true wall 56872 ms []
+pi 10000: total 56.75 s (split 28.74, sqrt 8.73, div 19.25)  3.1415926535...5256375678
