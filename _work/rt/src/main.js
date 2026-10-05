@@ -19,10 +19,10 @@ const NQ = 7;
 
 let qLevel = 3, autoQ = 1, paused = 0, tAnim = 0;
 let hudText = ' ', hudOn = 1;
-let ilace = 0, still = 0, field = 0, yOff = 0, bArmed = 0, bTick = 0, bUsed = 0, bClear = 0, bHas = 0;
+let ilace = 0, still = 0, field = 0, yOff = 0, bArmed = 0, bTick = 0, bUsed = 0, bWait = 0, bClear = 0, bHas = 0;
 let pX = 0, pY = 0, pZ = 0, pYaw = 0, pPitch = 0, qChanged = 1;
 let tpsNow = 60, tpsN = 0, tpsSec = -1, tpsSkip = 4;
-let qGood = 0, qHold = 6, qTried = 0, qFailWork = 0;
+let qGood = 0, qHold = 6, qTried = 0, skipN = 1;
 let kLatch = 0, tPrev = 0;
 
 // quality: 1 finest .. 7 coarsest
@@ -124,6 +124,7 @@ function control(dt) {
     kLatch = kn;
     if (kn >= 1) { if (kn <= NQ) { autoQ = 0; setQuality(kn); } }
     if (kn == 10) { autoQ = 1; qGood = 0; qHold = 6; qTried = 0; }
+    if (kn >= 1) { if (kn <= NQ) { skipN = 1; } }
     if (kn == 11) { paused = 1 - paused; }
     if (kn == 12) { hudOn = 1 - hudOn; }
     if (kn == 13) { dither = 1 - dither; setQuality(qLevel); }
@@ -145,13 +146,15 @@ function stats() {
           // and wait twice as long before trying again
           if (qTried == 1) { qHold = qHold * 2; if (qHold > 90) { qHold = 90; } }
           if (qLevel < NQ) { setQuality(qLevel + 1); }
+          else { if (skipN < 4) { skipN = skipN + 1; } }
           qGood = 0; qTried = 0;
         } else {
           qGood = qGood + 1;
           if (qGood >= 3) { qTried = 0; }
           if (qGood >= qHold) {
             qGood = 0;
-            if (qLevel > 1) { setQuality(qLevel - 1); qTried = 1; }
+            if (skipN > 1) { skipN = skipN - 1; qTried = 1; }
+            else { if (qLevel > 1) { setQuality(qLevel - 1); qTried = 1; } }
           }
         }
       }
@@ -162,7 +165,9 @@ function stats() {
       if (autoQ == 0) { m = 'SET'; }
       let res = `480x${nrow}`;
       if (ilace == 1) { res = '480x270i'; }
-      hudText = `${tpsNow} fps  ${res}  Q${qLevel} ${m}  rays ${nsamp}  runs ${nrun}`;
+      let pic = tpsNow;
+      if (skipN > 1) { pic = Math.round(tpsNow / skipN); }
+      hudText = `${pic} fps  ${res}  Q${qLevel} ${m}  rays ${nsamp}`;
     } else { hudText = ' '; }
   }
 }
@@ -175,6 +180,13 @@ function frameStep() {
   if (dt < 0) { dt = 0; }
   control(dt);
   if (paused == 0) { tAnim = tAnim + dt; }
+  if (mod(frames, skipN) == 0) { drawStep(t); }
+  stats();
+  frames = frames + 1;
+}
+
+// one picture (or, interlaced and at rest, half of one)
+function drawStep(t) {
   // how many ticks has the camera rested?
   still = still + 1;
   if (camX != pX) { still = 0; }
@@ -213,10 +225,8 @@ function frameStep() {
     }
   } else {
     // the odd lines are ready: pen B draws them in the tick pen A draws the even ones
-    bUsed = nused; bArmed = 1; bTick = t;
+    bUsed = nused; bArmed = 1; bTick = t; bWait = skipN - 1;
   }
-  stats();
-  frames = frames + 1;
 }
 
 on('start', 'cam', function () {
@@ -240,7 +250,11 @@ on('start', 'penb', function () {
   for (;;) {
     if (bClear == 1) { eraseAll(); bClear = 0; bHas = 0; }
     if (bArmed == 1) {
-      if (timer() != bTick) { eraseAll(); flushRuns(PALN, bUsed); bArmed = 0; bHas = 1; }
+      if (timer() != bTick) {
+        // (when pictures are made only every few ticks, pen A draws that many ticks later)
+        if (bWait > 0) { bWait = bWait - 1; }
+        else { eraseAll(); flushRuns(PALN, bUsed); bArmed = 0; bHas = 1; }
+      }
     }
   }
 });

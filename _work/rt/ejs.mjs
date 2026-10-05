@@ -22,7 +22,7 @@ import { expandPagedSource, rewritePaged } from './paged.mjs';
 
 const ALPHA = 'abcdefghijklmnopqrstuvwxyz0123456789';
 
-export function compileProgram(sources, { consts: extConsts = {}, funcWeights = {}, fastPlus = false } = {}) {
+export function compileProgram(sources, { consts: extConsts = {}, funcWeights = {}, fastPlus = false, constPool = true } = {}) {
     const { src, paged } = expandPagedSource(sources.join('\n'));
     const ast = rewritePaged(acorn.parse(src, { ecmaVersion: 2022, sourceType: 'script', locations: true }), paged);
     const err = (node, msg) => { throw new Error(`${msg} (line ${node.loc ? node.loc.start.line : '?'})`); };
@@ -106,9 +106,13 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
     };
     // (rt) see above: a number literal that would be kept as text
     const numify = (b) => (isNumLit(b) ? B('calc_basic', [b, 'MINUS', num(0)]) : b);
-    function poolConst(b, scope) {
+    function poolConst(b, scope, cmpSlot = false) {
         if (!isNumLit(b)) return b;
         if (!scope.fn) return numify(b);
+        // (alpha build: a loop is a function called once a round, and making its numbers on every
+        // entry would cost more than it saves - there a value is made where it is used, and a
+        // comparison keeps its literal)
+        if (!constPool) return cmpSlot ? b : numify(b);
         const name = '$k' + String(b.params[0]).replace('-', 'm').replace('.', 'p');
         declareLocal(scope, name, null);
         (scope.fn.pool ||= new Map()).set(name, Number(b.params[0]));
@@ -205,7 +209,7 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
                 const op = node.operator;
                 if (OPS[op]) return calc(expr(node.left, scope, pre), OPS[op], expr(node.right, scope, pre));
                 if (op === '%') return B('quotient_and_mod', [null, expr(node.left, scope, pre), null, expr(node.right, scope, pre), null, 'MOD']);
-                if (CMP[op]) return B('boolean_basic_operator', [poolConst(expr(node.left, scope, pre), scope), CMP[op], poolConst(expr(node.right, scope, pre), scope)]);
+                if (CMP[op]) return B('boolean_basic_operator', [poolConst(expr(node.left, scope, pre), scope, true), CMP[op], poolConst(expr(node.right, scope, pre), scope, true)]);
                 err(node, 'binary ' + op);
             }
             case 'LogicalExpression':
