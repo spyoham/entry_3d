@@ -15,7 +15,7 @@ const FOC = 300, AMB = 74, DIFK = 182, CELL = 1024, FOGDIV = 59000000, FADE0 = 5
 export function reference(s) {
     const g = (n) => s.peek(n);
     const L = (n) => s.peek(n);                 // a list (array, 0-based here)
-    const NS = L('SWX').length - 1;                 // the last entry is the sphere round the structure
+    const NS = L('SWX').length - g('NM');           // the last entries are the spheres round the meshes
     const camX = g('camX'), camY = g('camY'), camZ = g('camZ');
     const Rx = g('gRx'), Rz = g('gRz'), Fx = g('gFx'), Fy = g('gFy'), Fz = g('gFz'), Ux = g('gUx'), Uy = g('gUy'), Uz = g('gUz');
     const lx = g('gLx'), ly = g('gLy'), lz = g('gLz'), LL = g('gLL');
@@ -25,7 +25,8 @@ export function reference(s) {
     const SKY = [L('SKYR'), L('SKYG'), L('SKYB')], FL = [L('FLR'), L('FLG'), L('FLB')], SPECT = L('SPECT'), DTH = L('DTH');
     // the structure: triangles from the camera-space vertices (Moeller-Trumbore, in floating point)
     const VA = L('VA'), VB = L('VB'), VC = L('VC'), TV1 = L('TV1'), TV2 = L('TV2'), TV3 = L('TV3');
-    const TLIT = L('TLIT'), TCL = L('TCL'), TCS = L('TCS'), TLc = [L('TLR'), L('TLG'), L('TLB')], TSc = [L('TSR'), L('TSG'), L('TSB')];
+    const TLIT = L('TLIT'), TCL = L('TCL'), TCS = L('TCS'), TLc = [L('TLR'), L('TLG'), L('TLB')], TSc = [L('TSR'), L('TSG'), L('TSB')], TKR = L('TKR'), TMESH = L('TMESH'), TWN = [L('TWX'), L('TWY'), L('TWZ')], sunW = [g('LWX'), g('LWY'), g('LWZ')];
+    const faces = (t) => TWN[0][t] * sunW[0] + TWN[1][t] * sunW[1] + TWN[2][t] * sunW[2] > 0.02 * 1048576;
     const tris = TV1.map((_, t) => {
         const p = [TV1[t], TV2[t], TV3[t]].map(i => [VA[i - 1], VB[i - 1], VC[i - 1]]);
         const e1 = [p[1][0] - p[0][0], p[1][1] - p[0][1], p[1][2] - p[0][2]], e2 = [p[2][0] - p[0][0], p[2][1] - p[0][1], p[2][2] - p[0][2]];
@@ -33,9 +34,10 @@ export function reference(s) {
         return { p0: p[0], e1, e2, n };
     });
     // nearest triangle the ray enters, beyond tmin; returns [index, t]
-    const hitTri = (ox, oy, oz, dx, dy, dz, tmin) => {
+    const hitTri = (ox, oy, oz, dx, dy, dz, tmin, skip = 0) => {
         let best = -1, bt = Infinity;
         for (let t = 0; t < tris.length; t++) {
+            if (TMESH[t] === skip) continue;
             const T = tris[t];
             const den = T.n[0] * dx + T.n[1] * dy + T.n[2] * dz;
             if (den >= 0) continue;
@@ -82,8 +84,27 @@ export function reference(s) {
         return false;
     };
     const q = (val, dth) => Math.min(15, Math.floor((val + dth) / 16));
+    const envColour = (px, py, pz, rx, ry, rz, ar) => {
+        const dw = ry * Uy + rz * Fy;
+        if (dw < 0) {
+            const hp = camY + (py * Uy + pz * Fy) / 1024;
+            const t3 = hp * 1024 / -dw;
+            const ex = rx * t3, ey = ry * t3, ez = rz * t3;
+            const kf2 = Math.floor((ex * ex + ey * ey + ez * ez) / FOGDIV);
+            let fi = 252;
+            if (kf2 < flatK) {
+                const fx = px + ex, fy = py + ey, fz = pz + ez;
+                const wx = camX + (fx * Rx + fy * Ux + fz * Fx) / 1024, wz = camZ + (fx * Rz + fy * Uz + fz * Fz) / 1024;
+                const par = ((Math.floor(wx / CELL) + Math.floor(wz / CELL)) % 2 + 2) % 2;
+                fi = kf2 * 4 + par * 2 + (shaded(fx, fy, fz, -1) ? 1 : 0);
+            } else if (kf2 < 63) fi = kf2 * 4;
+            return [FL[0][fi], FL[1][fi], FL[2][fi]];
+        }
+        const si = Math.min(63, Math.floor(dw * dw * 63 / (ar * 1048576)));
+        return [SKY[0][si], SKY[1][si], SKY[2][si]];
+    };
     const out = new Uint8Array(480 * nrow * 3);          // colour levels 0..15 per channel
-    const kind = new Uint8Array(480 * nrow);             // what the pixel shows (for the edge test)
+    const kind = new Uint16Array(480 * nrow);            // what the pixel shows (for the edge test)
     for (let k = 0; k < nrow; k++) {
         const v = v0 - k * rowH, A0 = v * v + FOC * FOC, dth = DTH[k % 4];
         const dyw = v * Uy + FOC * Fy;
@@ -120,10 +141,31 @@ export function reference(s) {
             let col, kd;
             if (ti >= 0 && tt < t) {
                 // a triangle: flat, in the sun or not
-                const lit = TLIT[ti] === 1 && !shaded(u * tt, v * tt, FOC * tt, -1);
+                const px = u * tt, py = v * tt, pz = FOC * tt;
+                const lit = faces(ti) && !shaded(px, py, pz, -1);
                 const c = (lit ? TCL[ti] : TCS[ti]) - 1;
                 col = [Math.floor(c / 256), Math.floor(c / 16) % 16, c % 16];
-                kd = 120 + ti * 2 + (lit ? 0 : 1);
+                kd = 300 + ti * 2 + (lit ? 0 : 1);
+                const kq = TKR[ti];
+                if (kq > 0) {
+                    // a faint mirror: the flat colour and what the mirror ray meets
+                    const T = tris[ti], nl = Math.hypot(T.n[0], T.n[1], T.n[2]), n = [T.n[0] / nl, T.n[1] / nl, T.n[2] / nl];
+                    const dn = u * n[0] + v * n[1] + FOC * n[2];
+                    const rx = 2 * u - 4 * dn * n[0], ry = 2 * v - 4 * dn * n[1], rz = 2 * FOC - 4 * dn * n[2];
+                    const ar = rx * rx + ry * ry + rz * rz;
+                    let c2;
+                    const [j, t2] = hitSphere(px, py, pz, rx, ry, rz, -1);
+                    const [tj, t3m] = hitTri(px, py, pz, rx, ry, rz, 24 / 4096, TMESH[ti]);     // (a mesh does not show in its own mirror)
+                    if (tj >= 0 && t3m < t2) { const C = TLIT[tj] === 1 ? TLc : TSc; c2 = [C[0][tj], C[1][tj], C[2][tj]]; }
+                    else if (j >= 0) {
+                        const S2 = sph[j];
+                        const n2 = (px + rx * t2 - S2.a) * lx + (py + ry * t2 - S2.b) * ly + (pz + rz * t2 - S2.c) * lz;
+                        const l2 = AMB + (n2 > 0 ? Math.floor(n2 * DIFK / (S2.r * 1024)) : 0);
+                        c2 = [Math.floor(SER[j] * l2 / 256) + SEKR[j], Math.floor(SEG[j] * l2 / 256) + SEKG[j], Math.floor(SEB[j] * l2 / 256) + SEKB[j]];
+                    } else c2 = envColour(px, py, pz, rx, ry, rz, ar);
+                    const base = lit ? TLc : TSc;
+                    col = [0, 1, 2].map(ch => Math.min(15, Math.floor(((base[ch][ti] * (256 - kq) + c2[ch] * kq) * 256 + 524288) / 1048576)));
+                }
             } else if (i >= 0) {
                 const S = sph[i];
                 const px = u * t, py = v * t, pz = FOC * t;
@@ -225,6 +267,7 @@ if (process.argv[1] && import.meta.url === url.pathToFileURL(path.resolve(proces
         [0, 1.9, -7.2, 0, -7], [3.5, 1.2, -5, -35, -4], [-5, 3.5, -4, 50, -25], [0.3, 6, -0.4, 10, -78], [-2.2, 0.4, -4.2, 20, 12],
         [6, 0.9, 2, -110, 2], [0, 2.2, 3.4, 180, -15], [-1.2, 1, -3.9, 12, 0], [2.4, 2.6, -2.4, -40, -30], [-9, 4, -9, 45, -14],
         [7.6, 2.3, -1.6, -21, -13], [3.5, 3.2, 8.6, 160, -18], [5.6, 6.5, 3.6, 5, -78], [2.0, 1.0, 2.0, 55, 4],
+        [5.5, 2.5, -7.8, -18, -9], [8.3, 1.7, -5.9, -20, -3], [4.2, 1.2, 0.4, 118, 6], [6.3, 5.5, -1.6, 0, -76],
     ];
     const modes = [[1, 1, 1, 0], [2, 4, 2, 0], [2, 4, 2, 1], [3, 3, 2, 1], [6, 5, 2, 1]];
     let worst = 0;

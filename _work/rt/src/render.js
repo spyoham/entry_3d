@@ -334,7 +334,7 @@ function M_load(i_) {
   sr2 = SR2[i_]; srk = SRK[i_];
   mrk = SMRK[i_]; mgk = SMGK[i_]; mbk = SMBK[i_]; kr2 = SKR2[i_]; ssp = SSPC[i_];
   shc0 = SHC0[i_]; shc1 = SHC1[i_]; rfc0 = RFC0[i_]; rfc1 = RFC1[i_];
-  rmb = (i_ - 1) * RMN; shm = SHM[i_]; rpb = (i_ - 1) * (NS + 1);
+  rmb = (i_ - 1) * RMN; shm = SHM[i_]; rpb = (i_ - 1) * (NS + NM);
   sid = i_ * 1024;
   needr = 0; rsig = 0;
   if (kr2 > 0) { needr = 1; }
@@ -345,14 +345,18 @@ function M_load(i_) {
 // ---- the mirror map's cell ci for sphere i, worked out the first time a ray asks for it in a frame ----
 // Out: mCell (0 nothing lies that way, j one sphere, NS + 1 the structure, -1 several spheres, -2 the structure too).
 function mirrorCell(i, ci) {
-  let rpb = (i - 1) * (NS + 1);
+  let rpb = (i - 1) * (NS + NM);
   let cx = CDX[ci], cy = CDY[ci], cz = CDZ[ci];
   let rv = 0, kk = rpb + 1;
   while (kk <= rpb + NS) {
     if (cx * PAX[kk] + cy * PAY[kk] + cz * PAZ[kk] >= PTH[kk]) { if (rv == 0) { rv = kk - rpb; } else { rv = -1; } }
     kk = kk + 1;
   }
-  if (cx * PAX[kk] + cy * PAY[kk] + cz * PAZ[kk] >= PTH[kk]) { if (rv == 0) { rv = NS + 1; } else { rv = -2; } }
+  // the meshes (their spheres, NS + 1 on): alone NS + 1, with spheres -2
+  while (kk <= rpb + NS + NM) {
+    if (cx * PAX[kk] + cy * PAY[kk] + cz * PAZ[kk] >= PTH[kk]) { if (rv == 0) { rv = NS + 1; } else { if (rv <= NS) { rv = -2; } } }
+    kk = kk + 1;
+  }
   RMAP[(i - 1) * RMN + ci] = rv + rStamp;
   mCell = rv;
 }
@@ -378,7 +382,7 @@ function floorShade(g, fx, fy, fz) {
   else {
     jj = 1;
     while (jj <= NS) { M_flsh(jj); jj = jj + 1; }
-    if (g == -2) { if (fsh == 0) { bvhHit(fx, fy, fz, lx, ly, lz, 1); if (bvTri > 0) { fsh = 1; } } }
+    if (g == -2) { if (fsh == 0) { bvhHit(fx, fy, fz, lx, ly, lz, 1, 0); if (bvTri > 0) { fsh = 1; } } }
   }
   fShade = fsh;
 }
@@ -428,7 +432,7 @@ function M_sample() {
     b2 = TNX[tt] * u + TG[tt];
     if (b2 > -1) { b2 = -1; }
     tq = idiv(TPD[tt] * 4096, b2);
-    ssig = sid; scol = TCS[tt];
+    ssig = sid; scol = TCS[tt]; lit = 0;
     if (TLIT[tt] == 1) {
       px = idiv(u * tq, 4096); py = idiv(v * tq, 4096); pz = idiv(FOC * tq, 4096);
       lit = 1;
@@ -440,9 +444,24 @@ function M_sample() {
         if (wl > 0) { if (wl * wl - (wx * wx + wy * wy + wz * wz - SR2[jj]) * LL > 0) { lit = 0; kk = nms; } }
         kk = kk + 1;
       }
-      // the structure shades itself: a shadow ray through its tree
-      if (lit == 1) { bvhHit(px, py, pz, lx, ly, lz, 1); if (bvTri > 0) { lit = 0; } }
+      // a mesh shades itself and the other: a shadow ray through the tree - but only for a triangle
+      // that the build found partly shaded (one never shaded needs none, one always shaded is not lit)
+      if (lit == 1) { if (TSELF[tt] == 1) { bvhHit(px, py, pz, lx, ly, lz, 1, 0); if (bvTri > 0) { lit = 0; } } }
       if (lit == 1) { scol = TCL[tt]; } else { ssig = sid + 512; }
+    }
+    kq = TKR[tt];
+    if (kq > 0) {
+      // a faint mirror: the flat colour, and what the mirror ray meets (traced in triMirror)
+      px = idiv(u * tq, 4096); py = idiv(v * tq, 4096); pz = idiv(FOC * tq, 4096);
+      nx = TNX[tt]; ny = TNY[tt]; nz = TNZ[tt];
+      dn = u * nx + v * ny + FOC * nz;
+      rx = 2 * u - idiv(dn * nx, 262144); ry = 2 * v - idiv(dn * ny, 262144); rz = 2 * FOC - idiv(dn * nz, 262144);
+      triMirror(px, py, pz, rx, ry, rz, TMESH[tt]);
+      if (lit == 1) { c2r = TLR[tt]; c2g = TLG[tt]; c2b = TLB[tt]; } else { c2r = TSR[tt]; c2g = TSG[tt]; c2b = TSB[tt]; }
+      qr = idiv((c2r * (256 - kq) + mR * kq) * 256 + 524288, 1048576); if (qr > 15) { qr = 15; }
+      qg = idiv((c2g * (256 - kq) + mG * kq) * 256 + 524288, 1048576); if (qg > 15) { qg = 15; }
+      qb = idiv((c2b * (256 - kq) + mB * kq) * 256 + 524288, 1048576); if (qb > 15) { qb = 15; }
+      scol = qr * 256 + qg * 16 + qb + 1;
     }
   } else {
   M_sphere();
@@ -471,12 +490,17 @@ function M_sphere() {
     }
     if (lit == 1) {
       if (shm == 1) {
-        wx = SA[NS + 1] - px; wy = SB[NS + 1] - py; wz = SC[NS + 1] - pz;
-        wl = wx * lx + wy * ly + wz * lz;
-        dj = wx * wx + wy * wy + wz * wz - SR2[NS + 1];
+        // does the shadow ray even meet the sphere round a mesh?
         mh = 0;
-        if (dj < 0) { mh = 1; } else { if (wl > 0) { if (wl * wl - dj * LL > 0) { mh = 1; } } }
-        if (mh == 1) { bvhHit(px, py, pz, lx, ly, lz, 1); if (bvTri > 0) { lit = 0; } }
+        kk = NS + 1;
+        while (kk <= NS + NM) {
+          wx = SA[kk] - px; wy = SB[kk] - py; wz = SC[kk] - pz;
+          wl = wx * lx + wy * ly + wz * lz;
+          dj = wx * wx + wy * wy + wz * wz - SR2[kk];
+          if (dj < 0) { mh = 1; } else { if (wl > 0) { if (wl * wl - dj * LL > 0) { mh = 1; } } }
+          kk = kk + 1;
+        }
+        if (mh == 1) { bvhHit(px, py, pz, lx, ly, lz, 1, 0); if (bvTri > 0) { lit = 0; } }
       }
     }
     if (lit == 1) { li = AMB + idiv(nl * DIFK, srk); } else { ssig = sid + 512; }
@@ -531,14 +555,18 @@ function M_sphere() {
         if (hit > 0) { t2 = idiv(tb * 4096, ar); }
         if (mh == 1) {
           // the structure may lie that way: does the ray even meet the sphere round it?
-          wx = SA[NS + 1] - px; wy = SB[NS + 1] - py; wz = SC[NS + 1] - pz;
-          bj = wx * rx + wy * ry + wz * rz;
-          dj = wx * wx + wy * wy + wz * wz - SR2[NS + 1];
           mh = 0;
-          if (dj < 0) { mh = 1; } else { if (bj > 0) { if (bj * bj - ar * dj > 0) { mh = 1; } } }
+          kk = NS + 1;
+          while (kk <= NS + NM) {
+            wx = SA[kk] - px; wy = SB[kk] - py; wz = SC[kk] - pz;
+            bj = wx * rx + wy * ry + wz * rz;
+            dj = wx * wx + wy * wy + wz * wz - SR2[kk];
+            if (dj < 0) { mh = 1; } else { if (bj > 0) { if (bj * bj - ar * dj > 0) { mh = 1; } } }
+            kk = kk + 1;
+          }
           if (mh == 1) {
             // through its tree
-            bvhHit(px, py, pz, rx, ry, rz, 0);
+            bvhHit(px, py, pz, rx, ry, rz, 0, 0);
             if (bvTri > 0) {
               if (bvT < t2) {
                 // a triangle: its flat colour (its own shadows are not looked for in a mirror)
@@ -561,6 +589,20 @@ function M_sphere() {
         }
       }
       if (hit == 0) {
+        M_env();
+      }
+    }
+  }
+  qr = idiv(mrk * li + c2r * kr2 + spd, 1048576); if (qr > 15) { qr = 15; }
+  qg = idiv(mgk * li + c2g * kr2 + spd, 1048576); if (qg > 15) { qg = 15; }
+  qb = idiv(mbk * li + c2b * kr2 + spd, 1048576); if (qb > 15) { qb = 15; }
+  scol = qr * 256 + qg * 16 + qb + 1;
+}
+
+// ---- a mirror ray (from p along r) that met nothing: the floor or the sky; its colour into c2r, c2g, c2b ----
+function M_env() {
+  {
+    {
         dw = ry * uy + rz * fy_;
         if (dw < 0) {
           // the floor
@@ -595,13 +637,55 @@ function M_sphere() {
           c2r = SKYR[si]; c2g = SKYG[si]; c2b = SKYB[si];
           if (rsig == 1) { ssig = ssig + 1; }
         }
+    }
+  }
+}
+
+// ---- the mirror ray of a triangle of mesh own: from p along r. Out: mR, mG, mB ----
+// A mesh does not show in its own mirror (a ray that starts on a mesh is inside most of its boxes, and
+// walking them for every ray cost more than the whole rest of the picture); other meshes do, when the
+// ray meets the sphere round one.
+// (a function of its own: few rays need it, and it keeps the ray tracer proper small)
+function triMirror(px, py, pz, rx, ry, rz, own) {
+  let lx = gLx, ly = gLy, lz = gLz, LL = gLL;
+  let ux = gUx, uy = gUy, uz = gUz, fx_ = gFx, fy_ = gFy, fz_ = gFz, rx_ = gRx, rz_ = gRz;
+  let cmx = camX, cmy = camY, cmz = camZ, fk = flatK;
+  let ar = rx * rx + ry * ry + rz * rz;
+  let tb = BIG, hit = 0, jj = 1, t2 = BIG, rsig = 0, ssig = 0, c2r = 0, c2g = 0, c2b = 0;
+  let wx = 0, wy = 0, wz = 0, bj = 0, dj = 0, tj = 0, n2 = 0, l2 = 0;
+  while (jj <= NS) { M_rtest(); jj = jj + 1; }
+  if (hit > 0) { t2 = idiv(tb * 4096, ar); }
+  let mh = 0, kk = NS + 1;
+  while (kk <= NS + NM) {
+    if (kk - NS != own) {
+      wx = SA[kk] - px; wy = SB[kk] - py; wz = SC[kk] - pz;
+      bj = wx * rx + wy * ry + wz * rz;
+      dj = wx * wx + wy * wy + wz * wz - SR2[kk];
+      if (dj < 0) { mh = 1; } else { if (bj > 0) { if (bj * bj - ar * dj > 0) { mh = 1; } } }
+    }
+    kk = kk + 1;
+  }
+  if (mh == 1) {
+    bvhHit(px, py, pz, rx, ry, rz, 0, own);
+    if (bvTri > 0) {
+      if (bvT < t2) {
+        hit = bvTri;
+        if (TLIT[hit] == 1) { c2r = TLR[hit]; c2g = TLG[hit]; c2b = TLB[hit]; } else { c2r = TSR[hit]; c2g = TSG[hit]; c2b = TSB[hit]; }
+        hit = -1;
       }
     }
   }
-  qr = idiv(mrk * li + c2r * kr2 + spd, 1048576); if (qr > 15) { qr = 15; }
-  qg = idiv(mgk * li + c2g * kr2 + spd, 1048576); if (qg > 15) { qg = 15; }
-  qb = idiv(mbk * li + c2b * kr2 + spd, 1048576); if (qb > 15) { qb = 15; }
-  scol = qr * 256 + qg * 16 + qb + 1;
+  if (hit > 0) {
+    wx = px + idiv(rx * t2, 4096) - SA[hit]; wy = py + idiv(ry * t2, 4096) - SB[hit]; wz = pz + idiv(rz * t2, 4096) - SC[hit];
+    n2 = wx * lx + wy * ly + wz * lz;
+    l2 = AMB;
+    if (n2 > 0) { l2 = AMB + idiv(n2 * DIFK, SRK[hit]); }
+    c2r = idiv(SER[hit] * l2, 256) + SEKR[hit]; c2g = idiv(SEG[hit] * l2, 256) + SEKG[hit]; c2b = idiv(SEB[hit] * l2, 256) + SEKB[hit];
+  }
+  if (hit == 0) {
+    M_env();
+  }
+  mR = c2r; mG = c2g; mB = c2b;
 }
 
 // ---- the spans SPI[j0..j1] from cs to ce: rays every `stride` pixels, more where they disagree ----
@@ -614,7 +698,7 @@ function traceCluster(cs, ce, j0, j1) {
   // rows are traced in pairs: a key row keeps what its rays on the stride grid found; the row between two
   // key rows takes a grid point from them where both met the same things, and traces only the rest
   let rmode = rMode, ong = 0, use = 0, g = 0, va = 0;
-  let keyK = (mod(frames, 4096) * 512 + rK) * 65536, keyA = keyK - 65536;
+  let keyK = (mod(frames, 4096) * 512 + rK) * 1048576, keyA = keyK - 1048576;
   let cwk = mod(idiv(rK, 2), 2) * CW, cwa = mod(idiv(rK - 1, 2), 2) * CW;
   let cwb = CW - cwa;
   let pc = rPc, px0 = rPx0, nr = nrun, nu = nused, nsm = 0, hb = sBase, nrMax = sRunMax;
@@ -639,7 +723,7 @@ function traceCluster(cs, ce, j0, j1) {
       ii = ACT[1];
       if (ii > NS) {
         cur = ii; sid = ii * 1024;
-        if (TLIT[ii - NS] == 0) { flat = 1; sgx = x; scol = TCS[ii - NS]; M_seg(sgx, scol); }
+        if (TLIT[ii - NS] == 0) { if (TKR[ii - NS] == 0) { flat = 1; sgx = x; scol = TCS[ii - NS]; M_seg(sgx, scol); } }
       } else {
         if (ii != cur) { M_load(ii); cur = ii; }
       }
@@ -664,7 +748,7 @@ function traceCluster(cs, ce, j0, j1) {
             g = u + 242;
             va = CS[cwa + g];
             ssig = va - keyA;
-            if (ssig >= sid) { if (ssig < sid + 1024) { if (CS[cwb + g] - va == 131072) { scol = CC[cwa + g]; use = 1; } } }
+            if (ssig >= sid) { if (ssig < sid + 1024) { if (CS[cwb + g] - va == 2097152) { scol = CC[cwa + g]; use = 1; } } }
           }
         }
       }
@@ -720,9 +804,9 @@ function mapBuild() {
   while (i <= NS) {
     if (SKR[i] > 0) {
       if (SK0[i] <= SK1[i]) {
-        pb = (i - 1) * (NS + 1);
+        pb = (i - 1) * (NS + NM);
         j = 1;
-        while (j <= NS + 1) {
+        while (j <= NS + NM) {
           // (a sphere never reaches itself: its own cone is shut)
           PTH[pb + j] = BIG;
           if (j != i) {

@@ -1,65 +1,139 @@
-// Build-time side of the triangle structure: the mesh, its BVH, and everything
-// about it that never changes (the mesh and the sun stand still), written out
-// as EJS list literals.
+// Build-time side of the triangle meshes: the meshes, their BVH, and everything
+// about them that never changes (the meshes and the sun stand still), written
+// out as EJS list literals.
 //
-// The structure is a stepped pyramid: three tiers and a pointed cap, 34 triangles.
-// It is not convex - a tier shades the one below - so a point on it needs a
-// shadow ray against the mesh itself, and that is what the BVH is for (as for
-// every mirror ray that may reach the structure).
+//   1  a stepped pyramid: three tiers and a pointed cap, 34 triangles, matt
+//   2  a chess knight: a turned base and a head cut from a side view, a faint mirror
+//
+// Neither is convex - a tier shades the one below, the knight's head its own
+// base - so a point on them needs a shadow ray against the triangles, and that
+// is what the BVH is for (as for every mirror ray that may reach a mesh).
 const WS = 1024;
-
-// ---- the mesh (world units; y up) ----
-export function makeMesh() {
-    const V = [], T = [];
-    const cx = 5.3, cz = 4.5, rot = 28 * Math.PI / 180;
-    const P = (x, y, z) => { const c = Math.cos(rot), s = Math.sin(rot); V.push([cx + x * c + z * s, y, cz - x * s + z * c]); return V.length - 1; };
-    const tri = (a, b, c, col) => T.push({ v: [a, b, c], col });
-    const quad = (a, b, c, d, col) => { tri(a, b, c, col); tri(a, c, d, col); };
-    // a tier: a box from y0 to y1, half-width h; sides and top (counter-clockwise seen from outside)
-    const tier = (h, y0, y1, side, top) => {
-        const b = [P(-h, y0, -h), P(h, y0, -h), P(h, y0, h), P(-h, y0, h)];
-        const t = [P(-h, y1, -h), P(h, y1, -h), P(h, y1, h), P(-h, y1, h)];
-        for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; quad(b[j], b[i], t[i], t[j], side); }
-        quad(t[0], t[3], t[2], t[1], top);
-        return t;
-    };
-    tier(1.5, 0, 0.55, [206, 160, 104], [226, 188, 132]);
-    tier(1.0, 0.55, 1.1, [198, 150, 96], [222, 182, 126]);
-    tier(0.55, 1.1, 1.65, [190, 142, 90], [218, 176, 120]);
-    // the cap
-    const h = 0.38, y0 = 1.65, y1 = 2.35;
-    const b = [P(-h, y0, -h), P(h, y0, -h), P(h, y0, h), P(-h, y0, h)], apex = P(0, y1, 0);
-    for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; tri(b[j], b[i], apex, [226, 96, 60]); }
-    return { V, T };
-}
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const len = (a) => Math.sqrt(dot(a, a));
 
-// ---- BVH: median split on the longest axis, at most 2 triangles a leaf, nodes in depth-first order ----
+// a mesh under construction: P adds a vertex (model space, turned by rot about y, then moved), tri a triangle
+function builder(V, T, mesh, cx, cz, rotDeg, scale = 1) {
+    const rot = rotDeg * Math.PI / 180, c = Math.cos(rot), s = Math.sin(rot);
+    const P = (x, y, z) => { V.push([cx + (x * c + z * s) * scale, y * scale, cz + (-x * s + z * c) * scale]); return V.length - 1; };
+    const tri = (a, b, cc, col, kr = 0) => T.push({ v: [a, b, cc], col, kr, mesh });
+    const quad = (a, b, cc, d, col, kr = 0) => { tri(a, b, cc, col, kr); tri(a, cc, d, col, kr); };
+    return { P, tri, quad };
+}
+
+// ---- 1: the stepped pyramid ----
+function pyramid(V, T, mesh) {
+    const { P, tri, quad } = builder(V, T, mesh, 3.6, 7.5, 28);
+    // a tier: a box from y0 to y1, half-width h; sides and top (counter-clockwise seen from outside)
+    const tier = (h, y0, y1, side, top) => {
+        const b = [P(-h, y0, -h), P(h, y0, -h), P(h, y0, h), P(-h, y0, h)];
+        const t = [P(-h, y1, -h), P(h, y1, -h), P(h, y1, h), P(-h, y1, h)];
+        for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; quad(b[j], b[i], t[i], t[j], side); }
+        quad(t[0], t[3], t[2], t[1], top);
+    };
+    tier(1.5, 0, 0.55, [206, 160, 104], [226, 188, 132]);
+    tier(1.0, 0.55, 1.1, [198, 150, 96], [222, 182, 126]);
+    tier(0.55, 1.1, 1.65, [190, 142, 90], [218, 176, 120]);
+    const h = 0.38, y0 = 1.65, y1 = 2.35;
+    const b = [P(-h, y0, -h), P(h, y0, -h), P(h, y0, h), P(-h, y0, h)], apex = P(0, y1, 0);
+    for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; tri(b[j], b[i], apex, [226, 96, 60]); }
+}
+
+// a simple polygon (counter-clockwise, x and y) into triangles, by cutting ears
+function earClip(pts) {
+    const idx = pts.map((_, i) => i), out = [];
+    const area = (a, b, c) => (pts[b][0] - pts[a][0]) * (pts[c][1] - pts[a][1]) - (pts[b][1] - pts[a][1]) * (pts[c][0] - pts[a][0]);
+    const inside = (p, a, b, c) => area(a, b, p) >= 0 && area(b, c, p) >= 0 && area(c, a, p) >= 0;
+    let guard = 0;
+    while (idx.length > 3 && guard++ < 10000) {
+        let cut = false;
+        for (let i = 0; i < idx.length; i++) {
+            const a = idx[(i + idx.length - 1) % idx.length], b = idx[i], c = idx[(i + 1) % idx.length];
+            if (area(a, b, c) <= 1e-9) continue;
+            if (idx.some(p => p !== a && p !== b && p !== c && inside(p, a, b, c))) continue;
+            out.push([a, b, c]); idx.splice(i, 1); cut = true; break;
+        }
+        if (!cut) throw new Error('earClip: no ear (is the outline counter-clockwise and simple?)');
+    }
+    out.push([idx[0], idx[1], idx[2]]);
+    return out;
+}
+
+// ---- 2: the knight ----
+function knight(V, T, mesh) {
+    const { P, tri, quad } = builder(V, T, mesh, 6.6, -1.2, 189, 1.12);
+    const col = [232, 226, 204], kr = 70;
+    // the base: a profile (radius, height) turned about the y axis
+    const prof = [[0.80, 0], [0.80, 0.13], [0.64, 0.25], [0.46, 0.34], [0.50, 0.50], [0.40, 0.62]];
+    const SEG = 8;
+    const ring = prof.map(([r, y]) => Array.from({ length: SEG }, (_, j) => { const a = j * 2 * Math.PI / SEG; return P(r * Math.cos(a), y, r * Math.sin(a)); }));
+    for (let k = 0; k + 1 < prof.length; k++) for (let j = 0; j < SEG; j++) { const j1 = (j + 1) % SEG; quad(ring[k][j], ring[k + 1][j], ring[k + 1][j1], ring[k][j1], col, kr); }
+    const top = prof.length - 1, cen = P(0, prof[top][1], 0);
+    for (let j = 0; j < SEG; j++) tri(cen, ring[top][(j + 1) % SEG], ring[top][j], col, kr);
+    // the head and neck: a side view (it looks along +x), given clockwise from the back of the base, with a thickness
+    const side = [[-0.36, 0.62], [-0.44, 1.10], [-0.36, 1.58], [-0.20, 1.98], [-0.04, 2.20], [0.03, 2.42], [0.14, 2.20], [0.34, 2.05],
+        [0.62, 1.74], [0.71, 1.55], [0.58, 1.44], [0.36, 1.50], [0.21, 1.38], [0.31, 1.04], [0.38, 0.62]].reverse();
+    const W = 0.19;
+    const front = side.map(([x, y]) => P(x, y, W)), back = side.map(([x, y]) => P(x, y, -W));
+    for (const [a, b, c] of earClip(side)) { tri(front[a], front[b], front[c], col, kr); tri(back[a], back[c], back[b], col, kr); }
+    for (let i = 0; i < side.length; i++) {
+        const j = (i + 1) % side.length;
+        if (side[i][1] === 0.62 && side[j][1] === 0.62) continue;      // the foot of the neck sits on the base
+        quad(front[i], back[i], back[j], front[j], col, kr);
+    }
+}
+
+export function makeMesh() {
+    const V = [], T = [];
+    pyramid(V, T, 0);
+    knight(V, T, 1);
+    return { V, T, meshes: 2 };
+}
+
+// ---- BVH: split where the surface-area cost is least, at most LEAF triangles a leaf, nodes in depth-first order ----
+// (a node test and a triangle test cost about the same in blocks; a ray that starts on a mesh is inside
+// many boxes, so fewer, tighter boxes matter more than small leaves)
+const LEAF = Number(process.env.BVH_LEAF || 4);
 // Node i: its first child is i + 1, its second BRIGHT[i]; BSKIP[i] is where to go on when the node is
 // missed or done (0 = out of the tree). A leaf has BCNT[i] > 0 triangles from BFIRST[i] on.
-function buildBVH(tris, verts) {
+// The root's two children are the two meshes.
+function buildBVH(tris, verts, meshes) {
     const order = [], nodes = [];
     const bounds = (ids) => { const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9]; for (const i of ids) for (const v of tris[i].v) for (let a = 0; a < 3; a++) { lo[a] = Math.min(lo[a], verts[v][a]); hi[a] = Math.max(hi[a], verts[v][a]); } return [lo, hi]; };
     const cen = (i) => { const [lo, hi] = bounds([i]); return [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2]; };
-    const rec = (ids) => {
+    const rec = (ids, split = null) => {
         const me = nodes.length;
         const node = { first: 0, cnt: 0, right: 0, skip: 0 };
         nodes.push(node);
-        if (ids.length <= 2) { node.first = order.length + 1; node.cnt = ids.length; order.push(...ids); return me; }
-        const [lo, hi] = bounds(ids);
-        const ext = [hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]];
-        const ax = ext.indexOf(Math.max(...ext));
-        const sorted = [...ids].sort((p, q) => cen(p)[ax] - cen(q)[ax]);
-        const mid = sorted.length >> 1;
-        rec(sorted.slice(0, mid));
-        node.right = rec(sorted.slice(mid)) + 1;        // 1-based
+        const leaf = () => { node.first = order.length + 1; node.cnt = ids.length; order.push(...ids); return me; };
+        if (!split && ids.length <= 2) return leaf();
+        let A, B;
+        if (split) { [A, B] = split; }
+        else {
+            // try every cut of the triangles sorted along each axis
+            const area = (ix) => { const [lo, hi] = bounds(ix); const d = [hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]]; return d[0] * d[1] + d[1] * d[2] + d[2] * d[0]; };
+            const whole = area(ids);
+            if (ids.length <= LEAF) return leaf();
+            let best = Infinity;
+            for (let ax = 0; ax < 3; ax++) {
+                const sorted = [...ids].sort((p, q) => cen(p)[ax] - cen(q)[ax]);
+                for (let k = 1; k < sorted.length; k++) {
+                    const l = sorted.slice(0, k), r = sorted.slice(k);
+                    const cost = 1 + (area(l) * l.length + area(r) * r.length) / (whole || 1);
+                    if (cost < best) { best = cost; A = l; B = r; }
+                }
+            }
+            if (!A) return leaf();
+        }
+        rec(A);
+        node.right = rec(B) + 1;        // 1-based
         return me;
     };
-    rec(tris.map((_, i) => i));
+    const all = tris.map((_, i) => i);
+    if (meshes === 2) rec(all, [all.filter(i => tris[i].mesh === 0), all.filter(i => tris[i].mesh === 1)]); else rec(all);
     // skip links: after a subtree comes its parent's second child, or what follows the parent
     const link = (i, next) => { const n = nodes[i]; n.skip = next; if (n.cnt === 0) { link(i + 1, n.right); link(n.right - 1, next); } };
     link(0, 0);
@@ -69,15 +143,48 @@ function buildBVH(tris, verts) {
 // ---- everything static, as lists ----
 // sun: the direction towards it (x1024), as the scene has it
 export function meshData(sun) {
-    const { V, T } = makeMesh();
+    const { V, T, meshes } = makeMesh();
     const L = [sun[0] / 1024, sun[1] / 1024, sun[2] / 1024];
-    const { order, nodes } = buildBVH(T, V);
+    const { order, nodes } = buildBVH(T, V, meshes);
     const tris = order.map(i => T[i]);                  // triangles in leaf order
+    // The meshes and the sun stand still, so whether a mesh can shade a triangle never changes. Each sunny
+    // triangle is tried at build time, with rays from points spread over it: never shaded (TSELF 0, no
+    // shadow ray against the meshes), always shaded (it counts as out of the sun), or partly (TSELF 1:
+    // a shadow ray through the tree for each of its rays).
+    const selfShade = (() => {
+        const P = tris.map(t => t.v.map(i => [V[i][0] * WS, V[i][1] * WS, V[i][2] * WS]));
+        const hit = (o, skip) => {
+            for (let j = 0; j < P.length; j++) {
+                if (j === skip) continue;
+                const [p0, p1, p2] = P[j], e1 = sub(p1, p0), e2 = sub(p2, p0), pv = cross(L, e2), det = dot(e1, pv);
+                if (Math.abs(det) < 1e-9) continue;
+                const tv = sub(o, p0), u = dot(tv, pv) / det;
+                if (u < 0 || u > 1) continue;
+                const qv = cross(tv, e1), v = dot(L, qv) / det;
+                if (v < 0 || u + v > 1) continue;
+                if (dot(e2, qv) / det > 6) return true;
+            }
+            return false;
+        };
+        return tris.map((t, i) => {
+            const [p0, p1, p2] = P[i], n0 = cross(sub(p1, p0), sub(p2, p0));
+            if (dot(n0, L) / len(n0) <= 0.02) return 0;
+            let lit = 0, shd = 0;
+            const N = 12;
+            for (let a1 = 0; a1 <= N; a1++) for (let b1 = 0; a1 + b1 <= N; b1++) {
+                // (points a little inside the edges: an edge shared with a neighbour is not a shadow)
+                const u = (a1 + 0.3) / (N + 0.9), v = (b1 + 0.3) / (N + 0.9);
+                const o = [p0[0] + (p1[0] - p0[0]) * u + (p2[0] - p0[0]) * v, p0[1] + (p1[1] - p0[1]) * u + (p2[1] - p0[1]) * v, p0[2] + (p1[2] - p0[2]) * u + (p2[2] - p0[2]) * v];
+                if (hit(o, i)) shd++; else lit++;
+            }
+            return shd === 0 ? 0 : lit === 0 ? 2 : 1;
+        });
+    })();
     const R = (x) => Math.round(x);
     const lists = { MVX: [], MVY: [], MVZ: [], MSX: [], MSZ: [], TV1: [], TV2: [], TV3: [],
         TWX: [], TWY: [], TWZ: [], TWD: [], T1X: [], T1Y: [], T1Z: [], T1D: [], T2X: [], T2Y: [], T2Z: [], T2D: [],
-        TLIT: [], TCL: [], TCS: [], TLR: [], TLG: [], TLB: [], TSR: [], TSG: [], TSB: [],
-        BFIRST: [], BCNT: [], BRIGHT: [], BSKIP: [] };
+        TLIT: [], TCL: [], TCS: [], TLR: [], TLG: [], TLB: [], TSR: [], TSG: [], TSB: [], TKR: [], TMESH: [], TSELF: [],
+        BFIRST: [], BCNT: [], BRIGHT: [], BSKIP: [], MBCX: [], MBCY: [], MBCZ: [], MBCR: [] };
     const AMB = 74, DIFK = 182;
     const q = (v) => Math.min(15, Math.floor((v + 8) / 16));
     const vi = V.map(p => [R(p[0] * WS), R(p[1] * WS), R(p[2] * WS)]);
@@ -86,7 +193,8 @@ export function meshData(sun) {
         // where the vertex's shadow falls on the floor
         lists.MSX.push(R(p[0] - L[0] * p[1] / L[1])); lists.MSZ.push(R(p[2] - L[2] * p[1] / L[1]));
     }
-    for (const t of tris) {
+    for (let ti = 0; ti < tris.length; ti++) {
+        const t = tris[ti];
         const [a, b, c] = t.v.map(i => vi[i]);
         const e1 = sub(b, a), e2 = sub(c, a);
         const n = cross(e1, e2), nl = len(n), nu = [n[0] / nl, n[1] / nl, n[2] / nl];
@@ -99,23 +207,30 @@ export function meshData(sun) {
         const M1 = m1.map(x => R(x / k1 * 4194304)), M2 = m2.map(x => R(x / k2 * 4194304));
         lists.T1X.push(M1[0]); lists.T1Y.push(M1[1]); lists.T1Z.push(M1[2]); lists.T1D.push(-dot(M1, a));
         lists.T2X.push(M2[0]); lists.T2Y.push(M2[1]); lists.T2Z.push(M2[2]); lists.T2D.push(-dot(M2, a));
-        // its colour in the sun and out of it (the mesh is flat shaded and does not mirror)
+        // its colour in the sun and out of it (flat shaded), and how much of a mirror it is
         const d = dot(nu, L);
         const li = AMB + (d > 0 ? Math.floor(d * DIFK) : 0);
         const lit = t.col.map(v => Math.floor(v * li / 256)), shd = t.col.map(v => Math.floor(v * AMB / 256));
-        lists.TLIT.push(d > 0.02 ? 1 : 0);
+        lists.TLIT.push(d > 0.02 && selfShade[ti] !== 2 ? 1 : 0);
+        lists.TSELF.push(selfShade[ti] === 1 ? 1 : 0);
         lists.TCL.push(q(lit[0]) * 256 + q(lit[1]) * 16 + q(lit[2]) + 1);
         lists.TCS.push(q(shd[0]) * 256 + q(shd[1]) * 16 + q(shd[2]) + 1);
         lists.TLR.push(lit[0]); lists.TLG.push(lit[1]); lists.TLB.push(lit[2]);
         lists.TSR.push(shd[0]); lists.TSG.push(shd[1]); lists.TSB.push(shd[2]);
+        lists.TKR.push(t.kr); lists.TMESH.push(t.mesh + 1);
     }
     for (const n of nodes) { lists.BFIRST.push(n.first); lists.BCNT.push(n.cnt); lists.BRIGHT.push(n.right); lists.BSKIP.push(n.skip); }
-    // a sphere round the whole structure
-    const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
-    for (const p of vi) for (let a = 0; a < 3; a++) { lo[a] = Math.min(lo[a], p[a]); hi[a] = Math.max(hi[a], p[a]); }
-    const c = [R((lo[0] + hi[0]) / 2), R((lo[1] + hi[1]) / 2), R((lo[2] + hi[2]) / 2)];
-    const r = Math.ceil(Math.max(...vi.map(p => len(sub(p, c))))) + 2;
-    const consts = { NV: vi.length, NT: tris.length, BN: nodes.length, MBX: c[0], MBY: c[1], MBZ: c[2], MBR: r };
+    // a sphere round each mesh
+    for (let m = 0; m < meshes; m++) {
+        const used = new Set(); for (const t of T) if (t.mesh === m) for (const v of t.v) used.add(v);
+        const pts = [...used].map(i => vi[i]);
+        const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
+        for (const p of pts) for (let a = 0; a < 3; a++) { lo[a] = Math.min(lo[a], p[a]); hi[a] = Math.max(hi[a], p[a]); }
+        const c = [R((lo[0] + hi[0]) / 2), R((lo[1] + hi[1]) / 2), R((lo[2] + hi[2]) / 2)];
+        lists.MBCX.push(c[0]); lists.MBCY.push(c[1]); lists.MBCZ.push(c[2]);
+        lists.MBCR.push(Math.ceil(Math.max(...pts.map(p => len(sub(p, c))))) + 2);
+    }
+    const consts = { NV: vi.length, NT: tris.length, BN: nodes.length, NM: meshes };
     return { consts, lists, tris, verts: vi, nodes };
 }
 

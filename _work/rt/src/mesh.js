@@ -51,7 +51,8 @@ let PK1 = [];
 let VT = [];         // faces on screen this frame
 let VS = [];         // floor shadows on screen this frame
 let MSH = [];        // spheres that can shade the structure
-let SHM = [];        // can the structure shade sphere i?
+let SHM = [];        // can a mesh shade sphere i?
+let MSF = [];
 let nvt = 0, nvs = 0, nmsh = 0, bvT = 0, bvTri = 0, bvCalls = 0;
 
 function meshInit() {
@@ -69,7 +70,7 @@ function meshInit() {
   i = 0;
   while (i < NPOLY + 1) { PN.push(0); PK0.push(0); PK1.push(0); PX.push(0); PX.push(0); PX.push(0); PX.push(0); PY.push(0); PY.push(0); PY.push(0); PY.push(0); i = i + 1; }
   i = 0;
-  while (i < NS + 2) { MSH.push(0); SHM.push(0); i = i + 1; }
+  while (i < NS + 2) { MSH.push(0); SHM.push(0); MSF.push(0); i = i + 1; }
 }
 
 // a corner onto the screen
@@ -203,56 +204,62 @@ function meshSetup() {
     }
     i = i - 1;
   }
-  // the sphere round the structure stands in for it wherever "can a ray get there at all?" is asked
-  let ms = NS + 1;
-  dx = MBX - cmx; dy = MBY - cmy; dz = MBZ - cmz;
-  SA[ms] = idiv(dx * rX + dz * rZ, 1024); SB[ms] = idiv(dx * uX + dy * uY + dz * uZ, 1024); SC[ms] = idiv(dx * fX + dy * fY + dz * fZ, 1024);
-  // who can shade whom: sphere j shades the structure if it lies towards the sun inside the tube the structure casts back
+  // the sphere round a mesh stands in for it wherever "can a ray get there at all?" is asked
+  i = 1;
+  while (i <= NS) { SHM[i] = 0; MSF[i] = 0; i = i + 1; }
+  let ms = NS + 1, rho = 0, swx = 0, swz = 0, gi0 = 0, gi1 = 0, gj0 = 0, gj1 = 0, gi = 0, gj = 0, gx = 0, mr = 0;
+  while (ms <= NS + NM) {
+    mr = SRAD[ms];
+    dx = SWX[ms] - cmx; dy = SWY[ms] - cmy; dz = SWZ[ms] - cmz;
+    SA[ms] = idiv(dx * rX + dz * rZ, 1024); SB[ms] = idiv(dx * uX + dy * uY + dz * uZ, 1024); SC[ms] = idiv(dx * fX + dy * fY + dz * fZ, 1024);
+    // who can shade whom: sphere i shades the mesh if it lies towards the sun inside the tube the mesh casts back
+    i = 1;
+    while (i <= NS) {
+      dx = SA[i] - SA[ms]; dy = SB[i] - SB[ms]; dz = SC[i] - SC[ms];
+      wx = dx * gLx + dy * gLy + dz * gLz;
+      wy = SRAD[i] + mr;
+      if (dx * dx + dy * dy + dz * dz - idiv(wx * wx, gLL) < wy * wy) {
+        // (where the two overlap, each may shade the other)
+        wz = 0;
+        if (dx * dx + dy * dy + dz * dz < wy * wy) { wz = 1; }
+        if (wx < 0) { SHM[i] = 1; } else { if (wz == 1) { SHM[i] = 1; } }
+        if (wx > 0) { MSF[i] = 1; } else { if (wz == 1) { MSF[i] = 1; } }
+      }
+      i = i + 1;
+    }
+    // the floor grid: tiles a mesh may shade are marked -2 (a mesh, and any sphere)
+    rho = idiv(mr * 1024, LWY) + 8;
+    swx = SWX[ms] - idiv(LWX * SWY[ms], LWY); swz = SWZ[ms] - idiv(LWZ * SWY[ms], LWY);
+    gi0 = idiv(swx + GOFF - rho, CELL); gi1 = idiv(swx + GOFF + rho, CELL);
+    gj0 = idiv(swz + GOFF - rho, CELL); gj1 = idiv(swz + GOFF + rho, CELL);
+    if (gi0 < 0) { gi0 = 0; }
+    if (gj0 < 0) { gj0 = 0; }
+    if (gi1 > GN - 1) { gi1 = GN - 1; }
+    if (gj1 > GN - 1) { gj1 = GN - 1; }
+    gi = gi0;
+    while (gi <= gi1) {
+      gj = gj0;
+      while (gj <= gj1) {
+        gx = gi * GN + gj + 1;
+        if (GRID[gx] == 0) { ngt = ngt + 1; GTOUCH[ngt] = gx; }
+        GRID[gx] = -2;
+        gj = gj + 1;
+      }
+      gi = gi + 1;
+    }
+    ms = ms + 1;
+  }
   nmsh = 0;
   i = 1;
-  while (i <= NS) {
-    dx = SA[i] - SA[ms]; dy = SB[i] - SB[ms]; dz = SC[i] - SC[ms];
-    wx = dx * gLx + dy * gLy + dz * gLz;
-    wy = SRAD[i] + MBR;
-    wz = 0;
-    if (dx * dx + dy * dy + dz * dz - idiv(wx * wx, gLL) < wy * wy) { wz = 1; }
-    SHM[i] = 0;
-    if (wz == 1) {
-      // (where the two overlap, each may shade the other)
-      wz = 0;
-      if (dx * dx + dy * dy + dz * dz < wy * wy) { wz = 1; }
-      if (wx < 0) { SHM[i] = 1; } else { if (wz == 1) { SHM[i] = 1; } }
-      if (wx > 0) { nmsh = nmsh + 1; MSH[nmsh] = i; } else { if (wz == 1) { nmsh = nmsh + 1; MSH[nmsh] = i; } }
-    }
-    i = i + 1;
-  }
-  // the floor grid: tiles the structure may shade are marked -2 (the structure, and any sphere)
-  let rho = idiv(MBR * 1024, LWY) + 8;
-  let swx = MBX - idiv(LWX * MBY, LWY), swz = MBZ - idiv(LWZ * MBY, LWY);
-  let gi0 = idiv(swx + GOFF - rho, CELL), gi1 = idiv(swx + GOFF + rho, CELL);
-  let gj0 = idiv(swz + GOFF - rho, CELL), gj1 = idiv(swz + GOFF + rho, CELL);
-  if (gi0 < 0) { gi0 = 0; }
-  if (gj0 < 0) { gj0 = 0; }
-  if (gi1 > GN - 1) { gi1 = GN - 1; }
-  if (gj1 > GN - 1) { gj1 = GN - 1; }
-  let gi = gi0, gj = 0, gx = 0;
-  while (gi <= gi1) {
-    gj = gj0;
-    while (gj <= gj1) {
-      gx = gi * GN + gj + 1;
-      if (GRID[gx] == 0) { ngt = ngt + 1; GTOUCH[ngt] = gx; }
-      GRID[gx] = -2;
-      gj = gj + 1;
-    }
-    gi = gi + 1;
-  }
+  while (i <= NS) { if (MSF[i] == 1) { nmsh = nmsh + 1; MSH[nmsh] = i; } i = i + 1; }
 }
 
 // ---- a ray through the tree ----
 // From o along d (camera space). any = 1: is anything in the way at all (a shadow ray)?
-// any = 0: the nearest hit. Out: bvTri (0 = none) and bvT (x4096 of d).
+// any = 0: the nearest hit. skip: a mesh whose triangles do not count (0 = none).
+// Out: bvTri (0 = none) and bvT (x4096 of d).
 // The tree is walked without a stack: a node that is missed or done hands on to BSKIP.
-function bvhHit(ox, oy, oz, dx, dy, dz, any) {
+function bvhHit(ox, oy, oz, dx, dy, dz, any, skip) {
   let ix = 67108864, iy = 67108864, iz = 67108864;
   if (dx != 0) { ix = idiv(67108864, dx); }
   if (dy != 0) { iy = idiv(67108864, dy); }
@@ -279,6 +286,7 @@ function bvhHit(ox, oy, oz, dx, dy, dz, any) {
         while (t < te) {
           nx = TNX[t]; ny = TNY[t]; nz = TNZ[t];
           den = nx * dx + ny * dy + nz * dz;
+          if (TMESH[t] == skip) { den = 1; }
           if (den < 0) {
             // the ray goes in through this face's plane
             num = TPD[t] - nx * ox - ny * oy - nz * oz;

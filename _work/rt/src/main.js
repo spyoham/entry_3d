@@ -94,7 +94,7 @@ function control(dt) {
   if (camZ > 14000) { camZ = 14000; }
   if (camZ < -14000) { camZ = -14000; }
   let i = 1;
-  while (i <= NS + 1) {
+  while (i <= NS + NM) {
     let dx = camX - SWX[i], dy = camY - SWY[i], dz = camZ - SWZ[i];
     let need = SRAD[i] + 420;
     if (i > NS) { need = SRAD[i] + 60; }
@@ -148,6 +148,8 @@ function stats() {
           if (qLevel < NQ) { setQuality(qLevel + 1); }
           else { if (skipN < 4) { skipN = skipN + 1; } }
           qGood = 0; qTried = 0;
+          // (the second in which the level changed still holds slow ticks: it is not judged)
+          tpsSkip = 1;
         } else {
           qGood = qGood + 1;
           if (qGood >= 3) { qTried = 0; }
@@ -155,6 +157,7 @@ function stats() {
             qGood = 0;
             if (skipN > 1) { skipN = skipN - 1; qTried = 1; }
             else { if (qLevel > 1) { setQuality(qLevel - 1); qTried = 1; } }
+            tpsSkip = 1;
           }
         }
       }

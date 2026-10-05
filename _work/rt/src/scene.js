@@ -49,7 +49,7 @@ let nrun = 0, nused = 0, nsamp = 0, frames = 0, flatK = 63, rStamp = 8;
 // the run store being filled: where its colour lists start, its first run - 1, its last run
 let sBase = 0, sRun0 = 0, sRunMax = RUNH;
 // what mirrorCell and floorShade hand back
-let mCell = 0, fShade = 0;
+let mCell = 0, fShade = 0, mR = 0, mG = 0, mB = 0;
 // 1: a faint mirror (below SIGKR) shows only floor and sky; 0: every mirror shows everything
 let weakMirror = WEAK;
 
@@ -145,7 +145,7 @@ function fillList0() {
   i = 0;
   while (i < NS + NT + 3) { SPX0.push(0); SPX1.push(0); SPI.push(0); SHX0.push(0); SHX1.push(0); ACT.push(0); i = i + 1; }
   i = 0;
-  while (i < NS + 2) {
+  while (i < NS + NM + 1) {
     SA.push(0); SB.push(0); SC.push(0); SK.push(0); SQ.push(0); SR2.push(0); SRK.push(0);
     SMRK.push(0); SMGK.push(0); SMBK.push(0); SKR2.push(0);
     SER.push(0); SEG.push(0); SEB.push(0); SEKR.push(0); SEKG.push(0); SEKB.push(0);
@@ -163,7 +163,7 @@ function fillList0() {
   i = 0;
   while (i < NS * RMN) { RMAP.push(0); i = i + 1; }
   i = 0;
-  while (i < (NS + 1) * (NS + 1) + 1) { PAX.push(0); PAY.push(0); PAZ.push(0); PTH.push(0); i = i + 1; }
+  while (i < (NS + NM) * (NS + NM) + 1) { PAX.push(0); PAY.push(0); PAZ.push(0); PTH.push(0); i = i + 1; }
   // the cube's cells: face 0/1 = +x/-x (a = y, b = z), 2/3 = +y/-y (a = x, b = z), 4/5 = +z/-z (a = x, b = y)
   let f = 0;
   while (f < 6) {
@@ -272,10 +272,14 @@ function sceneInit() {
   addSphere(-1.5, 0.6, -2.5, 0.6, 60, 190, 90, 0, 90);       // 5 green, matt
   addSphere(0, 0.45, 0, 0.45, 250, 250, 250, 40, 200);       // 6 white, circling
   if (ABL > 0) { let i = 1; while (i <= NS) { SKR[i] = 0; if (ABL == 1) { SSPC[i] = 0; } i = i + 1; } }
-  // the structure's sphere, as entry NS + 1 (for "can a ray get there" and for keeping the camera out)
-  SWX.push(MBX); SWY.push(MBY); SWZ.push(MBZ); SRAD.push(MBR);
-  SR2[NS + 1] = MBR * MBR;
-  camX = Math.round(5.5 * WS); camY = Math.round(2.5 * WS); camZ = Math.round(-7.8 * WS); yaw = -18; pitch = -9;
+  // the spheres round the meshes, as entries NS + 1 on (for "can a ray get there" and for keeping the camera out)
+  let m = 1;
+  while (m <= NM) {
+    SWX.push(MBCX[m]); SWY.push(MBCY[m]); SWZ.push(MBCZ[m]); SRAD.push(MBCR[m]);
+    SR2[NS + m] = MBCR[m] * MBCR[m];
+    m = m + 1;
+  }
+  camX = Math.round(5.5 * WS); camY = Math.round(1.8 * WS); camZ = Math.round(-7.8 * WS); yaw = -18; pitch = -7;
 }
 
 // the moving parts: t in seconds
