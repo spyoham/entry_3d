@@ -9,7 +9,7 @@ import { packEnt } from './pack.mjs';
 import { meshSource } from './mesh.mjs';
 import { deloop } from './deloop.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '1.3';
+export const VERSION = '1.3.1';
 const FASTPLUS = process.env.FASTPLUS === '1';
 export const FILES = ['scene.js', 'mesh.js', 'render.js', 'main.js'];
 // the sun, as scene.js makes it (towards it, length 1024)

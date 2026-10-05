@@ -13,8 +13,7 @@ const FOC = 300;
 const FF = FOC * FOC;
 const BIG = 1000000000000000000;
 const NS = 1;                 // spheres
-const MAXRUN = 40000;         // runs the two stores can hold together
-const RUNH = 20000;           // each store's share
+const RUNP = 5000;            // runs a store can hold (a list holds 5000 items at most on playentry)
 const PALN = 4096;
 const AMB = 74;               // light a shadowed point still gets, of 256
 const DIFK = 182;             // the sun's share (AMB + DIFK = 256)
@@ -47,7 +46,7 @@ let bgN = 0, bgPtr = 1, bgVal = 0, bgMode = 0, rXs4 = 0, rZs4 = 0, rDxs = 0, rDz
 // ---- counters ----
 let nrun = 0, nused = 0, nsamp = 0, frames = 0, flatK = 63, rStamp = 8;
 // the run store being filled: where its colour lists start, its first run - 1, its last run
-let sBase = 0, sRun0 = 0, sRunMax = RUNH;
+let sBase = 0, sTwo = 0, sSpill = 0, sUsedA = 0;
 // what mirrorCell and floorShade hand back
 let mCell = 0, fShade = 0, mR = 0, mG = 0, mB = 0;
 // 1: a small mirror triangle is traced once a picture; 2: never (TSML is 0 or 1, so 2 matches none)
@@ -140,12 +139,19 @@ let RY = [];
 let RN = [];
 let HEAD = [];
 let USED = [];
+let RX0B = [];       // the second store
+let RX1B = [];
+let RYB = [];
+let RNB = [];
+let HEADB = [];
+let USEDB = [];
+let P3 = [1, 3, 9, 27, 81, 243, 729, 2187];
 
 function fillList0() {
   let i = 0;
-  while (i < MAXRUN) { RX0.push(0); RX1.push(0); RY.push(0); RN.push(0); i = i + 1; }
+  while (i < RUNP) { RX0.push(0); RX1.push(0); RY.push(0); RN.push(0); RX0B.push(0); RX1B.push(0); RYB.push(0); RNB.push(0); i = i + 1; }
   i = 0;
-  while (i < PALN * 2) { HEAD.push(0); USED.push(0); i = i + 1; }
+  while (i < PALN) { HEAD.push(0); USED.push(0); HEADB.push(0); USEDB.push(0); i = i + 1; }
   i = 0;
   while (i < NS + NT + 3) { SPX0.push(0); SPX1.push(0); SPI.push(0); SHX0.push(0); SHX1.push(0); ACT.push(0); ACE.push(0); SPK.push(0); i = i + 1; }
   i = 0;

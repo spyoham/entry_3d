@@ -394,6 +394,12 @@ export function meshData(sun) {
         lists.MBCX.push(c[0]); lists.MBCY.push(c[1]); lists.MBCZ.push(c[2]);
         lists.MBCR.push(Math.ceil(Math.max(...pts.map(p => len(sub(p, c))))) + 2);
     }
+    // playentry keeps at most 5000 items in a list: the maps go eight cells to a number (base 3)
+    const pack8 = (cells) => { const out = []; for (let i = 0; i < cells.length; i += 8) { let w = 0; for (let k = 7; k >= 0; k--) w = w * 3 + (cells[i + k] || 0); out.push(w); } return out; };
+    lists.SGR = pack8(lists.SGR);
+    lists.TSUB = pack8(lists.TSUB.slice(1));
+    lists.TSO = lists.TSO.map(o => (o > 0 ? (o - 1) / 8 : 0));
+    for (const [k, v] of Object.entries(lists)) if (v.length > 5000) throw new Error('list ' + k + ' has ' + v.length + ' items (5000 at most)');
     const consts = { NV: vi.length, NT: tris.length, BN: nodes.length, NM: meshes };
     return { consts, lists, tris, verts: vi, nodes };
 }

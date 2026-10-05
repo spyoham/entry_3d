@@ -120,3 +120,17 @@
 
 남은 시간(Node 3단계): traceRow 35%, renderRows 15%, bvhHit 13%, triMirror 11%, rowPrep 8%, meshSetup 5%.
 더 할 만한 것: `bgSeg`·`rowPrep`도 줄당 호출이라 합치기, 2단계(순차 270줄)를 60틱에 넣으려면 2배가 더 필요.
+
+---
+
+# v1.3.1 (2026-10-05) — 리스트 5000칸 한도
+
+사용자: "리스트 항목수 5000개 제한에 걸림. 수정해줘." (playentry `LIST_MAX_LENGTH = 5000`: 넘게 넣으면 앞이 지워지고, 불러올 때도 잘림 — `../gmp/HANDOFF.md` v1.1 참고)
+
+- 넘던 것: `RX0/RX1/RY/RN`(40000), `HEAD/USED`(8192), `SGR`(16384). `TSUB`는 4801로 아슬아슬.
+- 조각 저장소: A(`RX0…`, `HEAD`, `USED`)와 B(`RX0B…`, `HEADB`, `USEDB`), 각 `RUNP = 5000`. `sBase`가 0/1(저장소 번호). 인터레이스는 짝수 줄 A·홀수 줄 B. 순차 단계는 `sTwo = 1`: A가 `RUNP − 800`을 넘으면 줄 경계에서 B로 넘어가고(`sSpill`, `sUsedA`) 둘 다 그린다.
+- `SGR`, `TSUB`: 8칸을 3진수 한 숫자로(`P3` 리스트로 자리 꺼냄). `TSO`는 삼각형의 첫 줄 번호.
+- `mesh.mjs`가 5000칸 넘는 리스트를 만들면 빌드 실패, `sim.mjs`의 push도 5000 넘으면 예외.
+- 버려지는 홀수 줄 저장소 비우기(`dropRuns`)는 `renderRows` 앞으로 옮겼다(순차 단계가 B에 넘쳐 담기 전에 비워야 함).
+- 수치: Node 3단계 12.0 → 12.5ms(조각 넣을 때 저장소 분기). 시험: `STRICT=1 node test.mjs` PASS 0.313%.
+- 실제 playentry에서 불러와 실행하는 것은 여기서 확인하지 못했다.

@@ -33,7 +33,8 @@ export function createSim({ consts = {}, fps = 60 } = {}) {
         handlers: [], $i: 0,
         get: (A, i, name) => { check(A, i, name); return A[i - 1]; },
         set: (A, i, v, name) => { check(A, i, name); if (typeof v === 'number' && !isFinite(v)) throw new Error(`list ${name}: ${v}`); A[i - 1] = v; },
-        push: (A, v) => { A.push(v); },
+        // (playentry keeps at most 5000 items in a list)
+        push: (A, v) => { A.push(v); if (A.length > 5000) throw new Error('a list grew past 5000 items'); },
         add: (a, b) => (typeof a === 'string' && isNaN(+a)) || (typeof b === 'string' && isNaN(+b)) ? a + b : (+a) + (+b),
         mod: (a, b) => a - b * Math.floor(a / b),
         cmp: (op, a, b) => { a = comparable(a); b = comparable(b); switch (op) { case 0: return a === b; case 1: return a != b; case 2: return a < b; case 3: return a > b; case 4: return a <= b; default: return a >= b; } },

@@ -213,7 +213,18 @@ function drawStep(t) {
   }
   if (ilace == 0) { animate(tAnim); }
   else { if (still == 0) { animate(tAnim); } else { if (field == 1) { animate(tAnim); } } }
-  sBase = field * PALN; sRun0 = field * RUNH; sRunMax = sRun0 + RUNH;
+  // which run store: the even lines' or the odd lines' (a picture that is not interlaced may use both)
+  sBase = field; sTwo = 1 - ilace;
+  if (field == 0) {
+    // the camera moved (or the level has no odd lines): odd lines traced or drawn before are void
+    let drop = 0;
+    if (still == 0) { drop = 1; }
+    if (ilace == 0) { drop = 1; }
+    if (drop == 1) {
+      if (bArmed == 1) { dropRuns(1, bUsed); bArmed = 0; }
+      if (bHas == 1) { bClear = 1; }
+    }
+  }
   camSetup();
   // (a camera at rest: the standing meshes are where they were)
   if (still == 0) { meshSetup(1); } else { meshSetup(0); }
@@ -221,15 +232,7 @@ function drawStep(t) {
   renderRows();
   if (field == 0) {
     eraseAll();
-    flushRuns(0, nused);
-    // the camera moved (or the level has no odd lines): odd lines traced or drawn before are void
-    let drop = 0;
-    if (still == 0) { drop = 1; }
-    if (ilace == 0) { drop = 1; }
-    if (drop == 1) {
-      if (bArmed == 1) { dropRuns(PALN, bUsed); bArmed = 0; }
-      if (bHas == 1) { bClear = 1; }
-    }
+    if (sSpill == 1) { flushRuns(0, sUsedA); flushRuns(1, nused); } else { flushRuns(0, nused); }
   } else {
     // the odd lines are ready: pen B draws them in the tick pen A draws the even ones
     bUsed = nused; bArmed = 1; bTick = t; bWait = skipN - 1;
@@ -260,7 +263,7 @@ on('start', 'penb', function () {
       if (timer() != bTick) {
         // (when pictures are made only every few ticks, pen A draws that many ticks later)
         if (bWait > 0) { bWait = bWait - 1; }
-        else { eraseAll(); flushRuns(PALN, bUsed); bArmed = 0; bHas = 1; }
+        else { eraseAll(); flushRuns(1, bUsed); bArmed = 0; bHas = 1; }
       }
     }
   }

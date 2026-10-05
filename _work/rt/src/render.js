@@ -136,13 +136,22 @@ function camSetup() {
 }
 
 // ---- runs ----
+// (a list holds 5000 items at most on playentry: there are two stores of RUNP runs, each in lists of
+// its own - hb says which)
 function M_push(c_, x0_, x1_) {
-  if (nr < nrMax) {
+  if (nr < RUNP) {
     nr = nr + 1;
-    RX0[nr] = x0_; RX1[nr] = x1_; RY[nr] = yrow;
-    hd = HEAD[c_ + hb];
-    if (hd == 0) { nu = nu + 1; USED[nu] = c_; }
-    RN[nr] = hd; HEAD[c_ + hb] = nr;
+    if (hb == 0) {
+      RX0[nr] = x0_; RX1[nr] = x1_; RY[nr] = yrow;
+      hd = HEAD[c_];
+      if (hd == 0) { nu = nu + 1; USED[nu] = c_; }
+      RN[nr] = hd; HEAD[c_] = nr;
+    } else {
+      RX0B[nr] = x0_; RX1B[nr] = x1_; RYB[nr] = yrow;
+      hd = HEADB[c_];
+      if (hd == 0) { nu = nu + 1; USEDB[nu] = c_; }
+      RNB[nr] = hd; HEADB[c_] = nr;
+    }
   }
 }
 // from x_ on the row is colour c_
@@ -474,7 +483,8 @@ function M_sample() {
           if (gi > 7) { gi = 7; }
           if (gj < 0) { gj = 0; }
           if (gj > 7) { gj = 7; }
-          g = TSUB[TSO[tt] + gi * 8 + gj + 1];
+          // (the map is packed: a row of 8 cells is one number, base 3)
+          g = mod(idiv(TSUB[TSO[tt] + gi + 1], P3[gj + 1]), 3);
           if (g == 1) { lit = 0; }
           if (g == 2) { bvhHit(px, py, pz, lx, ly, lz, 1, 0); if (bvTri > 0) { lit = 0; } }
         }
@@ -669,7 +679,9 @@ function M_env() {
               if (g < 0) { floorShade(g, fx, fy, fz); fsh = fShade; }
               // the meshes that stand still: a quarter-tile map made at build time says "never", "always" or "partly"
               if (fsh == 0) {
-                g = SGR[idiv(wxx + GOFF, 256) * 128 + idiv(wzz + GOFF, 256) + 1];
+                // (packed: 8 cells a number, base 3)
+                g = idiv(wzz + GOFF, 256);
+                g = mod(idiv(SGR[idiv(wxx + GOFF, 256) * 16 + idiv(g, 8) + 1], P3[mod(g, 8) + 1]), 3);
                 if (g == 1) { fsh = 1; }
                 if (g == 2) { floorShade(-2, fx, fy, fz); fsh = fShade; }
               }
@@ -756,7 +768,7 @@ function traceRow(nsp) {
   let keyK = (mod(frames, 4096) * 512 + rK) * 1048576, keyA = keyK - 1048576;
   let cwk = mod(idiv(rK, 2), 2) * CW, cwa = mod(idiv(rK - 1, 2), 2) * CW;
   let cwb = CW - cwa;
-  let pc = rPc, px0 = rPx0, nr = nrun, nu = nused, nsm = 0, hb = sBase, nrMax = sRunMax;
+  let pc = rPc, px0 = rPx0, nr = nrun, nu = nused, nsm = 0, hb = sBase;
   let x = 0, xb = 0, na = 0, e0 = 0, e1 = 0, jj = 0, ii = 0, cur = 0, jn = 0, go = 0;
   let xx = -960, j = 1, j0 = 0, j1 = 0, cs = 0, ce = 0, more = 0;
   let u = 0, u0 = 0, u1 = 0, first = 1, mode = 0, run = 1, adv = 0;
@@ -954,7 +966,7 @@ function mapBuild() {
 
 // ---- background from xa to xb ----
 function bgSeg(xa, xb) {
-  let pc = rPc, px0 = rPx0, nr = nrun, nu = nused, yrow = rYrow, hb = sBase, nrMax = sRunMax;
+  let pc = rPc, px0 = rPx0, nr = nrun, nu = nused, yrow = rYrow, hb = sBase;
   let bp = bgPtr, bgv = bgVal, nb = bgN, bgmode = bgMode;
   let xs4 = rXs4, zs4 = rZs4, dxs = rDxs, dzs = rDzs, stX = rStX, stZ = rStZ;
   M_bg(xa, xb);
@@ -1072,10 +1084,16 @@ function renderRows() {
   let k = 0, v = 0, A0 = 0, i = 0, nsp = 0, si = 1, tt = 0, v16 = 0, fr = -1, nfa = 0;
   nash = 0;
   let x = 0, j = 0, j0 = 0, j1 = 0, cs = 0, ce = 0, more = 0;
-  let pc = 0, px0 = 0, nr = 0, nu = 0, yrow = 0, hd = 0, hb = sBase, nrMax = sRunMax;
-  nrun = sRun0; nused = sBase; nsamp = 0;
+  let pc = 0, px0 = 0, nr = 0, nu = 0, yrow = 0, hd = 0, hb = sBase;
+  nrun = 0; nused = 0; nsamp = 0; sSpill = 0;
   while (si <= nrw) {
     k = ROWSEQ[si]; rMode = ROWMD[si];
+    // a picture that is not interlaced has both stores: when the first is nearly full, the rest of the rows go into the second
+    if (sTwo == 1) {
+      if (hb == 0) {
+        if (nrun > RUNP - 800) { sSpill = 1; sUsedA = nused; sBase = 1; hb = 1; nrun = 0; nused = 0; }
+      }
+    }
     v = vtop - k * rh;
     A0 = v * v + FF;
     rK = k; rV = v; rA0 = A0; rYrow = v + yOff; rDth = DTH[mod(k, 4) + 1];
@@ -1136,27 +1154,48 @@ function renderRows() {
 }
 
 // ---- draw: colour by colour, every run a two-point stroke (tessvm lays 16 or more such strokes of one colour down as one mesh) ----
-function flushRuns(hb, n) {
-  let k = hb + 1, c = 0, i = 0, y = 0;
-  while (k <= n) {
-    c = USED[k];
-    penColorHex(PAL[c]);
-    i = HEAD[c + hb];
-    while (i > 0) {
-      y = RY[i];
-      goto(RX0[i] / 4, y);
-      penDown();
-      goto(RX1[i] / 4, y);
-      penUp();
-      i = RN[i];
+function flushRuns(st, n) {
+  let k = 1, c = 0, i = 0, y = 0;
+  if (st == 0) {
+    while (k <= n) {
+      c = USED[k];
+      penColorHex(PAL[c]);
+      i = HEAD[c];
+      while (i > 0) {
+        y = RY[i];
+        goto(RX0[i] / 4, y);
+        penDown();
+        goto(RX1[i] / 4, y);
+        penUp();
+        i = RN[i];
+      }
+      HEAD[c] = 0;
+      k = k + 1;
     }
-    HEAD[c + hb] = 0;
-    k = k + 1;
+  } else {
+    while (k <= n) {
+      c = USEDB[k];
+      penColorHex(PAL[c]);
+      i = HEADB[c];
+      while (i > 0) {
+        y = RYB[i];
+        goto(RX0B[i] / 4, y);
+        penDown();
+        goto(RX1B[i] / 4, y);
+        penUp();
+        i = RNB[i];
+      }
+      HEADB[c] = 0;
+      k = k + 1;
+    }
   }
 }
 
 // a store that will not be drawn: empty it
-function dropRuns(hb, n) {
-  let k = hb + 1;
-  while (k <= n) { HEAD[USED[k] + hb] = 0; k = k + 1; }
+function dropRuns(st, n) {
+  let k = 1;
+  while (k <= n) {
+    if (st == 0) { HEAD[USED[k]] = 0; } else { HEADB[USEDB[k]] = 0; }
+    k = k + 1;
+  }
 }
