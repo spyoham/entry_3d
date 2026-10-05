@@ -1,0 +1,1 @@
+[{"wait":2500,"fps":"warm"},{"wait":3000,"fps":"a"},{"wait":3000,"fps":"b","vars":1,"shot":"../rtbench/shot.png"}]
