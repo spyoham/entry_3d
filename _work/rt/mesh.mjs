@@ -4,10 +4,17 @@
 //
 //   1  a stepped pyramid: three tiers and a pointed cap, 34 triangles, matt
 //   2  a chess knight: a turned base and a head cut from a side view, a faint mirror
+//   3  the spinning top of "Inception": a turned shape, polished metal; it drifts in a small circle
+//   4  a sports car: assets/sportsCar.obj by Teh_Bucket (OpenGameArt, CC0), "roughly based on a
+//      Lamborghini Huracan"; glossy paint, mirror glass
 //
 // Neither is convex - a tier shades the one below, the knight's head its own
 // base - so a point on them needs a shadow ray against the triangles, and that
 // is what the BVH is for (as for every mirror ray that may reach a mesh).
+import fs from 'node:fs';
+import path from 'node:path';
+import url from 'node:url';
+const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const WS = 1024;
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -18,7 +25,7 @@ const len = (a) => Math.sqrt(dot(a, a));
 // a mesh under construction: P adds a vertex (model space, turned by rot about y, then moved), tri a triangle
 function builder(V, T, mesh, cx, cz, rotDeg, scale = 1) {
     const rot = rotDeg * Math.PI / 180, c = Math.cos(rot), s = Math.sin(rot);
-    const P = (x, y, z) => { V.push([cx + (x * c + z * s) * scale, y * scale, cz + (-x * s + z * c) * scale]); return V.length - 1; };
+    const P = (x, y, z) => { const p = [cx + (x * c + z * s) * scale, y * scale, cz + (-x * s + z * c) * scale]; p.mesh = mesh; V.push(p); return V.length - 1; };
     const tri = (a, b, cc, col, kr = 0) => T.push({ v: [a, b, cc], col, kr, mesh });
     const quad = (a, b, cc, d, col, kr = 0) => { tri(a, b, cc, col, kr); tri(a, cc, d, col, kr); };
     return { P, tri, quad };
@@ -86,11 +93,60 @@ function knight(V, T, mesh) {
     }
 }
 
+// ---- 3: the top ----
+// (it stands upright and spins about its own axis, which a turned shape does not show; what moves is
+// the whole top, round a small circle - see animate in scene.js)
+export const TOP_AT = [4.9, -3.9];
+function spinTop(V, T, mesh) {
+    const { P, tri, quad } = builder(V, T, mesh, TOP_AT[0], TOP_AT[1], 0, 0.9);
+    const col = [206, 208, 216], kr = 176;
+    const prof = [[0.10, 0.11], [0.34, 0.30], [0.30, 0.40], [0.08, 0.50], [0.07, 0.80]];
+    const SEG = 8;
+    const ring = prof.map(([r, y]) => Array.from({ length: SEG }, (_, j) => { const a = j * 2 * Math.PI / SEG; return P(r * Math.cos(a), y, r * Math.sin(a)); }));
+    const tip = P(0, 0, 0), cap = P(0, 0.83, 0);
+    for (let j = 0; j < SEG; j++) { const j1 = (j + 1) % SEG; tri(tip, ring[0][j], ring[0][j1], col, kr); tri(cap, ring[prof.length - 1][j1], ring[prof.length - 1][j], col, kr); }
+    for (let k = 0; k + 1 < prof.length; k++) for (let j = 0; j < SEG; j++) { const j1 = (j + 1) % SEG; quad(ring[k][j], ring[k + 1][j], ring[k + 1][j1], ring[k][j1], col, kr); }
+}
+
+// ---- 4: the car ----
+function car(V, T, mesh) {
+    const src = fs.readFileSync(path.join(HERE, 'assets', 'sportsCar.obj'), 'utf8').split(/\r?\n/);
+    const ov = [], faces = [];
+    for (const l of src) {
+        const p = l.trim().split(/\s+/);
+        if (p[0] === 'v') ov.push(p.slice(1, 4).map(Number));
+        if (p[0] === 'f') { const ix = p.slice(1).map(s => parseInt(s) - 1); for (let k = 1; k + 1 < ix.length; k++) faces.push([ix[0], ix[k], ix[k + 1]]); }
+    }
+    // the model: nose towards -x, 5.5 long, wheels at x = -1.58 and 1.53
+    const { P, tri } = builder(V, T, mesh, 1.8, -1.0, 215, 0.74);
+    const weld = new Map();
+    const vid = (i) => { const k = ov[i].map(x => x.toFixed(4)).join(','); if (!weld.has(k)) weld.set(k, P(ov[i][0], ov[i][1] - 0.03, ov[i][2])); return weld.get(k); };
+    const paint = [244, 150, 16], glass = [20, 26, 36], tyre = [26, 26, 28];
+    let kept = 0;
+    for (const f of faces) {
+        const p = f.map(i => ov[i]), n0 = cross(sub(p[1], p[0]), sub(p[2], p[0])), nl = len(n0);
+        if (nl < 1e-9) continue;
+        const n = n0.map(x => x / nl), c = [0, 1, 2].map(a => (p[0][a] + p[1][a] + p[2][a]) / 3);
+        // left out: the wing mirrors (28 slivers). The underside and the wheels' inner faces stay: they are
+        // never seen, but a shadow ray from the floor has to find the car closed
+        if (p.every(q => Math.abs(q[2]) > 1.0 && q[1] > 0.86 && q[0] > -1.05 && q[0] < -0.7)) continue;
+        const wheel = [-1.58, 1.53].some(xw => p.every(q => Math.hypot(q[0] - xw, q[1] - 0.45) < 0.52 && Math.abs(q[2]) > 0.8));
+        const windscreen = Math.abs(n[0] + 0.28) < 0.05 && n[1] > 0.94 && c[1] > 1.0;
+        const sideGlass = n[1] > 0.55 && n[1] < 0.68 && Math.abs(n[2]) > 0.7 && c[1] > 0.98;
+        const [col, kr] = wheel ? [tyre, 0] : (windscreen || sideGlass) ? [glass, 170] : [paint, 64];
+        tri(vid(f[0]), vid(f[1]), vid(f[2]), col, kr);
+        kept++;
+    }
+    return kept;
+}
+
 export function makeMesh() {
     const V = [], T = [];
     pyramid(V, T, 0);
     knight(V, T, 1);
-    return { V, T, meshes: 2 };
+    spinTop(V, T, 2);
+    car(V, T, 3);
+    return { V, T, meshes: 4 };
 }
 
 // ---- BVH: split where the surface-area cost is least, at most LEAF triangles a leaf, nodes in depth-first order ----
@@ -133,7 +189,16 @@ function buildBVH(tris, verts, meshes) {
         return me;
     };
     const all = tris.map((_, i) => i);
-    if (meshes === 2) rec(all, [all.filter(i => tris[i].mesh === 0), all.filter(i => tris[i].mesh === 1)]); else rec(all);
+    const group = (ms) => {
+        if (ms.length === 1) return rec(all.filter(i => tris[i].mesh === ms[0]));
+        const me = nodes.length, node = { first: 0, cnt: 0, right: 0, skip: 0 };
+        nodes.push(node);
+        const h = ms.length >> 1;
+        group(ms.slice(0, h));
+        node.right = group(ms.slice(h)) + 1;
+        return me;
+    };
+    group(Array.from({ length: meshes }, (_, m) => m));
     // skip links: after a subtree comes its parent's second child, or what follows the parent
     const link = (i, next) => { const n = nodes[i]; n.skip = next; if (n.cnt === 0) { link(i + 1, n.right); link(n.right - 1, next); } };
     link(0, 0);
@@ -183,11 +248,12 @@ export function meshData(sun) {
     const R = (x) => Math.round(x);
     const lists = { MVX: [], MVY: [], MVZ: [], MSX: [], MSZ: [], TV1: [], TV2: [], TV3: [],
         TWX: [], TWY: [], TWZ: [], TWD: [], T1X: [], T1Y: [], T1Z: [], T1D: [], T2X: [], T2Y: [], T2Z: [], T2D: [],
-        TLIT: [], TCL: [], TCS: [], TLR: [], TLG: [], TLB: [], TSR: [], TSG: [], TSB: [], TKR: [], TMESH: [], TSELF: [],
+        TLIT: [], TCL: [], TCS: [], TLR: [], TLG: [], TLB: [], TSR: [], TSG: [], TSB: [], TKR: [], TMESH: [], TSELF: [], MVM: [],
         BFIRST: [], BCNT: [], BRIGHT: [], BSKIP: [], MBCX: [], MBCY: [], MBCZ: [], MBCR: [] };
     const AMB = 74, DIFK = 182;
     const q = (v) => Math.min(15, Math.floor((v + 8) / 16));
     const vi = V.map(p => [R(p[0] * WS), R(p[1] * WS), R(p[2] * WS)]);
+    for (const p of V) lists.MVM.push(p.mesh + 1);
     for (const p of vi) {
         lists.MVX.push(p[0]); lists.MVY.push(p[1]); lists.MVZ.push(p[2]);
         // where the vertex's shadow falls on the floor

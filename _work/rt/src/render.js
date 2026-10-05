@@ -453,9 +453,9 @@ function M_sample() {
     if (kq > 0) {
       // a faint mirror: the flat colour, and what the mirror ray meets (traced in triMirror)
       px = idiv(u * tq, 4096); py = idiv(v * tq, 4096); pz = idiv(FOC * tq, 4096);
-      nx = TNX[tt]; ny = TNY[tt]; nz = TNZ[tt];
+      nx = TMX[tt]; ny = TMY[tt]; nz = TMZ[tt];
       dn = u * nx + v * ny + FOC * nz;
-      rx = 2 * u - idiv(dn * nx, 262144); ry = 2 * v - idiv(dn * ny, 262144); rz = 2 * FOC - idiv(dn * nz, 262144);
+      rx = 2 * u - idiv(dn * nx, 67108864); ry = 2 * v - idiv(dn * ny, 67108864); rz = 2 * FOC - idiv(dn * nz, 67108864);
       triMirror(px, py, pz, rx, ry, rz, TMESH[tt]);
       if (lit == 1) { c2r = TLR[tt]; c2g = TLG[tt]; c2b = TLB[tt]; } else { c2r = TSR[tt]; c2g = TSG[tt]; c2b = TSB[tt]; }
       qr = idiv((c2r * (256 - kq) + mR * kq) * 256 + 524288, 1048576); if (qr > 15) { qr = 15; }

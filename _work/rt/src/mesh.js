@@ -36,6 +36,9 @@ let C1Z = [];
 let C2X = [];
 let C2Y = [];
 let C2Z = [];
+let TMX = [];        // a mirror triangle's normal, x16384
+let TMY = [];
+let TMZ = [];
 let TG = [];         // per row: ny*v + nz*FOC
 let BLX = [];        // the tree's boxes, camera space
 let BLY = [];
@@ -53,6 +56,8 @@ let VS = [];         // floor shadows on screen this frame
 let MSH = [];        // spheres that can shade the structure
 let SHM = [];        // can a mesh shade sphere i?
 let MSF = [];
+let MOX = [];        // how far each mesh is moved from where it was built
+let MOZ = [];
 let nvt = 0, nvs = 0, nmsh = 0, bvT = 0, bvTri = 0, bvCalls = 0;
 
 function meshInit() {
@@ -61,7 +66,7 @@ function meshInit() {
   i = 0;
   while (i < NT + 1) {
     TNX.push(0); TNY.push(0); TNZ.push(0); TPD.push(0); TOA.push(0); TOB.push(0); TOC.push(0);
-    C1X.push(0); C1Y.push(0); C1Z.push(0); C2X.push(0); C2Y.push(0); C2Z.push(0); TG.push(0);
+    C1X.push(0); C1Y.push(0); C1Z.push(0); C2X.push(0); C2Y.push(0); C2Z.push(0); TG.push(0); TMX.push(0); TMY.push(0); TMZ.push(0);
     VT.push(0); VS.push(0);
     i = i + 1;
   }
@@ -71,6 +76,8 @@ function meshInit() {
   while (i < NPOLY + 1) { PN.push(0); PK0.push(0); PK1.push(0); PX.push(0); PX.push(0); PX.push(0); PX.push(0); PY.push(0); PY.push(0); PY.push(0); PY.push(0); i = i + 1; }
   i = 0;
   while (i < NS + 2) { MSH.push(0); SHM.push(0); MSF.push(0); i = i + 1; }
+  i = 0;
+  while (i < NM) { MOX.push(0); MOZ.push(0); i = i + 1; }
 }
 
 // a corner onto the screen
@@ -131,9 +138,11 @@ function meshSetup() {
   let a1 = 0, b1 = 0, c1 = 0, a2 = 0, b2 = 0, c2 = 0, a3 = 0, b3 = 0, c3 = 0, nx = 0, ny = 0, nz = 0;
   // the vertices, and their shadow points on the floor
   while (i <= NV) {
-    dx = MVX[i] - cmx; dy = MVY[i] - cmy; dz = MVZ[i] - cmz;
+    // (a mesh may be moved across the floor: MOX, MOZ - its shadow moves with it)
+    v1 = MVM[i]; wx = MOX[v1]; wz = MOZ[v1];
+    dx = MVX[i] + wx - cmx; dy = MVY[i] - cmy; dz = MVZ[i] + wz - cmz;
     VA[i] = idiv(dx * rX + dz * rZ, 1024); VB[i] = idiv(dx * uX + dy * uY + dz * uZ, 1024); VC[i] = idiv(dx * fX + dy * fY + dz * fZ, 1024);
-    dx = MSX[i] - cmx; dz = MSZ[i] - cmz;
+    dx = MSX[i] + wx - cmx; dz = MSZ[i] + wz - cmz;
     SVA[i] = idiv(dx * rX + dz * rZ, 1024); SVB[i] = idiv(dx * uX - cmy * uY + dz * uZ, 1024); SVC[i] = idiv(dx * fX - cmy * fY + dz * fZ, 1024);
     i = i + 1;
   }
@@ -152,6 +161,13 @@ function meshSetup() {
     wx = T2X[t]; wy = T2Y[t]; wz = T2Z[t];
     C2X[t] = idiv(wx * rX + wz * rZ, 1024); C2Y[t] = idiv(wx * uX + wy * uY + wz * uZ, 1024); C2Z[t] = idiv(wx * fX + wy * fY + wz * fZ, 1024);
     PN[t] = 0; PN[NT + t] = 0;
+    if (TKR[t] > 0) {
+      // a mirror wants a finer normal than the plane's (x16384, from the triangle's own edges)
+      a2 = VA[v2] - a1; b2 = VB[v2] - b1; c2 = VC[v2] - c1; a3 = VA[v3] - a1; b3 = VB[v3] - b1; c3 = VC[v3] - c1;
+      wx = b2 * c3 - c2 * b3; wy = c2 * a3 - a2 * c3; wz = a2 * b3 - b2 * a3;
+      dx = idiv(Math.sqrt(wx * wx + wy * wy + wz * wz), 1) + 1;
+      TMX[t] = idiv(wx * 16384, dx); TMY[t] = idiv(wy * 16384, dx); TMZ[t] = idiv(wz * 16384, dx);
+    }
     if (TPD[t] < 0) {
       // it faces the camera
       a2 = VA[v2]; b2 = VB[v2]; c2 = VC[v2]; a3 = VA[v3]; b3 = VB[v3]; c3 = VC[v3];
@@ -210,6 +226,7 @@ function meshSetup() {
   let ms = NS + 1, rho = 0, swx = 0, swz = 0, gi0 = 0, gi1 = 0, gj0 = 0, gj1 = 0, gi = 0, gj = 0, gx = 0, mr = 0;
   while (ms <= NS + NM) {
     mr = SRAD[ms];
+    SWX[ms] = MBCX[ms - NS] + MOX[ms - NS]; SWZ[ms] = MBCZ[ms - NS] + MOZ[ms - NS];
     dx = SWX[ms] - cmx; dy = SWY[ms] - cmy; dz = SWZ[ms] - cmz;
     SA[ms] = idiv(dx * rX + dz * rZ, 1024); SB[ms] = idiv(dx * uX + dy * uY + dz * uZ, 1024); SC[ms] = idiv(dx * fX + dy * fY + dz * fZ, 1024);
     // who can shade whom: sphere i shades the mesh if it lies towards the sun inside the tube the mesh casts back

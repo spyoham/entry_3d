@@ -12,7 +12,7 @@ const WS = 1024;
 const FOC = 300;
 const FF = FOC * FOC;
 const BIG = 1000000000000000000;
-const NS = 6;                 // spheres
+const NS = 1;                 // spheres
 const MAXRUN = 40000;         // runs the two stores can hold together
 const RUNH = 20000;           // each store's share
 const PALN = 4096;
@@ -265,12 +265,7 @@ function sceneInit() {
   let n = Math.sqrt(LWX * LWX + LWY * LWY + LWZ * LWZ);
   LWX = Math.round(LWX * 1024 / n); LWY = Math.round(LWY * 1024 / n); LWZ = Math.round(LWZ * 1024 / n);
   //         x     y     z     r     colour          mirror  highlight
-  addSphere(0, 1.5, 0, 1.5, 236, 240, 246, 216, 256);        // 1 chrome
-  addSphere(-2.9, 1, 0.9, 1, 226, 44, 40, 60, 230);          // 2 red
-  addSphere(2.8, 1, -0.5, 1, 40, 90, 232, 76, 230);          // 3 blue
-  addSphere(1.3, 0.7, -2.7, 0.7, 255, 196, 70, 150, 256);    // 4 gold
-  addSphere(-1.5, 0.6, -2.5, 0.6, 60, 190, 90, 0, 90);       // 5 green, matt
-  addSphere(0, 0.45, 0, 0.45, 250, 250, 250, 40, 200);       // 6 white, circling
+  addSphere(0, 1.1, 0, 1.1, 236, 240, 246, 216, 256);        // the one ball: chrome, and it moves (animate)
   if (ABL > 0) { let i = 1; while (i <= NS) { SKR[i] = 0; if (ABL == 1) { SSPC[i] = 0; } i = i + 1; } }
   // the spheres round the meshes, as entries NS + 1 on (for "can a ray get there" and for keeping the camera out)
   let m = 1;
@@ -284,9 +279,12 @@ function sceneInit() {
 
 // the moving parts: t in seconds
 function animate(t) {
-  let a = t * 40;
-  SWX[6] = Math.round(sind(a) * 4.3 * WS);
-  SWZ[6] = Math.round(cosd(a) * 4.3 * WS);
-  SWY[6] = Math.round((0.45 + 1.5 * Math.abs(sind(t * 140))) * WS);
-  SWY[4] = Math.round((0.7 + 0.5 * Math.abs(sind(t * 95 + 40))) * WS);
+  // the ball goes round behind the car, hopping
+  let a = t * 44;
+  SWX[1] = Math.round((-1.5 + sind(a) * 2.4) * WS);
+  SWZ[1] = Math.round((4.5 + cosd(a) * 2.4) * WS);
+  SWY[1] = Math.round((1.1 + 1.3 * Math.abs(sind(t * 120))) * WS);
+  // the top drifts round a small circle, as a spinning top does
+  MOX[3] = Math.round(sind(t * 70) * 0.4 * WS);
+  MOZ[3] = Math.round(cosd(t * 70) * 0.4 * WS);
 }
