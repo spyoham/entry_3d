@@ -146,7 +146,7 @@ export function makeMesh() {
     knight(V, T, 1);
     spinTop(V, T, 2);
     car(V, T, 3);
-    return { V, T, meshes: 4 };
+    return { V, T, meshes: 4, moving: [2] };
 }
 
 // ---- BVH: split where the surface-area cost is least, at most LEAF triangles a leaf, nodes in depth-first order ----
@@ -208,7 +208,7 @@ function buildBVH(tris, verts, meshes) {
 // ---- everything static, as lists ----
 // sun: the direction towards it (x1024), as the scene has it
 export function meshData(sun) {
-    const { V, T, meshes } = makeMesh();
+    const { V, T, meshes, moving } = makeMesh();
     const L = [sun[0] / 1024, sun[1] / 1024, sun[2] / 1024];
     const { order, nodes } = buildBVH(T, V, meshes);
     const tris = order.map(i => T[i]);                  // triangles in leaf order
@@ -245,10 +245,70 @@ export function meshData(sun) {
             return shd === 0 ? 0 : lit === 0 ? 2 : 1;
         });
     })();
+    // TSHP: does the triangle's floor shadow add anything? Largest first; one whose shadow is already
+    // covered by those kept (tried at 45 points) is left out.
+    const shadowNeeded = (() => {
+        const F = tris.map(t => t.v.map(i => [V[i][0] * WS - L[0] * V[i][1] * WS / L[1], V[i][2] * WS - L[2] * V[i][1] * WS / L[1]]));
+        const area = (f) => Math.abs((f[1][0] - f[0][0]) * (f[2][1] - f[0][1]) - (f[1][1] - f[0][1]) * (f[2][0] - f[0][0])) / 2;
+        const inside = (p, f) => {
+            const d1 = (p[0] - f[1][0]) * (f[0][1] - f[1][1]) - (f[0][0] - f[1][0]) * (p[1] - f[1][1]);
+            const d2 = (p[0] - f[2][0]) * (f[1][1] - f[2][1]) - (f[1][0] - f[2][0]) * (p[1] - f[2][1]);
+            const d3 = (p[0] - f[0][0]) * (f[2][1] - f[0][1]) - (f[2][0] - f[0][0]) * (p[1] - f[0][1]);
+            return !((d1 < -1 || d2 < -1 || d3 < -1) && (d1 > 1 || d2 > 1 || d3 > 1));
+        };
+        const need = tris.map(() => 0), kept = [];
+        const order = tris.map((_, i) => i).filter(i => selfShade[i] !== 2 && (() => { const [p0, p1, p2] = tris[i].v.map(k => V[k]); const n = cross(sub(p1, p0), sub(p2, p0)); return dot(n, L) / len(n) > 0.02; })())
+            .sort((a, b) => area(F[b]) - area(F[a]));
+        for (const i of order) {
+            const f = F[i];
+            let open = false;
+            const N = 8;
+            for (let a = 0; a <= N && !open; a++) for (let b = 0; a + b <= N && !open; b++) {
+                const u = a / N, v = b / N, p = [f[0][0] + (f[1][0] - f[0][0]) * u + (f[2][0] - f[0][0]) * v, f[0][1] + (f[1][1] - f[0][1]) * u + (f[2][1] - f[0][1]) * v];
+                if (!kept.some(j => tris[j].mesh === tris[i].mesh && inside(p, F[j]))) open = true;
+            }
+            if (open) { need[i] = 1; kept.push(i); }
+        }
+        return need;
+    })();
+    // A partly shaded triangle is cut into 8 x 8 cells along its two edges, and each cell is tried the
+    // same way: 0 never shaded, 1 always, 2 partly. Only a ray in a "partly" cell goes through the tree.
+    const subMap = [0], subAt = tris.map(() => 0);
+    {
+        const P = tris.map(t => t.v.map(i => [V[i][0] * WS, V[i][1] * WS, V[i][2] * WS]));
+        const hit = (o, skip) => {
+            for (let j = 0; j < P.length; j++) {
+                if (j === skip) continue;
+                const [p0, p1, p2] = P[j], e1 = sub(p1, p0), e2 = sub(p2, p0), pv = cross(L, e2), det = dot(e1, pv);
+                if (Math.abs(det) < 1e-9) continue;
+                const tv = sub(o, p0), u = dot(tv, pv) / det;
+                if (u < 0 || u > 1) continue;
+                const qv = cross(tv, e1), v = dot(L, qv) / det;
+                if (v < 0 || u + v > 1) continue;
+                if (dot(e2, qv) / det > 6) return true;
+            }
+            return false;
+        };
+        tris.forEach((t, i) => {
+            if (selfShade[i] !== 1) return;
+            subAt[i] = subMap.length;
+            const [p0, p1, p2] = P[i];
+            for (let a = 0; a < 8; a++) for (let b = 0; b < 8; b++) {
+                let lit = 0, shd = 0;
+                for (const fa of [0.06, 0.35, 0.65, 0.94]) for (const fb of [0.06, 0.35, 0.65, 0.94]) {
+                    const u = (a + fa) / 8, v = (b + fb) / 8;
+                    if (u + v > 1.02) continue;
+                    const o = [p0[0] + (p1[0] - p0[0]) * u + (p2[0] - p0[0]) * v, p0[1] + (p1[1] - p0[1]) * u + (p2[1] - p0[1]) * v, p0[2] + (p1[2] - p0[2]) * u + (p2[2] - p0[2]) * v];
+                    if (hit(o, i)) shd++; else lit++;
+                }
+                subMap.push(shd === 0 ? 0 : lit === 0 ? 1 : 2);
+            }
+        });
+    }
     const R = (x) => Math.round(x);
     const lists = { MVX: [], MVY: [], MVZ: [], MSX: [], MSZ: [], TV1: [], TV2: [], TV3: [],
         TWX: [], TWY: [], TWZ: [], TWD: [], T1X: [], T1Y: [], T1Z: [], T1D: [], T2X: [], T2Y: [], T2Z: [], T2D: [],
-        TLIT: [], TCL: [], TCS: [], TLR: [], TLG: [], TLB: [], TSR: [], TSG: [], TSB: [], TKR: [], TMESH: [], TSELF: [], MVM: [],
+        TLIT: [], TCL: [], TCS: [], TLR: [], TLG: [], TLB: [], TSR: [], TSG: [], TSB: [], TKR: [], TMESH: [], TSELF: [], TSO: subAt, TSUB: subMap, TSHP: shadowNeeded, MVM: [],
         BFIRST: [], BCNT: [], BRIGHT: [], BSKIP: [], MBCX: [], MBCY: [], MBCZ: [], MBCR: [] };
     const AMB = 74, DIFK = 182;
     const q = (v) => Math.min(15, Math.floor((v + 8) / 16));
@@ -284,6 +344,44 @@ export function meshData(sun) {
         lists.TLR.push(lit[0]); lists.TLG.push(lit[1]); lists.TLB.push(lit[2]);
         lists.TSR.push(shd[0]); lists.TSG.push(shd[1]); lists.TSB.push(shd[2]);
         lists.TKR.push(t.kr); lists.TMESH.push(t.mesh + 1);
+    }
+    // SGR: the floor in quarter tiles (128 x 128 round the middle): 0 no standing mesh shades it, 1 all of
+    // it is shaded, 2 part of it (a shadow ray then). Tried with 16 rays a tile.
+    {
+        const still = tris.map((t, i) => i).filter(i => !moving.includes(tris[i].mesh));
+        const P = tris.map(t => t.v.map(i => [V[i][0] * WS, V[i][1] * WS, V[i][2] * WS]));
+        const G = 128, C = 256, OFF = 16384;
+        const cells = Array.from({ length: G * G }, () => []);
+        for (const i of still) {
+            // where its shadow can fall
+            const sx = P[i].map(p => p[0] - L[0] * p[1] / L[1]), sz = P[i].map(p => p[2] - L[2] * p[1] / L[1]);
+            const x0 = Math.max(0, Math.floor((Math.min(...sx) + OFF) / C)), x1 = Math.min(G - 1, Math.floor((Math.max(...sx) + OFF) / C));
+            const z0 = Math.max(0, Math.floor((Math.min(...sz) + OFF) / C)), z1 = Math.min(G - 1, Math.floor((Math.max(...sz) + OFF) / C));
+            for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) cells[x * G + z].push(i);
+        }
+        const blocked = (o, list) => {
+            for (const j of list) {
+                const [p0, p1, p2] = P[j], e1 = sub(p1, p0), e2 = sub(p2, p0);
+                if (dot(cross(e1, e2), L) >= 0) continue;                 // (as the tree does it: the ray goes in through a face)
+                const pv = cross(L, e2), det = dot(e1, pv);
+                if (Math.abs(det) < 1e-9) continue;
+                const tv = sub(o, p0), u = dot(tv, pv) / det;
+                if (u < 0 || u > 1) continue;
+                const qv = cross(tv, e1), v = dot(L, qv) / det;
+                if (v < 0 || u + v > 1) continue;
+                if (dot(e2, qv) / det > 6) return true;
+            }
+            return false;
+        };
+        lists.SGR = cells.map((list, k) => {
+            if (!list.length) return 0;
+            const x = Math.floor(k / G), z = k % G;
+            let hit = 0;
+            const N = 4;
+            for (let a = 0; a < N; a++) for (let b = 0; b < N; b++) if (blocked([(x + a / (N - 1)) * C - OFF, 0, (z + b / (N - 1)) * C - OFF], list)) hit++;
+            return hit === 0 ? 0 : hit === N * N ? 1 : 2;
+        });
+        lists.MMOV = Array.from({ length: meshes }, (_, m) => (moving.includes(m) ? 1 : 0));
     }
     for (const n of nodes) { lists.BFIRST.push(n.first); lists.BCNT.push(n.cnt); lists.BRIGHT.push(n.right); lists.BSKIP.push(n.skip); }
     // a sphere round each mesh

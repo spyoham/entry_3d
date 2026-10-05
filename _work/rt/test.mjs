@@ -155,7 +155,8 @@ export function reference(s) {
                     const ar = rx * rx + ry * ry + rz * rz;
                     let c2;
                     const [j, t2] = hitSphere(px, py, pz, rx, ry, rz, -1);
-                    const [tj, t3m] = hitTri(px, py, pz, rx, ry, rz, 24 / 4096, TMESH[ti]);     // (a mesh does not show in its own mirror)
+                    // (a mesh does not show in its own mirror, and a faint mirror shows no mesh at all)
+                    const [tj, t3m] = kq < 100 ? [-1, Infinity] : hitTri(px, py, pz, rx, ry, rz, 24 / 4096, TMESH[ti]);
                     if (tj >= 0 && t3m < t2) { const C = TLIT[tj] === 1 ? TLc : TSc; c2 = [C[0][tj], C[1][tj], C[2][tj]]; }
                     else if (j >= 0) {
                         const S2 = sph[j];
@@ -280,7 +281,7 @@ if (process.argv[1] && import.meta.url === url.pathToFileURL(path.resolve(proces
         for (let pi = 0; pi < poses.length; pi++) {
             const [x, y, z, yw, pt] = poses[pi];
             s.poke('camX', Math.round(x * 1024)); s.poke('camY', Math.round(y * 1024)); s.poke('camZ', Math.round(z * 1024)); s.poke('yaw', yw); s.poke('pitch', pt);
-            s.poke('stride', st); s.poke('bisGap', gap);
+            s.poke('stride', st); s.poke('bisGap', gap); if (st === 1) s.poke('facetOnce', 2);
             s.time = 0.37 * (pi + 1) * 7;
             s.frame(0);
             const ref = reference(s);

@@ -195,12 +195,13 @@ function M_span(i_) {
   if (xr > 960) { xr = 960; }
   if (xr > xl) {
     nsp = nsp + 1;
+    sk = ((xl + 960) * 2048 + xr + 960) * 1024 + i_;
     sj = nsp;
     while (sj > 1) {
-      if (SPX0[sj - 1] > xl) { SPX0[sj] = SPX0[sj - 1]; SPX1[sj] = SPX1[sj - 1]; SPI[sj] = SPI[sj - 1]; sj = sj - 1; }
+      if (SPK[sj - 1] > sk) { SPK[sj] = SPK[sj - 1]; sj = sj - 1; }
       else { break; }
     }
-    SPX0[sj] = xl; SPX1[sj] = xr; SPI[sj] = i_;
+    SPK[sj] = sk;
   }
 }
 
@@ -211,6 +212,21 @@ function M_pspan(p_) {
   pb4 = (p_ - 1) * 4; pn = PN[p_];
   xl = BIG; xr = 0 - BIG;
   ej = 1;
+  if (pn == 3) {
+    // a triangle, corners lowest first: the long edge, and the short edge on this row's side of the middle corner
+    ej = 4;
+    ey0 = PY[pb4 + 1]; ey1 = PY[pb4 + 3];
+    if (v16 >= ey0) {
+      if (v16 < ey1) {
+        ex0 = PX[pb4 + 1];
+        exx = ex0 + idiv((v16 - ey0) * (PX[pb4 + 3] - ex0), ey1 - ey0);
+        ek = PY[pb4 + 2];
+        if (v16 >= ek) { ex0 = PX[pb4 + 2]; ek = ex0 + idiv((v16 - ek) * (PX[pb4 + 3] - ex0), ey1 - ek); }
+        else { ek = ex0 + idiv((v16 - ey0) * (PX[pb4 + 2] - ex0), ek - ey0); }
+        if (exx < ek) { xl = exx; xr = ek; } else { xl = ek; xr = exx; }
+      }
+    }
+  }
   while (ej <= pn) {
     ek = ej + 1;
     if (ek > pn) { ek = 1; }
@@ -236,12 +252,13 @@ function M_tspan(t_) {
   if (xr > xl) {
     TG[t_] = TNY[t_] * v + TNZ[t_] * FOC;
     nsp = nsp + 1;
+    sk = ((xl + 960) * 2048 + xr + 960) * 1024 + NS + t_;
     sj = nsp;
     while (sj > 1) {
-      if (SPX0[sj - 1] > xl) { SPX0[sj] = SPX0[sj - 1]; SPX1[sj] = SPX1[sj - 1]; SPI[sj] = SPI[sj - 1]; sj = sj - 1; }
+      if (SPK[sj - 1] > sk) { SPK[sj] = SPK[sj - 1]; sj = sj - 1; }
       else { break; }
     }
-    SPX0[sj] = xl; SPX1[sj] = xr; SPI[sj] = NS + t_;
+    SPK[sj] = sk;
   }
 }
 // the floor shadow polygon p_ in this row, into the row's shadow intervals
@@ -395,7 +412,7 @@ function M_flsh(j_) {
 // ---- one ray through (u, v): its colour scol and what it met, ssig ----
 function M_sample() {
   A = u * u + A0;
-  if (na > 1) {
+  if (npk > 1) {
     // several things cover this stretch: the nearest hit wins (ray lengths x4096)
     best = 0; bt = BIG; alt = 0; ad = 0 - BIG;
     jj = 1;
@@ -446,7 +463,22 @@ function M_sample() {
       }
       // a mesh shades itself and the other: a shadow ray through the tree - but only for a triangle
       // that the build found partly shaded (one never shaded needs none, one always shaded is not lit)
-      if (lit == 1) { if (TSELF[tt] == 1) { bvhHit(px, py, pz, lx, ly, lz, 1, 0); if (bvTri > 0) { lit = 0; } } }
+      // such a triangle carries a map of itself, 8 x 8 cells along its two edges, each never / always /
+      // partly shaded: the shadow ray is for the last kind only
+      if (lit == 1) {
+        if (TSELF[tt] == 1) {
+          wx = px - TOA[tt]; wy = py - TOB[tt]; wz = pz - TOC[tt];
+          gi = idiv(C1X[tt] * wx + C1Y[tt] * wy + C1Z[tt] * wz, 524288);
+          gj = idiv(C2X[tt] * wx + C2Y[tt] * wy + C2Z[tt] * wz, 524288);
+          if (gi < 0) { gi = 0; }
+          if (gi > 7) { gi = 7; }
+          if (gj < 0) { gj = 0; }
+          if (gj > 7) { gj = 7; }
+          g = TSUB[TSO[tt] + gi * 8 + gj + 1];
+          if (g == 1) { lit = 0; }
+          if (g == 2) { bvhHit(px, py, pz, lx, ly, lz, 1, 0); if (bvTri > 0) { lit = 0; } }
+        }
+      }
       if (lit == 1) { scol = TCL[tt]; } else { ssig = sid + 512; }
     }
     kq = TKR[tt];
@@ -456,11 +488,24 @@ function M_sample() {
       nx = TMX[tt]; ny = TMY[tt]; nz = TMZ[tt];
       dn = u * nx + v * ny + FOC * nz;
       rx = 2 * u - idiv(dn * nx, 67108864); ry = 2 * v - idiv(dn * ny, 67108864); rz = 2 * FOC - idiv(dn * nz, 67108864);
-      triMirror(px, py, pz, rx, ry, rz, TMESH[tt]);
+      // (a triangle only a few pixels across shows one mirror colour all over: its first ray's - on
+      // the levels that trace every other pixel or fewer; the finest level traces each ray)
+      g = 0;
+      if (TSML[tt] == fcs) {
+        if (TMS[tt] == rst) { mcr = TMCR[tt]; mcg = TMCG[tt]; mcb = TMCB[tt]; g = 1; }
+        else { g = 2; }
+      }
+      if (g != 1) {
+        mo = TMESH[tt];
+        if (kq < 100) { mo = 0; }
+        triMirror(px, py, pz, rx, ry, rz, mo);
+        mcr = mR; mcg = mG; mcb = mB;
+        if (g == 2) { TMS[tt] = rst; TMCR[tt] = mcr; TMCG[tt] = mcg; TMCB[tt] = mcb; }
+      }
       if (lit == 1) { c2r = TLR[tt]; c2g = TLG[tt]; c2b = TLB[tt]; } else { c2r = TSR[tt]; c2g = TSG[tt]; c2b = TSB[tt]; }
-      qr = idiv((c2r * (256 - kq) + mR * kq) * 256 + 524288, 1048576); if (qr > 15) { qr = 15; }
-      qg = idiv((c2g * (256 - kq) + mG * kq) * 256 + 524288, 1048576); if (qg > 15) { qg = 15; }
-      qb = idiv((c2b * (256 - kq) + mB * kq) * 256 + 524288, 1048576); if (qb > 15) { qb = 15; }
+      qr = idiv((c2r * (256 - kq) + mcr * kq) * 256 + 524288, 1048576); if (qr > 15) { qr = 15; }
+      qg = idiv((c2g * (256 - kq) + mcg * kq) * 256 + 524288, 1048576); if (qg > 15) { qg = 15; }
+      qb = idiv((c2b * (256 - kq) + mcb * kq) * 256 + 524288, 1048576); if (qb > 15) { qb = 15; }
       scol = qr * 256 + qg * 16 + qb + 1;
     }
   } else {
@@ -622,6 +667,12 @@ function M_env() {
               g = GRID[gi * GN + gj + 1];
               if (g > 0) { M_flsh(g); }
               if (g < 0) { floorShade(g, fx, fy, fz); fsh = fShade; }
+              // the meshes that stand still: a quarter-tile map made at build time says "never", "always" or "partly"
+              if (fsh == 0) {
+                g = SGR[idiv(wxx + GOFF, 256) * 128 + idiv(wzz + GOFF, 256) + 1];
+                if (g == 1) { fsh = 1; }
+                if (g == 2) { floorShade(-2, fx, fy, fz); fsh = fShade; }
+              }
             } } } }
             fi = kf2 * 4 + fpar * 2 + fsh + 1;
             if (rsig == 1) { ssig = ssig + 2 + fpar + fsh * 2; }
@@ -642,6 +693,7 @@ function M_env() {
 }
 
 // ---- the mirror ray of a triangle of mesh own: from p along r. Out: mR, mG, mB ----
+// own = 0: a faint mirror, which shows no mesh at all (floor, sky and the ball only).
 // A mesh does not show in its own mirror (a ray that starts on a mesh is inside most of its boxes, and
 // walking them for every ray cost more than the whole rest of the picture); other meshes do, when the
 // ray meets the sphere round one.
@@ -656,6 +708,7 @@ function triMirror(px, py, pz, rx, ry, rz, own) {
   while (jj <= NS) { M_rtest(); jj = jj + 1; }
   if (hit > 0) { t2 = idiv(tb * 4096, ar); }
   let mh = 0, kk = NS + 1;
+  if (own == 0) { kk = NS + NM + 1; }
   while (kk <= NS + NM) {
     if (kk - NS != own) {
       wx = SA[kk] - px; wy = SB[kk] - py; wz = SC[kk] - pz;
@@ -688,12 +741,14 @@ function triMirror(px, py, pz, rx, ry, rz, own) {
   mR = c2r; mG = c2g; mB = c2b;
 }
 
-// ---- the spans SPI[j0..j1] from cs to ce: rays every `stride` pixels, more where they disagree ----
-function traceCluster(cs, ce, j0, j1) {
+// ---- one row: background, then each run of overlapping spans (rays every `stride` pixels, more where
+// they disagree), then background ... ----
+// (one call a row, not one a run of spans: entering this function costs as much as a dozen rays)
+function traceRow(nsp) {
   let lx = gLx, ly = gLy, lz = gLz, LL = gLL;
   let ux = gUx, uy = gUy, uz = gUz, fx_ = gFx, fy_ = gFy, fz_ = gFz, rx_ = gRx, rz_ = gRz;
   let cmx = camX, cmy = camY, cmz = camZ;
-  let strd = stride, fk = flatK, bgap = bisGap, nms = nmsh, flat = 0, rst = rStamp, wkm = weakMirror;
+  let strd = stride, fk = flatK, bgap = bisGap, nms = nmsh, flat = 0, rst = rStamp, wkm = weakMirror, fcs = facetOnce, wks = weakStride;
   let v = rV, A0 = rA0, dth = 8, yrow = rYrow;
   // rows are traced in pairs: a key row keeps what its rays on the stride grid found; the row between two
   // key rows takes a grid point from them where both met the same things, and traces only the rest
@@ -702,28 +757,92 @@ function traceCluster(cs, ce, j0, j1) {
   let cwk = mod(idiv(rK, 2), 2) * CW, cwa = mod(idiv(rK - 1, 2), 2) * CW;
   let cwb = CW - cwa;
   let pc = rPc, px0 = rPx0, nr = nrun, nu = nused, nsm = 0, hb = sBase, nrMax = sRunMax;
-  let x = cs, xb = 0, na = 0, e0 = 0, e1 = 0, jj = 0, ii = 0, cur = 0;
+  let x = 0, xb = 0, na = 0, e0 = 0, e1 = 0, jj = 0, ii = 0, cur = 0, jn = 0, go = 0;
+  let xx = -960, j = 1, j0 = 0, j1 = 0, cs = 0, ce = 0, more = 0;
   let u = 0, u0 = 0, u1 = 0, first = 1, mode = 0, run = 1, adv = 0;
   let c0 = 0, s0 = 0, ulo = 0, uhi = 0, chi = 0, shi = 0, sgx = 0, se = 0, ue = 0;
-  while (x < ce) {
-    // the spans that cover x, and where that set next changes: an outline is an exact edge
-    xb = ce; na = 0;
-    jj = j0;
-    while (jj <= j1) {
-      e0 = SPX0[jj];
-      if (e0 > x) { if (e0 < xb) { xb = e0; } }
-      else {
-        e1 = SPX1[jj];
-        if (e1 > x) { na = na + 1; ACT[na] = SPI[jj]; if (e1 < xb) { xb = e1; } }
+  while (j <= nsp + 1) {
+    // the next run of spans that overlap: SPI[j0..j1], from cs to ce
+    if (j <= nsp) {
+      cs = SPX0[j]; ce = SPX1[j]; j0 = j; j = j + 1;
+      more = 1;
+      while (more == 1) {
+        more = 0;
+        if (j <= nsp) { if (SPX0[j] < ce) { if (SPX1[j] > ce) { ce = SPX1[j]; } j = j + 1; more = 1; } }
       }
-      jj = jj + 1;
+      j1 = j - 1;
+    } else { cs = 960; ce = 960; j = j + 1; }
+    if (cs > xx) {
+      rPc = pc; rPx0 = px0; nrun = nr; nused = nu;
+      bgSeg(xx, cs);
+      pc = rPc; px0 = rPx0; nr = nrun; nu = nused;
     }
+    xx = ce;
+    x = cs; jn = j0; na = 0;
+  while (x < ce) {
+    // the spans over x, and where that set next changes (an outline is an exact edge): spans that
+    // start here join the list, spans that have ended leave it
+    go = 1;
+    while (go == 1) {
+      go = 0;
+      if (jn <= j1) {
+        if (SPX0[jn] <= x) {
+          e1 = SPX1[jn];
+          if (e1 > x) { na = na + 1; ACT[na] = SPI[jn]; ACE[na] = e1; }
+          jn = jn + 1; go = 1;
+        }
+      }
+    }
+    xb = ce;
+    if (jn <= j1) { if (SPX0[jn] < xb) { xb = SPX0[jn]; } }
+    jj = 1;
+    while (jj <= na) {
+      e1 = ACE[jj];
+      if (e1 <= x) { ACT[jj] = ACT[na]; ACE[jj] = ACE[na]; na = na - 1; }
+      else { if (e1 < xb) { xb = e1; } jj = jj + 1; }
+    }
+    // one thing over the stretch - or only triangles: meshes do not cut through each other, so the one
+    // nearest in the middle of the stretch is the nearest all along it
+    solo = 0;
+    if (na == 1) { solo = ACT[1]; }
+    else {
+      um = idiv(x + xb, 8); bt = BIG; jj = 1;
+      while (jj <= na) {
+        ii = ACT[jj];
+        if (ii > NS) {
+          b2 = TNX[ii - NS] * um + TG[ii - NS];
+          if (b2 < 0) {
+            t2 = idiv(TPD[ii - NS] * 4096, b2);
+            if (t2 < bt) { bt = t2; solo = ii; }
+          }
+          jj = jj + 1;
+        } else { solo = 0; bt = -1; jj = na + 1; }
+      }
+      if (bt < 0) { solo = 0; }
+    }
+    npk = na;
+    if (solo > 0) { npk = 1; }
     flat = 0;
-    if (na == 1) {
-      ii = ACT[1];
+    if (solo > 0) {
+      ii = solo;
       if (ii > NS) {
         cur = ii; sid = ii * 1024;
-        if (TLIT[ii - NS] == 0) { if (TKR[ii - NS] == 0) { flat = 1; sgx = x; scol = TCS[ii - NS]; M_seg(sgx, scol); } }
+        // a triangle alone over the stretch. Can its colour change along it? Not if nothing can shade it
+        // there (out of the sun, or: never shaded by a mesh and no ball near its mesh), and it is no
+        // mirror (then no ray at all) or a small mirror traced once a picture (then one ray)
+        tt = ii - NS;
+        flat = 2;
+        if (TLIT[tt] == 1) {
+          if (TSELF[tt] == 1) { flat = 0; }
+          if (MSHM[TMESH[tt]] == 1) { flat = 0; }
+        }
+        if (flat == 2) {
+          if (TKR[tt] == 0) {
+            flat = 1; sgx = x;
+            if (TLIT[tt] == 1) { scol = TCL[tt]; } else { scol = TCS[tt]; }
+            M_seg(sgx, scol);
+          } else { if (TSML[tt] != fcs) { flat = 0; } }
+        }
       } else {
         if (ii != cur) { M_load(ii); cur = ii; }
       }
@@ -733,10 +852,16 @@ function traceCluster(cs, ce, j0, j1) {
     // rays go on a grid of whole strides (a narrow stretch gets a finer one); the first and the last
     // ray's colours reach out to the stretch's exact edges
     se = strd;
-    if (u1 - u0 < strd * 4) { se = 2; }
+    if (cur <= NS) { if (u1 - u0 < strd * 4) { se = 2; } }
+    else {
+      // a triangle that is no strong mirror: its faint reflection (or its shadow, whose edge is searched
+      // for anyway) does with rays further apart on the coarser levels
+      if (TKR[cur - NS] < 100) { se = strd * wks; }
+    }
     u = 0 - idiv(0 - u0, se) * se; ong = 1;
     ue = idiv(u1, se) * se;
     if (u > u1) { u = idiv(x + xb, 8); ue = u; ong = 0; }
+    if (flat == 2) { u = idiv(x + xb, 8); ue = u; ong = 0; }
     first = 1; mode = 0; run = 1;
     if (na == 0) { run = 0; }
     if (flat == 1) { run = 0; }
@@ -787,6 +912,7 @@ function traceCluster(cs, ce, j0, j1) {
       }
     }
     x = xb;
+  }
   }
   rPc = pc; rPx0 = px0; nrun = nr; nused = nu; nsamp = nsamp + nsm;
 }
@@ -887,10 +1013,13 @@ function rowPrep() {
       }
       v16 = v * 16;
       i = 1;
-      while (i <= nvs) {
-        tt = VS[i];
-        if (k >= PK0[tt]) { if (k <= PK1[tt]) { M_tshspan(tt); } }
-        i = i + 1;
+      while (i <= nash) {
+        tt = ASH[i];
+        if (PK1[tt] < rFr - 1) { ASH[i] = ASH[nash]; nash = nash - 1; }
+        else {
+          if (k >= PK0[tt]) { if (k <= PK1[tt]) { M_tshspan(tt); } }
+          i = i + 1;
+        }
       }
     }
     cend = 0 - BIG;
@@ -940,7 +1069,8 @@ function rowPrep() {
 function renderRows() {
   let uy = gUy, fy_ = gFy;
   let rh = rowH, nrw = nrow, vtop = v0;
-  let k = 0, v = 0, A0 = 0, i = 0, nsp = 0, si = 1, nvt_ = nvt, tt = 0, v16 = 0;
+  let k = 0, v = 0, A0 = 0, i = 0, nsp = 0, si = 1, tt = 0, v16 = 0, fr = -1, nfa = 0;
+  nash = 0;
   let x = 0, j = 0, j0 = 0, j1 = 0, cs = 0, ce = 0, more = 0;
   let pc = 0, px0 = 0, nr = 0, nu = 0, yrow = 0, hd = 0, hb = sBase, nrMax = sRunMax;
   nrun = sRun0; nused = sBase; nsamp = 0;
@@ -957,30 +1087,48 @@ function renderRows() {
       i = i + 1;
     }
     v16 = v * 16;
+    // take up the polygons that start in the rows reached so far (rows come nearly in order: k, then k - 1)
+    while (fr < k) {
+      fr = fr + 1;
+      tt = BKF[fr + 1];
+      // (kept in order of their left ends, so a row's spans come out nearly sorted)
+      while (tt > 0) {
+        nfa = nfa + 1;
+        sj = nfa; sk = PXL[tt];
+        while (sj > 1) {
+          if (PXL[AFC[sj - 1]] > sk) { AFC[sj] = AFC[sj - 1]; sj = sj - 1; }
+          else { break; }
+        }
+        AFC[sj] = tt;
+        tt = PNX[tt];
+      }
+      tt = BKS[fr + 1];
+      while (tt > 0) { nash = nash + 1; ASH[nash] = tt; tt = PNX[tt]; }
+    }
+    rFr = fr;
+    i = 1; wi = 0;
+    while (i <= nfa) {
+      tt = AFC[i];
+      if (PK1[tt] >= fr - 1) {
+        wi = wi + 1;
+        if (wi < i) { AFC[wi] = tt; }
+        if (k >= PK0[tt]) { if (k <= PK1[tt]) { M_tspan(tt); } }
+      }
+      i = i + 1;
+    }
+    nfa = wi;
     i = 1;
-    while (i <= nvt_) {
-      tt = VT[i];
-      if (k >= PK0[tt]) { if (k <= PK1[tt]) { M_tspan(tt); } }
+    while (i <= nsp) {
+      sk = SPK[i];
+      SPI[i] = mod(sk, 1024);
+      sk = idiv(sk, 1024);
+      SPX1[i] = mod(sk, 2048) - 960; SPX0[i] = idiv(sk, 2048) - 960;
       i = i + 1;
     }
     rowPrep();
     // ---- along the row: background, spans, background ...
-    rPc = 0; rPx0 = -960; x = -960;
-    j = 1;
-    while (j <= nsp + 1) {
-      if (j <= nsp) {
-        cs = SPX0[j]; ce = SPX1[j]; j0 = j; j = j + 1;
-        more = 1;
-        while (more == 1) {
-          more = 0;
-          if (j <= nsp) { if (SPX0[j] < ce) { if (SPX1[j] > ce) { ce = SPX1[j]; } j = j + 1; more = 1; } }
-        }
-        j1 = j - 1;
-      } else { cs = 960; ce = 960; j = j + 1; }
-      if (cs > x) { bgSeg(x, cs); }
-      if (ce > cs) { traceCluster(cs, ce, j0, j1); }
-      x = ce;
-    }
+    rPc = 0; rPx0 = -960;
+    traceRow(nsp);
     pc = rPc; px0 = rPx0;
     if (px0 < 960) { nr = nrun; nu = nused; yrow = rYrow; M_push(pc, px0, 960); nrun = nr; nused = nu; }
     si = si + 1;

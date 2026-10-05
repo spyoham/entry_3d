@@ -37,7 +37,10 @@ let kLatch = 0, tPrev = 0;
 function setQuality(q) {
   qLevel = q; qChanged = 1;
   rowH = 1; stride = 2; bisGap = 2; ilace = 0;
-  if (q == 1) { bisGap = 1; }
+  facetOnce = 1; weakStride = 3;
+  if (q == 1) { bisGap = 1; facetOnce = 2; weakStride = 1; }
+  if (q == 2) { weakStride = 1; }
+  if (q == 3) { weakStride = 2; }
   if (q == 2) { stride = 4; }
   if (q == 3) { rowH = 2; stride = 3; ilace = 1; }
   if (q == 4) { rowH = 2; stride = 5; ilace = 1; }
@@ -212,7 +215,8 @@ function drawStep(t) {
   else { if (still == 0) { animate(tAnim); } else { if (field == 1) { animate(tAnim); } } }
   sBase = field * PALN; sRun0 = field * RUNH; sRunMax = sRun0 + RUNH;
   camSetup();
-  meshSetup();
+  // (a camera at rest: the standing meshes are where they were)
+  if (still == 0) { meshSetup(1); } else { meshSetup(0); }
   mapBuild();
   renderRows();
   if (field == 0) {

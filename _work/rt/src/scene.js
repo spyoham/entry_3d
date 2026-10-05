@@ -50,6 +50,8 @@ let nrun = 0, nused = 0, nsamp = 0, frames = 0, flatK = 63, rStamp = 8;
 let sBase = 0, sRun0 = 0, sRunMax = RUNH;
 // what mirrorCell and floorShade hand back
 let mCell = 0, fShade = 0, mR = 0, mG = 0, mB = 0;
+// 1: a small mirror triangle is traced once a picture; 2: never (TSML is 0 or 1, so 2 matches none)
+let facetOnce = 1, weakStride = 1;
 // 1: a faint mirror (below SIGKR) shows only floor and sky; 0: every mirror shows everything
 let weakMirror = WEAK;
 
@@ -123,6 +125,8 @@ let ngt = 0;
 let SPX0 = [];       // spans of the row, sorted by left edge
 let SPX1 = [];
 let SPI = [];
+let SPK = [];        // the same, packed for sorting
+let ACE = [];        // where each thing over the stretch ends
 let SHX0 = [];       // floor shadow intervals of the row
 let SHX1 = [];
 let BGX = [];        // background changes: at X the value becomes BGV
@@ -143,7 +147,7 @@ function fillList0() {
   i = 0;
   while (i < PALN * 2) { HEAD.push(0); USED.push(0); i = i + 1; }
   i = 0;
-  while (i < NS + NT + 3) { SPX0.push(0); SPX1.push(0); SPI.push(0); SHX0.push(0); SHX1.push(0); ACT.push(0); i = i + 1; }
+  while (i < NS + NT + 3) { SPX0.push(0); SPX1.push(0); SPI.push(0); SHX0.push(0); SHX1.push(0); ACT.push(0); ACE.push(0); SPK.push(0); i = i + 1; }
   i = 0;
   while (i < NS + NM + 1) {
     SA.push(0); SB.push(0); SC.push(0); SK.push(0); SQ.push(0); SR2.push(0); SRK.push(0);

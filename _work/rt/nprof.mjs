@@ -25,7 +25,7 @@ console.log('self:'); for (const [k, t] of [...self].sort((a, b) => b[1] - a[1])
 
 // hot lines of the biggest function (own code only; helpers it calls are in `self` above)
 const src = fs.readFileSync('prog_node.js', 'utf8').split(String.fromCharCode(10));
-const top = [...incl].filter(([k]) => k !== 'other').sort((a, b) => b[1] - a[1])[0][0];
+const top = process.env.FN ? [...incl].filter(([k]) => k !== 'other').sort((a, b) => b[1] - a[1])[Number(process.env.FN)][0] : [...incl].filter(([k]) => k !== 'other').sort((a, b) => b[1] - a[1])[0][0];
 const selfLines = new Map();
 for (const n of p.nodes) if (n.callFrame.functionName === 'F.<computed>' && n.callFrame.lineNumber === top && n.positionTicks) for (const q of n.positionTicks) selfLines.set(q.line, (selfLines.get(q.line) || 0) + q.ticks);
 const total = [...selfLines.values()].reduce((a, b) => a + b, 0);

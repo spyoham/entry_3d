@@ -36,6 +36,11 @@ let C1Z = [];
 let C2X = [];
 let C2Y = [];
 let C2Z = [];
+let TSML = [];       // is the triangle small on the screen this frame?
+let TMS = [];        // a small mirror triangle's colour in the mirror, and the frame it is of
+let TMCR = [];
+let TMCG = [];
+let TMCB = [];
 let TMX = [];        // a mirror triangle's normal, x16384
 let TMY = [];
 let TMZ = [];
@@ -51,11 +56,17 @@ let PX = [];
 let PY = [];
 let PK0 = [];        // rows a polygon can be in
 let PK1 = [];
-let VT = [];         // faces on screen this frame
-let VS = [];         // floor shadows on screen this frame
+let PXL = [];        // a polygon's left end on the screen
+let PNX = [];        // the next polygon that starts in the same row
+let BKF = [];        // per row: the first face that starts there (0 = none)
+let BKS = [];        //          the first floor shadow
+let AFC = [];        // the faces the rows being drawn can meet
+let ASH = [];        // the floor shadows
+let nash = 0, rFr = 0;
 let MSH = [];        // spheres that can shade the structure
 let SHM = [];        // can a mesh shade sphere i?
 let MSF = [];
+let MSHM = [];       // can a ball shade mesh m this frame?
 let MOX = [];        // how far each mesh is moved from where it was built
 let MOZ = [];
 let nvt = 0, nvs = 0, nmsh = 0, bvT = 0, bvTri = 0, bvCalls = 0;
@@ -66,18 +77,19 @@ function meshInit() {
   i = 0;
   while (i < NT + 1) {
     TNX.push(0); TNY.push(0); TNZ.push(0); TPD.push(0); TOA.push(0); TOB.push(0); TOC.push(0);
-    C1X.push(0); C1Y.push(0); C1Z.push(0); C2X.push(0); C2Y.push(0); C2Z.push(0); TG.push(0); TMX.push(0); TMY.push(0); TMZ.push(0);
-    VT.push(0); VS.push(0);
+    C1X.push(0); C1Y.push(0); C1Z.push(0); C2X.push(0); C2Y.push(0); C2Z.push(0); TG.push(0); TMX.push(0); TMY.push(0); TMZ.push(0); TSML.push(0); TMS.push(0); TMCR.push(0); TMCG.push(0); TMCB.push(0);
     i = i + 1;
   }
   i = 0;
   while (i < BN + 1) { BLX.push(0); BLY.push(0); BLZ.push(0); BHX.push(0); BHY.push(0); BHZ.push(0); i = i + 1; }
   i = 0;
-  while (i < NPOLY + 1) { PN.push(0); PK0.push(0); PK1.push(0); PX.push(0); PX.push(0); PX.push(0); PX.push(0); PY.push(0); PY.push(0); PY.push(0); PY.push(0); i = i + 1; }
+  while (i < 274) { BKF.push(0); BKS.push(0); i = i + 1; }
+  i = 0;
+  while (i < NPOLY + 1) { PXL.push(0); PNX.push(0); AFC.push(0); ASH.push(0); PN.push(0); PK0.push(0); PK1.push(0); PX.push(0); PX.push(0); PX.push(0); PX.push(0); PY.push(0); PY.push(0); PY.push(0); PY.push(0); i = i + 1; }
   i = 0;
   while (i < NS + 2) { MSH.push(0); SHM.push(0); MSF.push(0); i = i + 1; }
   i = 0;
-  while (i < NM) { MOX.push(0); MOZ.push(0); i = i + 1; }
+  while (i < NM) { MOX.push(0); MOZ.push(0); MSHM.push(0); i = i + 1; }
 }
 
 // a corner onto the screen
@@ -117,20 +129,33 @@ function M_poly(p_) {
       if (xx > xhi) { xhi = xx; }
       j = j + 1;
     }
-    k0 = 0 - idiv(yhi - v16, rh16);
-    k1 = idiv(v16 - ylo, rh16);
+    k0 = 0 - idiv(yhi - v16, rh16) - 1;
+    k1 = idiv(v16 - ylo, rh16) + 1;
     if (k0 < 0) { k0 = 0; }
     if (k1 > nrw - 1) { k1 = nrw - 1; }
     if (k0 > k1) { pn = 0; }
     if (xhi < -960) { pn = 0; }
     if (xlo > 960) { pn = 0; }
     PK0[p_] = k0; PK1[p_] = k1;
+    psz = xhi - xlo; PXL[p_] = xlo;
+    if (pn == 3) {
+      // a whole triangle (nearly all are): its corners in order of height, lowest first, so a row finds
+      // its two edges without looking for them
+      yy = PY[pb4 + 1]; xx = PX[pb4 + 1]; ylo = PY[pb4 + 2]; xlo = PX[pb4 + 2]; yhi = PY[pb4 + 3]; xhi = PX[pb4 + 3];
+      if (ylo < yy) { j = yy; yy = ylo; ylo = j; j = xx; xx = xlo; xlo = j; }
+      if (yhi < ylo) {
+        j = ylo; ylo = yhi; yhi = j; j = xlo; xlo = xhi; xhi = j;
+        if (ylo < yy) { j = yy; yy = ylo; ylo = j; j = xx; xx = xlo; xlo = j; }
+      }
+      PY[pb4 + 1] = yy; PX[pb4 + 1] = xx; PY[pb4 + 2] = ylo; PX[pb4 + 2] = xlo; PY[pb4 + 3] = yhi; PX[pb4 + 3] = xhi;
+    }
   } else { pn = 0; }
   PN[p_] = pn;
 }
 
-// per frame
-function meshSetup() {
+// per frame. full = 0: the camera has not moved since the last call, so a mesh that stands still is
+// where it was on the screen - only its polygons are filed under their rows again
+function meshSetup(full) {
   let rX = gRx, rZ = gRz, uX = gUx, uY = gUy, uZ = gUz, fX = gFx, fY = gFy, fZ = gFz;
   let cmx = camX, cmy = camY, cmz = camZ;
   let nrw = nrow, v16 = v0 * 16, rh16 = rowH * 16;
@@ -139,16 +164,32 @@ function meshSetup() {
   // the vertices, and their shadow points on the floor
   while (i <= NV) {
     // (a mesh may be moved across the floor: MOX, MOZ - its shadow moves with it)
-    v1 = MVM[i]; wx = MOX[v1]; wz = MOZ[v1];
-    dx = MVX[i] + wx - cmx; dy = MVY[i] - cmy; dz = MVZ[i] + wz - cmz;
-    VA[i] = idiv(dx * rX + dz * rZ, 1024); VB[i] = idiv(dx * uX + dy * uY + dz * uZ, 1024); VC[i] = idiv(dx * fX + dy * fY + dz * fZ, 1024);
-    dx = MSX[i] + wx - cmx; dz = MSZ[i] + wz - cmz;
-    SVA[i] = idiv(dx * rX + dz * rZ, 1024); SVB[i] = idiv(dx * uX - cmy * uY + dz * uZ, 1024); SVC[i] = idiv(dx * fX - cmy * fY + dz * fZ, 1024);
+    v1 = MVM[i];
+    skp = 0;
+    if (full == 0) { if (MMOV[v1] == 0) { skp = 1; } }
+    if (skp == 0) {
+      wx = MOX[v1]; wz = MOZ[v1];
+      dx = MVX[i] + wx - cmx; dy = MVY[i] - cmy; dz = MVZ[i] + wz - cmz;
+      VA[i] = idiv(dx * rX + dz * rZ, 1024); VB[i] = idiv(dx * uX + dy * uY + dz * uZ, 1024); VC[i] = idiv(dx * fX + dy * fY + dz * fZ, 1024);
+      dx = MSX[i] + wx - cmx; dz = MSZ[i] + wz - cmz;
+      SVA[i] = idiv(dx * rX + dz * rZ, 1024); SVB[i] = idiv(dx * uX - cmy * uY + dz * uZ, 1024); SVC[i] = idiv(dx * fX - cmy * fY + dz * fZ, 1024);
+    }
     i = i + 1;
   }
   nvt = 0; nvs = 0;
+  i = 1;
+  while (i <= nrw + 1) { BKF[i] = 0; BKS[i] = 0; i = i + 1; }
   t = 1;
   while (t <= NT) {
+    skp = 0;
+    if (full == 0) {
+      if (MMOV[TMESH[t]] == 0) {
+        skp = 1;
+        if (PN[t] > 0) { nvt = nvt + 1; k0 = PK0[t]; PNX[t] = BKF[k0 + 1]; BKF[k0 + 1] = t; }
+        if (PN[NT + t] > 0) { nvs = nvs + 1; k0 = PK0[NT + t]; PNX[NT + t] = BKS[k0 + 1]; BKS[k0 + 1] = NT + t; }
+      }
+    }
+    if (skp == 0) {
     v1 = TV1[t]; v2 = TV2[t]; v3 = TV3[t];
     wx = TWX[t]; wy = TWY[t]; wz = TWZ[t];
     nx = idiv(wx * rX + wz * rZ, 1024); ny = idiv(wx * uX + wy * uY + wz * uZ, 1024); nz = idiv(wx * fX + wy * fY + wz * fZ, 1024);
@@ -161,24 +202,32 @@ function meshSetup() {
     wx = T2X[t]; wy = T2Y[t]; wz = T2Z[t];
     C2X[t] = idiv(wx * rX + wz * rZ, 1024); C2Y[t] = idiv(wx * uX + wy * uY + wz * uZ, 1024); C2Z[t] = idiv(wx * fX + wy * fY + wz * fZ, 1024);
     PN[t] = 0; PN[NT + t] = 0;
-    if (TKR[t] > 0) {
-      // a mirror wants a finer normal than the plane's (x16384, from the triangle's own edges)
-      a2 = VA[v2] - a1; b2 = VB[v2] - b1; c2 = VC[v2] - c1; a3 = VA[v3] - a1; b3 = VB[v3] - b1; c3 = VC[v3] - c1;
-      wx = b2 * c3 - c2 * b3; wy = c2 * a3 - a2 * c3; wz = a2 * b3 - b2 * a3;
-      dx = idiv(Math.sqrt(wx * wx + wy * wy + wz * wz), 1) + 1;
-      TMX[t] = idiv(wx * 16384, dx); TMY[t] = idiv(wy * 16384, dx); TMZ[t] = idiv(wz * 16384, dx);
-    }
     if (TPD[t] < 0) {
       // it faces the camera
       a2 = VA[v2]; b2 = VB[v2]; c2 = VC[v2]; a3 = VA[v3]; b3 = VB[v3]; c3 = VC[v3];
       M_poly(t);
-      if (pn > 0) { nvt = nvt + 1; VT[nvt] = t; }
+      if (pn > 0) {
+        nvt = nvt + 1;
+        // small on the screen? (under 14 pixels wide and 8 rows high)
+        TSML[t] = 0;
+        if (psz < 56) { if (k1 - k0 < 10) { TSML[t] = 1; } }
+        // filed under its first row (renderRows takes the polygons up row by row)
+        PNX[t] = BKF[k0 + 1]; BKF[k0 + 1] = t;
+        if (TKR[t] > 0) {
+          // a mirror wants a finer normal than the plane's (x16384, from the triangle's own edges)
+          a2 = VA[v2] - TOA[t]; b2 = VB[v2] - TOB[t]; c2 = VC[v2] - TOC[t]; a3 = VA[v3] - TOA[t]; b3 = VB[v3] - TOB[t]; c3 = VC[v3] - TOC[t];
+          wx = b2 * c3 - c2 * b3; wy = c2 * a3 - a2 * c3; wz = a2 * b3 - b2 * a3;
+          dx = idiv(Math.sqrt(wx * wx + wy * wy + wz * wz), 1) + 1;
+          TMX[t] = idiv(wx * 16384, dx); TMY[t] = idiv(wy * 16384, dx); TMZ[t] = idiv(wz * 16384, dx);
+        }
+      }
     }
-    if (TLIT[t] == 1) {
-      // it faces the sun: its shadow on the floor
+    if (TSHP[t] == 1) {
+      // it faces the sun and its shadow on the floor is not inside the others'
       a1 = SVA[v1]; b1 = SVB[v1]; c1 = SVC[v1]; a2 = SVA[v2]; b2 = SVB[v2]; c2 = SVC[v2]; a3 = SVA[v3]; b3 = SVB[v3]; c3 = SVC[v3];
       M_poly(NT + t);
-      if (pn > 0) { nvs = nvs + 1; VS[nvs] = NT + t; }
+      if (pn > 0) { nvs = nvs + 1; PNX[NT + t] = BKS[k0 + 1]; BKS[k0 + 1] = NT + t; }
+    }
     }
     t = t + 1;
   }
@@ -226,6 +275,7 @@ function meshSetup() {
   let ms = NS + 1, rho = 0, swx = 0, swz = 0, gi0 = 0, gi1 = 0, gj0 = 0, gj1 = 0, gi = 0, gj = 0, gx = 0, mr = 0;
   while (ms <= NS + NM) {
     mr = SRAD[ms];
+    MSHM[ms - NS] = 0;
     SWX[ms] = MBCX[ms - NS] + MOX[ms - NS]; SWZ[ms] = MBCZ[ms - NS] + MOZ[ms - NS];
     dx = SWX[ms] - cmx; dy = SWY[ms] - cmy; dz = SWZ[ms] - cmz;
     SA[ms] = idiv(dx * rX + dz * rZ, 1024); SB[ms] = idiv(dx * uX + dy * uY + dz * uZ, 1024); SC[ms] = idiv(dx * fX + dy * fY + dz * fZ, 1024);
@@ -240,12 +290,14 @@ function meshSetup() {
         wz = 0;
         if (dx * dx + dy * dy + dz * dz < wy * wy) { wz = 1; }
         if (wx < 0) { SHM[i] = 1; } else { if (wz == 1) { SHM[i] = 1; } }
-        if (wx > 0) { MSF[i] = 1; } else { if (wz == 1) { MSF[i] = 1; } }
+        if (wx > 0) { MSF[i] = 1; MSHM[ms - NS] = 1; } else { if (wz == 1) { MSF[i] = 1; MSHM[ms - NS] = 1; } }
       }
       i = i + 1;
     }
-    // the floor grid: tiles a mesh may shade are marked -2 (a mesh, and any sphere)
-    rho = idiv(mr * 1024, LWY) + 8;
+    // the floor grid: tiles a moving mesh may shade are marked -2 (a mesh, and any sphere); the meshes that
+    // stand still have a finer map of their own, made at build time (SGR)
+    rho = -1;
+    if (MMOV[ms - NS] == 1) { rho = idiv(mr * 1024, LWY) + 8; }
     swx = SWX[ms] - idiv(LWX * SWY[ms], LWY); swz = SWZ[ms] - idiv(LWZ * SWY[ms], LWY);
     gi0 = idiv(swx + GOFF - rho, CELL); gi1 = idiv(swx + GOFF + rho, CELL);
     gj0 = idiv(swz + GOFF - rho, CELL); gj1 = idiv(swz + GOFF + rho, CELL);
@@ -254,6 +306,7 @@ function meshSetup() {
     if (gi1 > GN - 1) { gi1 = GN - 1; }
     if (gj1 > GN - 1) { gj1 = GN - 1; }
     gi = gi0;
+    if (rho < 0) { gi = gi1 + 1; }
     while (gi <= gi1) {
       gj = gj0;
       while (gj <= gj1) {
