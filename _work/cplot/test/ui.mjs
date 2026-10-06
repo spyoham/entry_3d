@@ -307,6 +307,18 @@ s.mouse.x = -223; s.mouse.y = -124; run(1); s.mouse.down = true; run(1); s.mouse
 ok(s.peek('vcx') === -0.5 && s.peek('vcy') === 0 && s.peek('padOn') === 1, 'a press on a button is not a drag');
 keyTap('NO');
 press(82);
+// (v2.1.1) a key the engine still believes held - Enter after the answer box, on tessvm - must not act
+// again when a button is pressed
+press(49);
+s.keys.add(13); run(3);                       // the answer box (nothing typed)
+s.answers.push('z^7');
+btn(7); run(3); btn(4); run(3); tap(10, 10); run(3);
+ok(s.answers.length === 1 && s.peek('wantAsk') === 0 && s.peek('fsrc') === '(z^2-1)(z-2-i)^2/(z^2+2+2i)', 'a held Enter does not open the answer box again', s.peek('fsrc'));
+s.keys.add(51); run(3);                       // example 3, and the key stays down
+btn(3); run(3);
+ok(s.peek('exAt') === 4, 'nor does a held number key undo a button', s.peek('exAt'));
+s.keys.delete(13); s.keys.delete(51); run(2); s.answers.length = 0;
+press(82);
 // numbers
 const fmt = (v) => { s.fn.fmt(v); return s.peek('fs'); };
 const FM = [[0, '0'], [0.1 + 0.2, '0.3'], [12345.678, '12346'], [-3.14159265, '-3.1416'], [1e-7, '1e-7'], [123456789, '1.2346e8'], [0.001234567, '0.0012346'], [0.00012345, '1.2345e-4'], [999999.5, '1000000'], [-1e300, '-1e300'], [Infinity, '∞'], [-Infinity, '-∞'], [1, '1'], [100, '100'], [99999.4, '99999'], [2.5e-310, '2.5e-310']];

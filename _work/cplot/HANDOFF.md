@@ -97,3 +97,13 @@
 - 읽기 글상자 `bot`은 위 둘째 줄(y = 113)로.
 - 오브젝트 순서(앞 → 뒤): help, btn, padl, pad, top, bot, axes, grid, solid, pen.
 - tessvm에서 마우스 넣기: `trun.mjs`의 `eval` 단계로 `window.__vm.mouseX/mouseY/mouseDown`을 직접 바꾼다(`test/tess/v21.json`).
+
+---
+
+# v2.1.1 (2026-10-06) — 단추를 누르면 입력창이 뜨던 버그
+
+사용자: "tessvm에서 클릭하면 가끔씩 갑자기 입력창이 떠서 불편함"
+
+- 원인: 단추를 누르면 `kLatch = 0`으로 되돌리고 `kn`을 단추의 키로 바꿨다. 다음 프레임에 아직 눌린(또는 엔진이 눌렸다고 아는) 키가 `kLatch`와 달라 새로 눌린 것이 됐다. tessvm은 `pressedKeys`를 keydown/keyup으로만 관리해서, 입력창에서 Enter를 치고 창이 닫히면 keyup을 놓쳐 13이 남을 수 있다(창이 초점을 잃을 때만 비움).
+- 고침: 키가 하는 일을 `keyAct(kn, bz, mx, my)`로 빼고, 단추는 래치를 거치지 않고 바로 부른다.
+- tessvm에서 `pressedKeys`에 13을 넣어 둔 채 단추를 누르면 v2.1은 입력창이 다시 뜨고 v2.1.1은 안 뜬다(`test/tess/v211.json`). 실제 사용 중에 13이 어떻게 남는지(keyup을 놓치는 경로)는 직접 보지 못했다.

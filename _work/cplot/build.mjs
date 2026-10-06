@@ -8,7 +8,7 @@ import { expandMacros, declareImplicit } from './inline.mjs';
 import { packEnt } from './pack.mjs';
 import { tableSource, NH, NL } from './tables.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '2.1';
+export const VERSION = '2.1.1';
 export const NAME = '엔트리 복소함수 그래퍼';
 export const FILES = ['vm.js', 'compile.js', 'ext.js', 'ext2.js', 'render.js', 'solid.js', 'touch.js', 'main.js', 'bench.js'];
 export const consts = { NH, NL, BENCH: 0 };

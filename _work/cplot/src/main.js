@@ -357,8 +357,33 @@ function zoomBy(f, mx, my) {
   }
 }
 
+// what a key - or the button that stands for it - does. bz = 1: by a button (it zooms about the middle)
+function keyAct(kn, bz, mx, my) {
+  if (kn > 0 && helpOn == 1 && kn != 72) { helpOn = 0; }
+  if (kn == 13) { wantAsk = 1; }
+  if (kn == 1001) { padOpen(); }
+  if (kn == 1002) { aMode = 1 - aMode; }
+  if (kn >= 49 && kn <= 57) { setExample(kn - 48); }
+  if (kn == 48) { setExample(10); }
+  // . and , step through all the examples
+  if (kn == 190) { if (exAt >= EX.length) { setExample(1); } else { setExample(exAt + 1); } }
+  if (kn == 188) { if (exAt <= 1) { setExample(EX.length); } else { setExample(exAt - 1); } }
+  if (kn == 71) { gridOn = 1 - gridOn; view3 = 0; vgen = vgen + 1; axGen = 0; showTop(); }
+  // V: the plane, the surface, the sphere
+  if (kn == 86) { view3 = mod(view3 + 1, 3); gridOn = 0; vgen = vgen + 1; axGen = 0; pmx = 9999; showTop(); }
+  if (kn == 32) { playing = 1 - playing; showTop(); }
+  if (kn == 82) { vcx = 0; vcy = 0; vupp = 0.015625; vgen = vgen + 1; }
+  if (kn == 67) { cmode = mod(cmode + 1, 4); vgen = vgen + 1; }
+  if (kn == 65) { axesOn = 1 - axesOn; }
+  if (kn == 72) { helpOn = 1 - helpOn; }
+  if (kn == 81) { hiq = 1 - hiq; vgen = vgen + 1; showTop(); }
+  // (a key zooms about the pointer, a button about the middle)
+  if (kn == 90) { if (bz == 1) { zoomBy(0.5, 0, 0); } else { zoomBy(0.5, mx, my); } }
+  if (kn == 88) { if (bz == 1) { zoomBy(2, 0, 0); } else { zoomBy(2, mx, my); } }
+}
+
 function uiStep() {
-  let kn = 0, mx = mouseX(), my = mouseY(), md = 0, mv = 0, now = timer(), dt = 0, nx = 0, ny = 0, bz = 0, am = 0;
+  let kn = 0, mx = mouseX(), my = mouseY(), md = 0, mv = 0, now = timer(), dt = 0, nx = 0, ny = 0, am = 0;
   frames = frames + 1;
   fDone = 0;
   pace();
@@ -395,35 +420,17 @@ function uiStep() {
   if (key(81)) { kn = 81; }
   if (key(90) || key(187) || key(107)) { kn = 90; }
   if (key(88) || key(189) || key(109)) { kn = 88; }
-  // a press on a button is the key it stands for
+  // A press on a button does what its key does. (It must not pass through the latch of the keys:
+  // a key that is still held - or that the engine still believes held, as Enter after the
+  // answer box - would count as pressed anew the frame after, and the answer box would open.)
   if (mouseDown()) { md = 1; }
   if (md == 1 && mWas == 0) {
     uiPress(mx, my);
-    if (btnKey > 0) { kn = btnKey; kLatch = 0; bz = 1; }
+    if (btnKey > 0) { keyAct(btnKey, 1, mx, my); }
   }
   if (kn != kLatch) {
     kLatch = kn;
-    if (kn > 0 && helpOn == 1 && kn != 72) { helpOn = 0; }
-    if (kn == 13) { wantAsk = 1; }
-    if (kn == 1001) { padOpen(); }
-    if (kn == 1002) { aMode = 1 - aMode; }
-    if (kn >= 49 && kn <= 57) { setExample(kn - 48); }
-    if (kn == 48) { setExample(10); }
-    // . and , step through all the examples
-    if (kn == 190) { if (exAt >= EX.length) { setExample(1); } else { setExample(exAt + 1); } }
-    if (kn == 188) { if (exAt <= 1) { setExample(EX.length); } else { setExample(exAt - 1); } }
-    if (kn == 71) { gridOn = 1 - gridOn; view3 = 0; vgen = vgen + 1; axGen = 0; showTop(); }
-    // V: the plane, the surface, the sphere
-    if (kn == 86) { view3 = mod(view3 + 1, 3); gridOn = 0; vgen = vgen + 1; axGen = 0; pmx = 9999; showTop(); }
-    if (kn == 32) { playing = 1 - playing; showTop(); }
-    if (kn == 82) { vcx = 0; vcy = 0; vupp = 0.015625; vgen = vgen + 1; }
-    if (kn == 67) { cmode = mod(cmode + 1, 4); vgen = vgen + 1; }
-    if (kn == 65) { axesOn = 1 - axesOn; }
-    if (kn == 72) { helpOn = 1 - helpOn; }
-    if (kn == 81) { hiq = 1 - hiq; vgen = vgen + 1; showTop(); }
-    // (a key zooms about the pointer, a button about the middle)
-    if (kn == 90) { if (bz == 1) { zoomBy(0.5, 0, 0); } else { zoomBy(0.5, mx, my); } }
-    if (kn == 88) { if (bz == 1) { zoomBy(2, 0, 0); } else { zoomBy(2, mx, my); } }
+    keyAct(kn, 0, mx, my);
   }
   // the arrow keys move the view while held
   mv = 0;
