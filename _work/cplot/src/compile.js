@@ -20,9 +20,9 @@ let vsp = 0, osp = 0, ccn = 0;
 let resOff = 0, usesZ = 0, resKind = 0, resCell = 0;
 let cc_off = 0, cr_off = 0, cs_off = 0, cs_f = 0, lk_code = 0, lk_len = 0;
 
-// names: 1 z, 2 i, 3 e, 4 pi, 5 x, 6 y; from 101 on, functions of one value
-let NM = ['z', 'i', 'e', 'pi', 'π', 'x', 'y', 're', 'im', 'abs', 'arg', 'conj', 'sqrt', 'exp', 'ln', 'log', 'sin', 'cos', 'tan', 'sinh', 'cosh', 'tanh', 'asin', 'acos', 'atan', 'asinh', 'acosh', 'atanh', 'sec', 'csc', 'cot', 'arcsin', 'arccos', 'arctan'];
-let NC = [1, 2, 3, 4, 4, 5, 6, 101, 102, 103, 104, 105, 106, 107, 108, 108, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 116, 117, 118];
+// names: 1 z, 2 i, 3 e, 4 pi, 5 x, 6 y, 7 t, 8 a (ext.js); from 101 on, functions of one value
+let NM = ['z', 'i', 'e', 'pi', 'π', 'x', 'y', 're', 'im', 'abs', 'arg', 'conj', 'sqrt', 'exp', 'ln', 'log', 'sin', 'cos', 'tan', 'sinh', 'cosh', 'tanh', 'asin', 'acos', 'atan', 'asinh', 'acosh', 'atanh', 'sec', 'csc', 'cot', 'arcsin', 'arccos', 'arctan', 'gamma', 'zeta', 't', 'a'];
+let NC = [1, 2, 3, 4, 4, 5, 6, 101, 102, 103, 104, 105, 106, 107, 108, 108, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 116, 117, 118, 125, 126, 7, 8];
 // operators on the stack: 1 + 2 - 3 * 4 / 5 ^ 6 minus sign, 7 an open bracket, a function's code
 let PREC = [1, 1, 2, 2, 4, 3];
 // the operator characters, and what each one is (7 open, 8 close)
@@ -39,7 +39,8 @@ function compInit() {
 
 // ---------------- places ----------------
 function c_newc() {
-  if (ccn >= NCONST) { cerr = 5; } else { ccn = ccn + 1; }
+  // (the last cells are the parameters')
+  if (ccn >= NCONST - 4) { cerr = 5; } else { ccn = ccn + 1; }
   cc_off = CB + ccn - 1;
 }
 function c_allocReg() {
@@ -291,7 +292,7 @@ function c_lookup(name) {
 function compile() {
   let s = `${src}$`, sl = strlen(src) + 1;
   let i = 1, ch = ' ', k = 0, j = 0, prev = 0, wantOpen = 0, name = ' ', v = 0, t = 0, code = 0, go = 0;
-  pn = 0; vsp = 0; osp = 0; ccn = 0; cerr = 0; cpos = 0; usesZ = 0;
+  pn = 0; vsp = 0; osp = 0; ccn = 0; cerr = 0; cpos = 0; usesZ = 0; usesT = 0; usesA = 0;
   k = 1;
   while (k <= NREG) { REGU[k] = 0; k = k + 1; }
   REGU[1] = 1;

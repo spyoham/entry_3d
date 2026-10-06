@@ -9,6 +9,8 @@ export function evalAt(formula, pts) {
     s.fn.compile();
     if (s.peek('cerr') !== 0) return { err: s.peek('cerr'), pos: s.peek('cpos') };
     const VR = s.peek('VR'), VI = s.peek('VI'), ro = s.peek('resOff');
+    // the parameters t and a (the last two constant cells)
+    VR[4999] = ENV.t.re; VI[4999] = 0; VR[4998] = ENV.a.re; VI[4998] = ENV.a.im;
     // all points as one row (so the row loops are what is tested), then each alone
     const n = pts.length;
     pts.forEach((p, j) => { VR[j] = p.re; VI[j] = p.im; });
@@ -17,7 +19,10 @@ export function evalAt(formula, pts) {
     const one = pts.map((p) => { VR[0] = p.re; VI[0] = p.im; s.fn.runProg(1); return C(VR[ro], VI[ro]); });
     return { row, one, pn: s.peek('pn') };
 }
+export const ENV = { t: C(1.3), a: C(0.6, -0.8) };
 export const FORMULAS = [
+    'gamma(z)', 'gamma(z+1)/gamma(z)', '1/gamma(z)', 'gamma(1/z)', 'gamma(z)gamma(1-z)sin(pi z)', 'zeta(z)', 'zeta(2z)', 'zeta(1/z)', '(z-1)zeta(z)',
+    'z+a', 'a z^2+t', 'e^(i t)z', 't^2+z', 'z^t', 'a^z', 'a/z', 'z/a', 'z-a', 'a-z', 't', 'a', 'sin(t)z', '(z-a)/(1-conj(a)z)', 'a^3 z', 'sqrt(a)+z', 'gamma(a) z',
     'z', '-z', 'z+1', '1+z', 'z-1', '1-z', '2z', 'z*i', 'z/2', '2/z', 'z/(1+i)', '(1+i)/z', 'z*z', 'z/z', 'z+z', 'z-z+z',
     'z^2', 'z^3', 'z^7', 'z^10', 'z^-1', 'z^-3', 'z^0', 'z^1', 'z^0.5', 'z^-0.5', 'z^(1+i)', 'z^i', 'z^2.5', '2^z', 'i^z', 'e^z', 'e^(iz)', 'z^z', '(1+i)^z',
     'z^3-1', '(z^2-1)(z-2-i)^2/(z^2+2+2i)', '(z-1)/(z+1)', '1/(z^5-1)', 'z^2+1/z^2', '(z+1)(z-1)', '2(z+1)', 'z(z+1)(z+2)', '-z^2', '2^-z', '-z*2', '--z', '+z',
@@ -29,7 +34,8 @@ export const FORMULAS = [
     '((((z+1)+2)+3)+4)', 'z+(z+(z+(z+(z+(z+z)))))', '(z+1)/((z+2)/((z+3)/(z+4)))', 'sin(z', '(z+1', 'z^2^3', '2^3^z',
     '1/(1/(1/z))', 'z-(z-(z-1))', '(z*2)^(z/3)', 'sqrt(sqrt(z))', 'abs(sin(z))', 'arg(z^2)', 'conj(z)^2/z',
 ];
-export const CONST = ['1+2', '2*3+4', '(1+2i)(3-i)', '(1+2i)^(3-i)', 'e^(i pi)', 'i^i', 'sqrt(-1)', 'ln(-1)', '2^10', '1/3', 'sin(1)', 'cos(pi)', 'exp(1)', 'e', 'pi', '1/e^50', '(1+i)^8', '2^0.5', 'atan(1)*4', 'abs(3+4i)', 'arg(i)', '1e'.slice(0, 1), '10^-30/3', 'sinh(0.000001)', 'tan(pi/4)', 'acos(2)', 'e^100', 'e^-700', 'e^700/e^690'];
+export const CONST = ['1+2', '2*3+4', '(1+2i)(3-i)', '(1+2i)^(3-i)', 'e^(i pi)', 'i^i', 'sqrt(-1)', 'ln(-1)', '2^10', '1/3', 'sin(1)', 'cos(pi)', 'exp(1)', 'e', 'pi', '1/e^50', '(1+i)^8', '2^0.5', 'atan(1)*4', 'abs(3+4i)', 'arg(i)', '1e'.slice(0, 1), '10^-30/3', 'sinh(0.000001)', 'tan(pi/4)', 'acos(2)', 'e^100', 'e^-700', 'e^700/e^690',
+    'gamma(5)', 'gamma(0.5)^2', 'gamma(-1.5)', 'gamma(1+i)', 'gamma(170)', 'zeta(2)', 'zeta(-1)', 'zeta(0)', 'zeta(4)', 'zeta(0.5+10i)', 'zeta(-3.5+2i)', 'zeta(1.000001)', 'zeta(0.5+30i)', 'zeta(-7)'];
 let seed = 12345;
 const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
 const pts = [];
@@ -46,15 +52,20 @@ const close = (a, b, tol) => {
 let bad = 0, total = 0, worst = 0, worstAt = '';
 for (const f of [...FORMULAS, ...CONST]) {
     const ref = parse(f);
+    // (the zeta series is good to about six digits at the edge of its range of Im s)
+    const tol = f.includes('zeta') ? 2e-5 : f.includes('gamma') ? 1e-8 : 2e-9;
     const got = evalAt(f, pts);
     if (got.err) { console.log('COMPILE ERROR', f, got); bad++; continue; }
     pts.forEach((p, j) => {
-        const want = ref(p, {});
+        const want = ref(p, ENV);
+        // (the reference itself overflowed; or gamma right beside a pole, where sin(pi z) has few digits left)
+        if (isNaN(want.re) || isNaN(want.im)) return;
+        if (f.includes('gamma') && Math.abs(p.im) < 1e-6 && p.re < 0) return;
         total++;
         for (const [how, v] of [['row', got.row[j]], ['one', got.one[j]]]) {
             const m = Math.hypot(want.re, want.im), d = Math.hypot(v.re - want.re, v.im - want.im);
             if (isFinite(m) && m > 1e-290 && m < 1e290 && isFinite(d)) { const r = d / m; if (r > worst) { worst = r; worstAt = `${f} at ${p.re},${p.im}`; } }
-            if (!close(v, want, 2e-9)) { bad++; if (bad < 25) console.log('MISMATCH', how, f, 'z =', p.re, p.im, 'got', v.re, v.im, 'want', want.re, want.im); }
+            if (!close(v, want, tol)) { bad++; if (bad < 25) console.log('MISMATCH', how, f, 'z =', p.re, p.im, 'got', v.re, v.im, 'want', want.re, want.im); }
         }
     });
 }

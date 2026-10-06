@@ -42,6 +42,7 @@ export function createSim({ consts = {}, listMax = 5000, tf = [] } = {}) {
         handlers: [], $i: 0, self: null,
         get: (A, i, name) => { check(A, i, name); return A[i - 1]; },
         set: (A, i, v, name) => { check(A, i, name); A[i - 1] = v; },
+        removeAt: (A, i) => { check(A, i); A.splice(i - 1, 1); },
         push: (A, v) => { A.push(v); if (A.length > listMax) throw new Error('a list grew past ' + listMax + ' items'); },
         // Entry's PLUS: text unless both sides are numbers
         add: (a, b) => (isNum(a) && isNum(b)) ? Number(a) + Number(b) : String(a) + String(b),

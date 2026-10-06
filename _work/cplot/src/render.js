@@ -27,6 +27,7 @@ const K_INF = (NH + 2) * NL + 2;
 let cmode = 1, hiq = 0;
 let vcx = 0, vcy = 0, vupp = 0.015625, vgen = 1;      // the view asked for; vgen counts every change
 let pcx = 0, pcy = 0, pupp = 0, pmode = 0;            // the view being drawn
+let pT = 0, pAr = 1, pAi = 0;                         // and the parameters t and a of that picture
 let rState = 0, rView = 0, rLevel = 0, rGen = 0, killGen = 0, rRow = 0, rCol = 0, rHand = 0;
 let bandMade = 0, bandBorn = 0, activeBand = 0, bandStrokes = 0, bandMax = 1500;
 let budget = 160, baseLevel = 1, maxLevel = 4, workN = 0, segN = 0, fDone = 0, paceKnown = 0, fpsNow = 60;
@@ -100,6 +101,8 @@ function doSegment() {
   let x = pcx + (rCol * cs + cs * 0.5 - 240) * pupp;
   let y = pcy + (135 - rRow * cs - cs * 0.5) * pupp;
   while (j <= n) { VR[j] = x; VI[j] = y; x = x + step; j = j + 1; }
+  // (the read-out works with the newest t and a in between: the picture keeps its own)
+  VR[PT_OFF + 1] = pT; VR[PA_OFF + 1] = pAr; VI[PA_OFF + 1] = pAi;
   runProg(n);
   paintRow(n, rCol * cs - 240, 135 - rRow * cs - cs * 0.5);
   nCells = nCells + n;
@@ -138,6 +141,7 @@ function pickLevels() {
 function startPass(level) {
   rGen = rGen + 1; rLevel = level; rView = vgen; rState = 1;
   pcx = vcx; pcy = vcy; pupp = vupp; pmode = cmode;
+  pT = tPar; pAr = aRe; pAi = aIm;
   cs = LCS[level];
   cols = idiv(480, cs);
   rows = idiv(270 + cs - 1, cs);
@@ -174,7 +178,10 @@ function renderSlice() {
       else { if (rCol == 0 && bandStrokes >= bandMax) { newBand(); } }
     }
   }
-  if (fDone >= budget) { workN = workN + 1; fDone = budget + 1000000; }
+  // (a frame that used at least half its share counts as a working one - a picture drawn anew
+  // every frame, as while t runs, may never fill it)
+  if (fDone * 2 >= budget) { workN = workN + 1; }
+  if (fDone >= budget) { fDone = budget + 1000000; }
 }
 
 function penIdle() {

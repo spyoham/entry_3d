@@ -38,12 +38,48 @@ export const pow = (a, b) => {
     if (a.re === 0 && a.im === 0) return C(0, 0);
     return exp(mul(b, ln(a)));
 };
+// gamma: Stirling's series after shifting the argument up (the work uses Lanczos)
+export const lgammaBig = (w) => {
+    const w2 = mul(w, w); let t = div(C(1 / 12), w), p = w, s = t;
+    const B = [-1 / 360, 1 / 1260, -1 / 1680, 1 / 1188, -691 / 360360, 1 / 156];
+    for (const b of B) { p = mul(p, w2); s = add(s, div(C(b), p)); }
+    return add(add(sub(mul(sub(w, C(0.5)), ln(w)), w), C(0.5 * Math.log(2 * Math.PI))), s);
+};
+export const gamma = (z) => {
+    if (z.re < 0.5) { const s = sin(mul(C(Math.PI), z)); return div(C(Math.PI), mul(s, gamma(sub(ONE, z)))); }
+    let w = z, den = ONE;
+    while (w.re < 20) { den = mul(den, w); w = add(w, ONE); }
+    return div(exp(lgammaBig(w)), den);
+};
+// zeta: Euler-Maclaurin summation (the work uses Borwein's alternating series)
+const BERN = [1 / 6, -1 / 30, 1 / 42, -1 / 30, 5 / 66, -691 / 2730, 7 / 6, -3617 / 510, 43867 / 798, -174611 / 330, 854513 / 138, -236364091 / 2730];
+export const zeta = (s) => {
+    if (s.re < 0) {
+        const o = sub(ONE, s);
+        return mul(mul(mul(exp(mul(s, C(Math.log(2 * Math.PI)))), C(1 / Math.PI)), sin(mul(C(Math.PI / 2), s))), mul(gamma(o), zeta(o)));
+    }
+    const N = 40 + Math.ceil(Math.abs(s.im));
+    let sum = C(0);
+    for (let n = 1; n < N; n++) sum = add(sum, exp(mul(neg(s), C(Math.log(n)))));
+    const Ns = exp(mul(neg(s), C(Math.log(N))));
+    sum = add(sum, div(mul(Ns, C(N)), sub(s, ONE)));
+    sum = add(sum, mul(Ns, C(0.5)));
+    // B2k / (2k)! * s (s+1) ... (s+2k-2) * N^(-s-2k+1)
+    let term = div(mul(s, Ns), C(N)), fact = 2;
+    for (let k = 1; k <= BERN.length; k++) {
+        sum = add(sum, mul(term, C(BERN[k - 1] / fact)));
+        term = div(mul(mul(term, add(s, C(2 * k - 1))), add(s, C(2 * k))), C(N * N));
+        fact *= (2 * k + 1) * (2 * k + 2);
+    }
+    return sum;
+};
 export const FUNCS = {
     re: (a) => C(a.re), im: (a) => C(a.im), abs: (a) => C(abs(a)), arg: (a) => C(arg(a)), conj: (a) => C(a.re, -a.im),
     sqrt, exp, ln, log: ln, sin, cos, tan, sinh, cosh, tanh, asin, acos, atan, asinh, acosh, atanh, arcsin: asin, arccos: acos, arctan: atan,
     sec: (a) => div(ONE, cos(a)), csc: (a) => div(ONE, sin(a)), cot: (a) => div(cos(a), sin(a)),
+    gamma, zeta,
 };
-export const NAMES = { i: () => I, e: () => C(Math.E), pi: () => C(Math.PI), 'π': () => C(Math.PI) };
+export const NAMES = { i: () => I, e: () => C(Math.E), pi: () => C(Math.PI), 'π': () => C(Math.PI), t: (env) => env.t, a: (env) => env.a };
 
 // formula -> (z, env) => value. Same grammar as the work: + - * / ^ (right to left), a sign binds
 // tighter than * and looser than ^, two values side by side are multiplied, names are split greedily.

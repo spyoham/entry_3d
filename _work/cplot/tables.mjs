@@ -27,10 +27,25 @@ export function palette(opt) {
     out.push('#000000', '#ffffff');
     return out;
 }
+// Borwein's weights for zeta with n terms: W[m] = (-1)^(m-1) (1 - d[m-1] / d[n]),
+// d[k] = n * sum over i = 0..k of (n + i - 1)! 4^i / ((n - i)! (2i)!)
+export function zetaWeights(n) {
+    const fact = [1n];
+    for (let i = 1; i <= 2 * n; i++) fact.push(fact[i - 1] * BigInt(i));
+    const S = 10n ** 80n, d = [];
+    let acc = 0n;
+    for (let i = 0; i <= n; i++) { acc += fact[n + i - 1] * (4n ** BigInt(i)) * S / (fact[n - i] * fact[2 * i]); d.push(acc * BigInt(n)); }
+    const out = [];
+    for (let m = 1; m <= n; m++) { const w = Number((d[n] - d[m - 1]) * (10n ** 30n) / d[n]) / 1e30; out.push(m % 2 ? w : -w); }
+    return out;
+}
 export function tableSource(opt) {
+    const zw = [...zetaWeights(16), ...zetaWeights(32), ...zetaWeights(64)];
+    const lnk = [], spf = [];
+    for (let k = 1; k <= 64; k++) { lnk.push(Math.log(k)); let p = k; for (let q = 2; q * q <= k; q++) if (k % q === 0) { p = q; break; } spf.push(p); }
     const p2 = [];
     for (let q = -1080; q <= 1030; q++) p2.push(q < -1074 ? 0 : q > 1023 ? Number.MAX_VALUE : Math.pow(2, q));
     const ext = [];
     for (let j = 0; j < 32; j++) ext.push(Math.pow(2, j / 32));
-    return `let P2 = [${p2.join(',')}];\nlet EXT = [${ext.join(',')}];\nlet PAL = [${palette(opt).map(c => `'${c}'`).join(',')}];\n`;
+    return `let P2 = [${p2.join(',')}];\nlet EXT = [${ext.join(',')}];\nlet PAL = [${palette(opt).map(c => `'${c}'`).join(',')}];\nlet ZW = [${zw.join(',')}];\nlet LNK = [${lnk.join(',')}];\nlet SPF = [${spf.join(',')}];\n`;
 }

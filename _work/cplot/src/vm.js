@@ -56,7 +56,10 @@ function M_div(q, a, b) {
   if (Math.abs(q) < 0.001) {
     if (a != 0) {
       q = ((a * k25) / b) * k25i;
-      if (Math.abs(q) < 1e-28) { q = ((a * k150) / b) * k150i; }
+      if (Math.abs(q) < 1e-28) {
+        q = ((a * k150) / b) * k150i;
+        if (Math.abs(q) < 1e-153) { q = ((a * k150) / (b * k150i)) * k150i * k150i; }
+      }
     }
   }
 }
