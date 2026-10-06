@@ -14,7 +14,7 @@ const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 
 export const SS = 2;                       // picture pixels per stage unit
 export const W = 480 * SS, H = 270 * SS;
-const OBJECTS = ['pen', 'solid', 'grid', 'axes', 'bot', 'top', 'help'];     // back to front
+const OBJECTS = ['pen', 'solid', 'grid', 'axes', 'bot', 'top', 'pad', 'padl', 'btn', 'help'];     // back to front
 
 export function createSim({ consts = {}, listMax = 5000, tf = [] } = {}) {
     const C = { ...buildConsts, ...consts };
@@ -70,7 +70,8 @@ export function createSim({ consts = {}, listMax = 5000, tf = [] } = {}) {
         timer: () => simTime, timerStart: () => { }, timerReset: () => { simTime = 0; },
         dateSec: () => Math.floor(wall) % 60,
         ask: () => { lastAnswer = answers.length ? answers.shift() : ''; }, answer: () => lastAnswer,
-        write: (t) => { cur.text = String(t); }, show: () => { cur.visible = true; }, hide: () => { cur.visible = false; },
+        write: (t) => { cur.text = String(t); }, textColorHex: (c) => { cur.colour = String(c); },
+        waitUntil: () => { }, show: () => { cur.visible = true; }, hide: () => { cur.visible = false; },
         penSize: (v) => { cur.pen.size = +v; },
         penColorHex: (c) => { c = String(c); if (!/^#[0-9a-f]{6}$/i.test(c)) throw new Error('pen colour ' + c); cur.pen.col = [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]; },
         penColor: (c) => B.penColorHex(c),

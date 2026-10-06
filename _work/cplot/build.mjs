@@ -8,9 +8,9 @@ import { expandMacros, declareImplicit } from './inline.mjs';
 import { packEnt } from './pack.mjs';
 import { tableSource, NH, NL } from './tables.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '2.0';
+export const VERSION = '2.1';
 export const NAME = '엔트리 복소함수 그래퍼';
-export const FILES = ['vm.js', 'compile.js', 'ext.js', 'ext2.js', 'render.js', 'solid.js', 'main.js', 'bench.js'];
+export const FILES = ['vm.js', 'compile.js', 'ext.js', 'ext2.js', 'render.js', 'solid.js', 'touch.js', 'main.js', 'bench.js'];
 export const consts = { NH, NL, BENCH: 0 };
 
 // bench: the timing and self-test code (src/bench.js) is left out of the work itself
@@ -35,9 +35,14 @@ export function build(out, name = `${NAME} v${VERSION}`, more = {}, tf = []) {
     const prog = compileProgram([src], { consts: all });
     // front to back
     const objects = [
-        { ...textBox('help', 0, 0, 430, 228, 11, { visible: false }), script: prog.objectScripts.help },
+        { ...textBox('help', 0, 0, 440, 244, 11, { visible: false }), script: prog.objectScripts.help },
+        // a button (every button is a clone of it): its middle is where it is put
+        { ...textBox('btn', 0, 300, 30, 16, 12, { lineBreak: false, textAlign: 0, bgColor: '#2f3847', visible: false }), script: prog.objectScripts.btn },
+        // the line the formula pad writes, and the pad's ground
+        { ...textBox('padl', -234, 2, 100, 14, 11, { lineBreak: false, bgColor: '#12161d', visible: false }), script: prog.objectScripts.padl },
+        { ...textBox('pad', 0, -62, 480, 150, 10, { bgColor: '#12161d', visible: false }), script: prog.objectScripts.pad },
         { ...textBox('top', -238, 127, 100, 14, 10, { lineBreak: false }), script: prog.objectScripts.top },
-        { ...textBox('bot', -238, -127, 100, 14, 10, { lineBreak: false }), script: prog.objectScripts.bot },
+        { ...textBox('bot', -238, 113, 100, 14, 10, { lineBreak: false }), script: prog.objectScripts.bot },
         { id: 'axes', name: 'axes', pictures: [{ id: 'p2', name: 'dot', buf: DOT, w: 1, h: 1 }], script: prog.objectScripts.axes },
         { id: 'grid', name: 'grid', pictures: [{ id: 'p3', name: 'dot', buf: DOT, w: 1, h: 1 }], script: prog.objectScripts.grid },
         { id: 'solid', name: 'solid', pictures: [{ id: 'p4', name: 'dot', buf: DOT, w: 1, h: 1 }], script: prog.objectScripts.solid },

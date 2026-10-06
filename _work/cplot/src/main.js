@@ -358,7 +358,7 @@ function zoomBy(f, mx, my) {
 }
 
 function uiStep() {
-  let kn = 0, mx = mouseX(), my = mouseY(), md = 0, mv = 0, now = timer(), dt = 0, nx = 0, ny = 0;
+  let kn = 0, mx = mouseX(), my = mouseY(), md = 0, mv = 0, now = timer(), dt = 0, nx = 0, ny = 0, bz = 0, am = 0;
   frames = frames + 1;
   fDone = 0;
   pace();
@@ -395,10 +395,18 @@ function uiStep() {
   if (key(81)) { kn = 81; }
   if (key(90) || key(187) || key(107)) { kn = 90; }
   if (key(88) || key(189) || key(109)) { kn = 88; }
+  // a press on a button is the key it stands for
+  if (mouseDown()) { md = 1; }
+  if (md == 1 && mWas == 0) {
+    uiPress(mx, my);
+    if (btnKey > 0) { kn = btnKey; kLatch = 0; bz = 1; }
+  }
   if (kn != kLatch) {
     kLatch = kn;
     if (kn > 0 && helpOn == 1 && kn != 72) { helpOn = 0; }
     if (kn == 13) { wantAsk = 1; }
+    if (kn == 1001) { padOpen(); }
+    if (kn == 1002) { aMode = 1 - aMode; }
     if (kn >= 49 && kn <= 57) { setExample(kn - 48); }
     if (kn == 48) { setExample(10); }
     // . and , step through all the examples
@@ -413,8 +421,9 @@ function uiStep() {
     if (kn == 65) { axesOn = 1 - axesOn; }
     if (kn == 72) { helpOn = 1 - helpOn; }
     if (kn == 81) { hiq = 1 - hiq; vgen = vgen + 1; showTop(); }
-    if (kn == 90) { zoomBy(0.5, mx, my); }
-    if (kn == 88) { zoomBy(2, mx, my); }
+    // (a key zooms about the pointer, a button about the middle)
+    if (kn == 90) { if (bz == 1) { zoomBy(0.5, 0, 0); } else { zoomBy(0.5, mx, my); } }
+    if (kn == 88) { if (bz == 1) { zoomBy(2, 0, 0); } else { zoomBy(2, mx, my); } }
   }
   // the arrow keys move the view while held
   mv = 0;
@@ -423,11 +432,16 @@ function uiStep() {
   if (key(38)) { vcy = vcy + 6 * vupp; mv = 1; }
   if (key(40)) { vcy = vcy - 6 * vupp; mv = 1; }
   if (mv == 1) { vgen = vgen + 1; }
-  // dragging moves it too
-  if (mouseDown()) { md = 1; }
-  if (md == 1) {
+  // dragging moves it too (a press that began on a button is not for the picture)
+  if (aMode == 1 && usesA == 1 && view3 == 0) { am = 1; }
+  if (md == 1 && uiHit == 0) {
     if (mWas == 0) { mX0 = mx; mY0 = my; cX0 = vcx; cY0 = vcy; az0 = az; el0 = el; }
-    else {
+    if (am == 1) {
+      // the a button is on: a goes where the pointer presses
+      nx = vcx + mx * vupp; ny = vcy + my * vupp;
+      if (nx != aRe || ny != aIm) { aRe = nx; aIm = ny; vgen = vgen + 1; if (errT == 0) { showTop(); } }
+    }
+    if (mWas == 1 && am == 0) {
       if (mx != pmx || my != pmy) {
         if (view3 == 0) {
           vcx = cX0 - (mx - mX0) * vupp;
@@ -446,12 +460,14 @@ function uiStep() {
   }
   // a press let go where it began is a click: look for a zero or a pole there
   if (md == 0 && mWas == 1) {
-    if (Math.abs(mx - mX0) + Math.abs(my - mY0) < 3) {
+    if (uiHit == 0 && am == 0 && Math.abs(mx - mX0) + Math.abs(my - mY0) < 3) {
       if (vcx != cX0 || vcy != cY0) { vcx = cX0; vcy = cY0; vgen = vgen + 1; }
       if (usesZ == 1 && view3 == 0) { findNear(vcx + mx * vupp, vcy + my * vupp); }
     }
+    uiHit = 0;
   }
   mWas = md;
+  uiShow();
   // the read-out: when the pointer or the picture changed
   if (errT > 0) { errT = errT - 1; if (errT == 0) { showTop(); } }
   if (usesZ == 0 && vgen != pGen && errT == 0) { showTop(); }
@@ -595,13 +611,14 @@ function gridStep() {
   }
 }
 
-const HELP = '엔트리 복소함수 그래퍼\n\nEnter   식 입력   예) (z^2-1)/(z^2+1)   zeta(z)   esc(z^2+c, 60)\n1 ~ 9, 0   예제       . ,   다음 / 앞 예제 (25개)\n끌기, 방향키   이동        클릭   그 근처의 영점·극 찾기\nZ / X  (+ / -)   확대 / 축소 (마우스 위치로)\nV   평면 → 3D 곡면 → 리만 구 (끌어서 돌리기)\nG 격자가 옮겨진 모습   C 색 방식   A 좌표축   Q 더 곱게   R 처음 보기\n식에 t 가 있으면 시간이 흐릅니다 (스페이스: 멈춤)\n식에 a 가 있으면 S 를 누른 채 마우스로 a 를 옮깁니다\nH   이 도움말 (아무 키나 누르면 닫힘)\n\n색 = f(z)의 방향: 빨강 +, 청록 -, 연두 +i, 보라 -i\n밝기 고리 = |f|가 2배 될 때마다. 검정 0, 흰색 ∞\nz가 없는 식은 값을 계산합니다.  예) (1+2i)^(3-i)   zeta(2)';
+const HELP = '엔트리 복소함수 그래퍼        (아무 데나 누르면 닫힙니다)\n\n맨 아래 줄의 단추로 모두 조작합니다.  ≡ : 단추 줄 숨기기\n 식     식 입력판 (왼쪽 위의 식을 눌러도 됩니다)\n ◀ ▶    예제 25개          + -   확대 / 축소          처음   처음 보기\n 그림을 끌면 이동,  그림을 누르면 그 근처의 영점·극 찾기\n 색   색 방식        축   좌표축        격자   격자가 옮겨진 모습\n 보기   평면 → 3D 곡면 → 리만 구 (끌어서 돌리기)      곱게   한 단계 더 곱게\n t   시간 멈춤 / 다시 (식에 t 가 있을 때)\n a   켜 두면 누른 곳으로 a 가 옮겨집니다 (식에 a 가 있을 때)\n\n색 = f(z)의 방향: 빨강 +, 청록 -, 연두 +i, 보라 -i\n밝기 고리 = |f|가 2배 될 때마다. 검정 0, 흰색 ∞\nz가 없는 식은 값을 계산합니다.  예) (1+2i)^(3-i)   zeta(2)\n키보드도 됩니다: Enter 식, 방향키 이동, Z X 확대·축소, 숫자 예제';
 
 on('start', 'top', function () {
   let shown = '';
   vmInit();
   compInit();
   extInit();
+  btnInit();
   timerStart();
   setFormula(EX[1]);
   if (BENCH == 1) { benchRun(); done = 1; }
