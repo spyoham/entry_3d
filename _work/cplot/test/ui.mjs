@@ -149,6 +149,66 @@ s.poke('budget', 20000); run(3);
 press(71); run(2);
 ok(s.peek('gridOn') === 0 && s.base.grid.pen.strokes.length === 0, 'G again takes it away');
 press(82);
+// ---- v2.0: the surface and the sphere
+const fills = () => s.base.solid.pen.strokes.length;
+press(51);
+s.poke('budget', 30000);
+press(86); run(4);
+ok(s.peek('view3') === 1 && s.text('top').endsWith('[3D]') && fills() === 1 + 60 * 34, 'V: the surface, every cell filled', fills());
+ok(s.peek('s3Have') === 1 && s.peek('s3Pass') === 0, 'both passes done');
+const hv = s.peek('HV'), hk = s.peek('HK');
+// the vertex at the zero z = 1 (column 38 of 61: x = (38/60 - 1/2) * 480 / 64 = 1, row 17) is at the bottom
+ok(hv[17 * 61 + 38] === 0 && hk[17 * 61 + 38] === 72 * 10 + 20 + 1, 'the zero is at the bottom, and black', hv[17 * 61 + 38], hk[17 * 61 + 38]);
+ok(hv[0] > 0.8 && hv[0] < 1, 'far from the zeros the surface is high', hv[0]);
+const gen = s.peek('s3Gen');
+s.mouse.x = 0; s.mouse.y = 0; run(1); s.mouse.down = true; run(1); s.mouse.x = 50; s.mouse.y = -20; run(2);
+ok(s.peek('az') === 60 && s.peek('el') === 45 && s.peek('vcx') === 0, 'dragging turns it', s.peek('az'), s.peek('el'));
+s.mouse.down = false; run(2);
+ok(s.peek('s3Gen') === gen && s.peek('s3Az') === 60 && fills() === 2041, 'turning draws again without working f out again');
+ok(s.peek('MKX').length === 0, 'a click finds nothing on a mesh');
+// on a slow machine the coarse mesh while it is turned
+s.poke('budget', 100); s.poke('bFail', 101);
+s.mouse.down = true; run(1); s.mouse.x = 80; run(2);
+ok(s.peek('s3St') === 2 && fills() === 1 + 30 * 17, 'a slow machine turns the coarse mesh', fills());
+s.mouse.down = false; run(2);
+ok(s.peek('s3St') === 1 && fills() === 2041, 'and draws the fine one when let go', fills());
+s.poke('budget', 30000);
+s.keys.add(39); run(2); s.keys.delete(39); run(4);
+ok(s.peek('s3Gen') === s.peek('vgen') && s.peek('s3cx') === s.peek('vcx') && s.peek('s3Have') === 1, 'moving the view works the surface out anew');
+press(82);
+press(86); run(4);
+ok(s.peek('view3') === 2 && s.text('top').endsWith('[구]') && fills() > 1200 && fills() < 1400, 'V again: the sphere, its near half', fills());
+s.poke('az', 0); s.poke('el', 0); s.mouse.x = 0; s.mouse.y = 0; run(2);
+ok(s.text('bot').startsWith('z = -i   f(z) = -1 + i'), 'the pointer on the sphere reads the plane', s.text('bot'));
+s.poke('el', 90); run(2);
+ok(s.text('bot') === 'z = ∞', 'the north pole is infinity', s.text('bot'));
+s.poke('el', -90); run(2);
+ok(s.text('bot').startsWith('z = 0   f(z) = -1'), 'the south pole is the centre of the view', s.text('bot'));
+s.mouse.x = 200; s.mouse.y = 100; run(2);
+ok(s.text('bot').startsWith('리만 구'), 'off the sphere: what it is', s.text('bot'));
+// the south pole cell is black-free, the cells around z = 1 include the zero's colours
+enter('z');
+run(4);
+const sk = s.peek('SK');
+ok(new Set(sk.slice(0, 72)).size >= 60 && new Set(sk.slice(35 * 72)).size >= 60, 'z on the sphere: all the phases around both poles', new Set(sk.slice(0, 72)).size);
+// t on a mesh: the coarse pass again and again
+enter('z^3+e^(it)');
+run(4); const tA = s.peek('s3T'); run(10);
+ok(s.peek('s3T') > tA && s.peek('s3Have') === 1, 'while t runs a fast machine redraws the fine mesh', s.peek('s3T') - tA, s.peek('s3Have'));
+s.poke('budget', 400); s.poke('bFail', 401); run(8);
+ok(s.peek('s3Have') === 2 || s.peek('s3Have') === 0, 'and a slow one the coarse mesh', s.peek('s3Have'));
+s.poke('budget', 30000);
+press(32); run(4);
+ok(s.peek('s3Have') === 1, 'stopped: the fine mesh');
+press(32);
+press(86); run(3);
+ok(s.peek('view3') === 0 && fills() === 0, 'V a third time: the plane again');
+press(32); s.settle();
+ok(s.peek('rState') === 0 && s.peek('rLevel') === s.peek('maxLevel'), 'and the flat picture is drawn again');
+press(71); run(3); press(86); run(4);
+ok(s.peek('gridOn') === 0 && s.peek('view3') === 1 && s.base.grid.pen.strokes.length === 0, 'the grid picture and a mesh are not shown together');
+press(86); press(86);
+press(82);
 // numbers
 const fmt = (v) => { s.fn.fmt(v); return s.peek('fs'); };
 const FM = [[0, '0'], [0.1 + 0.2, '0.3'], [12345.678, '12346'], [-3.14159265, '-3.1416'], [1e-7, '1e-7'], [123456789, '1.2346e8'], [0.001234567, '0.0012346'], [0.00012345, '1.2345e-4'], [999999.5, '1000000'], [-1e300, '-1e300'], [Infinity, '∞'], [-Infinity, '-∞'], [1, '1'], [100, '100'], [99999.4, '99999'], [2.5e-310, '2.5e-310']];

@@ -45,42 +45,47 @@ function M_stroke(k, xa, xb, yc) {
   ns_ = ns_ + 1;
 }
 
-// the colours of n cells (the result register) as strokes; x0: the left edge of the first cell
+// The colour (an index into PAL) of the value x + iy, colour mode md -> k
 //
 // The palette is PAL[r * NL + c]: r = 1 .. NH + 1 the phase (5 degrees each, from -180), c = 1 .. NL the
 // lightness. The phase is 2 atan(y / (|f| + x)) - or 2 atan((|f| - x) / y) left of the imaginary
 // axis, where the first form would cancel - so one atan block and no quadrants; a division by 0
 // gives the right limit. c is the fraction of log2|f| times NL, rounded up: at an exact power of
 // two it is 0, which reads the entry before the row (the list starts with NL spare entries for r = 1).
+function M_palIdx(k, x, y, md) {
+  pm_ = x * x + y * y;
+  if (pm_ > kTiny && pm_ < kHuge) {
+    if (x < 0) { k = idiv(atand((Math.sqrt(pm_) - x) / y) + 92.5, 2.5) * NL; }
+    else { k = idiv(atand(y / (Math.sqrt(pm_) + x)) + 92.5, 2.5) * NL; }
+    if (md == 1) {
+      // a ring each time |f| doubles
+      k = k + Math.ceil(mod(Math.log(pm_) * KLG, 1) * NL);
+    } else {
+      if (md == 2) {
+        // rings and rays (every 30 degrees of phase): the picture of a polar grid
+        if (x < 0) { pt_ = mod(atand((Math.sqrt(pm_) - x) / y) / 15, 1); } else { pt_ = mod(atand(y / (Math.sqrt(pm_) + x)) / 15, 1); }
+        k = k + Math.ceil((mod(Math.log(pm_) * KLG, 1) + pt_) * (NL / 2));
+      } else {
+        if (md == 3) {
+          // the picture of the unit squares
+          k = k + 2 + mod(Math.floor(x) + Math.floor(y), 2) * (NL - 4);
+        } else { k = k + NL - 3; }
+      }
+    }
+  } else {
+    // 0, infinity, or not a number
+    if (pm_ < 1) { k = K_ZERO; } else { k = K_INF; }
+  }
+}
+
+// the colours of n cells (the result register) as strokes; x0: the left edge of the first cell
 function paintRow(n, x0, yc) {
-  let prev = 0, xa = x0, xb = x0, k = 0, x = 0, y = 0, m = 0, t = 0;
+  let prev = 0, xa = x0, xb = x0, k = 0, x = 0, y = 0;
   let p = resOff + 1, pe = resOff + n, md = pmode, w = cs;
   ns_ = 0;
   while (p <= pe) {
     x = VR[p]; y = VI[p];
-    m = x * x + y * y;
-    if (m > kTiny && m < kHuge) {
-      if (x < 0) { k = idiv(atand((Math.sqrt(m) - x) / y) + 92.5, 2.5) * NL; }
-      else { k = idiv(atand(y / (Math.sqrt(m) + x)) + 92.5, 2.5) * NL; }
-      if (md == 1) {
-        // a ring each time |f| doubles
-        k = k + Math.ceil(mod(Math.log(m) * KLG, 1) * NL);
-      } else {
-        if (md == 2) {
-          // rings and rays (every 30 degrees of phase): the picture of a polar grid
-          if (x < 0) { t = mod(atand((Math.sqrt(m) - x) / y) / 15, 1); } else { t = mod(atand(y / (Math.sqrt(m) + x)) / 15, 1); }
-          k = k + Math.ceil((mod(Math.log(m) * KLG, 1) + t) * (NL / 2));
-        } else {
-          if (md == 3) {
-            // the picture of the unit squares
-            k = k + 2 + mod(Math.floor(x) + Math.floor(y), 2) * (NL - 4);
-          } else { k = k + NL - 3; }
-        }
-      }
-    } else {
-      // 0, infinity, or not a number
-      if (m < 1) { k = K_ZERO; } else { k = K_INF; }
-    }
+    M_palIdx(k, x, y, md);
     if (k != prev) {
       if (prev > 0) { M_stroke(prev, xa, xb, yc); }
       prev = k; xa = xb;
@@ -158,7 +163,7 @@ function passDone() {
   pickLevels();
   if (vgen != rView) { pickLevels(); startPass(baseLevel); }
   else {
-    if (rLevel < maxLevel && gridOn == 0) { startPass(rLevel + 1); }
+    if (rLevel < maxLevel && gridOn == 0 && view3 == 0) { startPass(rLevel + 1); }
     else { rState = 0; rHand = 1; }
   }
 }
@@ -187,7 +192,8 @@ function renderSlice() {
 function penIdle() {
   if (ready == 1) {
     if (bandMade < activeBand + 2) { bandMade = bandMade + 1; cloneSelf(); }
-    if (rState == 0 && vgen != rView) { pickLevels(); startPass(baseLevel); }
+    // (nothing new while the grid picture or a mesh covers it)
+    if (rState == 0 && vgen != rView && gridOn == 0 && view3 == 0) { pickLevels(); startPass(baseLevel); }
   }
 }
 

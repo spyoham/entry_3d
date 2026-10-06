@@ -13,6 +13,7 @@ let frames = 0;
 let tPar = 0, playing = 1, tLast = 0, aRe = 1, aIm = 0, fmtD = 5;
 let MKX = [], MKY = [], MKK = [];
 let nwX = 0, nwY = 0, wn = 0;
+let az0 = 0, el0 = 0, pAz = 0, pEl = 0;
 let gridOn = 0, gGen = 0, gLine = 0, gTotal = 0, gNx = 0, gK0x = 0, gK0y = 0, gU = 1, gShown = 0, gcx = 0, gcy = 0, gupp = 1;
 
 let EX = ['(z^2-1)(z-2-i)^2/(z^2+2+2i)', 'z', 'z^3-1', '(z-1)/(z+1)', 'e^(1/z)', 'sin(z)', 'sqrt(z^2-1)', 'ln(z)', 'tan(z)', 'z^(1+i)',
@@ -157,12 +158,37 @@ function showTop() {
     if (usesA == 1) { fmtc(aRe, aIm); topText = `${topText}   a = ${fc}`; }
     if (hiq == 1) { topText = `${topText}   [Q]`; }
     if (gridOn == 1) { topText = `${topText}   [격자]`; }
+    if (view3 == 1) { topText = `${topText}   [3D]`; }
+    if (view3 == 2) { topText = `${topText}   [구]`; }
   }
 }
 
-// the value under the pointer -> botText
+// the read-out for the pointer at (mx, my) -> botText
 function probe(mx, my) {
-  let zx = vcx + mx * vupp, zy = vcy + my * vupp, re = 0, im = 0, m = 0, a = 0, zt = ' ', ft = ' ';
+  let x = 0, y = 0, d = 0, t = 0, se = 0, ce = 0, sa = 0, ca = 0;
+  if (view3 == 0) { probeAt(vcx + mx * vupp, vcy + my * vupp); }
+  if (view3 == 1) { botText = '3D 곡면: 끌어서 돌리기   높이 = log|f|  (영점은 바닥, 극은 꼭대기, |f| = 1 이 가운데)'; }
+  if (view3 == 2) {
+    // the point of the sphere under the pointer, turned back, and from the north pole onto the plane
+    x = mx / S_RP; y = my / S_RP;
+    d = 1 - x * x - y * y;
+    if (d > 0) {
+      d = Math.sqrt(d);
+      se = sind(el); ce = cosd(el); sa = sind(az); ca = cosd(az);
+      t = y * se - d * ce;
+      d = y * ce + d * se;
+      y = t * ca - x * sa;
+      x = x * ca + t * sa;
+      // (the sixteenth digit of a sine is noise: a part that small is 0)
+      if (Math.abs(x) < 1e-12) { x = 0; }
+      if (Math.abs(y) < 1e-12) { y = 0; }
+      if (1 - d > 1e-9) { t = vupp * 64 / (1 - d); probeAt(vcx + x * t, vcy + y * t); }
+      else { botText = 'z = ∞'; }
+    } else { botText = '리만 구: 끌어서 돌리기   위 = ∞, 아래 = 보기의 중심, 적도 = 그 둘레 64칸 원'; }
+  }
+}
+function probeAt(zx, zy) {
+  let re = 0, im = 0, m = 0, a = 0, zt = ' ', ft = ' ';
   setParams();
   VR[1] = zx; VI[1] = zy;
   runProg(1);
@@ -172,9 +198,11 @@ function probe(mx, my) {
   M_hyp(m, re, im);
   M_arg(a, re, im);
   fmt(m); zt = `z = ${zt}   f(z) = ${ft}   |f| = ${fs}   arg = ${Math.round(a * R2D)}°`;
-  tickUnit();
-  fmt(tickU);
-  botText = `${zt}   눈금 ${fs}`;
+  if (view3 == 0) {
+    tickUnit();
+    fmt(tickU);
+    botText = `${zt}   눈금 ${fs}`;
+  } else { botText = zt; }
 }
 
 // ---------------- the pace ----------------
@@ -347,6 +375,7 @@ function uiStep() {
   if (key(32)) { kn = 32; }
   if (key(190)) { kn = 190; }
   if (key(71)) { kn = 71; }
+  if (key(86)) { kn = 86; }
   if (key(188)) { kn = 188; }
   if (key(13)) { kn = 13; }
   if (key(48)) { kn = 48; }
@@ -375,7 +404,9 @@ function uiStep() {
     // . and , step through all the examples
     if (kn == 190) { if (exAt >= EX.length) { setExample(1); } else { setExample(exAt + 1); } }
     if (kn == 188) { if (exAt <= 1) { setExample(EX.length); } else { setExample(exAt - 1); } }
-    if (kn == 71) { gridOn = 1 - gridOn; vgen = vgen + 1; axGen = 0; showTop(); }
+    if (kn == 71) { gridOn = 1 - gridOn; view3 = 0; vgen = vgen + 1; axGen = 0; showTop(); }
+    // V: the plane, the surface, the sphere
+    if (kn == 86) { view3 = mod(view3 + 1, 3); gridOn = 0; vgen = vgen + 1; axGen = 0; pmx = 9999; showTop(); }
     if (kn == 32) { playing = 1 - playing; showTop(); }
     if (kn == 82) { vcx = 0; vcy = 0; vupp = 0.015625; vgen = vgen + 1; }
     if (kn == 67) { cmode = mod(cmode + 1, 4); vgen = vgen + 1; }
@@ -395,12 +426,21 @@ function uiStep() {
   // dragging moves it too
   if (mouseDown()) { md = 1; }
   if (md == 1) {
-    if (mWas == 0) { mX0 = mx; mY0 = my; cX0 = vcx; cY0 = vcy; }
+    if (mWas == 0) { mX0 = mx; mY0 = my; cX0 = vcx; cY0 = vcy; az0 = az; el0 = el; }
     else {
       if (mx != pmx || my != pmy) {
-        vcx = cX0 - (mx - mX0) * vupp;
-        vcy = cY0 - (my - mY0) * vupp;
-        vgen = vgen + 1;
+        if (view3 == 0) {
+          vcx = cX0 - (mx - mX0) * vupp;
+          vcy = cY0 - (my - mY0) * vupp;
+          vgen = vgen + 1;
+        } else {
+          // a mesh is turned: sideways around its axis, up and down over it
+          az = az0 + (mx - mX0) * 0.6;
+          el = el0 - (my - mY0) * 0.5;
+          if (el > 89) { el = 89; }
+          if (view3 == 1 && el < 8) { el = 8; }
+          if (el < -89) { el = -89; }
+        }
       }
     }
   }
@@ -408,14 +448,15 @@ function uiStep() {
   if (md == 0 && mWas == 1) {
     if (Math.abs(mx - mX0) + Math.abs(my - mY0) < 3) {
       if (vcx != cX0 || vcy != cY0) { vcx = cX0; vcy = cY0; vgen = vgen + 1; }
-      if (usesZ == 1) { findNear(vcx + mx * vupp, vcy + my * vupp); }
+      if (usesZ == 1 && view3 == 0) { findNear(vcx + mx * vupp, vcy + my * vupp); }
     }
   }
   mWas = md;
   // the read-out: when the pointer or the picture changed
   if (errT > 0) { errT = errT - 1; if (errT == 0) { showTop(); } }
   if (usesZ == 0 && vgen != pGen && errT == 0) { showTop(); }
-  if (mx != pmx || my != pmy || vgen != pGen || rState != pDone) {
+  if (mx != pmx || my != pmy || vgen != pGen || rState != pDone || az != pAz || el != pEl) {
+    pAz = az; pEl = el;
     pmx = mx; pmy = my; pGen = vgen; pDone = rState;
     probe(mx, my);
   }
@@ -440,6 +481,7 @@ function drawAxes() {
   // the zeros (a plus) and poles (a square) found by clicking: white on black
   penAlpha(0);
   k = 1;
+  if (view3 != 0) { k = 9999; }
   while (k <= MKX.length) {
     u = (MKX[k] - vcx) / vupp; t = (MKY[k] - vcy) / vupp;
     if (u > -236 && u < 236 && t > -131 && t < 131) {
@@ -453,7 +495,7 @@ function drawAxes() {
     }
     k = k + 1;
   }
-  if (axesOn == 1) {
+  if (axesOn == 1 && view3 == 0) {
     tickUnit();
     u = tickU;
     if (gridOn == 1) { penAlpha(55); penColor('#ffffff'); } else { penAlpha(45); penColor('#000000'); }
@@ -553,7 +595,7 @@ function gridStep() {
   }
 }
 
-const HELP = '엔트리 복소함수 그래퍼\n\nEnter   식 입력   예) (z^2-1)/(z^2+1)   zeta(z)   esc(z^2+c, 60)\n1 ~ 9, 0   예제       . ,   다음 / 앞 예제 (25개)\n끌기, 방향키   이동        클릭   그 근처의 영점·극 찾기\nZ / X  (+ / -)   확대 / 축소 (마우스 위치로)\nR 처음 보기   C 색 방식   A 좌표축   G 격자가 옮겨진 모습   Q 더 곱게\n식에 t 가 있으면 시간이 흐릅니다 (스페이스: 멈춤)\n식에 a 가 있으면 S 를 누른 채 마우스로 a 를 옮깁니다\nH   이 도움말 (아무 키나 누르면 닫힘)\n\n색 = f(z)의 방향: 빨강 +, 청록 -, 연두 +i, 보라 -i\n밝기 고리 = |f|가 2배 될 때마다. 검정 0, 흰색 ∞\nz가 없는 식은 값을 계산합니다.  예) (1+2i)^(3-i)   zeta(2)';
+const HELP = '엔트리 복소함수 그래퍼\n\nEnter   식 입력   예) (z^2-1)/(z^2+1)   zeta(z)   esc(z^2+c, 60)\n1 ~ 9, 0   예제       . ,   다음 / 앞 예제 (25개)\n끌기, 방향키   이동        클릭   그 근처의 영점·극 찾기\nZ / X  (+ / -)   확대 / 축소 (마우스 위치로)\nV   평면 → 3D 곡면 → 리만 구 (끌어서 돌리기)\nG 격자가 옮겨진 모습   C 색 방식   A 좌표축   Q 더 곱게   R 처음 보기\n식에 t 가 있으면 시간이 흐릅니다 (스페이스: 멈춤)\n식에 a 가 있으면 S 를 누른 채 마우스로 a 를 옮깁니다\nH   이 도움말 (아무 키나 누르면 닫힘)\n\n색 = f(z)의 방향: 빨강 +, 청록 -, 연두 +i, 보라 -i\n밝기 고리 = |f|가 2배 될 때마다. 검정 0, 흰색 ∞\nz가 없는 식은 값을 계산합니다.  예) (1+2i)^(3-i)   zeta(2)';
 
 on('start', 'top', function () {
   let shown = '';

@@ -14,7 +14,7 @@ const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 
 export const SS = 2;                       // picture pixels per stage unit
 export const W = 480 * SS, H = 270 * SS;
-const OBJECTS = ['pen', 'grid', 'axes', 'bot', 'top', 'help'];     // back to front
+const OBJECTS = ['pen', 'solid', 'grid', 'axes', 'bot', 'top', 'help'];     // back to front
 
 export function createSim({ consts = {}, listMax = 5000, tf = [] } = {}) {
     const C = { ...buildConsts, ...consts };
@@ -29,6 +29,7 @@ export function createSim({ consts = {}, listMax = 5000, tf = [] } = {}) {
     const newEntity = (obj, from) => ({
         obj, id: seq++, clone: !!from, dead: false, visible: true, text: '',
         vars: from ? { ...from.vars } : Object.fromEntries(Object.entries(ovDefaults).filter(([k]) => k.startsWith(obj + '$'))),
+        fill: { stop: true, col: [255, 0, 0], path: null },
         pen: { x: from ? from.pen.x : 0, y: from ? from.pen.y : 0, down: false, col: from ? from.pen.col : [255, 0, 0], size: from ? from.pen.size : 1, alpha: from ? from.pen.alpha : 1, strokes: [] },
     });
     const entities = [];
@@ -55,6 +56,7 @@ export function createSim({ consts = {}, listMax = 5000, tf = [] } = {}) {
         ovar: (name, init) => { ovDefaults[name] = init; },
     };
     const str = (s) => String(s);
+    const endFill = () => { const f = cur.fill; if (f.path && f.path.length >= 3) { cur.pen.strokes.push({ poly: f.path, col: f.col }); stats.fills = (stats.fills || 0) + 1; } f.path = null; };
     const B = {
         sind: (d) => Math.sin((d % 360) * Math.PI / 180), cosd: (d) => Math.cos((d % 360) * Math.PI / 180), tand: (d) => Math.tan((d % 360) * Math.PI / 180),
         atand: (v) => Math.atan(v) * 180 / Math.PI,
@@ -79,8 +81,13 @@ export function createSim({ consts = {}, listMax = 5000, tf = [] } = {}) {
             if (!isFinite(x) || !isFinite(y)) throw new Error(`goto ${x},${y}`);
             if (pen.down) { pen.strokes.push([pen.x, pen.y, x, y, pen.size, pen.col, pen.alpha]); stats.strokes++; if (pen.strokes.length > stats.maxStrokesPerPen) stats.maxStrokesPerPen = pen.strokes.length; }
             pen.x = x; pen.y = y;
+            if (!cur.fill.stop && cur.fill.path) cur.fill.path.push([x, y]);
         },
-        eraseAll: () => { cur.pen.strokes = []; },
+        // fills, as Entry's: setting the colour or starting begins a new shape at the place the object is
+        fillColorHex: (c) => { c = String(c); if (!/^#[0-9a-f]{6}$/i.test(c)) throw new Error('fill colour ' + c); endFill(); cur.fill.col = [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]; cur.fill.path = [[cur.pen.x, cur.pen.y]]; },
+        fillStart: () => { endFill(); cur.fill.stop = false; cur.fill.path = [[cur.pen.x, cur.pen.y]]; },
+        fillStop: () => { endFill(); cur.fill.stop = true; },
+        eraseAll: () => { cur.pen.strokes = []; cur.fill.path = null; },
         cloneSelf: () => {
             if (entities.filter(e => e.clone && !e.dead).length >= 360) throw new Error('more than 360 clones');
             // (as Entry: straight under the entity that made it, and under that entity's strokes)
@@ -99,6 +106,19 @@ export function createSim({ consts = {}, listMax = 5000, tf = [] } = {}) {
     for (const h of R.handlers) if (h.ev === 'start') { if (!base[h.obj]) throw new Error('no object ' + h.obj); threads.push({ ent: base[h.obj], g: h.gen() }); }
     const px = new Uint8Array(W * H * 3);
     function rect(s) {
+        if (s.poly) {
+            // a filled shape: every picture row between the crossings of its edges
+            const P = s.poly.map(([x, y]) => [(x + 240) * SS, (135 - y) * SS]), c = s.col;
+            let lo = Infinity, hi = -Infinity;
+            for (const [, y] of P) { if (y < lo) lo = y; if (y > hi) hi = y; }
+            for (let yy = Math.max(0, Math.ceil(lo - 0.5)); yy <= Math.min(H - 1, Math.floor(hi - 0.5)); yy++) {
+                const yc = yy + 0.5, xs = [];
+                for (let i = 0; i < P.length; i++) { const [xa, ya] = P[i], [xb, yb] = P[(i + 1) % P.length]; if ((ya <= yc) !== (yb <= yc)) xs.push(xa + (yc - ya) * (xb - xa) / (yb - ya)); }
+                xs.sort((a, b) => a - b);
+                for (let i = 0; i + 1 < xs.length; i += 2) for (let xx = Math.max(0, Math.round(xs[i])); xx < Math.min(W, Math.round(xs[i + 1])); xx++) { const o = (yy * W + xx) * 3; px[o] = c[0]; px[o + 1] = c[1]; px[o + 2] = c[2]; }
+            }
+            return;
+        }
         let [x0, y0, x1, y1, size, col, alpha] = s;
         if (x1 < x0) { const t = x0; x0 = x1; x1 = t; }
         if (y1 < y0) { const t = y0; y0 = y1; y1 = t; }
