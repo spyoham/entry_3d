@@ -8,7 +8,7 @@ import { expandMacros, declareImplicit } from './inline.mjs';
 import { packEnt } from './pack.mjs';
 import { tableSource, NH, NL } from './tables.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '1.1';
+export const VERSION = '1.2';
 export const NAME = '엔트리 복소함수 그래퍼';
 export const FILES = ['vm.js', 'compile.js', 'ext.js', 'ext2.js', 'render.js', 'main.js', 'bench.js'];
 export const consts = { NH, NL, BENCH: 0 };
@@ -39,6 +39,7 @@ export function build(out, name = `${NAME} v${VERSION}`, more = {}, tf = []) {
         { ...textBox('top', -238, 127, 100, 14, 10, { lineBreak: false }), script: prog.objectScripts.top },
         { ...textBox('bot', -238, -127, 100, 14, 10, { lineBreak: false }), script: prog.objectScripts.bot },
         { id: 'axes', name: 'axes', pictures: [{ id: 'p2', name: 'dot', buf: DOT, w: 1, h: 1 }], script: prog.objectScripts.axes },
+        { id: 'grid', name: 'grid', pictures: [{ id: 'p3', name: 'dot', buf: DOT, w: 1, h: 1 }], script: prog.objectScripts.grid },
         { id: 'pen', name: 'pen', pictures: [{ id: 'p1', name: 'dot', buf: DOT, w: 1, h: 1 }], script: prog.objectScripts.pen },
     ];
     for (const k of Object.keys(prog.objectScripts)) if (!objects.some(o => o.id === k)) throw new Error('script for an unknown object: ' + k);

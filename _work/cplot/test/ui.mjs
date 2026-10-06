@@ -129,10 +129,25 @@ ok(s.peek('rLevel') === s.peek('maxLevel') && s.peek('pT') === t1, 'stopped: the
 press(32);
 // the examples one after another: every one must compile
 press(49);
-for (let i = 2; i <= 21; i++) { press(190); ok(s.peek('cerr') === 0 && s.peek('exAt') === (i - 1) % 20 + 1, 'example ' + i, s.text('top')); }
+for (let i = 2; i <= 26; i++) { press(190); ok(s.peek('cerr') === 0 && s.peek('exAt') === (i - 1) % 25 + 1, 'example ' + i, s.text('top')); if (i === 22) ok(s.peek('aRe') === -0.8 && s.peek('aIm') === 0.156 && s.peek('vcx') === 0, 'example 22 brings its a'); if (i === 21) ok(s.peek('vcx') === -0.6, 'example 21 brings its centre'); }
 ok(s.text('top').startsWith('f(z) = (z^2-1)(z-2-i)^2'), 'the examples wrap around', s.text('top'));
 press(188);
-ok(s.peek('exAt') === 20, 'and back');
+ok(s.peek('exAt') === 25, 'and back');
+// ---- v1.2: the picture of a grid
+press(51);
+s.poke('budget', 20000); s.settle();
+press(71); run(3);
+ok(s.peek('gridOn') === 1 && s.text('top').endsWith('[격자]') && s.base.grid.pen.strokes.length > 500, 'G draws the grid picture', s.base.grid.pen.strokes.length);
+ok(s.peek('gLine') === s.peek('gTotal') && s.peek('gTotal') === 31 + 17, 'all its lines', s.peek('gTotal'));
+const g0 = s.base.grid.pen.strokes.length; s.keys.add(39); run(3); s.keys.delete(39); run(3);
+ok(s.peek('gcx') === s.peek('vcx') && s.base.grid.pen.strokes.length !== g0, 'it follows the view');
+enter('1/z'); run(3);
+ok(s.peek('gLine') === s.peek('gTotal') && s.base.grid.pen.strokes.length > 300, 'a pole does not break it', s.base.grid.pen.strokes.length);
+s.poke('budget', 96); press(82); run(1); const gl = s.peek('gLine'); run(5);
+ok(gl < s.peek('gTotal') && s.peek('gLine') === gl + 5, 'a slow machine draws a line a frame', gl, s.peek('gLine'));
+s.poke('budget', 20000); run(3);
+press(71); run(2);
+ok(s.peek('gridOn') === 0 && s.base.grid.pen.strokes.length === 0, 'G again takes it away');
 press(82);
 // numbers
 const fmt = (v) => { s.fn.fmt(v); return s.peek('fs'); };

@@ -20,14 +20,15 @@ let vsp = 0, osp = 0, ccn = 0;
 let resOff = 0, usesZ = 0, resKind = 0, resCell = 0;
 let cc_off = 0, cr_off = 0, cs_off = 0, cs_f = 0, lk_code = 0, lk_len = 0;
 
-// names: 1 z, 2 i, 3 e, 4 pi, 5 x, 6 y, 7 t, 8 a (ext.js); from 101 on, functions of one value
-let NM = ['z', 'i', 'e', 'pi', 'π', 'x', 'y', 're', 'im', 'abs', 'arg', 'conj', 'sqrt', 'exp', 'ln', 'log', 'sin', 'cos', 'tan', 'sinh', 'cosh', 'tanh', 'asin', 'acos', 'atan', 'asinh', 'acosh', 'atanh', 'sec', 'csc', 'cot', 'arcsin', 'arccos', 'arctan', 'gamma', 'zeta', 't', 'a'];
-let NC = [1, 2, 3, 4, 4, 5, 6, 101, 102, 103, 104, 105, 106, 107, 108, 108, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 116, 117, 118, 125, 126, 7, 8];
+// names: 1 z, 2 i, 3 e, 4 pi, 5 x, 6 y, 7 t, 8 a (ext.js), 9 c (ext2.js); from 101 on, functions of one
+// value; 131 iter and 132 esc take a body and a count (ext2.js)
+let NM = ['z', 'i', 'e', 'pi', 'π', 'x', 'y', 're', 'im', 'abs', 'arg', 'conj', 'sqrt', 'exp', 'ln', 'log', 'sin', 'cos', 'tan', 'sinh', 'cosh', 'tanh', 'asin', 'acos', 'atan', 'asinh', 'acosh', 'atanh', 'sec', 'csc', 'cot', 'arcsin', 'arccos', 'arctan', 'gamma', 'zeta', 't', 'a', 'iter', 'esc', 'c'];
+let NC = [1, 2, 3, 4, 4, 5, 6, 101, 102, 103, 104, 105, 106, 107, 108, 108, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 116, 117, 118, 125, 126, 7, 8, 131, 132, 9];
 // operators on the stack: 1 + 2 - 3 * 4 / 5 ^ 6 minus sign, 7 an open bracket, a function's code
 let PREC = [1, 1, 2, 2, 4, 3];
-// the operator characters, and what each one is (7 open, 8 close)
-const OPCH = '+-*/^()×÷·−';
-let OPM = [1, 2, 3, 4, 5, 7, 8, 3, 4, 3, 2];
+// the operator characters, and what each one is (7 open, 8 close, 9 the comma of iter and esc)
+const OPCH = '+-*/^()×÷·−,';
+let OPM = [1, 2, 3, 4, 5, 7, 8, 3, 4, 3, 2, 9];
 const CDIG = '0123456789.';
 const CLOW = 'abcdefghijklmnopqrstuvwxyzπ';
 const CUPP = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -69,7 +70,10 @@ function c_const(re, im) {
   VR[cc_off + 1] = re; VI[cc_off + 1] = im;
   c_push(cc_off, 0);
 }
-function c_z() { usesZ = 1; c_push(0, 2); }
+// z: the point of the plane - inside iter / esc the iterate
+function c_z() {
+  if (inIter == 1) { c_push(itZ, 2); } else { usesZ = 1; c_push(0, 2); }
+}
 
 // one operation whose operands are all constants: run now if they are known, else when the program runs
 function c_sop(op, a, b, known) {
@@ -292,7 +296,7 @@ function c_lookup(name) {
 function compile() {
   let s = `${src}$`, sl = strlen(src) + 1;
   let i = 1, ch = ' ', k = 0, j = 0, prev = 0, wantOpen = 0, name = ' ', v = 0, t = 0, code = 0, go = 0;
-  pn = 0; vsp = 0; osp = 0; ccn = 0; cerr = 0; cpos = 0; usesZ = 0; usesT = 0; usesA = 0;
+  pn = 0; vsp = 0; osp = 0; ccn = 0; cerr = 0; cpos = 0; usesZ = 0; usesT = 0; usesA = 0; inIter = 0;
   k = 1;
   while (k <= NREG) { REGU[k] = 0; k = k + 1; }
   REGU[1] = 1;
@@ -339,7 +343,10 @@ function compile() {
         if (lk_code == 0) { cerr = 2; }
         else {
           if (prev == 1) { c_binop(3); }
-          if (lk_code > 100) { osp = osp + 1; OPK[osp] = lk_code; wantOpen = 1; prev = 0; }
+          if (lk_code > 100) {
+            osp = osp + 1; OPK[osp] = lk_code; wantOpen = 1; prev = 0;
+            if (lk_code >= 131) { c_iterBegin(); }
+          }
           else {
             if (lk_code == 1) { c_z(); }
             if (lk_code == 2) { c_const(0, 1); }
@@ -379,11 +386,30 @@ function compile() {
                 }
               }
             } else {
-              if (prev == 0) {
-                // a sign
-                if (code == 2) { osp = osp + 1; OPK[osp] = 6; }
-                else { if (code != 1) { cerr = 4; } }
-              } else { c_binop(code); prev = 0; }
+              if (code == 9) {
+                // the comma between the body and the count of iter / esc: the body's operators leave
+                if (prev == 0) { cerr = 4; }
+                go = 1;
+                while (go == 1 && cerr == 0) {
+                  if (osp == 0) { go = 0; cerr = 4; }
+                  else {
+                    t = OPK[osp];
+                    if (t == 7) { go = 0; } else { osp = osp - 1; c_apply(t); }
+                  }
+                }
+                if (cerr == 0) {
+                  // (only straight inside the bracket of iter or esc, and once)
+                  t = 0;
+                  if (osp >= 2) { t = OPK[osp - 1]; }
+                  if (t >= 131 && itComma == 0) { itComma = 1; prev = 0; } else { cerr = 4; }
+                }
+              } else {
+                if (prev == 0) {
+                  // a sign
+                  if (code == 2) { osp = osp + 1; OPK[osp] = 6; }
+                  else { if (code != 1) { cerr = 4; } }
+                } else { c_binop(code); prev = 0; }
+              }
             }
           }
           i = i + 1;

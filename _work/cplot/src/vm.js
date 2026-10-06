@@ -343,6 +343,9 @@ function v_tan(d, a, n) {
 const O_COPY = 1, O_FILL = 2, O_ADD = 3, O_SUB = 4, O_MUL = 5, O_DIV = 6, O_ADDC = 7, O_RSUBC = 8, O_MULC = 9;
 const O_NEG = 10, O_CONJ = 11, O_RE = 12, O_IM = 13, O_ABS = 14, O_ARG = 15, O_SQR = 16, O_RECIP = 17, O_SQRT = 18;
 const O_EXP = 19, O_LN = 20, O_SIN = 21, O_TAN = 22;
+// (23, 24: ext.js) a loop: O_LOOP iterate-register marks-register count*2+start ... O_ENDLOOP (ext2.js)
+const O_LOOP = 40, O_ENDLOOP = 41, O_ITSTEP = 42, O_ESCSTEP = 43, O_ESCOUT = 44;
+let loopAt = 0, loopK = 0, loopN = 0, live = 0;
 
 function execOp(op, d, a, b, n) {
   if (op <= 9) {
@@ -369,11 +372,22 @@ function execOp(op, d, a, b, n) {
 
 // the program on register 1's first n cells (an operation whose result is a constant runs on that one cell)
 function runProg(n) {
-  let k = 1, d = 0;
+  let k = 1, d = 0, op = 0;
   while (k <= pn) {
-    d = PD[k];
-    if (d >= CB) { execOp(PO[k], d, PA[k], PB[k], 1); }
-    else { execOp(PO[k], d, PA[k], PB[k], n); }
+    op = PO[k]; d = PD[k];
+    if (op == O_LOOP) {
+      loopAt = k; loopK = 0; loopN = idiv(PB[k], 2); live = n;
+      v_loopInit(d, PA[k], mod(PB[k], 2), n);
+    } else {
+      if (op == O_ENDLOOP) {
+        // (again from the operation after O_LOOP - unless every cell of the row is done)
+        loopK = loopK + 1;
+        if (loopK < loopN && live > 0) { k = loopAt; }
+      } else {
+        if (d >= CB) { execOp(op, d, PA[k], PB[k], 1); }
+        else { execOp(op, d, PA[k], PB[k], n); }
+      }
+    }
     k = k + 1;
   }
 }

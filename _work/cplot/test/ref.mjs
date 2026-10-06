@@ -83,10 +83,31 @@ export const NAMES = { i: () => I, e: () => C(Math.E), pi: () => C(Math.PI), 'π
 
 // formula -> (z, env) => value. Same grammar as the work: + - * / ^ (right to left), a sign binds
 // tighter than * and looser than ^, two values side by side are multiplied, names are split greedily.
-export function parse(text, { funcs = FUNCS, names = NAMES, funcs2 = {} } = {}) {
+// iter and esc as the work defines them (ext2.js)
+export const FUNCS2 = {
+    iter: (a, usesC) => (z, env) => {
+        const n = a[1](z, env).re; let w = usesC ? C(0) : z;
+        for (let k = 0; k < n; k++) { w = a[0](w, { ...env, c: z }); if (!(w.re * w.re + w.im * w.im < 1e280)) break; }
+        return w;
+    },
+    esc: (a, usesC) => (z, env) => {
+        const n = a[1](z, env).re; let w = usesC ? C(0) : z;
+        for (let k = 0; k < n; k++) {
+            w = a[0](w, { ...env, c: z });
+            const m = w.re * w.re + w.im * w.im;
+            if (!(m < 65536)) {
+                const v = m < 1e280 ? k + 5 - Math.log2(Math.log2(m) / 2) : k + 1, e = Math.pow(2, v - Math.floor(v)), t = v * 15 * Math.PI / 180;
+                return C(e * Math.cos(t), e * Math.sin(t));
+            }
+        }
+        return C(0);
+    },
+};
+export function parse(text, { funcs = FUNCS, names = NAMES, funcs2 = FUNCS2 } = {}) {
     const toks = [];
     const s = text.replace(/[×·]/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
-    const known = [...Object.keys(funcs), ...Object.keys(funcs2), ...Object.keys(names), 'z', 'x', 'y'].sort((a, b) => b.length - a.length);
+    const known = [...Object.keys(funcs), ...Object.keys(funcs2), ...Object.keys(names), 'z', 'x', 'y', 'c'].sort((a, b) => b.length - a.length);
+    let cCount = 0;
     for (let i = 0; i < s.length;) {
         const ch = s[i];
         if (ch === ' ') { i++; continue; }
@@ -112,14 +133,16 @@ export function parse(text, { funcs = FUNCS, names = NAMES, funcs2 = {} } = {}) 
             if (funcs[t.v] || funcs2[t.v]) {
                 if (!peek() || peek().t !== '(') throw new Error('( expected');
                 p++;
+                const c0 = cCount;
                 const a = [expr()];
                 while (peek() && peek().t === ',') { p++; a.push(expr()); }
                 if (peek() && peek().t === ')') p++;
-                if (funcs2[t.v]) return funcs2[t.v](a);
+                if (funcs2[t.v]) return funcs2[t.v](a, cCount > c0);
                 const f = funcs[t.v];
                 return (z, env) => f(a[0](z, env));
             }
             if (t.v === 'z') return (z) => z;
+            if (t.v === 'c') { cCount++; return (z, env) => env.c; }
             if (t.v === 'x') return (z) => C(z.re);
             if (t.v === 'y') return (z) => C(z.im);
             const n = names[t.v];

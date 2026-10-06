@@ -158,7 +158,7 @@ function passDone() {
   pickLevels();
   if (vgen != rView) { pickLevels(); startPass(baseLevel); }
   else {
-    if (rLevel < maxLevel) { startPass(rLevel + 1); }
+    if (rLevel < maxLevel && gridOn == 0) { startPass(rLevel + 1); }
     else { rState = 0; rHand = 1; }
   }
 }

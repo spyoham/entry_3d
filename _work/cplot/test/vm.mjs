@@ -21,6 +21,8 @@ export function evalAt(formula, pts) {
 }
 export const ENV = { t: C(1.3), a: C(0.6, -0.8) };
 export const FORMULAS = [
+    'iter(z^2+c, 5)', 'iter(z^2+a, 4)', 'iter(z^2+c, 1)', 'iter(z^2-1, 3)', 'iter(sin(z)+c, 3)', 'iter(z, 7)', 'iter(c, 3)', 'iter(2, 3)', 'iter(z^2+c, 30)', 'iter(z^2+c, 3)^2+z', '1/iter(z-(z^3-1)/(3z^2), 6)',
+    'esc(z^2+c, 40)', 'esc(z^2+a, 30)', 'esc(z^3+c, 20)', 'esc(z^2+c, 2000)', 'esc(z^2+c, 12)+z', 'iter(z^2+c,3)',
     'gamma(z)', 'gamma(z+1)/gamma(z)', '1/gamma(z)', 'gamma(1/z)', 'gamma(z)gamma(1-z)sin(pi z)', 'zeta(z)', 'zeta(2z)', 'zeta(1/z)', '(z-1)zeta(z)',
     'z+a', 'a z^2+t', 'e^(i t)z', 't^2+z', 'z^t', 'a^z', 'a/z', 'z/a', 'z-a', 'a-z', 't', 'a', 'sin(t)z', '(z-a)/(1-conj(a)z)', 'a^3 z', 'sqrt(a)+z', 'gamma(a) z',
     'z', '-z', 'z+1', '1+z', 'z-1', '1-z', '2z', 'z*i', 'z/2', '2/z', 'z/(1+i)', '(1+i)/z', 'z*z', 'z/z', 'z+z', 'z-z+z',
@@ -61,6 +63,8 @@ for (const f of [...FORMULAS, ...CONST]) {
         // (the reference itself overflowed; or gamma right beside a pole, where sin(pi z) has few digits left)
         if (isNaN(want.re) || isNaN(want.im)) return;
         if (f.includes('gamma') && Math.abs(p.im) < 1e-6 && p.re < 0) return;
+        // (the tip of the Mandelbrot set: the iteration is chaotic there, the last digit decides)
+        if ((f.includes('iter(') || f.includes('esc(')) && p.re === -2) return;
         total++;
         for (const [how, v] of [['row', got.row[j]], ['one', got.one[j]]]) {
             const m = Math.hypot(want.re, want.im), d = Math.hypot(v.re - want.re, v.im - want.im);
@@ -70,7 +74,7 @@ for (const f of [...FORMULAS, ...CONST]) {
     });
 }
 // what must not compile
-const ERR = { '': 9, '   ': 9, 'z+': 4, '*z': 4, 'z)': 7, 'foo(z)': 2, 'sin z': 3, 'sin': 3, '1.2.3': 8, 'z#': 1, '()': 4, 'z^': 4, '(': 9, '.': 8, '5.': 0, '.5z': 0, 'sin()': 4, 'z 2': 0 };
+const ERR = { '': 9, '   ': 9, 'z+': 4, '*z': 4, 'z)': 7, 'foo(z)': 2, 'sin z': 3, 'sin': 3, '1.2.3': 8, 'z#': 1, '()': 4, 'z^': 4, '(': 9, '.': 8, '5.': 0, '.5z': 0, 'iter(z^2+c)': 11, 'iter(z,0)': 11, 'iter(z,2.5)': 11, 'iter(z,z)': 11, 'iter(iter(z,2),2)': 11, 'esc(z': 11, 'c': 12, 'z+c': 12, 'sin(z,2)': 4, 'z,2': 4, 'iter(z,2,3)': 4, 'iter(,2)': 4, 'iter(z,)': 4, 'iter(z^2+c,5': 0, 'iter(z,3000)': 11, 'sin()': 4, 'z 2': 0 };
 for (const [f, code] of Object.entries(ERR)) {
     const got = evalAt(f, pts.slice(0, 2));
     const c = got.err || 0;

@@ -14,7 +14,7 @@ const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 
 export const SS = 2;                       // picture pixels per stage unit
 export const W = 480 * SS, H = 270 * SS;
-const OBJECTS = ['pen', 'axes', 'bot', 'top', 'help'];     // back to front
+const OBJECTS = ['pen', 'grid', 'axes', 'bot', 'top', 'help'];     // back to front
 
 export function createSim({ consts = {}, listMax = 5000, tf = [] } = {}) {
     const C = { ...buildConsts, ...consts };
@@ -106,7 +106,15 @@ export function createSim({ consts = {}, listMax = 5000, tf = [] } = {}) {
         let X0, X1, Y0, Y1;
         if (y0 === y1) { X0 = (x0 + 240) * SS; X1 = (x1 + 240) * SS; Y0 = (135 - y0 - size / 2) * SS; Y1 = (135 - y0 + size / 2) * SS; }
         else if (x0 === x1) { X0 = (x0 + 240 - size / 2) * SS; X1 = (x0 + 240 + size / 2) * SS; Y0 = (135 - y1) * SS; Y1 = (135 - y0) * SS; }
-        else throw new Error('a slanted stroke');
+        else {
+            // a slanted stroke: squares of its thickness along it
+            const L = Math.hypot(x1 - x0, y1 - y0), [ax, ay, bx, by] = s, n = Math.ceil(L * SS) + 1, h = Math.max(1, Math.round(size * SS)) / 2;
+            for (let i = 0; i <= n; i++) {
+                const cx = (ax + (bx - ax) * i / n + 240) * SS, cy = (135 - (ay + (by - ay) * i / n)) * SS;
+                for (let yy = Math.max(0, Math.round(cy - h)); yy < Math.min(H, Math.round(cy + h)); yy++) for (let xx = Math.max(0, Math.round(cx - h)); xx < Math.min(W, Math.round(cx + h)); xx++) { const o = (yy * W + xx) * 3; px[o] += (col[0] - px[o]) * alpha; px[o + 1] += (col[1] - px[o + 1]) * alpha; px[o + 2] += (col[2] - px[o + 2]) * alpha; }
+            }
+            return;
+        }
         X0 = Math.max(0, Math.round(X0)); X1 = Math.min(W, Math.round(X1)); Y0 = Math.max(0, Math.round(Y0)); Y1 = Math.min(H, Math.round(Y1));
         for (let yy = Y0; yy < Y1; yy++) { let o = (yy * W + X0) * 3; for (let xx = X0; xx < X1; xx++) { px[o] += (col[0] - px[o]) * alpha; px[o + 1] += (col[1] - px[o + 1]) * alpha; px[o + 2] += (col[2] - px[o + 2]) * alpha; o += 3; } }
     }

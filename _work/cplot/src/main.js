@@ -7,17 +7,22 @@ const ZOOM_MIN = 1e-12, ZOOM_MAX = 1e6;
 let fsrc = '', errText = '', errT = 0, fs = '', fc = '';
 let topText = ' ', botText = ' ', helpOn = 0, hudOn = 1, axesOn = 1, wantAsk = 0;
 let kLatch = 0, mWas = 0, mX0 = 0, mY0 = 0, cX0 = 0, cY0 = 0, pmx = 9999, pmy = 9999, pGen = 0, pDone = -1;
-let fpsN = 0, fpsSec = -1, fpsSkip = 1, bFail = 0, pnWas = -1;
+let fpsN = 0, fpsSec = -1, fpsSkip = 1, bFail = 0, pnWas = -1, pcost = 0;
 let axGen = 0, axOn = -1, tickU = 1;
 let frames = 0;
 let tPar = 0, playing = 1, tLast = 0, aRe = 1, aIm = 0, fmtD = 5;
 let MKX = [], MKY = [], MKK = [];
 let nwX = 0, nwY = 0, wn = 0;
+let gridOn = 0, gGen = 0, gLine = 0, gTotal = 0, gNx = 0, gK0x = 0, gK0y = 0, gU = 1, gShown = 0, gcx = 0, gcy = 0, gupp = 1;
 
 let EX = ['(z^2-1)(z-2-i)^2/(z^2+2+2i)', 'z', 'z^3-1', '(z-1)/(z+1)', 'e^(1/z)', 'sin(z)', 'sqrt(z^2-1)', 'ln(z)', 'tan(z)', 'z^(1+i)',
-  'gamma(z)', 'zeta(z)', 'zeta(1/2+iz)', '(z-a)/(1-conj(a)z)', 'z^2+a', 'z^3+e^(it)', 'sin(z+t)/z', '1/gamma(z)', 'e^z', '(z^5-1)/(z^5+1)'];
+  'gamma(z)', 'zeta(z)', 'zeta(1/2+iz)', '(z-a)/(1-conj(a)z)', 'z^2+a', 'z^3+e^(it)', 'sin(z+t)/z', '1/gamma(z)', 'e^z', '(z^5-1)/(z^5+1)',
+  'esc(z^2+c, 60)', 'esc(z^2+a, 80)', 'iter(z^2+c, 6)', 'esc(z^3+c, 40)', 'iter(z-(z^3-1)/(3z^2), 12)'];
+// an example may bring its own a and its own centre: EXN the example, EXAR + i EXAI its a (0: as it is), EXCX the real part of the centre
+let EXN = [21, 22, 23, 24];
+let EXAR = [0, -0.8, 0, 0], EXAI = [0, 0.156, 0, 0], EXCX = [-0.6, 0, -0.6, -0.2];
 let exAt = 1;
-let ERRM = ['모르는 글자가 있습니다', '모르는 이름입니다', '함수 이름 뒤에는 ( 가 와야 합니다', '식이 맞지 않습니다', '상수가 너무 많습니다', '식이 너무 깊습니다', '괄호가 맞지 않습니다', '숫자가 잘못됐습니다', '식이 비었습니다', '식이 너무 깁니다'];
+let ERRM = ['모르는 글자가 있습니다', '모르는 이름입니다', '함수 이름 뒤에는 ( 가 와야 합니다', '식이 맞지 않습니다', '상수가 너무 많습니다', '식이 너무 깊습니다', '괄호가 맞지 않습니다', '숫자가 잘못됐습니다', '식이 비었습니다', '식이 너무 깁니다', 'iter(식, 횟수), esc(식, 횟수) 꼴로 써야 합니다 (횟수는 1 ~ 2000)', 'c는 iter, esc 안에서만 씁니다'];
 
 // 10^k for a whole k
 function M_pow10(res, k) {
@@ -75,14 +80,47 @@ function fmtc(re, im) {
   }
 }
 
+// about what a cell of the program costs, in simple operations -> pcost
+function progCost() {
+  let k = 1, c = 4, m = 1, op = 0;
+  while (k <= pn) {
+    op = PO[k];
+    if (op == O_LOOP) { m = idiv(PB[k], 2); }
+    else {
+      if (op == O_ENDLOOP) { m = 1; }
+      else {
+        if (op == O_ZETA) { c = c + 40 * m; }
+        else { if (op == O_GAMMA) { c = c + 12 * m; } else { c = c + m; } }
+      }
+    }
+    k = k + 1;
+  }
+  pcost = c;
+}
+// the example number k (with the view and the a that go with it)
+function setExample(k) {
+  let j = 1;
+  exAt = k;
+  errT = 0;
+  vcx = 0; vcy = 0; vupp = 0.015625;
+  while (j <= EXN.length) {
+    if (EXN[j] == k) {
+      vcx = EXCX[j];
+      if (EXAR[j] != 0 || EXAI[j] != 0) { aRe = EXAR[j]; aIm = EXAI[j]; }
+    }
+    j = j + 1;
+  }
+  setFormula(EX[k]);
+}
 function setFormula(t) {
   src = t;
   compile();
   if (cerr == 0) {
     fsrc = t; errText = ''; vgen = vgen + 1;
-    // a longer program: fewer cells per frame (and what was too much before says nothing now)
-    if (pnWas >= 0) { budget = Math.floor(budget * (pnWas + 4) / (pn + 4)); if (budget < 24) { budget = 24; } }
-    pnWas = pn; bFail = 0;
+    // a costlier program: fewer cells per frame (and what was too much before says nothing now)
+    progCost();
+    if (pnWas >= 0) { budget = Math.floor(budget * pnWas / pcost); if (budget < 24) { budget = 24; } }
+    pnWas = pcost; bFail = 0;
     while (MKX.length > 0) { MKX.removeAt(1); MKY.removeAt(1); MKK.removeAt(1); }
     axGen = 0;
   }
@@ -118,6 +156,7 @@ function showTop() {
     }
     if (usesA == 1) { fmtc(aRe, aIm); topText = `${topText}   a = ${fc}`; }
     if (hiq == 1) { topText = `${topText}   [Q]`; }
+    if (gridOn == 1) { topText = `${topText}   [격자]`; }
   }
 }
 
@@ -307,6 +346,7 @@ function uiStep() {
   }
   if (key(32)) { kn = 32; }
   if (key(190)) { kn = 190; }
+  if (key(71)) { kn = 71; }
   if (key(188)) { kn = 188; }
   if (key(13)) { kn = 13; }
   if (key(48)) { kn = 48; }
@@ -330,11 +370,12 @@ function uiStep() {
     kLatch = kn;
     if (kn > 0 && helpOn == 1 && kn != 72) { helpOn = 0; }
     if (kn == 13) { wantAsk = 1; }
-    if (kn >= 49 && kn <= 57) { exAt = kn - 48; errT = 0; setFormula(EX[exAt]); }
-    if (kn == 48) { exAt = 10; errT = 0; setFormula(EX[10]); }
+    if (kn >= 49 && kn <= 57) { setExample(kn - 48); }
+    if (kn == 48) { setExample(10); }
     // . and , step through all the examples
-    if (kn == 190) { exAt = exAt + 1; if (exAt > EX.length) { exAt = 1; } errT = 0; setFormula(EX[exAt]); }
-    if (kn == 188) { exAt = exAt - 1; if (exAt < 1) { exAt = EX.length; } errT = 0; setFormula(EX[exAt]); }
+    if (kn == 190) { if (exAt >= EX.length) { setExample(1); } else { setExample(exAt + 1); } }
+    if (kn == 188) { if (exAt <= 1) { setExample(EX.length); } else { setExample(exAt - 1); } }
+    if (kn == 71) { gridOn = 1 - gridOn; vgen = vgen + 1; axGen = 0; showTop(); }
     if (kn == 32) { playing = 1 - playing; showTop(); }
     if (kn == 82) { vcx = 0; vcy = 0; vupp = 0.015625; vgen = vgen + 1; }
     if (kn == 67) { cmode = mod(cmode + 1, 4); vgen = vgen + 1; }
@@ -415,8 +456,7 @@ function drawAxes() {
   if (axesOn == 1) {
     tickUnit();
     u = tickU;
-    penAlpha(45);
-    penColor('#000000');
+    if (gridOn == 1) { penAlpha(55); penColor('#ffffff'); } else { penAlpha(45); penColor('#000000'); }
     penSize(1);
     if (ay > -135 && ay < 135) {
       M_line(-240, ay, 240, ay);
@@ -441,7 +481,79 @@ function drawAxes() {
   }
 }
 
-const HELP = '엔트리 복소함수 그래퍼\n\nEnter   식 입력   예) (z^2-1)/(z^2+1)   e^(1/z)   zeta(z)\n1 ~ 9, 0   예제       . ,   다음 / 앞 예제 (20개)\n끌기, 방향키   이동        클릭   그 근처의 영점·극 찾기\nZ / X  (+ / -)   확대 / 축소 (마우스 위치로)\nR 처음 보기    C 색 방식    A 좌표축    Q 한 단계 더 곱게\n식에 t 가 있으면 시간이 흐릅니다 (스페이스: 멈춤)\n식에 a 가 있으면 S 를 누른 채 마우스로 a 를 옮깁니다\nH   이 도움말 (아무 키나 누르면 닫힘)\n\n색 = f(z)의 방향: 빨강 +, 청록 -, 연두 +i, 보라 -i\n밝기 고리 = |f|가 2배 될 때마다. 검정 0, 흰색 ∞\nz가 없는 식은 값을 계산합니다.  예) (1+2i)^(3-i)   zeta(2)';
+// ---------------- the picture of a grid ----------------
+// G: instead of colours, where f takes the lines of a square grid. The lines Re z = const (blue)
+// and Im z = const (orange) of the part of the plane in view are each followed in 96 steps, and
+// their pictures drawn in the same view. Where f is analytic the two families still cross at
+// right angles.
+const GN = 96;
+// line number k (0 ..): 96 points of it through the program, and the curve through their values
+function gridLine(k) {
+  let j = 1, x = 0, y = 0, dx = 0, dy = 0, p = 0, pe = 0, px = 0, py = 0, lx = 0, ly = 0, down = 0, c = 0;
+  if (k < gNx) {
+    // Re z = c, from the bottom of the view to the top
+    c = (gK0x + k) * gU;
+    x = c; y = gcy - 135 * gupp; dx = 0; dy = 270 * gupp / (GN - 1);
+    penColor('#4da3ff');
+  } else {
+    c = (gK0y + k - gNx) * gU;
+    x = gcx - 240 * gupp; y = c; dx = 480 * gupp / (GN - 1); dy = 0;
+    penColor('#ff9a3c');
+  }
+  // (the two axes thicker)
+  if (c == 0) { penSize(2.5); } else { penSize(1); }
+  while (j <= GN) { VR[j] = x; VI[j] = y; x = x + dx; y = y + dy; j = j + 1; }
+  setParams();
+  runProg(GN);
+  p = resOff + 1; pe = resOff + GN;
+  while (p <= pe) {
+    // (a value that is not a number is not equal to itself)
+    px = 9999;
+    if (VR[p] == VR[p] && VI[p] == VI[p]) {
+      x = VR[p]; y = VI[p];
+      if (Math.abs(x) + Math.abs(y) < kHuge) { px = (x - gcx) / gupp; py = (y - gcy) / gupp; }
+    }
+    if (Math.abs(px) < 1500 && Math.abs(py) < 1500) {
+      // (a jump - across a pole or a cut - is not joined up)
+      if (down == 1 && Math.abs(px - lx) + Math.abs(py - ly) < 240) { goto(px, py); }
+      else { penUp(); goto(px, py); penDown(); down = 1; }
+      lx = px; ly = py;
+    } else { penUp(); down = 0; }
+    p = p + 1;
+  }
+  penUp();
+}
+function gridStep() {
+  let n = 0;
+  if (gridOn == 0) {
+    if (gShown == 1) { eraseAll(); gShown = 0; }
+  } else {
+    // a new view or formula: once the lines of the last one are all drawn
+    if (gGen != vgen && (gShown == 0 || gLine >= gTotal)) {
+      gGen = vgen; gShown = 1;
+      gcx = vcx; gcy = vcy; gupp = vupp;
+      tickUnit();
+      gU = tickU / 4;
+      gK0x = Math.ceil((gcx - 240 * gupp) / gU);
+      gNx = Math.floor((gcx + 240 * gupp) / gU) - gK0x + 1;
+      gK0y = Math.ceil((gcy - 135 * gupp) / gU);
+      gTotal = gNx + Math.floor((gcy + 135 * gupp) / gU) - gK0y + 1;
+      gLine = 0;
+      eraseAll();
+      // the background: one stroke as thick as the stage is high
+      penAlpha(0);
+      penColor('#12161d');
+      penSize(280);
+      goto(-245, 0); penDown(); goto(245, 0); penUp();
+    }
+    // as many lines a frame as the pace allows
+    n = idiv(budget, GN);
+    if (n < 1) { n = 1; }
+    while (n > 0 && gLine < gTotal) { gridLine(gLine); gLine = gLine + 1; n = n - 1; }
+  }
+}
+
+const HELP = '엔트리 복소함수 그래퍼\n\nEnter   식 입력   예) (z^2-1)/(z^2+1)   zeta(z)   esc(z^2+c, 60)\n1 ~ 9, 0   예제       . ,   다음 / 앞 예제 (25개)\n끌기, 방향키   이동        클릭   그 근처의 영점·극 찾기\nZ / X  (+ / -)   확대 / 축소 (마우스 위치로)\nR 처음 보기   C 색 방식   A 좌표축   G 격자가 옮겨진 모습   Q 더 곱게\n식에 t 가 있으면 시간이 흐릅니다 (스페이스: 멈춤)\n식에 a 가 있으면 S 를 누른 채 마우스로 a 를 옮깁니다\nH   이 도움말 (아무 키나 누르면 닫힘)\n\n색 = f(z)의 방향: 빨강 +, 청록 -, 연두 +i, 보라 -i\n밝기 고리 = |f|가 2배 될 때마다. 검정 0, 흰색 ∞\nz가 없는 식은 값을 계산합니다.  예) (1+2i)^(3-i)   zeta(2)';
 
 on('start', 'top', function () {
   let shown = '';
@@ -480,6 +592,13 @@ on('start', 'help', function () {
       was = helpOn;
       if (was == 1) { show(); } else { hide(); }
     }
+  }
+});
+
+on('start', 'grid', function () {
+  hide();
+  for (;;) {
+    if (ready == 1) { gridStep(); }
   }
 });
 
