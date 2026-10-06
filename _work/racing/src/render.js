@@ -71,6 +71,10 @@ let scnSz = 70;             // v4.0: an object is drawn while its radius x this 
 let colOff = 0;             // colTab base, folded: colTab[colOff + mat * NFOG + fog]
 let penTr = 0;              // v7: pen transparency last set (see-through smoke, ghost, sparks)
 let qHex = '#000000';       // quad(..., mat < 0) fills with this colour instead
+// v3.3.1: the time-trial ghost thins out from GHFAR metres off the camera and
+// is not drawn at all inside GHNEAR (the camera sitting in it)
+const GHNEAR = 3.5;
+const GHFAR = 8;
 // graphics level (1 LOW = v4, 2 HIGH, 3 ULTRA): how far the LOD bands, the
 // scenery and the detailed car models reach. Set from the gf* tables.
 let gfx = 2;
@@ -928,6 +932,18 @@ function drawCar(c, tier) {
     if (0 - o0 - frKX * o2 > 3.2 * frFX) { vis = 0; }
     if (o1 - frKY * o2 > 3.2 * frFY) { vis = 0; }
     if (0 - o1 - frKY * o2 > 3.2 * frFY) { vis = 0; }
+    // on HIGH and up the time-trial ghost is see-through
+    let see = 0;
+    if (c == GHOST) {
+        if (scCar < 1) {
+            let gd = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (gd < GHNEAR) { vis = 0; }
+            else if (gfx > 1) {
+                see = 45;
+                if (gd < GHFAR) { see = 45 + Math.round((GHFAR - gd) / (GHFAR - GHNEAR) * 9) * 5; }
+            }
+        }
+    }
     if (vis > 0) {
         // integer versions: model mm -> view units (1/ZU m)
         let dxi = Math.round(caX[c] * WU) - camXi;
@@ -1007,12 +1023,22 @@ function drawCar(c, tier) {
         if (caBrk[c] > 0.05) { lit = 1; }
         if (rainVis > 0.3) { lit = 1; }
         // v7: a knocked-off front wing is not drawn; ULTRA brake discs glow
-        // with heat; on HIGH and up the time-trial ghost is see-through
+        // with heat
         let noWing = caWing[c];
         let heat = 0;
         if (gfx > 2) { heat = caHeat[c]; }
-        let see = 0;
-        if (c == GHOST) { if (gfx > 1) { if (scCar < 1) { see = 45; penTr = see; penAlpha(see); } } }
+        // v3.3.1: the see-through ghost is three flat layers (ghostFaces), not
+        // a face at a time - so none of its faces is left for the loop below
+        if (see > 0) {
+            penTr = see;
+            penAlpha(see);
+            let lm = kA + kB * 0.6;
+            ghostFaces(tier, fn, ob, lci, lcj, lck,
+                rgb(lR * lm + fr, lG * lm + fg, Math.floor(lB * lm + fb)),
+                rgb(30 * lm + fr, 31 * lm + fg, Math.floor(35 * lm + fb)),
+                rgb(lvR2[col] * lm + fr, lvG2[col] * lm + fg, Math.floor(lvB2[col] * lm + fb)));
+            fn = 0;
+        }
         let k = 1;
         while (k <= fn) {
             let f = 0;
@@ -1059,6 +1085,39 @@ function drawCar(c, tier) {
             k = k + 1;
         }
         if (see > 0) { penTr = 0; penAlpha(0); }
+    }
+}
+
+// v3.3.1: the see-through ghost's faces, already projected by drawCar, in
+// three flat colours: the bodywork (h1), then the carbon, tyres and lights
+// (h2), then the accent, rims and helmet (h3). Every fill of a layer has the
+// same colour and transparency, so a layer is one group of the pen. Lit face
+// by face, nearly every face was a see-through group of its own - some 30 a
+// frame -
+// and tessvm draws every such group into a texture of its own before blending
+// it in: the nearer the ghost, the bigger those textures, and the frame rate
+// fell to a third with the ghost on top of the cockpit camera.
+function ghostFaces(tier, fn, ob, lci, lcj, lck, h1, h2, h3) {
+    let p = 1;
+    while (p <= 3) {
+        qHex = h1;
+        if (p == 2) { qHex = h2; } else if (p == 3) { qHex = h3; }
+        let k = 1;
+        while (k <= fn) {
+            let f = 0;
+            if (tier > 0) { f = coHi[ob + k]; } else { f = coLo[ob + k]; }
+            let kd = cfK[f];
+            let g = 1;
+            if (kd == 2) { g = 2; } else if (kd == 3) { g = 2; } else if (kd == 6) { g = 2; }
+            else if (kd == 1) { g = 3; } else if (kd == 4) { g = 3; } else if (kd == 5) { g = 3; }
+            if (g == p) {
+                if (cnX[f] * lci + cnY[f] * lcj + cnZ[f] * lck - cfP[f] > 0 - 307200) {
+                    quad(CARBASE + cfA[f], CARBASE + cfB[f], CARBASE + cfC[f], CARBASE + cfD[f], 0 - 1);
+                }
+            }
+            k = k + 1;
+        }
+        p = p + 1;
     }
 }
 

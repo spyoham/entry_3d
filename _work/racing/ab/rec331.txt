@@ -1,0 +1,14 @@
+PASS loaded: my best 200, record 150 zed
+PASS laps: 120.30 (best 120.30), 117.80 (best 117.80), 117.80 (best 117.80)
+PASS my best while driving: 117.800 (fastest lap 117.800)
+PASS on track, 8 s after each lap the server has the best lap in the ranking and the save: [{"rank":true,"save":true,"st":3},{"rank":true,"save":true,"st":3},{"rank":true,"save":true,"st":3}]
+PASS and the on-track saving is over
+PASS menu card: my best 117.800, record 117.800 alice
+PASS server ranking: ||alice,117800|zed,150000
+PASS bob's new record reaches alice's menu: 100 bob
+PASS her lap from the other computer shows: my best 90, record 90 alice, XP 5250
+PASS next session: my best 90, record 90 alice
+PASS restarted on old lists: my best 85, record 85 alice
+PASS the server's ranking was not rolled back: ||alice,85000|bob,100000|zed,150000
+PASS after an online race (watched): laps 3, my best 85.00
+PASS after an online race (raced): AI cars moving 40 s into a race: 7 / 7

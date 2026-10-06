@@ -1,3 +1,47 @@
+# F1 ONLINE 3D — 작업 인계 메모 (2026-10-06, v3.3.1)
+
+산출물: `F1 Online 3D v3.3.1.ent`, 설명서 `F1 Online 3D v3.3.1 설명서.md` (v3.3.0은 루트 `old/`로)
+빌드: `node build.mjs f1online331.ent`
+
+## 요청과 한 것
+사용자: "레이싱 게임에서 고스트 모드 랙이 중간중간에 매우 심해지는 현상을 해결해줘." 기능 목록(다음: 8번 온라인 리매치·서킷 투표)과는 별개의 버그 수정.
+- 원인: tessvm 렌더러(`ext/vendor/tessvm/render/renderer.js` flush → `drawPenGroup`/`finishPenGroup`)
+  - 붓 투명도가 0이 아닌 채우기는 **같은 색·굵기·투명도가 이어지는 묶음마다** 따로 노드를 만들고 `cacheAsTexture`로 텍스처에 그린 뒤 알파로 섞음. 매 프레임 다시 함.
+  - drawCar는 고스트 면마다 조명을 계산해 색이 다 달랐음 → 고스트 한 대가 프레임당 반투명 그룹 23–33개(`t9/ghostdraw.mjs`로 셈).
+  - 텍스처 크기는 그룹의 화면 크기라서 고스트가 가까울수록 비쌈. 콕핏 카메라에서 고스트와 겹치면 화면 전체 크기 × 수십 장.
+- 고침(render.js)
+  - `ghostFaces(tier, fn, ob, lci, lcj, lck, h1, h2, h3)`(새 함수): 반투명 고스트를 단색 3겹으로. 겹 1 차체(면 종류 0·7·그 밖), 2 카본·타이어·후미등(2·3·6), 3 줄무늬·휠·헬멧(1·4·5).
+    - 색은 리버리 × 평균 조명(`kA + kB·0.6`) + 안개. quad(…, −1)가 같은 qHex로 채우므로 겹마다 펜 그룹 하나.
+    - 겹 사이의 앞뒤 순서는 지키지 않음(반투명이라 티가 안 남). 겹 안에서는 색이 같아 순서가 상관없음.
+  - drawCar: `see`를 정점 투영 전에 정함. 카메라까지 거리 gd(3차원).
+    - gd < `GHNEAR`(3.5 m)이면 vis 0(LOW 포함). gd < `GHFAR`(8 m)이면 투명도 45 → 90(5 단위).
+    - see > 0이면 ghostFaces를 부르고 **`fn = 0`으로 아래 면 반복을 건너뜀**(반복문을 else로 감싸지 않으려고).
+  - 세이프티카(drawSC)·다른 차·연기는 그대로. 메뉴 버전 v3.3.1.
+- 원인이 아니었던 것(측정): 랩 끝 lapGhost·loadPbGhost·wrUpload, profileStep(pRecNow 동안 주행 중 저장), updateGhost의 sampleTrack. sim에서 프레임당 1 ms 미만.
+
+## 측정 (tessvm, 싱가포르 ULTRA, 1920×1080 = `SCALE=2`)
+- 소프트웨어 GL(약한 그래픽 카드 대신): 콕핏·고스트 겹침 29 → **8 fps**(v3.3.0) → 28–29 fps(v3.3.1). 콕핏 6 m 앞 23 → 26–27. 추격 카메라 25 → 20 → 고스트 없음과 같은 범위.
+  - 소프트웨어 GL은 회차마다 ±5 fps 흔들림. 같은 실행 안의 "no ghost"와 비교할 것.
+- GPU(`GPU=1`): 둘 다 60 fps. GPU 스레드 프레임당 0.24 ms(고스트 없음) → 0.48–0.55(v3.3.0) → 0.28–0.30(v3.3.1). flush 1.6 → 2.0–2.2 → 1.7–1.8 ms.
+
+## 따로 알게 된 것 — 고치지 않음
+- **1920×1080에서 약 10초마다 0.2–0.4 s 멈춤**. 고스트와 무관(메뉴·1랩째에도 같음). 960×540에서는 60초 동안 없었음.
+  - `t9/stalltrace.mjs`: V8 MajorGC(mark-compact, 370 → 90 MB). 그중 `MARK_WEAK_CLOSURE_EPHEMERON_LINEAR`가 100 ms 넘음(렌더러의 `fillCache` WeakMap으로 보임 — 확인은 안 함).
+  - `t9/gcprobe.mjs`: 쓰레기 프레임당 약 3.5 MB(초당 230 MB).
+  - tessvm 런타임 쪽 문제. 게임에서 줄이려면 프레임당 채우기·점 수를 줄여야 함.
+- 하네스 주의: 0.5초마다 page.evaluate로 변수를 읽는 것은 멈춤의 원인이 아님(`POLL=1`로 확인).
+
+## 시험
+- `t9/ghostdraw.mjs`(새, sim): 채우기마다 색·투명도를 기록해 반투명 그룹 수, 거리별 투명도, 카메라 안일 때 안 그리는지, LOW 불투명. 모두 PASS. `RSRC=<v3.3.0 src>`로는 8 FAIL. `ab/ghostdraw331.txt`.
+  - 고스트는 주행 없이 넣음: caLap[1] = 1, caLapT[1] = raceT, ghX/ghZ/ghW 전부 한 점, ghN 600.
+- `t9/ghosttess.mjs`(새, tessvm): 같은 방법으로 거리별 fps·tick·flush. `DS=거리들`, `CAM=1` 콕핏, `TRACE=1` GPU 스레드, `SHOT=이름`. 사진 `ab/ghost330_*.png`(예전), `ab/ghost331_*.png`.
+- `t9/ghostrun.mjs`(새, tessvm): AI가 운전하는 타임 트라이얼 3랩을 프레임 단위로. **시험용 빌드가 필요**: src를 복사해 game.js에 `let autoDrv = 0;`과 `if (autoDrv > 0) { aiPlan(1); aiDrive(1); } else { playerInput(); }`를 넣고 `RSRC=<복사본> node build.mjs <out.ent>`.
+  - AI는 랩마다 거의 같은 선으로 달려서 3랩째는 고스트가 내내 0–3 m 안.
+- `t9/ghostlag.mjs`(새, sim): 같은 3랩에서 함수별 시간.
+- 회귀 `ab/tests331.txt`, `ab/scmodel331.txt`, `ab/rec331.txt`, `ab/daily331.txt`, `ab/replay331.txt`.
+
+---
+
 # F1 ONLINE 3D — 작업 인계 메모 (2026-10-01, v3.3.0)
 
 산출물: `F1 Online 3D v3.3.0.ent`, 설명서 `F1 Online 3D v3.3.0 설명서.md` (v3.2.0은 루트 `old/`로)

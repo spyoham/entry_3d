@@ -1,0 +1,11 @@
+PASS chase camera, ghost 4 m ahead (13.8 m off the camera): 39 see-through fills in 3 groups (3 colours), transparency 45
+PASS chase camera, ghost on the car (10.0 m): 41 fills in 3 groups, transparency 45
+PASS HIGH, ghost 40 m ahead: 37 fills in 3 groups
+PASS chase camera, ghost 5 m behind the car (5.6 m off the camera): 13 fills in 3 groups, transparency 70
+PASS cockpit, ghost 12 m ahead (12.1 m): 34 fills in 3 groups, transparency 45
+PASS cockpit, ghost 6 m ahead (6.1 m): 32 fills in 3 groups, transparency 65
+PASS cockpit, ghost on the car (0.9 m): 0 see-through fills, 501 fills in all (501 without a ghost)
+PASS LOW, ghost 10 m ahead: solid, 37 fills, none see-through
+PASS LOW, cockpit, ghost on the car: 275 fills (275 without a ghost)
+PASS the pen is opaque again after the frame
+all passed
