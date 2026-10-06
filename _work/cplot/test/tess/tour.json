@@ -1,0 +1,2 @@
+[{"wait":1000,"vars":1,"fps":"a"},{"wait":1000,"vars":1,"fps":"b"},{"wait":1000,"vars":1,"fps":"c"},{"wait":1000,"vars":1,"fps":"d"},{"wait":1500,"vars":1,"fps":"e","shot":"E:/entry_3d/_work/cplot/shots/t5.png"},
+{"down":{"code":"Digit5","key":"5","keyCode":53}},{"wait":100},{"up":{"code":"Digit5","key":"5","keyCode":53}},{"wait":700,"vars":1,"fps":"f"},{"wait":800,"vars":1,"fps":"g"},{"wait":1500,"vars":1,"fps":"h","shot":"E:/entry_3d/_work/cplot/shots/t6.png"}]

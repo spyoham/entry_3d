@@ -1,0 +1,6 @@
+.pack/
+*.ent
+out*.png
+shots/
+.nrun/
+prog_node.js
