@@ -57,12 +57,14 @@ export const list = (name, id, arr) => ({ name, id, value: 0, variableType: 'lis
 const trick = () => B('wait_until_true', [B('boolean_not', [null, B('continue_repeat', [null]), null]), null]);
 
 // time every candidate over the list X (reps times), then keep what each makes of the list XT
-export async function bench(cands, { xs, xt, reps = 20, rounds = 5, tables = {} }) {
+export async function bench(cands, { xs, xt, reps = 20, rounds = 5, tables = {}, extraVariables = [] }) {
     const V = { I: newId(), S: newId(), T: newId(), done: newId() };
     const L = { X: newId(), XT: newId(), BT: newId() };
     const listIds = Object.fromEntries(Object.keys(tables).map(n => [n, newId()]));
     const variables = [...Object.entries(V).map(([n, id]) => variable(n, id)), list('X', L.X, xs), list('XT', L.XT, xt), list('BT', L.BT, []),
-        ...Object.entries(tables).map(([n, arr]) => list(n, listIds[n], arr))];
+        ...Object.entries(tables).map(([n, arr]) => list(n, listIds[n], arr)),
+        // (lists that functions read back out of a shipped file look for, by id)
+        ...extraVariables];
     const functions = [], main = [B('when_run_button_click', [null]), B('choose_project_timer_action', [null, 'START', null, null])];
     const get = (id) => B('get_variable', [id, null]);
     const timer = () => B('get_project_timer_value', [null, 0]);

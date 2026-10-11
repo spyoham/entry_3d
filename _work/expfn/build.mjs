@@ -6,10 +6,11 @@ import zlib from 'node:zlib';
 import cp from 'node:child_process';
 import crypto from 'node:crypto';
 import url from 'node:url';
-import { B, newId, makeFunction, HERE } from './lib.mjs';
+import { B, newId, makeFunction, list, HERE } from './lib.mjs';
 import { expFast, expExact } from './cands.mjs';
+import { expTable, table, LIST, LISTKEY } from './tbl.mjs';
 import { packEnt } from '../cplot/pack.mjs';
-export const VERSION = '1.0';
+export const VERSION = '1.1';
 export const NAME = '엔트리 exp 함수';
 const ROOT = path.join(HERE, '..', '..');
 
@@ -40,8 +41,11 @@ function picture(S) {
 }
 
 export function build() {
-    const fast = makeFunction(expFast()), exact = makeFunction(expExact());
-    const functions = [fast.fn, exact.fn];
+    const listId = newId();
+    const fast = makeFunction(expFast()), exact = makeFunction(expExact()), tbl = makeFunction(expTable(), { [LISTKEY]: listId });
+    const functions = [fast.fn, exact.fn, tbl.fn];
+    // the list exp 표 reads: 10^(j/4096), j = 0..4095
+    const variables = [list(LIST, listId, table())];
     const txt = (t) => B('text', [t]);
     const cat = (a, b) => B('combine_something', [null, a, null, b, null]);
     const call = (f) => B(`func_${f.id}`, [B('get_canvas_input_value', [null]), null]);
@@ -50,14 +54,14 @@ export function build() {
     const hat = B('when_run_button_click', [null]);
     hat.x = 40; hat.y = 30;
     const script = [[hat, B('ask_and_wait', [txt('x = ?'), null]), B('repeat_inf', [null, null], [[
-        B('ask_and_wait', [cat(cat(cat(cat(txt('exp = '), call(fast)), txt('   exp 정밀 = ')), call(exact)), txt('   다음 x = ?')), null]),
+        B('ask_and_wait', [cat(cat(cat(cat(cat(cat(txt('exp = '), call(fast)), txt('   exp 정밀 = ')), call(exact)), txt('   exp 표 = ')), call(tbl)), txt('   다음 x = ?')), null]),
     ]])]];
     const S = 240, buf = picture(S), thumb = picture(96);
     const file = `${NAME} v${VERSION}`;
 
     // ---- .ent ----
     const ent = path.join(ROOT, file + '.ent');
-    packEnt(ent, { name: file, tmpDir: path.join(HERE, '.pack'), variables: [], functions, speed: 60,
+    packEnt(ent, { name: file, tmpDir: path.join(HERE, '.pack'), variables, functions, speed: 60,
         objects: [{ id: 'expf', name: 'exp 함수', pictures: [{ id: 'pic1', name: 'exp', buf, w: S, h: S }], script, entity: { scaleX: 0.5, scaleY: 0.5 } }] });
 
     // ---- .eo: object/object.json, object/aa/bb/image|thumb/<name>.png ----
@@ -76,12 +80,12 @@ export function build() {
         entity: { x: 0, y: 0, regX: S / 2, regY: S / 2, scaleX: 0.5, scaleY: 0.5, rotation: 0, direction: 90, width: S, height: S, font: 'undefinedpx ', visible: true },
     };
     object.selectedPictureId = object.sprite.pictures[0].id;
-    fs.writeFileSync(path.join(tmp, 'object', 'object.json'), JSON.stringify({ functions, variables: [], messages: [], tables: [], expansionBlocks: [], aiUtilizeBlocks: [], objects: [object] }));
+    fs.writeFileSync(path.join(tmp, 'object', 'object.json'), JSON.stringify({ functions, variables, messages: [], tables: [], expansionBlocks: [], aiUtilizeBlocks: [], objects: [object] }));
     cp.execSync('tar -cf out.tar object', { cwd: tmp });
     const eo = path.join(ROOT, file + '.eo');
     fs.writeFileSync(eo, zlib.gzipSync(fs.readFileSync(path.join(tmp, 'out.tar')), { level: 9 }));
     fs.rmSync(tmp, { recursive: true, force: true });
-    return { ent, eo, blocks: { exp: fast.count, 'exp 정밀': exact.count } };
+    return { ent, eo, blocks: { exp: fast.count, 'exp 정밀': exact.count, 'exp 표': tbl.count } };
 }
 
 if (process.argv[1] && import.meta.url === url.pathToFileURL(path.resolve(process.argv[1])).href) console.log(JSON.stringify(build(), null, 1));

@@ -39,3 +39,17 @@ export function ulpErr(v, x) {
     return Number((d * 1000n) >> P) / 1000;
 }
 if (process.argv[1].endsWith('hp.mjs')) for (const x of [0, 1, -1, 0.5, 100, -700, 709.7, -745]) console.log(x, Math.exp(x), ulpErr(Math.exp(x), x));
+
+// ---- for tables: e^(a real number given in fixed point) rounded to the nearest double ----
+// ln 10 = 3 ln 2 + ln 1.25, ln 1.25 = 2 atanh(1/9)
+let AT = 0n; for (let k = 0n; k < 120n; k++) AT += ONE / ((2n * k + 1n) * 9n ** (2n * k + 1n));
+export const LN10 = 3n * LN2 + 2n * AT;
+export const FIX = { P, ONE };
+export function expFixed(X) {   // X: fixed point -> nearest double to e^X
+    let k = X / LN2; let r = X - k * LN2;
+    if (r < 0n) { r += LN2; k -= 1n; }
+    let m = expSmall(r >> 8n) ** 256n >> (P * 255n), e = Number(k);
+    while (m >= 2n * ONE) { m >>= 1n; e++; }
+    return Number(m >> (P - 90n)) / 2 ** 90 * 2 ** e;
+}
+export const fixToNumber = (X) => Number(X >> (P - 100n)) / 2 ** 100;
