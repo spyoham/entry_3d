@@ -1,0 +1,7 @@
+*.ent
+*.png
+*.lines.json
+shots/
+.pack/
+.nrun/
+.pagetest/

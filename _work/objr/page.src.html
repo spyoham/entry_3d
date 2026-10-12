@@ -1,0 +1,249 @@
+<title>엔트리 OBJ 렌더러 - 모델 넣기</title>
+<style>
+  :root { --bg: #f6f7f9; --fg: #1c2330; --mut: #5b6677; --card: #ffffff; --line: #d6dbe3; --acc: #2f6fe4; --warn: #b4540a; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #14181f; --fg: #e8ecf2; --mut: #9aa6b8; --card: #1c222c; --line: #303947; --acc: #6ea2ff; --warn: #f0a35c; } }
+  :root[data-theme="dark"] { --bg: #14181f; --fg: #e8ecf2; --mut: #9aa6b8; --card: #1c222c; --line: #303947; --acc: #6ea2ff; --warn: #f0a35c; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 system-ui, "Malgun Gothic", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 22px; margin: 8px 0 4px; }
+  p { margin: 6px 0; }
+  .mut { color: var(--mut); font-size: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 14px 0; }
+  #drop { border: 2px dashed var(--line); border-radius: 10px; padding: 26px 12px; text-align: center; cursor: pointer; }
+  #drop.over { border-color: var(--acc); }
+  button, .btn { font: inherit; color: #fff; background: var(--acc); border: 0; border-radius: 8px; padding: 9px 16px; cursor: pointer; text-decoration: none; display: inline-block; }
+  button[disabled] { opacity: .45; cursor: default; }
+  canvas { width: 100%; max-width: 720px; aspect-ratio: 16 / 9; border-radius: 8px; display: block; touch-action: none; cursor: grab; background: #1b1f27; }
+  table { border-collapse: collapse; width: 100%; }
+  td { padding: 3px 8px 3px 0; vertical-align: top; }
+  td:first-child { color: var(--mut); white-space: nowrap; width: 9em; }
+  .warn { color: var(--warn); }
+  ol { padding-left: 1.3em; margin: 6px 0; }
+</style>
+<main>
+  <h1>엔트리 OBJ 렌더러 — 모델 넣기</h1>
+  <p class="mut">OBJ 파일을 넣으면, 그 모델이 미리 들어 있는 엔트리 작품 파일(.ent)을 만들어 줍니다. 파일은 이 컴퓨터 안에서만 처리되고 어디로도 보내지 않습니다.</p>
+
+  <div class="card">
+    <div id="drop">여기에 <b>.obj</b> 파일을 끌어다 놓거나 눌러서 고르세요<br><span class="mut">.mtl 파일을 함께 넣으면 재질 색이 입혀집니다</span></div>
+    <input id="file" type="file" accept=".obj,.mtl,.txt" multiple hidden>
+    <p id="msg" class="mut"></p>
+  </div>
+
+  <div class="card" id="result" hidden>
+    <canvas id="view" width="960" height="540"></canvas>
+    <p class="mut">끌어서 돌려 볼 수 있습니다 (작품 안에서 보이는 것과 같은 계산입니다).</p>
+    <table id="stats"></table>
+    <p id="warn" class="warn"></p>
+    <p><a id="save" class="btn" download>작품 파일(.ent) 받기</a> <span id="size" class="mut"></span></p>
+  </div>
+
+  <div class="card">
+    <b>쓰는 법</b>
+    <ol>
+      <li>OBJ 파일을 넣고 "작품 파일(.ent) 받기"를 누릅니다.</li>
+      <li>엔트리 만들기 화면에서 <b>오프라인 작품 불러오기</b>로 그 파일을 엽니다.</li>
+      <li>시작하면 모델이 바로 나옵니다. 읽는 시간이 없습니다.</li>
+    </ol>
+    <p class="mut">작은 모델은 작품 안의 "열기" 단추로 OBJ 글자를 붙여넣어도 됩니다. 이 페이지는 큰 모델을 위한 것입니다: 순정 엔트리는 글자를 읽는 데 면 하나에 1/1000초쯤 걸립니다.</p>
+    <p class="mut">담을 수 있는 크기: 면 <span id="capF"></span>개, 꼭짓점 <span id="capV"></span>개까지 (엔트리의 리스트 한 개가 5000칸이라 5000개씩 나눠 담습니다). 넘는 면은 빠집니다.</p>
+  </div>
+</main>
+<script type="application/json" id="tpl">/*TEMPLATE*/</script>
+<script>
+const TPL = JSON.parse(document.getElementById('tpl').textContent);
+const $ = (id) => document.getElementById(id);
+$('capF').textContent = (TPL.consts.NP * TPL.consts.PG).toLocaleString();
+$('capV').textContent = (TPL.consts.NQ * TPL.consts.PG).toLocaleString();
+
+// ---------- the work's own program, as plain JS ----------
+// (the same source the blocks are made from; the lists it fills are what goes into the .ent)
+function makeProgram() {
+  const comparable = (v) => (typeof v === 'string' && v.length && !isNaN(Number(v)) ? Number(v) : v);
+  const isNum = (v) => typeof v === 'number' || (typeof v === 'string' && /^-?\d+\.?\d*$/.test(v));
+  const check = (A, i, name) => { if (!(i >= 1 && i <= A.length) || Math.floor(i) !== i) throw new Error(`리스트 ${name || ''}의 ${i}번째 칸이 없습니다`); };
+  const R = {
+    handlers: [], $i: 0, self: {},
+    get: (A, i, name) => { check(A, i, name); return A[i - 1]; },
+    set: (A, i, v, name) => { check(A, i, name); A[i - 1] = v; },
+    removeAt: (A, i) => { A.splice(i - 1, 1); },
+    push: (A, v) => { A.push(v); if (A.length > 5000) throw new Error('리스트가 5000칸을 넘었습니다'); },
+    add: (a, b) => (isNum(a) && isNum(b)) ? Number(a) + Number(b) : String(a) + String(b),
+    div: (a, b) => a / b,
+    mod: (a, b) => a - b * Math.floor(a / b),
+    cmp: (op, a, b) => { a = comparable(a); b = comparable(b); switch (op) { case 0: return a === b; case 1: return a != b; case 2: return a < b; case 3: return a > b; case 4: return a <= b; default: return a >= b; } },
+    and: (a, b) => !!(a && b), or: (a, b) => !!(a || b), s: (v) => String(v),
+    on: () => { }, ovar: () => { },
+  };
+  const str = (s) => String(s);
+  const pen = { x: 0, y: 0, col: '#000', path: null, shapes: [] };
+  const endFill = () => { if (pen.path && pen.path.length >= 3) pen.shapes.push({ col: pen.col, pts: pen.path }); pen.path = null; };
+  const nop = () => { };
+  const B = {
+    sind: (d) => Math.sin(d * Math.PI / 180), cosd: (d) => Math.cos(d * Math.PI / 180), tand: (d) => Math.tan(d * Math.PI / 180), atand: (v) => Math.atan(v) * 180 / Math.PI,
+    idiv: (a, b) => Math.floor(a / b), mod: R.mod, sqr: (v) => v * v,
+    strlen: (s) => str(s).length,
+    substr: (s, a, b) => str(s).substring(Math.min(a, b) - 1, Math.max(a, b)),
+    charAt: (s, i) => str(s)[i - 1],
+    indexOf: (s, sub) => str(s).indexOf(str(sub)) + 1,
+    replace: (s, a, b) => str(s).split(str(a)).join(str(b)),
+    str: (...a) => a.join(''),
+    key: () => false, mouseX: () => 0, mouseY: () => 0, mouseDown: () => false,
+    timer: () => 0, timerStart: nop, timerReset: nop, dateSec: () => 0,
+    ask: nop, answer: () => '', hideAnswer: nop, write: nop, textColorHex: nop, show: nop, hide: nop,
+    penSize: nop, penColorHex: nop, penColor: nop, penAlpha: nop, penDown: nop, penUp: nop,
+    goto: (x, y) => { pen.x = +x; pen.y = +y; if (pen.path) pen.path.push([pen.x, pen.y]); },
+    fillColorHex: (c) => { const on = !!pen.path; endFill(); pen.col = str(c); if (on) pen.path = [[pen.x, pen.y]]; },
+    fillStart: () => { endFill(); pen.path = [[pen.x, pen.y]]; },
+    fillStop: () => { endFill(); },
+    eraseAll: () => { pen.shapes = []; pen.path = null; },
+    cloneSelf: nop, deleteClone: nop, waitSec: nop, waitUntil: nop, stopAll: nop,
+  };
+  const names = Object.keys(B);
+  const fnNames = [...TPL.program.matchAll(/^function (\w+)\(/gm)].map(m => m[1]);
+  new Function('R', ...names, TPL.program + `\nR.fn = {${fnNames.join(',')}};`)(R, ...names.map(n => B[n]));
+  return { R, pen };
+}
+
+// what the answer box of Entry makes of a pasted file: line ends are spaces
+const asPasted = (t) => t.replace(/\r\n|\r|\n/g, ' ').trim();
+
+let state = null;
+function convert(text, name) {
+  const P = makeProgram(), R = P.R;
+  R.fn.loadInit();
+  R.poke('tokCap', 100000);
+  R.poke('modelName', name);
+  R.fn.loadBegin(asPasted(text));
+  let guard = 0;
+  while (R.peek('ldOn') > 0) { R.fn.loadStep(); if (++guard > 1e6) throw new Error('읽기가 끝나지 않습니다'); }
+  if (R.peek('nLv') < 1) throw new Error(R.peek('ldMsg') || '모델을 찾지 못했습니다');
+  return P;
+}
+
+// ---------- the picture (the work's own renderer, its fills on a canvas) ----------
+function draw(level) {
+  const { R, pen } = state.P, cv = $('view'), g = cv.getContext('2d'), s = cv.width / 480;
+  // (the renderer writes into its working lists: they are made as the work makes them at its start)
+  R.fn.renderLevel(level);
+  g.fillStyle = TPL.consts.BGCOL; g.fillRect(0, 0, cv.width, cv.height);
+  for (const sh of pen.shapes) {
+    g.fillStyle = sh.col; g.strokeStyle = sh.col; g.lineWidth = 1;
+    g.beginPath();
+    sh.pts.forEach(([x, y], i) => { const X = (x + 240) * s, Y = (135 - y) * s; if (i) g.lineTo(X, Y); else g.moveTo(X, Y); });
+    g.closePath(); g.fill(); g.stroke();
+  }
+}
+function showStats() {
+  const R = state.P.R, p = (n) => R.peek(n), L = p('LVN');
+  const rows = [
+    ['면', `${p('nFaces').toLocaleString()}개`],
+    ['꼭짓점', `${p('nVerts').toLocaleString()}개` + (p('nDup') > 0 ? ` (파일에는 ${p('rawN').toLocaleString()}개: 같은 자리의 꼭짓점 ${p('nDup').toLocaleString()}개를 합쳤습니다)` : '')],
+    ['나눠 담은 쪽', `${p('nPages')}쪽`],
+    ['재질', `${p('nMat') - 1}개`],
+    ['모양', p('closed') == 1 ? (p('flipped') == 1 ? '닫힌 겉면 (면이 안쪽을 보고 있어 뒤집었습니다) — 앞면만 그립니다' : '닫힌 겉면 — 앞면만 그립니다') : '열린 곳이 있는 겉면 — 양면을 그립니다'],
+    ['움직일 때 쓰는 성긴 모델', p('nLv') > 1 ? Array.from({ length: p('nLv') - 1 }, (_, k) => `면 ${L[k + 1].toLocaleString()}개`).join(', ') : '없음 (모델이 작아서 필요 없습니다)'],
+  ];
+  $('stats').innerHTML = rows.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('');
+  const w = [];
+  if (p('nDrop') > 0) w.push(`담을 수 있는 크기를 넘어, 뒤쪽 면 ${p('nDrop').toLocaleString()}개가 빠졌습니다.`);
+  if (p('nBad') > 0) w.push(`없는 꼭짓점을 가리키는 면 ${p('nBad').toLocaleString()}개는 뺐습니다.`);
+  $('warn').textContent = w.join(' ');
+}
+
+// ---------- .ent (tar.gz) ----------
+function tar(files) {
+  const enc = new TextEncoder(), blocks = [], dirs = new Set();
+  for (const f of files) { const p = f.name.split('/'); for (let i = 1; i < p.length; i++) dirs.add(p.slice(0, i).join('/') + '/'); }
+  const header = (name, size, type) => {
+    const h = new Uint8Array(512), put = (s, o, l) => h.set(enc.encode(s).subarray(0, l), o);
+    put(name, 0, 100); put(type === '5' ? '0000755\0' : '0000644\0', 100, 8); put('0000000\0', 108, 8); put('0000000\0', 116, 8);
+    put(size.toString(8).padStart(11, '0') + '\0', 124, 12); put(Math.floor(Date.now() / 1000).toString(8).padStart(11, '0') + '\0', 136, 12);
+    put('        ', 148, 8); put(type, 156, 1); put('ustar\0', 257, 6); put('00', 263, 2);
+    let sum = 0; for (const v of h) sum += v; put(sum.toString(8).padStart(6, '0') + '\0 ', 148, 8);
+    return h;
+  };
+  for (const d of [...dirs].sort()) blocks.push(header(d, 0, '5'));
+  for (const f of files) {
+    blocks.push(header(f.name, f.data.length, '0'), f.data);
+    const padLen = (512 - f.data.length % 512) % 512; if (padLen) blocks.push(new Uint8Array(padLen));
+  }
+  blocks.push(new Uint8Array(1024));
+  return new Blob(blocks);
+}
+async function gzip(blob) { return new Response(blob.stream().pipeThrough(new CompressionStream('gzip'))).blob(); }
+// lists that the work makes anew by itself (the file's own vertices, working lists): left empty
+const EMPTY = /^(RX|RY|RZ|RM|RN|WH|SX|SY|LK|CL)\d+$|^(TZ|HD|CT|HK|VMAP|LSX|LSY|LSZ|LCN|LFA|LFB|LFC|LFE|LFM|OUT)$/;
+async function buildEnt(P, name) {
+  const R = P.R, project = structuredClone(TPL.project);
+  for (const v of project.variables) {
+    if (v.name.includes('$') || v.object) continue;
+    let val;
+    try { val = R.peek(v.name); } catch { continue; }
+    if (v.variableType === 'list') { if (Array.isArray(val)) v.array = EMPTY.test(v.name) ? [] : val.map((d) => ({ data: d })); }
+    else if (typeof val === 'number' || typeof val === 'string') v.value = val;
+  }
+  const set = (n, val) => { project.variables.find((v) => v.name === n).value = val; };
+  // (nothing drawn yet, no heads of chains, and the heads for reading another file are to be made again)
+  set('wPages', 0); set('tokCap', 600); set('shownGen', 0); set('shownLv', 0); set('rOn', 0); set('hdDirty', 1); set('viewGen', 1);
+  project.name = `엔트리 OBJ 렌더러 - ${name}`;
+  const dot = Uint8Array.from(atob(TPL.dot), (c) => c.charCodeAt(0));
+  const files = [{ name: 'temp/project.json', data: new TextEncoder().encode(JSON.stringify(project)) }, { name: TPL.dotPath, data: dot }];
+  return gzip(tar(files));
+}
+
+// ---------- files ----------
+const readText = (f) => f.text();
+async function take(fileList) {
+  const files = [...fileList];
+  const obj = files.filter((f) => !/\.mtl$/i.test(f.name)), mtl = files.filter((f) => /\.mtl$/i.test(f.name));
+  if (!obj.length) { $('msg').textContent = '.obj 파일이 없습니다.'; return; }
+  $('msg').textContent = '읽는 중…';
+  $('result').hidden = true;
+  await new Promise((r) => setTimeout(r, 30));
+  try {
+    const name = obj[0].name.replace(/\.[^.]*$/, '');
+    // (the materials first, then the model: one text, as if both were pasted together)
+    const text = (await Promise.all([...mtl, ...obj].map(readText))).join('\n');
+    const t0 = performance.now();
+    const P = convert(text, name);
+    state = { P, name, lv: 1 };
+    $('result').hidden = false;
+    showStats();
+    draw(1);
+    const blob = await buildEnt(P, name);
+    const a = $('save');
+    if (a.href) URL.revokeObjectURL(a.href);
+    a.href = URL.createObjectURL(blob);
+    a.download = `엔트리 OBJ 렌더러 - ${name}.ent`;
+    $('size').textContent = `${(blob.size / 1024).toFixed(0)} KB`;
+    $('msg').textContent = `${obj[0].name}: ${(text.length / 1024).toFixed(0)} KB를 ${((performance.now() - t0) / 1000).toFixed(1)}초에 읽었습니다.`;
+    document.body.dataset.done = String((Number(document.body.dataset.done) || 0) + 1);
+  } catch (e) {
+    $('msg').textContent = '읽지 못했습니다: ' + e.message;
+    document.body.dataset.error = e.message;
+  }
+}
+const drop = $('drop'), file = $('file');
+drop.addEventListener('click', () => file.click());
+file.addEventListener('change', () => { if (file.files.length) take(file.files); });
+drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer.files.length) take(e.dataTransfer.files); });
+
+// turning the picture: the coarsest model while the pointer moves, the model itself when it rests
+const cv = $('view');
+let dragging = null;
+cv.addEventListener('pointerdown', (e) => { if (!state) return; dragging = { x: e.clientX, y: e.clientY }; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', (e) => {
+  if (!dragging || !state) return;
+  const R = state.P.R, k = 480 / cv.clientWidth;
+  R.poke('az', R.peek('az') - (e.clientX - dragging.x) * k * 0.6);
+  R.poke('el', Math.max(-90, Math.min(90, R.peek('el') + (e.clientY - dragging.y) * k * 0.6)));
+  dragging = { x: e.clientX, y: e.clientY };
+  draw(R.peek('nFaces') > 6000 ? R.peek('nLv') : 1);
+});
+const rest = () => { if (dragging && state) { dragging = null; draw(1); } };
+cv.addEventListener('pointerup', rest);
+cv.addEventListener('pointercancel', rest);
+</script>

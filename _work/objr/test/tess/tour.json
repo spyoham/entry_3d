@@ -1,0 +1,7 @@
+[{"wait":2500},{"shot":"E:/entry_3d/_work/objr/shots/t1.png"},{"vars":1},{"down":{"code":"KeyN","key":"n","keyCode":78}},{"wait":100},{"up":{"code":"KeyN","key":"n","keyCode":78}},{"wait":2500},{"fps":"knot idle"},{"shot":"E:/entry_3d/_work/objr/shots/t2.png"},{"vars":1},
+{"down":{"code":"KeyT","key":"t","keyCode":84}},{"wait":100},{"up":{"code":"KeyT","key":"t","keyCode":84}},{"wait":4000},{"fps":"knot spin"},{"vars":1},{"shot":"E:/entry_3d/_work/objr/shots/t3.png"},
+{"down":{"code":"KeyT","key":"t","keyCode":84}},{"wait":100},{"up":{"code":"KeyT","key":"t","keyCode":84}},
+{"down":{"code":"KeyN","key":"n","keyCode":78}},{"wait":100},{"up":{"code":"KeyN","key":"n","keyCode":78}},{"wait":1500},
+{"down":{"code":"KeyN","key":"n","keyCode":78}},{"wait":100},{"up":{"code":"KeyN","key":"n","keyCode":78}},{"wait":1500},
+{"down":{"code":"KeyN","key":"n","keyCode":78}},{"wait":100},{"up":{"code":"KeyN","key":"n","keyCode":78}},{"wait":4000},{"vars":1},{"shot":"E:/entry_3d/_work/objr/shots/t4.png"},
+{"down":{"code":"KeyT","key":"t","keyCode":84}},{"wait":100},{"up":{"code":"KeyT","key":"t","keyCode":84}},{"wait":5000},{"fps":"big spin"},{"vars":1},{"shot":"E:/entry_3d/_work/objr/shots/t5.png"}]
