@@ -19,5 +19,6 @@
 - `old/`: 이전 버전 작품 파일과 설명서
 - `_work/`: 각 작품의 빌드 스크립트와 파이프라인 (`doom`, `racing`, `engine3d`, `smollm`, `gmp`, `rt`, `cplot`, `expfn`, `objr`)
 - `SmolLM2-135M 리스트/`: SmolLM2 가중치 리스트 데이터
+- `엔트리 작품 일괄 비공개/`: playentry.org 마이페이지에서 고른 작품을 한꺼번에 비공개로 바꾸는 크롬 확장 프로그램 (설치법은 폴더 안 `README.md`)
 
 용량이 큰 데이터셋, 모델 체크포인트, 외부 저장소는 `.gitignore`로 제외되어 있습니다.
