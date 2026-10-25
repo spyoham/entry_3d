@@ -1,0 +1,3 @@
+[{"wait":3000},{"set":{"plNoclip":1,"plX":52000,"plZ":150000,"plY":1500,"plYaw":200,"plPitch":-10,"godMode":1}},{"wait":800},{"shot":"test/sb1.png"},
+ {"set":{"plX":148000,"plZ":160000,"plY":5200,"plYaw":250,"plPitch":-12}},{"wait":800},{"shot":"test/sb2.png"},
+ {"set":{"plX":103000,"plZ":99000,"plY":900,"plYaw":120,"plPitch":5}},{"wait":800},{"shot":"test/sb3.png"}]

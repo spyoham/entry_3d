@@ -83,7 +83,8 @@ export function compilePrefabs() {
                 let c = 0;
                 for (const f of nd.faces) for (const q of toQuads(f.v)) {
                     const ids = q.map(V);
-                    bank.F1.push(ids[0]); bank.F2.push(ids[1]); bank.F3.push(ids[2]); bank.F4.push(ids[3] || 0);
+                    // (a triangle repeats its third corner: a 0 here would read as a point at the model's origin)
+                    bank.F1.push(ids[0]); bank.F2.push(ids[1]); bank.F3.push(ids[2]); bank.F4.push(ids[3] || ids[2]);
                     bank.FS.push(f.s);
                     const pk = PAINT[f.m] || 0;
                     bank.FK.push(pk);
