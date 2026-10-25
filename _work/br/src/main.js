@@ -55,10 +55,15 @@ function viewRange() {
     if (hg > 6000) { highView = 1; }
   }
 }
-// keys that went down since the last frame: KHIT[code] = 1 for this frame
-let KHIT = [];
+// keys that went down since the last frame: KHIT[code] = 1 for this frame. The press comes
+// from the key event (KEV), so a tap shorter than a frame still counts; the repeats a held key
+// sends are not new presses (the key was already down at the last frame).
+// KDN: the event took this press; cleared once a frame sees the key up (until then the
+// repeats of a held key are not presses)
+let KHIT = [], KEV = [], KDN = [];
 function M_poll(code) {
-  if (key(code)) { if (keyWas[code] == 0) { KHIT[code] = 1; } else { KHIT[code] = 0; } keyWas[code] = 1; } else { keyWas[code] = 0; KHIT[code] = 0; }
+  KHIT[code] = KEV[code]; KEV[code] = 0;
+  if (key(code)) { keyWas[code] = 1; } else { keyWas[code] = 0; KDN[code] = 0; }
 }
 function pollKeys() {
   M_poll(9); M_poll(13); M_poll(27); M_poll(32); M_poll(49); M_poll(50); M_poll(51); M_poll(52); M_poll(53);
@@ -148,7 +153,7 @@ on('start', 'pen', function () {
   renderInit();
   peopleInit(); peopleDrawInit(); weaponInit(); lootInit(); navInit(); aiInit(); gameInit();
   let i = 1;
-  while (i <= 255) { keyWas.push(0); KHIT.push(0); i = i + 1; }
+  while (i <= 255) { keyWas.push(0); KHIT.push(0); KEV.push(0); KDN.push(0); i = i + 1; }
   applyGfx();
   if (BENCH == 1) { gfxAuto = 0; gfx = 1; applyGfx(); }
   volume(80);

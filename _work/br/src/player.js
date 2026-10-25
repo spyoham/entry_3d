@@ -69,7 +69,7 @@ function playerMove(dt) {
     if (key(32)) { plY = plY + sp * dt; }
     if (key(67)) { plY = plY - sp * dt; }
   } else {
-    if (key(32)) { if (plGround == 1) { plVY = JUMPV; plY = plY + 3; } }
+    if (keyHit(32) == 1) { if (plGround == 1) { plVY = JUMPV; plY = plY + 3; } }
   }
   bodyMove(mx, mz, dt);
   let eye = 160;

@@ -1,0 +1,5 @@
+[{"wait":3000},{"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":20},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"throttle":4},{"wait":3000},
+ {"down":{"code":"KeyF","key":"f","keyCode":70}},{"wait":15},{"up":{"code":"KeyF","key":"f","keyCode":70}},{"wait":1500},
+ {"eval":"(()=>{const g=n=>window.__vm.variables.find(q=>q.name===n);return ['after jump EAIR', g('EAIR').array[0].data, 'height', Math.round(g('plY').value/100)]})()"},
+ {"down":{"code":"KeyF","key":"f","keyCode":70}},{"wait":15},{"up":{"code":"KeyF","key":"f","keyCode":70}},{"wait":1500},
+ {"eval":"(()=>{const g=n=>window.__vm.variables.find(q=>q.name===n);return ['after 2nd F EAIR', g('EAIR').array[0].data, 'height', Math.round(g('plY').value/100)]})()"}]

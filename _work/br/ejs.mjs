@@ -551,6 +551,8 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
         else if (h.event === 'clone') hat = B('when_clone_start', [null]);
         // a press on the stage (the runner fires it on the press itself: no click is missed)
         else if (h.event === 'click') hat = B('mouse_clicked', [null]);
+        // a key going down (fired on the keydown itself, repeats of a held key too)
+        else if (h.event.startsWith('key:')) hat = B('when_some_key_pressed', [null, h.event.slice(4)]);
         else if (h.event.startsWith('msg:')) hat = B('when_message_cast', [null, messageId(h.event.slice(4))]);
         else throw new Error('event ' + h.event);
         hat.x = 50; hat.y = 30 + i * 10;

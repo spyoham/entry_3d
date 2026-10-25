@@ -324,7 +324,9 @@ export const FILES = ['render.js', 'world.js', 'player.js', 'hud.js', 'hud2.js',
 export function sources(C, data) {
     const decl = (name, arr) => `let ${name} = ${JSON.stringify(arr)};`;
     const lists = Object.entries(data.lists).map(([k, v]) => decl(k, v)).join(NL);
-    const raw = lists + NL + bankSource(data.nb) + FILES.map(f => fs.readFileSync(path.join(HERE, 'src', f), 'utf8')).join(NL);
+    const KEYS = [9, 13, 27, 32, 49, 50, 51, 52, 53, 66, 67, 69, 70, 71, 72, 73, 74, 77, 78, 80, 81, 82, 84, 86, 88, 107, 109, 114, 187, 189];
+    const keySrc = KEYS.map(k => `on('key:${k}', 'pen', function () { if (KDN[${k}] == 0) { KDN[${k}] = 1; KEV[${k}] = 1; } });`).join(NL) + NL;
+    const raw = lists + NL + bankSource(data.nb) + FILES.map(f => fs.readFileSync(path.join(HERE, 'src', f), 'utf8')).join(NL) + NL + keySrc;
     const { src, count } = expandMacros(raw);
     return { src: declareImplicit(src), count };
 }

@@ -103,7 +103,7 @@ function matchStep(dt) {
   }
   if (EAIR[1] == 2) {
     plX = planeX; plZ = planeZ; plY = planeY - 300;
-    if (keyHit(70) == 1 || planeOn == 0) { playerJump(); }
+    if (keyHit(70) == 1 || planeOn == 0) { playerJump(); KHIT[70] = 0; }
   }
   zoneStep(dt);
   if (fOn == 1) { flowWork(220); }
@@ -146,7 +146,7 @@ function playerAir(dt) {
     let hs = 2400 * fw;
     plX = plX + (syw * hs + cyw * sd * 1200) * dt; plZ = plZ + (cyw * hs - syw * sd * 1200) * dt;
     plY = plY + plVY * dt;
-    if (plY - g < 12000 || (keyHit(70) == 1 && plY - g < 35000)) { EAIR[1] = 3; sfx(SND_CHUTE, 0); }
+    if (plY - g < 12000 || keyHit(70) == 1) { EAIR[1] = 3; sfx(SND_CHUTE, 0); }
   } else {
     plVY = plVY + (-650 - plVY) * Math.min(1, dt * 2);
     let hs = 1300 + fw * 450;
