@@ -549,6 +549,8 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
         if (h.event === 'start') hat = B('when_run_button_click', [null]);
         else if (h.event === 'scene') hat = B('when_scene_start', [null]);
         else if (h.event === 'clone') hat = B('when_clone_start', [null]);
+        // a press on the stage (the runner fires it on the press itself: no click is missed)
+        else if (h.event === 'click') hat = B('mouse_clicked', [null]);
         else if (h.event.startsWith('msg:')) hat = B('when_message_cast', [null, messageId(h.event.slice(4))]);
         else throw new Error('event ' + h.event);
         hat.x = 50; hat.y = 30 + i * 10;

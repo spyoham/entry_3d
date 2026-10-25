@@ -99,6 +99,7 @@ for (const st of steps) {
             for (const [k, c] of [...cnt].sort((a, b) => b[1] - a[1]).slice(0, 25)) console.log(String(c).padStart(5), k);
         }
     }
+    if (st.click) { const c = await page.$('canvas'); const b = await c.boundingBox(); await page.mouse.click(b.x + (st.click[0] + 240) / 480 * b.width, b.y + (135 - st.click[1]) / 270 * b.height); }
     if (st.set) await page.evaluate((o) => { for (const [k, v] of Object.entries(o)) { const x = window.__vm.variables.find(q => q.name === k); if (x) x.setValue(v); } }, st.set);
     if (st.eval) console.log(JSON.stringify(await page.evaluate(st.eval)));
 }

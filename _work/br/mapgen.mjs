@@ -338,5 +338,5 @@ export function generate(seed = 20261025) {
         cellMat[cz * CELLS + cx] = m;
     }
 
-    return { H, hAt, cellMat, roadQuads, insts, props, cellB, PF, sites: SITES };
+    return { H, hAt, cellMat, roadQuads, insts, props, cellB, PF, sites: SITES, roads };
 }

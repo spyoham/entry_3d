@@ -107,10 +107,12 @@ function frame(dt) {
       EMOV[1] = 0;
       if (plMoving == 1) { EMOV[1] = 1; if (plSprint == 1) { EMOV[1] = 1.4; } if (plCrouch == 1) { EMOV[1] = 0.5; } }
     }
-    if (keyHit(77) == 1) { mapOpen = 1 - mapOpen; if (mapOpen == 0) { bigMapOff(); } }
+    if (keyHit(77) == 1) { if (gState <= 2) { mapOpen = 1 - mapOpen; txClear(); } }
     if (gState >= 3) {
       if (keyHit(82) == 1) { matchStart(); }
       if (keyHit(13) == 1) { gState = 0; txClear(); }
+      // the results want the pointer (their buttons)
+      if ($M_LOCK == 1) { $M_LOCK = 0; }
     }
   }
   // the camera
@@ -121,32 +123,24 @@ function frame(dt) {
   if (gState >= 1) { FOC = 240 * (1 + (pZoom - 1) * wAdsT); }
   viewRange();
   eraseAll();
-  dynBuild();
-  renderWorld();
-  if (gState >= 1) {
-    drawZone();
-    if (EALIVE[1] == 1) { if (EAIR[1] == 0) { drawViewGun(); } }
-    if (gState <= 2) { playerHud(dt); }
-    if (mapOpen == 1) { bigMap(); }
-    if (gState >= 3) { resultHud(); }
-  } else { menuHud(); }
+  if (gState == 0) {
+    menuScreen();
+    if (menuGo == 1) { menuGo = 0; clickLatch = 0; plEye = 160; txClear(); matchStart(); }
+  } else {
+    if (mapOpen == 1) { if (gState <= 2) { bigMap(); } else { mapOpen = 0; txClear(); } }
+    if (mapOpen == 0) {
+      dynBuild();
+      renderWorld();
+      drawZone();
+      if (EALIVE[1] == 1) { if (EAIR[1] == 0) { drawViewGun(); } }
+      if (gState <= 2) { playerHud(dt); }
+      if (gState >= 3) { resultHud(); }
+    }
+  }
+  clickLatch = 0;
   if (showFps == 1) { tx(56, `FPS ${fpsShow}  k${kStep}  G${gfx}  ${nPoly}`, -236, 136, 7, '#a0a8b0', 1); } else { txOff(56); }
   fillStop();
 }
-// the menu: the island turning slowly behind it
-function menuFrame(dt) {
-  menuYaw = menuYaw + dt * 4;
-  plX = 103000 + sind(menuYaw) * 26000; plZ = 101000 - cosd(menuYaw) * 26000; plY = hAt(plX, plZ) + 5500; plEye = 0;
-  plYaw = menuYaw; plPitch = -12;
-  if (keyHit(49) == 1) { diff = 1; }
-  if (keyHit(50) == 1) { diff = 2; }
-  if (keyHit(51) == 1) { diff = 3; }
-  if (keyHit(71) == 1) { if (gfxAuto == 1) { gfxAuto = 0; gfx = 0; } else { if (gfx < 2) { gfx = gfx + 1; } else { gfxAuto = 1; gfx = 1; } } applyGfx(); }
-  if (keyHit(187) == 1 || keyHit(107) == 1) { sens = Math.min(2, sens + 0.05); }
-  if (keyHit(189) == 1 || keyHit(109) == 1) { sens = Math.max(0.1, sens - 0.05); }
-  if (keyHit(13) == 1 || clickLatch == 1) { clickLatch = 0; plEye = 160; txClear(); matchStart(); }
-}
-
 on('start', 'pen', function () {
   hide();
   penUp();
@@ -164,10 +158,7 @@ on('start', 'pen', function () {
     secTicks = secTicks + 1;
     // the pointer: held by the work after a click (tessvm asks the viewer once)
     if (isTess == 1) { mAccX = mAccX + $DELTA_X; mAccY = mAccY + $DELTA_Y; }
-    if (mouseDown()) {
-      if (mouseWas == 0) { clickLatch = 1; if (isTess == 1) { if ($M_LOCK == 0) { $M_LOCK = 1; } } }
-      mouseWas = 1;
-    } else { mouseWas = 0; }
+    if (mouseDown()) { mouseWas = 1; } else { mouseWas = 0; }
     let s = dateSec();
     if (s != secNow) { if (secNow >= 0) { paceSecond(); } secNow = s; }
     if (tickN - lastFrameTick >= kStep) {
@@ -179,6 +170,13 @@ on('start', 'pen', function () {
       frame(dt);
     }
   }
+});
+
+// every press of the mouse (an event: a press shorter than a tick still counts)
+on('click', 'pen', function () {
+  clickLatch = 1;
+  // in a match the pointer is held (again after Esc)
+  if (isTess == 1) { if (gState >= 1) { if (gState <= 2) { if ($M_LOCK == 0) { $M_LOCK = 1; } } } }
 });
 
 // measuring: start a match at once, drop the player in the city

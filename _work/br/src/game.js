@@ -57,8 +57,10 @@ function matchStart() {
   // the zone: the whole island to begin with
   zPhase = 0; zcx = MAP / 2; zcz = MAP / 2; zr = 150000; znx = zcx; znz = zcz; znr = zr; zWait = 60; zShr = 0; zDps = 0;
   fStamp = fStamp + 1; fOn = 0;
-  gState = 1;
+  gState = 1; mapOpen = 0;
   txClear();
+  // the pointer: held from the start (the click or key that started it lets the browser do it)
+  if (isTess == 1) { $M_LOCK = 1; }
   msgShow('F: 뛰어내리기', 4);
 }
 // where a bot lands: a town (weighted by how much is there) or a random house

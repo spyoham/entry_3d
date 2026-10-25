@@ -11,6 +11,7 @@ import { MATERIALS, MAT_ORDER, buildBSP, leafOf, faceNormal, shadeOf, toQuads, d
 import { ALL } from './prefabs.mjs';
 import { GUNS, ATTS, AMMO, gunModels, attModels, itemModels } from './guns.mjs';
 import { makeSounds } from './sounds.mjs';
+import { terrainRects, roadLines, buildingRects } from './mapdraw.mjs';
 import { generate, CS, CELLS, GRID, MAP, SITES } from './mapgen.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 export const VERSION = '0.1';
@@ -319,7 +320,7 @@ export function bankSource(nb) {
     return out.join(NL) + NL;
 }
 
-export const FILES = ['render.js', 'world.js', 'player.js', 'hud.js', 'hud2.js', 'people.js', 'weapon.js', 'loot.js', 'nav.js', 'ai.js', 'game.js', 'sound.js', 'main.js'];
+export const FILES = ['render.js', 'world.js', 'player.js', 'hud.js', 'hud2.js', 'hud3.js', 'people.js', 'weapon.js', 'loot.js', 'nav.js', 'ai.js', 'game.js', 'sound.js', 'main.js'];
 export function sources(C, data) {
     const decl = (name, arr) => `let ${name} = ${JSON.stringify(arr)};`;
     const lists = Object.entries(data.lists).map(([k, v]) => decl(k, v)).join(NL);
@@ -373,6 +374,15 @@ export function buildData() {
     for (const k of ['TH', 'TPA', 'TPB', 'TPC', 'TPD', 'TPK', 'TC0', 'TCN', 'RPA', 'RPB', 'RPC', 'RPD', 'RPK', 'RC0', 'RCN', 'EXX', 'EXY', 'EXZ', 'FH', 'FK', 'IPF', 'IX', 'IY', 'IZ', 'IR', 'IT', 'IT2', 'IL', 'CI0', 'CIN', 'CIB', 'ODX', 'ODZ', 'ODM', 'OSTART']) lists[k] = w[k];
     pre.banks.forEach((b, i) => { for (const n of BANK_LISTS) lists[`K${i + 1}${n}`] = b[n]; });
     Object.assign(lists, gunData());
+    // the island as flat shapes for the maps (128 x 128 units)
+    const g = w.g;
+    const TR = terrainRects(g, 128), RL = roadLines(g, 128, g.roads), BR = buildingRects(g, 128);
+    const r1 = (v) => Math.round(v * 10) / 10;
+    Object.assign(lists, {
+        MRX0: TR.map(r => r[0]), MRZ0: TR.map(r => r[1]), MRX1: TR.map(r => r[2]), MRZ1: TR.map(r => r[3]), MRC: TR.map(r => r[4]),
+        MLX0: RL.map(r => r1(r[0])), MLZ0: RL.map(r => r1(r[1])), MLX1: RL.map(r => r1(r[2])), MLZ1: RL.map(r => r1(r[3])), MLW: RL.map(r => r[4]),
+        MBX0: BR.map(r => r1(r[0])), MBZ0: BR.map(r => r1(r[1])), MBX1: BR.map(r => r1(r[2])), MBZ1: BR.map(r => r1(r[3])), MBC: BR.map(r => r[4]),
+    });
     // the towns: names, places, sizes, how many land there
     const W = { city: 4, base: 4, port: 3, village: 2, farm: 1, gas: 1, school: 2 };
     lists.SITEN = SITES.map(s => s.name); lists.SITEX = SITES.map(s => s.x * 100); lists.SITEZ = SITES.map(s => s.z * 100); lists.SITER = SITES.map(s => s.r * 100); lists.SITEW = SITES.map(s => W[s.kind]);

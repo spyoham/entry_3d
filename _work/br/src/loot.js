@@ -313,7 +313,7 @@ function drawItemDyn(k, dist) {
   let it = WIT[k];
   if (it > 0) { if (dist < 2600) { if (inView(WX[k], WY[k] + 20, WZ[k], 60) == 1) {
     let lod = 1;
-    if (dist > 1200) { lod = 2; }
+    if (dist > 1200) { if (it > NGUN) { lod = 2; } }
     let q = (ITM[it] - 1) * 3 + lod + 1;
     if (it <= NGUN) { q = (ITM[it] - 1) * 3 + lod + 1; }
     drawWorldModel(q, WX[k], WY[k], WZ[k], WYAW[k], 10, fogOf(dist));

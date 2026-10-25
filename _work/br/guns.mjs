@@ -300,7 +300,8 @@ export function gunModels() {
         m1.box(-0.9, 0.6, mt.muzzle * 0.62, 0.9, 1.8, mt.muzzle, 'gunSteel', { collide: false, skip: 'bottom' });
         if (gn.cls > 1) m1.box(-mt.stock[0] * 0.7, 0, mt.stock[1] - 6, mt.stock[0] * 0.7, 2.2, -mt.sight, col, { collide: false, skip: 'bottom' });
         m1.box(mt.magB[0] * 0.8, 0, mt.magB[1] - 1.8, -1, 2, mt.magB[1] + 1.8, 'gunBlack', { collide: false, skip: 'bottom' });
-        m2.box(-mt.sight * 0.5, 0, (gn.cls > 1 ? mt.stock[1] : -mt.sight), mt.sight * 0.5, 2.2, mt.muzzle, col, { collide: false, skip: 'bottom' });
+        // level 2: the whole gun with no hands (the menu shows it turning)
+        BUILD[gn.name](m2, 1);
         out.push({ name: gn.name, kind: 'gun', lods: L, mounts });
     }
     return out;

@@ -1,0 +1,9 @@
+[{"wait":3000},{"shot":"test/n1.png"},{"wait":2500},{"shot":"test/n1b.png"},
+ {"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":200},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":1500},
+ {"down":{"code":"KeyM","key":"m","keyCode":77}},{"wait":200},{"up":{"code":"KeyM","key":"m","keyCode":77}},{"wait":800},{"shot":"test/n2.png"},{"fps":"map"},
+ {"set":{"plX":103000,"plZ":101000}},
+ {"down":{"code":"Equal","key":"=","keyCode":187}},{"wait":150},{"up":{"code":"Equal","key":"=","keyCode":187}},{"wait":500},{"shot":"test/n3.png"},
+ {"down":{"code":"Equal","key":"=","keyCode":187}},{"wait":150},{"up":{"code":"Equal","key":"=","keyCode":187}},{"wait":150},{"down":{"code":"Equal","key":"=","keyCode":187}},{"wait":150},{"up":{"code":"Equal","key":"=","keyCode":187}},{"wait":500},{"shot":"test/n4.png"},
+ {"down":{"code":"KeyM","key":"m","keyCode":77}},{"wait":200},{"up":{"code":"KeyM","key":"m","keyCode":77}},{"wait":500},
+ {"set":{"gState":4,"endT":612,"alive":1}},{"wait":800},{"shot":"test/n5.png"},
+ {"set":{"gState":3,"killerName":"새벽늑대"}},{"wait":800},{"shot":"test/n6.png"}]

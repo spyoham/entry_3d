@@ -1,0 +1,2 @@
+[{"wait":3000},{"throttle":4},{"wait":4000},{"fps":"menu"},{"vars":1},{"click":[-70,42]},{"wait":800},{"vars":1},{"click":[-112,9]},{"wait":800},{"vars":1},{"shot":"test/k1.png"},{"click":[-133,79]},{"wait":2500},{"vars":1},
+ {"down":{"code":"KeyM","key":"m","keyCode":77}},{"wait":200},{"up":{"code":"KeyM","key":"m","keyCode":77}},{"wait":4000},{"fps":"map"},{"vars":1}]
