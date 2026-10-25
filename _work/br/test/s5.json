@@ -1,0 +1,1 @@
+[{"wait":4000},{"shot":"test/b1.png"},{"vars":1},{"throttle":4},{"wait":5000},{"fps":"t4a"},{"vars":1},{"wait":5000},{"fps":"t4b"},{"vars":1},{"shot":"test/b2.png"},{"wait":5000},{"fps":"t4c"},{"vars":1},{"shot":"test/b3.png"}]

@@ -1,0 +1,1 @@
+[{"wait":3000},{"set":{"plX":72500,"plZ":61980,"plY":1266,"plYaw":0,"plPitch":10}},{"wait":800},{"shot":"test/h3.png"},{"vars":1},{"down":{"code":"KeyW","key":"w","keyCode":87}},{"wait":1200},{"vars":1},{"wait":1500},{"up":{"code":"KeyW","key":"w","keyCode":87}},{"wait":300},{"vars":1},{"shot":"test/h4.png"},{"set":{"plYaw":180,"plPitch":-10}},{"wait":600},{"shot":"test/h5.png"}]

@@ -1,0 +1,1 @@
+[{"wait":3000},{"set":{"plX":103000,"plZ":95500,"plYaw":0,"godMode":1}},{"set":{"pSight":7,"pZoom":4}},{"down":{"code":"KeyE","key":"e","keyCode":69}},{"wait":800},{"set":{"pSight":7,"pZoom":4}},{"wait":300},{"shot":"test/a3.png"},{"set":{"pSight":8,"pZoom":8}},{"wait":300},{"shot":"test/a4.png"}]

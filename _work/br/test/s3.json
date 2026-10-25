@@ -1,0 +1,1 @@
+[{"wait":2500},{"throttle":4},{"wait":4000},{"fps":"t4-city"},{"vars":1},{"wait":3000},{"fps":"t4-city2"},{"vars":1},{"shot":"test/t6.png"},{"set":{"plX":52000,"plZ":152000}},{"wait":4000},{"fps":"t4-base"},{"vars":1}]

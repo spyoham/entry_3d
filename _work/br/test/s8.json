@@ -1,0 +1,1 @@
+[{"wait":3000},{"set":{"plX":103000,"plZ":95500,"plYaw":0}},{"wait":4000},{"vars":1},{"shot":"test/c1.png"},{"wait":4000},{"vars":1},{"shot":"test/c2.png"},{"wait":4000},{"vars":1},{"shot":"test/c3.png"},{"wait":6000},{"vars":1},{"shot":"test/c4.png"}]

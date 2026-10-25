@@ -1,0 +1,9 @@
+test/*.png
+test/*.ent
+test/*.log
+test/snd/
+test/src_dump.js
+test/*.lines.json
+.pack/
+*.ent
+view.png

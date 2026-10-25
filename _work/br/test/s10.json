@@ -1,0 +1,5 @@
+[{"wait":2500},{"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":200},{"up":{"code":"Enter","key":"Enter","keyCode":13}},
+ {"throttle":4},{"wait":5000},{"fps":"plane"},{"vars":1},{"shot":"test/p1.png"},
+ {"down":{"code":"KeyF","key":"f","keyCode":70}},{"wait":300},{"up":{"code":"KeyF","key":"f","keyCode":70}},
+ {"wait":5000},{"fps":"fall"},{"vars":1},{"shot":"test/p2.png"},
+ {"wait":30000},{"fps":"ground"},{"vars":1},{"shot":"test/p3.png"},{"wait":10000},{"fps":"ground2"},{"vars":1}]

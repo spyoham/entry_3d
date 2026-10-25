@@ -1,0 +1,14 @@
+import * as B from '../build.mjs';
+import { compileProgram } from '../ejs.mjs';
+const d = B.buildData();
+const { src } = B.sources(B.consts, d);
+const cc = { ...B.consts }; 
+const { MAT_ORDER } = await import('../geom.mjs');
+MAT_ORDER.forEach((n, i) => { cc['MT_' + n] = i * 64; });
+Object.assign(cc, { GBASE: B.GBASE, ABASE: B.ABASE, IBASE: B.IBASE, NGUN: 15, NATT: 15, NITEM: 53 });
+delete cc.LEGACY; delete cc.SLIM;
+const prog = compileProgram([src], { consts: cc });
+const rows = prog.functions.map(f => { const c = JSON.parse(f.content)[0][0]; const name = c.params[0].params[0]; return [name, f.content.split('"type"').length - 1, f.content.length]; }).sort((a, b) => b[2] - a[2]);
+console.log(rows.slice(0, 25).map(r => r.join(' ')).join('\n'));
+let lists = 0; for (const v of prog.variables) if (v.variableType === 'list') lists += JSON.stringify(v.array).length;
+console.log('lists bytes', lists, 'functions bytes', prog.functions.reduce((a, f) => a + f.content.length, 0), 'scripts', JSON.stringify(prog.objectScripts).length);
