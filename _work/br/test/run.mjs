@@ -40,7 +40,7 @@ await page.evaluate(() => {
 await page.evaluate(() => { window.__handle.start(); window.__t0 = performance.now(); window.__f0 = window.__vm.frame; });
 const readVars = () => page.evaluate((names) => {
     const out = {}; const vm = window.__vm;
-    for (const n of names) { const v = vm.variables.find(v => v.name === n); out[n] = v ? (Array.isArray(v.value) ? v.value.slice(0, 20) : v.value) : undefined; }
+    for (const n of names) { const v = vm.variables.find(v => v.name === n); out[n] = v ? ((v.isList || v.type === "list" || (Array.isArray(v.array) && v.array.length)) ? v.array.slice(0, 6).map(x => (x && typeof x === "object" && "data" in x) ? x.data : x) : v.value) : undefined; }
     return out;
 }, vars);
 const shot = async (p) => { const c = await page.$('canvas'); await c.screenshot({ path: p }); };

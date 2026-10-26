@@ -76,7 +76,10 @@ function frame(dt) {
   dtF = dt;
   sndN = 0;
   pollKeys();
+  if (testCmd > 0) { testStep(); }
   if (keyHit(114) == 1) { showFps = 1 - showFps; }
+  // V: first person / third person
+  if (keyHit(86) == 1) { if (gState >= 1) { camThird = 1 - camThird; if (camThird == 1) { msgShow('3인칭 시점 (V)', 1.5); } else { msgShow('1인칭 시점 (V)', 1.5); } } }
   // looking around: slower when zoomed in
   let dx = mAccX, dy = mAccY;
   mAccX = 0; mAccY = 0;
@@ -84,6 +87,8 @@ function frame(dt) {
   if (key(39)) { dx = dx + 350 * dt; }
   if (key(38)) { dy = dy + 260 * dt; }
   if (key(40)) { dy = dy - 260 * dt; }
+  let mMoved = 0;
+  if (Math.abs(dx) + Math.abs(dy) > 0.3) { mMoved = 1; }
   let zm = 1 + (pZoom - 1) * wAdsT;
   plYaw = plYaw + dx * sens / zm;
   plPitch = plPitch + dy * sens / zm;
@@ -96,7 +101,8 @@ function frame(dt) {
     matchStep(dt);
     if (EALIVE[1] == 1) {
       if (EAIR[1] == 1 || EAIR[1] == 3) { playerAir(dt); }
-      if (EAIR[1] == 0) {
+      if (EAIR[1] == 0) { if (plVeh > 0) { playerDrive(dt); driveLook(dt, mMoved); healStep(1, dt); } }
+      if (EAIR[1] == 0) { if (plVeh == 0) {
         playerMove(dt);
         playerWeapon(dt);
         playerLoot();
@@ -106,24 +112,33 @@ function frame(dt) {
         if (keyHit(71) == 1) { playerThrow(1); }
         if (keyHit(84) == 1) { playerThrow(2); }
         if (plMoving == 1) { if (plSprint == 1) { if (rand(1, 100) <= 6) { soundEvent(plX, plY, plZ, 2400, 1, 3); } } }
-      }
+      } }
       // the player's body is entity 1 for everyone else
       EX[1] = plX; EY[1] = plY; EZ[1] = plZ; EYAW[1] = plYaw; EPIT[1] = plPitch; ECRO[1] = plCrouch;
       EMOV[1] = 0;
       if (plMoving == 1) { EMOV[1] = 1; if (plSprint == 1) { EMOV[1] = 1.4; } if (plCrouch == 1) { EMOV[1] = 0.5; } }
+      EPH[1] = EPH[1] + EMOV[1] * 480 * dt * 0.75;
+      if (EPH[1] > 360) { EPH[1] = EPH[1] - 360; }
+      if (plVeh > 0) { EYAW[1] = VYAW[plVeh]; EMOV[1] = 0; }
     }
     if (keyHit(77) == 1) { if (gState <= 2) { mapOpen = 1 - mapOpen; txClear(); } }
     if (gState >= 3) {
       if (keyHit(82) == 1) { matchStart(); }
       if (keyHit(13) == 1) { gState = 0; txClear(); }
       // the results want the pointer (their buttons)
-      if ($M_LOCK == 1) { $M_LOCK = 0; }
+      if ($M_LOCK != 0) { $M_LOCK = 0; lockAskT = 0; }
     }
   }
   // the camera
   camX = Math.round(plX); camY = Math.round(plY + plEye); camZ = Math.round(plZ);
   if (gState >= 1) { if (EAIR[1] == 2) { camY = Math.round(planeY - 200); } }
   camYaw = plYaw; camPitch = plPitch;
+  // v1.1: from behind - in a vehicle always, on foot with V (aiming looks down the sights)
+  camMode = 0;
+  if (gState >= 1) { if (gState <= 2) { if (EALIVE[1] == 1) { if (EAIR[1] != 2) {
+    if (plVeh > 0) { camMode = 2; } else { if (camThird == 1) { if (wAdsT < 0.5) { camMode = 1; } } }
+  } } } }
+  if (camMode > 0) { camBehind(); }
   FOC = 240;
   if (gState >= 1) { FOC = 240 * (1 + (pZoom - 1) * wAdsT); }
   viewRange();
@@ -137,7 +152,7 @@ function frame(dt) {
       dynBuild();
       renderWorld();
       drawZone();
-      if (EALIVE[1] == 1) { if (EAIR[1] == 0) { drawViewGun(); } }
+      if (EALIVE[1] == 1) { if (EAIR[1] == 0) { if (camMode == 0) { drawViewGun(); } } }
       if (gState <= 2) { playerHud(dt); }
       if (gState >= 3) { resultHud(); }
     }
@@ -146,12 +161,64 @@ function frame(dt) {
   if (showFps == 1) { tx(56, `FPS ${fpsShow}  k${kStep}  G${gfx}  ${nPoly}`, -236, 136, 7, '#a0a8b0', 1); } else { txOff(56); }
   fillStop();
 }
+// v1.1: the island's long lists come in as text (PKS, see build.mjs): item c0 on, n values of w
+// base-64 digits each (sc 0: six hex digits, a colour), plus mn, over sc; into scratch list
+// PV<at + 1> (eight of them: Entry keeps no list longer than 5000)
+let PV1 = [], PV2 = [], PV3 = [], PV4 = [], PV5 = [], PV6 = [], PV7 = [], PV8 = [];
+function unpack(pk, at) {
+  let c0 = PKA[pk], n = PKB[pk], w = PKW[pk], sc = PKC[pk], mn = PKM[pk];
+  let c = c0, s = PKS[c0], L = strlen(s), p = 2, i = 1, v = 0, j = 0;
+  if (at == 0) { M_unp(PV1); }
+  if (at == 1) { M_unp(PV2); }
+  if (at == 2) { M_unp(PV3); }
+  if (at == 3) { M_unp(PV4); }
+  if (at == 4) { M_unp(PV5); }
+  if (at == 5) { M_unp(PV6); }
+  if (at == 6) { M_unp(PV7); }
+  if (at == 7) { M_unp(PV8); }
+}
+function M_unp(T) {
+  while (i <= n) {
+    if (p > L) { c = c + 1; s = PKS[c]; L = strlen(s); p = 2; }
+    if (sc == 0) { T[i] = `#${substr(s, p, p + 5)}`; p = p + 6; }
+    else {
+      v = 0; j = 0;
+      while (j < w) { v = v * 64 + indexOf(B64S, charAt(s, p)) - 1; p = p + 1; j = j + 1; }
+      v = v + mn;
+      if (sc > 1) { v = v / sc; }
+      T[i] = v;
+    }
+    i = i + 1;
+  }
+}
+const B64S = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$';
+// v1.1: outside tessvm (plain Entry) the work cannot be played, and unpacking the island would
+// take minutes there: say so at once instead
+function plainNotice() {
+  hide(); penUp();
+  for (;;) {
+    if (TXS.length >= NTX) {
+      eraseAll();
+      M_box(-245, -140, 245, 140, '#0e151b');
+      M_box(-245, 103, 245, 104, '#c89a2a');
+      fillStop();
+      tx(1, '엔트리 배틀로얄 3D', 0, 60, 19, '#ffffff', 0);
+      tx(2, 'tessvm 확장 프로그램에서 실행하세요', 0, 10, 13, '#ffcc66', 0);
+      tx(3, '순정 엔트리는 너무 느려서 이 작품을 실행할 수 없습니다', 0, -20, 9, '#b8c0c8', 0);
+      tx(4, '크롬에 tessvm 확장을 설치하고 켠 뒤 이 페이지를 다시 여세요', 0, -40, 9, '#b8c0c8', 0);
+    }
+  }
+}
 on('start', 'pen', function () {
+  if ($TESSVM == 0) { plainNotice(); }
+  let pi = PV1.length;
+  while (pi < 5000) { PV1.push(0); PV2.push(0); PV3.push(0); PV4.push(0); PV5.push(0); PV6.push(0); PV7.push(0); PV8.push(0); pi = pi + 1; }
+  unpackAll();
   hide();
   penUp();
   isTess = $TESSVM;
   renderInit();
-  peopleInit(); peopleDrawInit(); weaponInit(); lootInit(); navInit(); aiInit(); gameInit();
+  peopleInit(); peopleDrawInit(); weaponInit(); lootInit(); navInit(); aiInit(); gameInit(); vehInit();
   let i = 1;
   while (i <= 255) { keyWas.push(0); KHIT.push(0); KEV.push(0); KDN.push(0); i = i + 1; }
   applyGfx();
@@ -162,7 +229,7 @@ on('start', 'pen', function () {
     tickN = tickN + 1;
     secTicks = secTicks + 1;
     // the pointer: held by the work after a click (tessvm asks the viewer once)
-    if (isTess == 1) { mAccX = mAccX + $DELTA_X; mAccY = mAccY + $DELTA_Y; }
+    if (isTess == 1) { mAccX = mAccX + $DELTA_X; mAccY = mAccY + $DELTA_Y; lockWatch(); }
     if (mouseDown()) { mouseWas = 1; } else { mouseWas = 0; }
     let s = dateSec();
     if (s != secNow) { if (secNow >= 0) { paceSecond(); } secNow = s; }
@@ -177,12 +244,57 @@ on('start', 'pen', function () {
   }
 });
 
+// the camera behind the player (1: over the shoulder, 2: behind the vehicle), pulled in before a wall
+let camThird = 0, camMode = 0;
+function camBehind() {
+  let bx0 = plX, by0 = plY + plEye, bz0 = plZ;
+  let back = 280, side = 62, up = 28;
+  if (EAIR[1] == 1 || EAIR[1] == 3) { back = 420; side = 0; up = 80; }
+  if (camMode == 2) {
+    let k = VK[plVeh];
+    bx0 = VX[plVeh]; bz0 = VZ[plVeh]; by0 = VY[plVeh] + 170;
+    back = VKHL[k] + 470; side = 0; up = 110;
+    if (k == 4) { back = 420; up = 70; }
+  }
+  let cp = cosd(camPitch), sp = sind(camPitch), sy = sind(camYaw), cy = cosd(camYaw);
+  let cbx = bx0 - sy * cp * back + cy * side, cby = by0 - sp * back + up, cbz = bz0 - cy * cp * back - sy * side;
+  rayCast(bx0, by0, bz0, cbx, cby, cbz);
+  let t = rayT;
+  if (t < 1) { t = Math.max(0, t - 0.1); }
+  camX = Math.round(bx0 + (cbx - bx0) * t); camY = Math.round(by0 + (cby - by0) * t); camZ = Math.round(bz0 + (cbz - bz0) * t);
+  let g = hAt(camX, camZ) + 45;
+  if (camY < g) { camY = Math.round(g); }
+}
+
 // every press of the mouse (an event: a press shorter than a tick still counts)
 on('click', 'pen', function () {
   clickLatch = 1;
   // in a match the pointer is held (again after Esc)
-  if (isTess == 1) { if (gState >= 1) { if (gState <= 2) { if ($M_LOCK == 0) { $M_LOCK = 1; } } } }
+  if (gState >= 1) { if (gState <= 2) { if ($M_LOCK == 0) { lockReq(); } } }
+  if (keysLost == 1) { keysLost = 0; msgT = 0; if (EAIR[1] == 2) { msgShow('F: 뛰어내리기', 4); } }
 });
+
+// v1.1: asking for the pointer. tessvm asks the viewer the first time, in a box of its own; the
+// box takes the keyboard's focus with it, and once it is gone the keys reach nobody until the
+// stage is clicked with the pointer free (a click while it is held does not give it back). So
+// the work writes 2 to ask, and tessvm writes 1 when the pointer is held: when that took a
+// while, there was a box - the pointer is let go again and one click on the stage takes both
+// back (by then tessvm no longer asks).
+let lockAskT = 0, keysLost = 0;
+function lockReq() {
+  if (isTess == 1) { if ($M_LOCK != 1) { $M_LOCK = 2; lockAskT = tickN; } }
+}
+function lockWatch() {
+  if (lockAskT > 0) {
+    if ($M_LOCK == 1) {
+      if (tickN - lockAskT > 20) { if (gState >= 1) { if (gState <= 2) {
+        $M_LOCK = 0; keysLost = 1;
+        msgShow('화면을 한 번 클릭하면 시작합니다 (마우스 잠금 · 키보드)', 999);
+      } } }
+      lockAskT = 0;
+    } else { if ($M_LOCK == 0) { lockAskT = 0; } }
+  }
+}
 
 // measuring: start a match at once, drop the player in the city
 let benchT = 0;

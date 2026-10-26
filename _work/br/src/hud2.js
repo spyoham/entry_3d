@@ -14,9 +14,9 @@ function playerHud(dt) {
   msgT = Math.max(0, msgT - dt);
   pickMsgT = Math.max(0, pickMsgT - dt);
   hurtT = Math.max(0, hurtT - dt);
-  // crosshair: wider with the spread (hidden when aiming through a sight)
+  // crosshair: wider with the spread (hidden when aiming through a sight, and driving)
   if (wAdsT < 0.5) {
-    if (EAIR[1] == 0) {
+    if (EAIR[1] == 0) { if (plVeh == 0) {
       let sp = pHip;
       if (g == 0) { sp = 1; }
       if (plMoving == 1) { sp = sp + 1.2; }
@@ -24,7 +24,7 @@ function playerHud(dt) {
       let r = 3 + sp * FOC / 57;
       hudLine(0 - r - 6, 0, 0 - r, 0, 1, C_W); hudLine(r, 0, r + 6, 0, 1, C_W);
       hudLine(0, 0 - r - 6, 0, 0 - r, 1, C_W); hudLine(0, r, 0, r + 6, 1, C_W);
-    }
+    } }
   } else { if (g > 0) { if (pSight == 0) { M_dot(0, 0, 0.8, '#ffffff'); } } }
   // hit marker
   if (hitMk > 0) { hudLine(-9, -9, -4, -4, 1.5, hitMkC); hudLine(9, 9, 4, 4, 1.5, hitMkC); hudLine(-9, 9, -4, 4, 1.5, hitMkC); hudLine(9, -9, 4, -4, 1.5, hitMkC); }
@@ -93,12 +93,26 @@ function playerHud(dt) {
   while (i <= 5) { if (gameT - KFT[i] < 7) { tx(4 + i, KFS[i], -236, 128 - i * 11, 8, C_W, 1); } else { txOff(4 + i); } i = i + 1; }
   // messages and the pickup prompt
   if (msgT > 0) { tx(3, msgS, 0, 60, 12, C_GOLD, 0); } else { txOff(3); }
-  if (pickItem > 0) {
+  // v1.1: the vehicle: getting in, and driving (speed, its health)
+  let vp = 0;
+  if (plVeh == 0) { if (vNear > 0) { if (pickItem == 0 || vNearD < pickD * 0.5) { vp = 1; } } }
+  if (plVeh > 0) {
+    let v = plVeh;
+    tx(30, `${Math.round(Math.abs(VSPD[v]) * 0.036)} km/h`, 0, -84, 14, C_W, 0);
+    tx(31, `${VKN[VK[v]]}   [F] 내리기   Space 브레이크   V 시점`, 0, -100, 8, C_DIM, 0);
+    M_box(-50, -109, 50, -106, '#202428');
+    let vh = Math.max(0, VHP[v] / VKHP[VK[v]]);
+    let vc = '#9fd8ff';
+    if (vh < 0.4) { vc = '#ff9a40'; }
+    M_box(-50, -109, -50 + 100 * vh, -106, vc);
+  } else { txOff(30); txOff(31); }
+  if (vp == 1) { tx(4, `[F] 탑승  ${VKN[VK[vNear]]}`, 30, -18, 10, C_SKY, 1); }
+  else { if (pickItem > 0) {
     let it = WIT[pickItem];
     let nm = ITN[it];
     if (WN[pickItem] > 1) { nm = `${nm} x${WN[pickItem]}`; }
     tx(4, `[F] ${nm}`, 30, -18, 10, C_W, 1);
-  } else { if (pickMsgT > 0) { tx(4, `+ ${pickMsg}`, 30, -18, 10, '#9fe09f', 1); } else { txOff(4); } }
+  } else { if (pickMsgT > 0) { tx(4, `+ ${pickMsg}`, 30, -18, 10, '#9fe09f', 1); } else { txOff(4); } } }
   minimap();
 }
 function healTime(k) {
@@ -159,6 +173,19 @@ function minimap() {
   }
   // the zone circles
   if (zPhase > 0) { M_circleMap(zcx, zcz, zr, cx, cy, k, x0, y0, w, '#4a8aff'); M_circleMap(znx, znz, znr, cx, cy, k, x0, y0, w, '#ffffff'); }
+  // vehicles near (grey: standing, blue: mine)
+  let v = 1;
+  while (v <= NV) {
+    if (VON[v] == 1) {
+      let vx = cx + (VX[v] - plX) * k, vy = cy + (VZ[v] - plZ) * k;
+      if (vx > x0 + 2) { if (vx < x0 + w - 2) { if (vy > y0 + 2) { if (vy < y0 + w - 2) {
+        let col = '#c8ccd0';
+        if (v == plVeh) { col = C_SKY; }
+        M_box(vx - 1.5, vy - 1.5, vx + 1.5, vy + 1.5, col);
+      } } } }
+    }
+    v = v + 1;
+  }
   // the plane's line
   if (planeOn == 1) { if (EAIR[1] == 2) { hudLine(cx, cy, cx + (planeX1 - plX) * k, cy + (planeZ1 - plZ) * k, 1, '#ffd24a'); } }
   // me: an arrow

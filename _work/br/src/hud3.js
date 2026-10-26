@@ -252,11 +252,11 @@ function menuScreen() {
   tx(20, 'R 장전   B 사격 모드   1 2 3 무기   X 버리기', -226, -82, 7, C_W, 1);
   tx(21, 'F 줍기 · 뛰어내리기 · 낙하산   H 치료   J 부스트', -226, -94, 7, C_W, 1);
   tx(22, 'G 수류탄   T 연막탄   M 지도   Esc 마우스 풀기', -226, -106, 7, C_W, 1);
-  tx(23, '첫 클릭 때 마우스 잠금을 허락하세요 (tessvm)', -226, -120, 7, C_DIM, 1);
+  tx(23, 'V 1·3인칭   F 차 타기·내리기   운전 WASD · Space', -226, -118, 7, C_SKY, 1);
   // the island
   drawIsland(119, 40, 120, 1, 64, 64, 1);
   islandNames(25, 5.5);
-  tx(38, '새벽섬 2 km × 2 km · 건물 253채 · 숲 · 호수 · 능선', 119, -26, 7, C_DIM, 0);
+  tx(38, `새벽섬 2 km · 건물 ${NBUILD}채 · 엄폐물 ${NCOVER}개 · 차량 4종`, 119, -26, 7, C_DIM, 0);
   // the gun showcase
   M_box(22, -133, 236, -36, '#1b252d');
   // a soft light behind the gun

@@ -34,6 +34,22 @@ function scanBoxes(x, y, z, rad, hh, step) {
     }
     iz = iz + 1;
   }
+  // v1.1: the vehicles are boxes too (but not the one being moved: vSelf)
+  let v = 1;
+  while (v <= NV) {
+    if (VON[v] > 0) { if (v != vSelf) {
+      let dx = x - VX[v], dz = z - VZ[v];
+      if (Math.abs(dx) + Math.abs(dz) < 700) {
+        let k = VK[v], cs = cosd(VYAW[v]), sn = sind(VYAW[v]);
+        let lx = cs * dx - sn * dz, lz = sn * dx + cs * dz;
+        if (Math.abs(lx) < VKHW[k] + rad) { if (Math.abs(lz) < VKHL[k] + rad) {
+          let top = VY[v] + VKTOP[k];
+          if (top <= y + step) { if (top > gndB) { gndB = top; } } else { if (VY[v] + 20 < y + hh) { hitB = 1; } }
+        } }
+      }
+    } }
+    v = v + 1;
+  }
 }
 function M_scanCell(c) {
   let i = CI0[c], ie = i + CIN[c];

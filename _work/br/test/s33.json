@@ -1,0 +1,3 @@
+[{"wait":1500},{"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":30},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":1500},
+ {"set":{"godMode":1,"testCmd":1}},{"wait":500},{"set":{"testCmd":2}},{"wait":500},{"vars":1},
+ {"down":{"code":"KeyW","key":"w","keyCode":87}},{"wait":300},{"vars":1},{"wait":300},{"vars":1},{"wait":1000},{"vars":1},{"up":{"code":"KeyW","key":"w","keyCode":87}}]

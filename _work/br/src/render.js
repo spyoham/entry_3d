@@ -247,12 +247,14 @@ function M_qv(X, Y, Z, v, k) {
     nVX = nVX + 1;
   }
 }
-// the faces of node nd that face the eye (side t), with the colours of rotation iR
-function M_faces(F1, F2, F3, F4, FS, FK, CC) {
+// the faces of node nd that face the eye (side t), with the colours of rotation iR (its shade:
+// 3 bits of CR at rk = 8^iR)
+function M_faces(F1, F2, F3, F4, FS, FK, CM, CR) {
   let f = NP[nd]; let fe = f + NC[nd];
+  let rk = RK8[iR + 1];
   while (f < fe) {
     if (FS[f] == t) {
-      let cb = CC[f];
+      let cb = CM[f] + mod(idiv(CR[f], rk), 8) * 8;
       let fk = FK[f];
       if (fk > 0) { if (fk == 2) { cb = cb + iT2; } else { cb = cb + iT; } }
       let fa = F1[f], fb = F2[f], fc = F3[f], fd = F4[f];
@@ -264,7 +266,8 @@ function M_faces(F1, F2, F3, F4, FS, FK, CC) {
   }
 }
 // walk a BSP back to front from the eye (blx, bly, blz)
-function M_bsp(X, Y, Z, NX, NY, NZ_, ND, NF, NB, NP, NC, F1, F2, F3, F4, FS, FK, C1, C2, C3, C4) {
+let RK8 = [1, 8, 64, 512];
+function M_bsp(X, Y, Z, NX, NY, NZ_, ND, NF, NB, NP, NC, F1, F2, F3, F4, FS, FK, CM, CR) {
   let base = stkTop;
   let sp = base + 1;
   STK[sp] = root; STT[sp] = 0;
@@ -294,10 +297,7 @@ function M_bsp(X, Y, Z, NX, NY, NZ_, ND, NF, NB, NP, NC, F1, F2, F3, F4, FS, FK,
         drawLeaf(nd);
         stkTop = base;
       } else {
-        if (iR == 0) { M_faces(F1, F2, F3, F4, FS, FK, C1); }
-        else { if (iR == 1) { M_faces(F1, F2, F3, F4, FS, FK, C2); }
-        else { if (iR == 2) { M_faces(F1, F2, F3, F4, FS, FK, C3); }
-        else { M_faces(F1, F2, F3, F4, FS, FK, C4); } } }
+        M_faces(F1, F2, F3, F4, FS, FK, CM, CR);
       }
     }
   }
@@ -334,6 +334,8 @@ function drawItem(id, dist) {
     // small things are not drawn far away
     let far = 0;
     if (pr < 160) { if (dist > 9000) { far = 1; } }
+    // v1.1: low things (walls, logs, mounds, hedges) not past half the fog
+    if (PFH[IPF[id]] < 210) { if (dist > fogD * 0.5) { far = 1; } }
     // from up high: only the big things, plain
     if (highView == 1) { if (pr < 300) { far = 1; } lod = 2; }
     if (far == 0) { if (inView(IX[id], IY[id] + PFCY[IPF[id]], IZ[id], pr) == 1) { drawInst(id, lod, fogOf(dist)); } }

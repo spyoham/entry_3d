@@ -110,13 +110,16 @@ function bulletsStep(dt) {
       let tw = rayT;
       let tt = rayTerrain(x0, y0, z0, x1, y1, z1, 6);
       if (tt < tw) { tw = tt; }
+      // v1.1: vehicles along it (their bodies stop bullets; through the windows a bullet goes on)
+      let hitE = 0, hitP = 0, best = tw, hitV = 0;
+      let v = 1;
+      while (v <= NV) { if (VON[v] > 0) { let hv = segVeh(v, x0, y0, z0, x1, y1, z1); if (hv < best) { best = hv; hitV = v; } } v = v + 1; }
       // people along the segment, before the wall
-      let hitE = 0, hitP = 0, best = tw;
       let e = 1;
       while (e <= NE) {
         if (EALIVE[e] == 1) { if (e != BOWN[i]) {
           let ht = segPerson(e, x0, y0, z0, x1, y1, z1);
-          if (ht < best) { best = ht; hitE = e; hitP = segPart; }
+          if (ht < best) { best = ht; hitE = e; hitP = segPart; hitV = 0; }
         } }
         e = e + 1;
       }
@@ -126,6 +129,12 @@ function bulletsStep(dt) {
         let dist = GVEL[BGUN[i]] * (1.6 - BLIFE[i] + dt * best);
         hurt(hitE, BOWN[i], gunDamage(BGUN[i], dist, hitP), hitP, BGUN[i]);
         fxAdd(x0 + (x1 - x0) * best, y0 + (y1 - y0) * best, z0 + (z1 - z0) * best, 2);
+      } else { if (hitV > 0) {
+        BON[i] = 0;
+        let dist = GVEL[BGUN[i]] * (1.6 - BLIFE[i] + dt * best);
+        vehShot(hitV, BOWN[i], gunDamage(BGUN[i], dist, 2));
+        fxAdd(x0 + (x1 - x0) * best, y0 + (y1 - y0) * best, z0 + (z1 - z0) * best, 1);
+        soundEvent(x0 + (x1 - x0) * best, y0 + (y1 - y0) * best, z0 + (z1 - z0) * best, 1500, BOWN[i], 2);
       } else {
         if (tw < 1) {
           BON[i] = 0;
@@ -137,7 +146,7 @@ function bulletsStep(dt) {
           BLIFE[i] = BLIFE[i] - dt;
           if (BLIFE[i] <= 0) { BON[i] = 0; }
         }
-      }
+      } }
       // the tracer: a short line along the segment (only near the eye)
       if (BTR[i] > 1) { if (Math.abs(x0 - camX) + Math.abs(z0 - camZ) < 25000) { tracer(x0, y0, z0, BX[i], BY[i], BZ[i]); } }
     }
@@ -161,6 +170,7 @@ function segPerson(e, x0, y0, z0, x1, y1, z1) {
     let d2 = cx * cx + cz * cz;
     let hgt = 176;
     if (ECRO[e] == 1) { hgt = 128; }
+    if (EVEH[e] > 0) { hgt = 150; }
     let yy = y0 + (y1 - y0) * t - EY[e];
     if (d2 < 30 * 30) { if (yy > 0) { if (yy < hgt) {
       r = t;
@@ -204,6 +214,7 @@ function hurt(v, a, dm, p, g) {
 }
 let hurtDir = 0, hurtT = 0;
 function kill(v, a, g, p) {
+  if (EVEH[v] > 0) { vehOut(v, 0); }
   EHP[v] = 0; EALIVE[v] = 0;
   ERANK[v] = alive;
   alive = alive - 1;
@@ -325,7 +336,24 @@ function playerShoot(g) {
   if (plMoving == 1) { spread = spread + 1.2 * (1 - wAdsT * 0.6); }
   if (plGround == 0) { spread = spread + 4; }
   if (plCrouch == 1) { spread = spread * 0.8; }
-  fireGun(1, camX, camY, camZ, plYaw, plPitch, spread);
+  // v1.1: seen from behind (third person) the shot goes from the eye to what the crosshair is on
+  let ox = camX, oy = camY, oz = camZ, ay = plYaw, ap = plPitch;
+  if (camMode == 1) {
+    let cp = cosd(plPitch);
+    let dx = sind(plYaw) * cp, dy = sind(plPitch), dz = cosd(plYaw) * cp;
+    let L = 30000;
+    rayCast(camX, camY, camZ, camX + dx * L, camY + dy * L, camZ + dz * L);
+    let t = rayT;
+    let tt = rayTerrain(camX, camY, camZ, camX + dx * L, camY + dy * L, camZ + dz * L, 24);
+    if (tt < t) { t = tt; }
+    let px = camX + dx * L * t, py = camY + dy * L * t, pz = camZ + dz * L * t;
+    ox = plX; oy = plY + plEye; oz = plZ;
+    // (a point closer than the player himself: straight on from the eye)
+    let hx = px - ox, hz = pz - oz;
+    let hd = Math.sqrt(hx * hx + hz * hz);
+    if (hd > 150) { ay = atan2d(hx, hz); ap = atand((py - oy) / hd); }
+  }
+  fireGun(1, ox, oy, oz, ay, ap, spread);
   // recoil: the view climbs, a little sideways
   let kv = pRv * (1 - wAdsT * 0.25);
   plPitch = plPitch + kv; wRec = wRec + kv * 0.7;

@@ -28,13 +28,15 @@ function gameInit() {
   while (i <= 5) { KFS.push(''); KFT.push(-99); i = i + 1; }
   i = 1;
   while (i <= 12) { SMA.push(0); SMK.push(0); SMT.push(-99); SMD.push(0); i = i + 1; }
+  i = 1;
+  while (i <= 60) { ZWX.push(0); ZWZ.push(0); i = i + 1; }
 }
 
 // ---------------------------------------------------------------- a new match
 function matchStart() {
   matchSeed = rand(0, 999);
   gameT = 0; startT = 0;
-  peopleReset(); aiReset(); lootSpawn();
+  peopleReset(); aiReset(); lootSpawn(); vehReset();
   let i = 1;
   while (i <= NFX) { FXT[i] = -99; i = i + 1; }
   i = 1;
@@ -60,7 +62,7 @@ function matchStart() {
   gState = 1; mapOpen = 0;
   txClear();
   // the pointer: held from the start (the click or key that started it lets the browser do it)
-  if (isTess == 1) { $M_LOCK = 1; }
+  lockReq();
   msgShow('F: 뛰어내리기', 4);
 }
 // where a bot lands: a town (weighted by how much is there) or a random house
@@ -199,8 +201,13 @@ function zoneNext() {
     msgShow(`안전지대가 표시되었습니다 (${zPhase}단계)`, 3);
   }
 }
-// the wall of the zone: blue upright lines along the circle near the eye
-function drawZone() {
+// the wall of the zone: blue upright lines along the circle near the eye. v1.1: each line is
+// a dynamic thing in its cell (zoneWall, from dynBuild), drawn in the painter's order with the
+// world, so walls and hills in front of it hide it (it used to be drawn over everything)
+let ZWX = [], ZWZ = [];
+let zwN = 0;
+function zoneWall() {
+  zwN = 0;
   if (gState >= 1) { if (zPhase > 0) {
     let dx = camX - zcx, dz = camZ - zcz;
     let dc = Math.sqrt(dx * dx + dz * dz);
@@ -209,18 +216,28 @@ function drawZone() {
       let a0 = atan2d(dx, dz);
       let span = 180;
       if (zr > 1) { span = Math.min(180, fogD / zr * 70); }
-      let n = 40, i = 0;
-      penSize(1);
+      let n = 48, i = 0;
       while (i <= n) {
         let a = a0 - span + span * 2 * i / n;
-        let x = zcx + sind(a) * zr, z = zcz + cosd(a) * zr;
-        let y = hAt(x, z);
-        M_zline(x, y - 300, z, y + 9000);
+        zwN = zwN + 1;
+        ZWX[zwN] = zcx + sind(a) * zr; ZWZ[zwN] = zcz + cosd(a) * zr;
+        dynAdd(8000 + zwN, ZWX[zwN], hAt(ZWX[zwN], ZWZ[zwN]), ZWZ[zwN]);
         i = i + 1;
       }
     }
-    // out of the zone: the screen tinted
-    if (dc > zr) { penAlpha(70); M_box(-245, 140, 245, -140, '#3060c8'); fillStop(); penAlpha(0); }
+  } }
+}
+function drawZoneLine(i, dist) {
+  let x = ZWX[i], z = ZWZ[i];
+  let y = hAt(x, z);
+  penSize(1 + Math.max(0, 1 - dist / 6000) * 2);
+  M_zline(x, y - 300, z, y + 9000);
+}
+// out of the zone: the screen tinted (over everything)
+function drawZone() {
+  if (gState >= 1) { if (zPhase > 0) {
+    let dx = camX - zcx, dz = camZ - zcz;
+    if (dx * dx + dz * dz > zr * zr) { penAlpha(70); M_box(-245, 140, 245, -140, '#3060c8'); fillStop(); penAlpha(0); }
   } }
 }
 function M_zline(x, y0, z, y1) {
@@ -349,6 +366,11 @@ function nadeBlow(n) {
       } }
       e = e + 1;
     }
+    let v = 1;
+    while (v <= NV) {
+      if (VON[v] == 1) { let dv = Math.abs(VX[v] - x) + Math.abs(VZ[v] - z); if (dv < 700) { vehShot(v, GNW[n], 300 * (1 - dv / 700)); } }
+      v = v + 1;
+    }
   }
 }
 function drawNade(n, dist) {
@@ -366,6 +388,7 @@ function killFeed(a, v, g, p) {
   while (i > 1) { KFS[i] = KFS[i - 1]; KFT[i] = KFT[i - 1]; i = i - 1; }
   let w = '자기장';
   if (g > 0) { w = GNAME[g]; } else { if (a > 0) { w = '수류탄'; } }
+  if (g < 0) { w = '차량'; }
   let hs = '';
   if (p == 1) { hs = ' (헤드샷)'; }
   if (a > 0) { KFS[1] = `${ENAME[a]} ▶ ${ENAME[v]}  [${w}]${hs}`; } else { KFS[1] = `${ENAME[v]} - ${w}`; }
@@ -401,12 +424,14 @@ function dynBuild() {
   let fn = frameNo;
   frameNo = frameNo + 1;
   let lim = (drawR + 1) * CS;
+  // the player's own body, seen from behind
+  if (camMode == 1) { if (EALIVE[1] == 1) { if (EAIR[1] != 2) { dynAdd(1, plX, plY, plZ); } } }
   let e = 2;
   while (e <= NE) {
-    if (EALIVE[e] == 1) { if (EAIR[e] != 2) {
+    if (EALIVE[e] == 1) { if (EAIR[e] != 2) { if (EVEH[e] == 0) {
       let dx = EX[e] - camX, dz = EZ[e] - camZ;
       if (Math.abs(dx) < lim) { if (Math.abs(dz) < lim) { dynAdd(e, EX[e], EY[e], EZ[e]); } }
-    } }
+    } } }
     e = e + 1;
   }
   // items within about 45 m
@@ -429,19 +454,25 @@ function dynBuild() {
   while (n <= 8) { if (GNF[n] > 0) { dynAdd(6000 + n, GNX[n], GNY[n], GNZ[n]); } n = n + 1; }
   // the plane, once the player is out of it
   if (planeOn == 1) { if (EAIR[1] != 2) { dynAdd(7000, planeX, planeY, planeZ); } }
+  zoneWall();
+  vehDyn();
   frameNo = fn;
 }
 function dynDraw(id, dist) {
   if (id <= NE) { if (EAIR[id] == 0) { drawPerson(id, dist); } else { drawFlyer(id, dist); } }
   else {
     if (id < 5000) { if (dist < 4500) { drawItemDyn(id - 1000, dist); } }
-    else { if (id < 6000) { drawFx(id - 5000, dist); } else { if (id < 7000) { drawNade(id - 6000, dist); } else { drawWorldModel((IBASE + 20 - 1) * 3 + 1 + 1, planeX, planeY, planeZ, atan2d(planeX1 - planeX0, planeZ1 - planeZ0), 1, fogOf(dist) * 0); } } }
+    else { if (id < 6000) { drawFx(id - 5000, dist); } else { if (id < 7000) { drawNade(id - 6000, dist); } else {
+      if (id == 7000) { drawWorldModel((IBASE + 20 - 1) * 3 + 1 + 1, planeX, planeY, planeZ, atan2d(planeX1 - planeX0, planeZ1 - planeZ0), 1, fogOf(dist) * 0); }
+      else { if (id < 9000) { drawZoneLine(id - 8000, dist); } else { drawVeh(id - 9000, dist); } }
+    } } }
   }
 }
 // a bot in the air: the person, and a canopy over them once it is open
 function drawFlyer(e, dist) {
   drawPerson(e, dist);
   let t = (gameT - AJT[e]) / (ALDT[e] - AJT[e]);
+  if (e == 1) { t = 0; if (EAIR[1] == 3) { t = 1; } }
   if (t > 0.3) {
     bodyMatrix(EX[e], EY[e], EZ[e], EYAW[e]);
     pFog = fogOf(dist);

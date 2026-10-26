@@ -1,0 +1,4 @@
+[{"wait":1500},{"shot":"test/v_menu.png"},{"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":30},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":2500},{"vars":1},
+ {"down":{"code":"KeyF","key":"f","keyCode":70}},{"wait":15},{"up":{"code":"KeyF","key":"f","keyCode":70}},{"wait":1500},{"vars":1},
+ {"set":{"godMode":1}},
+ {"down":{"code":"KeyF","key":"f","keyCode":70}},{"wait":15},{"up":{"code":"KeyF","key":"f","keyCode":70}},{"wait":12000},{"vars":1},{"shot":"test/v_land.png"}]

@@ -12,6 +12,8 @@ let AHX = [], AHZ = [], AHT = [], AALERT = [], ALOOTB = [], ALOOTT = [], ABURST 
 let ATVX = [], ATVZ = [], ATPX = [], ATPZ = [], ADMGT = [], ALASTH = [], ASWT = [], AABS = [], ANADE = [];
 let EAIR = [], AJT = [], AJX = [], AJZ = [], ALDX = [], ALDZ = [], ALDT = [];
 let DET = [], BLOOT = [];
+// v1.1: the vehicle a bot walks to (AVEH), where a driving bot heads (AVTX/Z, renewed at AVTT)
+let AVEH = [], AVTX = [], AVTZ = [], AVTT = [], AVSTK = [], ASMK = [];
 let abTurn = 1, diff = 2;
 // sound events: a ring of 32 (position, how far it carries, who, kind, when)
 let SEX = [], SEY = [], SEZ = [], SER = [], SEW = [], SEK = [], SET = [];
@@ -26,6 +28,7 @@ function aiInit() {
     AHX.push(0); AHZ.push(0); AHT.push(-99); AALERT.push(-99); ALOOTB.push(0); ALOOTT.push(0); ABURST.push(0); ABURSTT.push(0); AHEAD.push(0);
     ATVX.push(0); ATVZ.push(0); ATPX.push(0); ATPZ.push(0); ADMGT.push(0); ALASTH.push(0); ASWT.push(0); AABS.push(0); ANADE.push(0);
     EAIR.push(0); AJT.push(0); AJX.push(0); AJZ.push(0); ALDX.push(0); ALDZ.push(0); ALDT.push(0);
+    AVEH.push(0); AVTX.push(0); AVTZ.push(0); AVTT.push(0); AVSTK.push(0); ASMK.push(0);
     i = i + 1;
   }
   i = 1;
@@ -40,10 +43,11 @@ function aiReset() {
   while (i <= NE) {
     AMODE[i] = MD_LOOT; ATGT[i] = 0; ALT[i] = -99; AVIS[i] = 0; ACOV[i] = 0; PLEN[i] = 0; PIDX[i] = 1; AHT[i] = -99; AALERT[i] = -99; ALOOTB[i] = 0;
     // skill: the level sets the range; aggression: the bot's own
-    let sk = 0.75 + rand(0, 100) / 100 * 0.35;
-    if (diff == 1) { sk = 0.5 + rand(0, 100) / 100 * 0.25; }
-    if (diff == 3) { sk = 1.05 + rand(0, 100) / 100 * 0.35; }
+    let sk = 0.85 + rand(0, 100) / 100 * 0.35;
+    if (diff == 1) { sk = 0.55 + rand(0, 100) / 100 * 0.25; }
+    if (diff == 3) { sk = 1.15 + rand(0, 100) / 100 * 0.4; }
     ASKILL[i] = sk; AAGR[i] = rand(15, 95) / 100; ADEC[i] = 0; APER[i] = rand(0, 100) / 500; AFULL[i] = 0; ANADE[i] = 0;
+    AVEH[i] = 0; AVTT[i] = 0; AVSTK[i] = 0; ASMK[i] = 0;
     i = i + 1;
   }
   i = 1;
@@ -76,7 +80,7 @@ function botsStep(dt) {
         let d2 = dx * dx + dz * dz;
         if (AFULL[e] == 1) { if (d2 > 34000 * 34000) { AFULL[e] = 0; AABS[e] = gameT; } }
         else { if (d2 < 30000 * 30000) { AFULL[e] = 1; if (EAIR[1] > 0) { AFULL[e] = 1; } } }
-        if (AFULL[e] == 1) { botFull(e, dt); }
+        if (AFULL[e] == 1) { if (EVEH[e] > 0) { botDrive(e, dt); } else { botFull(e, dt); } }
       }
     }
     e = e + 1;
@@ -105,10 +109,18 @@ function botFull(e, dt) {
   else {
     ECRO[e] = 0; EADS[e] = 0;
     if (m == MD_HEAL) {
-      if (EUSE[e] <= 0) { let h = bestHeal(e); if (h > 0) { useHeal(e, h); } else { AMODE[e] = MD_HOLD; } }
-      ECRO[e] = 1;
-      botLook(e, dt);
-      botStep(e, 0, 0, dt);
+      // v1.1: threatened lately - behind something first
+      let hx = 0, hz = 0;
+      if (ACOV[e] == 0) { if (gameT - AHT[e] < 12 || gameT - EHURT[e] < 12) { findCover(e, AHX[e], AHZ[e]); } }
+      if (ACOV[e] == 1) { hx = ACX[e] - EX[e]; hz = ACZ[e] - EZ[e]; }
+      let hd = Math.sqrt(hx * hx + hz * hz);
+      if (hd > 80) { ECRO[e] = 0; botFace(e, atan2d(hx, hz), dt, 360); botStep(e, hx / hd * 520, hz / hd * 520, dt); }
+      else {
+        if (EUSE[e] <= 0) { let h = bestHeal(e); if (h > 0) { useHeal(e, h); } else { AMODE[e] = MD_HOLD; ACOV[e] = 0; } }
+        ECRO[e] = 1;
+        botLook(e, dt);
+        botStep(e, 0, 0, dt);
+      }
     } else {
       if (m == MD_HOLD) { botLook(e, dt); botStep(e, 0, 0, dt); }
       else { botTravel(e, dt); }
@@ -141,12 +153,13 @@ function botPerceive(e) {
           // a ray for the ones that matter: the target, the player, anyone close
           let worth = 0;
           if (f == ATGT[e] || f == 1 || d < 6000 || DET[k] > 0.2) { worth = 1; }
-          if (worth == 1) { if (los < 4) {
+          if (worth == 1) { if (los < 6) {
             los = los + 1;
             let ty = EY[f] + 120;
             if (ECRO[f] == 1) { ty = EY[f] + 85; }
             rayCast(ex, ey, ez, EX[f], ty, EZ[f]);
             if (rayT >= 1) { if (smokeBlocks(ex, ey, ez, EX[f], ty, EZ[f]) == 0) { seen = 1; } }
+            if (seen == 1) { if (d > 2500) { if (rayTerrain(ex, ey, ez, EX[f], ty + 30, EZ[f], Math.min(14, Math.floor(d / 1500) + 3)) < 1) { seen = 0; } } }
             if (seen == 0) {
               // the head over a low wall
               rayCast(ex, ey, ez, EX[f], ty + 40, EZ[f]);
@@ -163,6 +176,7 @@ function botPerceive(e) {
         if (ECRO[f] == 1) { rate = rate * 0.6; }
         if (f == 1) { if (plInBush == 1) { rate = rate * 0.4; } }
         if (alert == 1) { rate = rate * 1.5; }
+        if (EVEH[f] > 0) { rate = rate * 1.8; }
         DET[k] = Math.min(1.6, DET[k] + rate * 0.2);
         if (DET[k] >= 1) {
           // seen: keep the one that is the bigger threat (nearer, or shooting me)
@@ -172,7 +186,8 @@ function botPerceive(e) {
           if (take == 1) { botAcquire(e, f, d); }
           if (ATGT[e] == f) {
             AVIS[e] = 1;
-            ATVX[e] = (EX[f] - ATPX[e]) * 5; ATVZ[e] = (EZ[f] - ATPZ[e]) * 5;
+            // (the target's speed, smoothed: the lead is steadier)
+            ATVX[e] = ATVX[e] * 0.45 + (EX[f] - ATPX[e]) * 5 * 0.55; ATVZ[e] = ATVZ[e] * 0.45 + (EZ[f] - ATPZ[e]) * 5 * 0.55;
             ATPX[e] = EX[f]; ATPZ[e] = EZ[f];
             ALX[e] = EX[f]; ALY[e] = EY[f]; ALZ[e] = EZ[f]; ALT[e] = gameT;
           }
@@ -209,12 +224,13 @@ function botAcquire(e, f, d) {
     ATGT[e] = f;
     // reaction time and the first aim error grow with distance and fall with skill
     let sk = ASKILL[e];
-    AREACT[e] = gameT + (0.2 + rand(0, 100) / 100 * 0.25) / sk + d / 30000;
-    AERR[e] = (2.8 + d / 2200) / sk;
+    AREACT[e] = gameT + (0.17 + rand(0, 100) / 100 * 0.22) / sk + d / 32000;
+    AERR[e] = (2.6 + d / 2300) / sk;
     let a = rand(0, 359);
     AERX[e] = cosd(a); AERY[e] = sind(a) * 0.7;
     AHEAD[e] = 0;
     if (rand(1, 100) <= (sk - 0.6) * 45) { AHEAD[e] = 1; }
+    if (d < 1500) { if (rand(1, 100) <= (sk - 0.5) * 40) { AHEAD[e] = 1; } }
     ATPX[e] = EX[f]; ATPZ[e] = EZ[f]; ATVX[e] = 0; ATVZ[e] = 0;
     ABURST[e] = 0; ABURSTT[e] = 0; ACOV[e] = 0;
   }
@@ -267,13 +283,13 @@ function botDecide(e) {
   if (gameT > 420) { want = 4; }
   if (fresh == 1) { if (armed == 1) { mode = MD_FIGHT; } else { mode = MD_MOVE; } }
   if (mode != MD_FIGHT) {
-    if (EHP[e] < 70) { if (bestHeal(e) > 0) { if (gameT - EHURT[e] > 3) { mode = MD_HEAL; } } }
+    if (EHP[e] < 78 || EBOOST[e] < 30) { if (bestHeal(e) > 0) { if (gameT - EHURT[e] > 3) { mode = MD_HEAL; } } }
     if (mode != MD_HEAL) {
       // the zone first when it presses
       let press = 0;
       if (zin == -1) { press = 1; }
-      if (zin == 0) { if (zWait < (zd - znr * 0.7) / 450 + 25 || gs >= want) { press = 1; } }
-      if (press == 1) { mode = MD_MOVE; AGK[e] = 2; }
+      if (zin == 0) { if (zWait < (zd - znr * 0.7) / 450 + 45 || gs >= want) { press = 1; } }
+      if (press == 1) { mode = MD_MOVE; AGK[e] = 2; botWantVeh(e, zd - znr); }
       else {
         if (gs < want) { mode = MD_LOOT; }
         else {
@@ -284,11 +300,12 @@ function botDecide(e) {
     }
   }
   if (mode != AMODE[e]) { PLEN[e] = 0; AGOAL[e] = 0; ACOV[e] = 0; }
+  if (mode != MD_MOVE) { AVEH[e] = 0; }
   AMODE[e] = mode;
   if (mode == MD_FIGHT) { botPickGun(e); }
   // goals for travelling
   if (mode == MD_LOOT) { if (PLEN[e] == 0 || ALOOTB[e] == 0) { botLootGoal(e); } }
-  if (mode == MD_MOVE) { if (PLEN[e] == 0 || PIDX[e] > PLEN[e]) { botMoveGoal(e); } }
+  if (mode == MD_MOVE) { if (AVEH[e] == 0) { if (PLEN[e] == 0 || PIDX[e] > PLEN[e]) { botMoveGoal(e); } } }
 }
 // the nearest building not looted yet (within 250 m): its first room node
 function botLootGoal(e) {
@@ -351,6 +368,24 @@ function botMoveGoal(e) {
 // ---------------------------------------------------------------- moving
 // follow the path; looting: once there, visit the rooms and take things
 function botTravel(e, dt) {
+  // v1.1: on the way to a vehicle: in when there
+  let av = AVEH[e];
+  if (av > 0) {
+    if (VON[av] != 1 || VDRV[av] > 0) { AVEH[e] = 0; av = 0; }
+    else {
+      let vx = VX[av] - EX[e], vz = VZ[av] - EZ[e];
+      let vd = Math.sqrt(vx * vx + vz * vz);
+      if (vd < VKHL[VK[av]] + 120) { vehIn(e, av); AVEH[e] = 0; AVTT[e] = 0; AVSTK[e] = 0; PLEN[e] = 0; }
+      else { if (PLEN[e] == 0 || PIDX[e] > PLEN[e] || vd < 900) {
+        botFace(e, atan2d(vx, vz), dt, 360); botStep(e, vx / vd * 560, vz / vd * 560, dt); av = -1;
+        // (no nearer for a while: something is in the way - forget the vehicle)
+        if (vd < AVSTK[e] - 40 || AVSTK[e] == 0) { AVSTK[e] = vd; AVTT[e] = gameT; } else { if (gameT - AVTT[e] > 3) { AVEH[e] = 0; AVSTK[e] = 0; PLEN[e] = 0; ADEC[e] = 0; } }
+      } }
+    }
+  }
+  if (av >= 0) { botWalk(e, dt); }
+}
+function botWalk(e, dt) {
   let sp = 470;
   if (AMODE[e] == MD_MOVE) { if (AGK[e] == 2) { sp = 600; } if (AGK[e] == 3) { sp = 380; } }
   let n = PLEN[e], i = PIDX[e];
@@ -540,8 +575,8 @@ function botFight(e, dt) {
     let adx = ax - EX[e], adz = az - EZ[e], ady = aimY - (EY[e] + 155);
     let ad = Math.sqrt(adx * adx + adz * adz) + 1;
     // the error settles while tracking; moving makes it worse
-    AERR[e] = AERR[e] * Math.max(0, 1 - dt * (0.8 + sk * 1.3));
-    let floor = 0.55 / sk + d / 22000;
+    AERR[e] = AERR[e] * Math.max(0, 1 - dt * (1.0 + sk * 1.5));
+    let floor = 0.48 / sk + d / 25000;
     if (EMOV[e] > 0.3) { floor = floor + 1.0 / sk; }
     if (EMOV[t] > 0.6) { floor = floor + 0.6; }
     if (ECRO[t] == 1) { floor = floor + 0.2; }
@@ -575,12 +610,13 @@ function botFight(e, dt) {
         }
         if (go == 1) {
           let spread = GHIP[g];
-          if (d > 1500) { spread = GADS[g] * 1.4; EADS[e] = 1; } else { EADS[e] = 0; }
+          if (d > 1500) { spread = GADS[g] * 1.4; EADS[e] = 1; if (attIn(attNow(e), 2) >= 6) { spread = spread * 0.75; } } else { EADS[e] = 0; }
+          if (ECRO[e] == 1) { spread = spread * 0.85; }
           if (EMOV[e] > 0.3) { spread = spread + 1.0; }
           fireGun(e, EX[e], EY[e] + 155, EZ[e], EYAW[e], EPIT[e], spread / Math.max(0.6, sk));
           // recoil the bot must pull back down
-          EPIT[e] = EPIT[e] + GRV[g] * (1.2 - sk * 0.5);
-          AERR[e] = AERR[e] + GRH[g] * (1.1 - sk * 0.5);
+          EPIT[e] = EPIT[e] + GRV[g] * Math.max(0.15, 1.15 - sk * 0.6);
+          AERR[e] = AERR[e] + GRH[g] * Math.max(0.2, 1.05 - sk * 0.55);
           if (Math.abs(EX[e] - plX) + Math.abs(EZ[e] - plZ) < 40000) { sfxShotAt(e); }
         }
       } }
@@ -597,6 +633,14 @@ function botFight(e, dt) {
     if (c == 4 || c == 5) { wantD = 9000; }
     let low = 0;
     if (EHP[e] < 40) { low = 1; }
+    // v1.1: shot at by someone not seen: get behind something before looking for them
+    if (vis == 0) { if (ACOV[e] == 0) { if (gameT - EHURT[e] < 2.5) { findCover(e, tx, tz); } } }
+    // low and in the open with the enemy in sight: smoke between, then away
+    if (low == 1) { if (vis == 1) { if (ACOV[e] == 0) { if (ESMK[e] > 0) { if (gameT > ASMK[e]) { if (d > 700) {
+      ASMK[e] = gameT + 15;
+      throwNade(e, EX[e] + dx / d * 450, EY[e], EZ[e] + dz / d * 450, 2);
+      findCover(e, tx, tz);
+    } } } } } }
     // cover: when hurt, or reloading, or a long fight
     if (ACOV[e] == 0) { if (low == 1 || ERELT[e] > 0 || d > 3500) { if (rand(1, 100) <= 25) { findCover(e, tx, tz); } } }
     if (ACOV[e] == 1) {
@@ -691,14 +735,24 @@ function botAbstract(e, dt) {
   // a fight with another far bot nearby
   let foe = ATGT[e];
   if (foe > 0) { if (EALIVE[foe] == 0 || AFULL[foe] == 1) { foe = 0; ATGT[e] = 0; } }
-  if (foe == 0) {
+  if (EVEH[e] > 0) { foe = 0; ATGT[e] = 0; }
+  if (foe == 0) { if (EVEH[e] == 0) {
     if (rand(1, 100) <= 30) {
       let f = rand(2, NE);
       if (f != e) { if (EALIVE[f] == 1) { if (EAIR[f] == 0) { if (AFULL[f] == 0) {
         let dx = EX[f] - EX[e], dz = EZ[f] - EZ[e];
-        if (dx * dx + dz * dz < 11000 * 11000) { if (rand(1, 100) <= 70) { ATGT[e] = f; ATGT[f] = e; foe = f; } }
+        if (dx * dx + dz * dz < 14000 * 14000) { if (rand(1, 100) <= 75) { if (EVEH[f] == 0) { ATGT[e] = f; ATGT[f] = e; foe = f; } } }
       } } } }
     }
+  } }
+  // v1.1: no gun, or nothing to shoot with: no fight - it goes on its way (two such bots paired
+  // used to stand where they were for good)
+  if (foe > 0) {
+    let g0 = gunNow(e);
+    if (g0 == 0) { botPickGun(e); g0 = gunNow(e); }
+    let can = 0;
+    if (g0 > 0) { if (magNow(e) + ammoOf(e, GAMMO[g0]) > 0) { can = 1; } }
+    if (can == 0) { foe = 0; ATGT[e] = 0; }
   }
   if (foe > 0) {
     let g = gunNow(e);
@@ -706,7 +760,8 @@ function botAbstract(e, dt) {
     if (g > 0) {
       let dx = EX[foe] - EX[e], dz = EZ[foe] - EZ[e];
       let d = Math.sqrt(dx * dx + dz * dz);
-      let hit = Math.max(0.06, Math.min(0.55, 0.42 * ASKILL[e] - d / 40000));
+      let hit = Math.max(0.06, Math.min(0.6, 0.42 * ASKILL[e] - d / 40000 + EHEL[e] * 0.01 + GTIER[g] * 0.02));
+      if (attIn(attNow(e), 2) >= 6) { if (d > 8000) { hit = hit + 0.06; } }
       let shots = dt / GINT[g] * 0.35;
       let dm = GDMG[g] * shots * hit;
       let ab = Math.min(magNow(e) + ammoOf(e, GAMMO[g]), Math.ceil(shots));
@@ -734,8 +789,12 @@ function botAbstract(e, dt) {
       let dx = NDX[nd] - EX[e], dz = NDZ[nd] - EZ[e];
       let d = Math.sqrt(dx * dx + dz * dz);
       let step = 450 * dt;
+      if (EVEH[e] > 0) { step = 1500 * dt; }
       if (d <= step) { EX[e] = NDX[nd]; EY[e] = NDY[nd]; EZ[e] = NDZ[nd]; PIDX[e] = PIDX[e] + 1; }
       else { EX[e] = EX[e] + dx / d * step; EZ[e] = EZ[e] + dz / d * step; EY[e] = EY[e] + (NDY[nd] - EY[e]) * step / d; EYAW[e] = atan2d(dx, dz); }
+      // the vehicle goes along (on the ground under the bot)
+      let v = EVEH[e];
+      if (v > 0) { VX[v] = EX[e]; VZ[v] = EZ[e]; VYAW[v] = EYAW[e]; VSPD[v] = 1500; vehGround(v, 1); VY[v] = gndB; EY[e] = VY[v] + VKSEAT[VK[v]] - 92; }
     }
   }
 }
@@ -743,8 +802,14 @@ function botDecideFar(e) {
   let gs = gearScore(e);
   let zin = 1;
   if (zPhase > 0) { let dx = EX[e] - znx, dz = EZ[e] - znz; if (Math.sqrt(dx * dx + dz * dz) > znr * 0.85) { zin = 0; } }
-  if (zin == 0) { AMODE[e] = MD_MOVE; AGK[e] = 2; botMoveGoal(e); }
+  if (zin == 0) {
+    AMODE[e] = MD_MOVE; AGK[e] = 2;
+    // a long way: into a vehicle that stands near (walked to in no time out here)
+    if (EVEH[e] == 0) { let dzx = EX[e] - znx, dzz = EZ[e] - znz; if (Math.sqrt(dzx * dzx + dzz * dzz) > znr + 18000) { let v = vehFree(EX[e], EZ[e], 6000); if (v > 0) { vehIn(e, v); } } }
+    botMoveGoal(e);
+  }
   else {
+    if (EVEH[e] > 0) { let v = EVEH[e]; vehOut(e, 1); VSPD[v] = 0; }
     if (gs < 8) { AMODE[e] = MD_LOOT; botLootGoal(e); }
     else { AMODE[e] = MD_MOVE; AGK[e] = 4; botMoveGoal(e); }
   }
@@ -777,7 +842,7 @@ function botAir(e, dt) {
     if (t >= 1) {
       EAIR[e] = 0; EX[e] = ALDX[e]; EZ[e] = ALDZ[e];
       scanBoxes(EX[e], 99999, EZ[e], PRAD, PH, 999999);
-      EY[e] = gndB; EVY[e] = 0; AMODE[e] = MD_LOOT; ADEC[e] = 0; AABS[e] = gameT;
+      EY[e] = gndB; EVY[e] = 0; AMODE[e] = MD_LOOT; ADEC[e] = 0; AABS[e] = gameT; AVEH[e] = 0;
     } else {
       EX[e] = AJX[e] + (ALDX[e] - AJX[e]) * t; EZ[e] = AJZ[e] + (ALDZ[e] - AJZ[e]) * t;
       let gy = hAt(ALDX[e], ALDZ[e]);

@@ -259,6 +259,7 @@ function findPick() {
 }
 function playerLoot() {
   findPick();
+  playerVehCheck();
   if (pickItem > 0) {
     if (keyHit(70) == 1) { takeItem(1, pickItem); }
   }

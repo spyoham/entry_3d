@@ -478,6 +478,42 @@ P('watertower', three('watertower', (m, li) => {
 }), { radius: 330, height: 1650 });
 P('pole', three('pole', (m, li) => { m.box(-12, 0, -12, 12, 900, 12, 'woodDark', { skip: 'bottom', collide: li === 0 }); if (li < 2) m.box(-90, 820, -6, 90, 835, 6, 'woodDark', { skip: 'bottom', collide: false }); }), { radius: 90, height: 900 });
 
+// v1.1: more cover out in the open - fallen logs, earth mounds (a small hill you can walk up:
+// the colliders are 45 cm steps), dry-stone walls, hedges, a two-step outcrop of rock
+P('log', three('log', (m, li) => {
+    m.prismX(38, 0, 38, -260, 260, li === 0 ? 7 : 5, 'bark', { phase: 0.3 });
+    if (li === 0) { m.prism(-200, 0, 30, 0, 55, 5, 'woodDark', { top: true }); m.box(150, 40, -6, 175, 120, 6, 'bark', { skip: 'bottom', collide: false }); m.collider(-260, 0, -38, 260, 76, 38); }
+}), { radius: 260, height: 90, cover: true, line: true });
+for (const [name, s] of [['mound', 1], ['moundL', 1.6]]) P(name, three(name, (m, li) => {
+    const n = li === 0 ? 8 : li === 1 ? 6 : 4, r0 = 520 * s, r1 = 230 * s, h = 160 * Math.min(1.25, s);
+    if (li === 2) { m.prism(0, 0, r0 * 0.9, -30, h, n, 'grass', { r1, phase: 0.4 }); return; }
+    m.prism(0, 0, r0, -30, h * 0.45, n, 'grass', { r1: (r0 + r1) * 0.55, top: false, phase: 0.2 });
+    m.prism(0, 0, (r0 + r1) * 0.55, h * 0.45, h, n, li === 0 ? 'grassDry' : 'grass', { r1, phase: 0.2 });
+    if (li === 0) {
+        // steps of 45 cm up the slope (a person walks up, a bullet stops)
+        const k = Math.ceil(h / 45);
+        for (let i = 0; i < k; i++) { const y1 = Math.min(h - 5, (i + 1) * 45), rr = (r0 - (r0 - r1) * (y1 / h)) * 0.86; m.collider(-rr, -30, -rr * 0.86, rr, y1, rr * 0.86); m.collider(-rr * 0.86, -30, -rr, rr * 0.86, y1, rr); }
+        if (s > 1) m.prism(r1 * 0.3, -r1 * 0.2, 70, h - 10, h + 55, 5, 'rock2', { r1: 40, collide: true });
+    }
+}), { radius: 520 * s, height: 160 * s, cover: true });
+P('stonewall', three('stonewall', (m, li) => {
+    m.box(-300, 0, -35, 300, 70, 35, { top: 'rock2', side: 'rock' }, { skip: 'bottom', collide: li === 0 });
+    m.box(-290, 70, -28, 290, 105, 28, { top: 'rock', side: 'rock2' }, { skip: 'bottom', collide: li === 0 });
+    if (li === 0) { for (const x of [-220, -40, 130]) m.box(x, 105, -24, x + 70, 120, 24, 'rock', { skip: 'bottom', collide: false }); m.box(260, 0, -40, 320, 60, 40, 'rock2', { skip: 'bottom' }); }
+}), { radius: 320, height: 120, cover: true, line: true });
+P('hedge', three('hedge', (m, li) => {
+    m.box(-280, 0, -55, 280, 140, 55, { top: 'leaf', side: 'bush' }, { skip: 'bottom', collide: false });
+    if (li === 0) { m.box(-250, 140, -40, -60, 170, 40, 'leaf2', { skip: 'bottom', collide: false }); m.box(40, 140, -45, 230, 165, 45, 'leaf', { skip: 'bottom', collide: false }); }
+}), { radius: 290, height: 170, bush: true, line: true });
+P('rockD', three('rockD', (m, li) => {
+    const n = li === 0 ? 7 : 5;
+    if (li === 2) { m.prism(0, 0, 420, -30, 190, 4, 'rock', { r1: 300, phase: 0.5 }); m.prism(120, 60, 190, 190, 380, 4, 'rock', { r1: 110 }); return; }
+    m.prism(0, 0, 420, -30, 140, n, 'rock', { r1: 360, top: false, phase: 0.5 });
+    m.prism(0, 0, 360, 140, 190, n, 'rock2', { r1: 300, phase: 0.5 });
+    m.prism(120, 60, 190, 190, 380, n, 'rock', { r1: 110, phase: 0.1 });
+    if (li === 0) { m.collider(-300, -30, -300, 300, 185, 300); m.collider(-10, 185, -60, 250, 360, 180); m.prism(-260, -200, 90, -10, 110, 5, 'rock2', { r1: 50, collide: true }); }
+}), { radius: 430, height: 380, cover: true });
+
 // every prefab: buildings first, then props
 export const ALL = [...BUILDINGS, ...PROPS];
 export const byName = Object.fromEntries(ALL.map((p, i) => [p.name, { ...p, id: i + 1 }]));

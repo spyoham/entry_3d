@@ -157,6 +157,9 @@ function drawPerson(e, dist) {
   let knee1 = 0 - Math.max(0, sind(ph + 60)) * 45 * mv, knee2 = 0 - Math.max(0, sind(ph + 240)) * 45 * mv;
   let hipY = 92, sh = 146, lean = 0;
   if (cr == 1) { hipY = 58; sh = 110; swing = 70 + swing * 0.3; swing2 = 70 - swing * 0.3; knee1 = -115; knee2 = -100; lean = 12; }
+  // v1.1: sitting in a vehicle (astride a motorbike)
+  let seated = 0;
+  if (EVEH[e] > 0) { seated = 1; swing = 82; swing2 = 82; knee1 = -88; knee2 = -88; lean = 8; if (VK[EVEH[e]] == 4) { swing = 62; swing2 = 62; knee1 = -70; knee2 = -70; lean = 22; } }
   let vest = MT_vest1 + (EVES[e] - 1) * 64;
   if (EVES[e] == 0) { vest = cl; }
   let gl = 32;
@@ -182,7 +185,7 @@ function drawPerson(e, dist) {
     pbox(-14, sh - 13, 22 + lean, 92, -12, 0, 4.5, 12, 4.5, sk);
     pbox(12, sh - 15, 18 + lean, 95, -10, 0, 4.5, 10, 4.5, sk);
     // the gun
-    pbox(5, sh - 18, 30 + lean, 92, 0, 0, 2.6, gl, 4, MT_gunBlack);
+    if (seated == 0) { pbox(5, sh - 18, 30 + lean, 92, 0, 0, 2.6, gl, 4, MT_gunBlack); }
   } else {
     if (dist < 8000) {
       pbox(-9, hipY, 0, swing, -44, 0, 7.5, 44, 8, cl);

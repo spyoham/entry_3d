@@ -68,6 +68,19 @@ export function makeSounds() {
     { const a = buf(1.6); [523, 659, 784, 1047].forEach((f, i) => tone(a, f, 0.6, 0.5, Math.floor(i * 0.16 * SR), 2.5)); add('win', norm(a, 0.6)); }
     { const a = buf(1.2); sweep(a, 220, 90, 1.1, 0.8, 0, 2); add('dead', norm(a, 0.6)); }
     { const a = buf(0.12); noise(a, 14, 0, a.length, 1, (t) => Math.exp(-t * 60)); lp(a, 500); add('step', norm(a, 0.35)); }
+    // v1.1: an engine at three speeds (played over and over while driving), and a crash
+    [[38, 1], [62, 2], [92, 3]].forEach(([f0, i]) => {
+        const a = buf(0.5);
+        for (let n = 0; n < a.length; n++) {
+            const t = n / SR, env = Math.min(1, t * 30) * Math.min(1, (0.5 - t) * 30);
+            let s = 0; for (const [h, g] of [[1, 1], [2, 0.6], [3, 0.45], [5, 0.25], [7, 0.12]]) s += Math.sin(2 * Math.PI * f0 * h * t + h) * g;
+            a[n] = s * env * (0.75 + 0.25 * Math.sin(2 * Math.PI * f0 / 2 * t));
+        }
+        noise(a, 20 + i, 0, a.length, 0.25, (t) => Math.min(1, t * 30) * Math.min(1, (0.5 - t) * 30));
+        lp(a, 900 + i * 300);
+        add('eng' + i, norm(a, 0.32));
+    });
+    { const a = buf(0.7); noise(a, 30, 0, a.length, 1, (t) => Math.exp(-t * 9)); lp(a, 2400); sweep(a, 90, 40, 0.5, 0.9, 0, 6); for (const [t, f] of [[0.02, 1900], [0.09, 1300], [0.16, 2500]]) tone(a, f, 0.25, 0.25, Math.floor(t * SR), 18); add('crash', norm(a, 0.8)); }
     return S;
 }
 

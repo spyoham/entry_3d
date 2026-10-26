@@ -41,7 +41,7 @@ const ROADS = [[0, 10], [10, 6], [6, 1], [0, 11], [11, 4], [4, 5], [0, 8], [8, 2
 
 export function generate(seed = 20261025) {
     const R = rng(seed);
-    const nA = noise2(seed + 1), nB = noise2(seed + 2), nF = noise2(seed + 3), nD = noise2(seed + 4);
+    const nA = noise2(seed + 1), nB = noise2(seed + 2), nF = noise2(seed + 3), nD = noise2(seed + 4), nE = noise2(seed + 5), nC = noise2(seed + 6);
     // ---------------- heights (cm)
     const H = new Float64Array(GRID * GRID);
     const gi = (x, z) => z * GRID + x;
@@ -63,6 +63,8 @@ export function generate(seed = 20261025) {
         // a lake east of the city
         const lake = Math.exp(-Math.pow((mx - 1330) / 85, 2) - Math.pow((mz - 1040) / 60, 2));
         h -= lake * 1600;
+        // v1.1: knolls over the open land, a few metres high (the ground itself gives cover)
+        h += (fbm(nE, mx / 150, mz / 150, 3) - 0.5) * 950 * Math.max(0, land) * (1 - Math.min(1, ridge * 2));
         if (r > 1.05) h = Math.min(h, -400 - (r - 1.05) * 3000);
         H[gi(x, z)] = h;
     }
@@ -291,6 +293,31 @@ export function generate(seed = 20261025) {
         if (high && R() < 0.25) putProp('rockC', (cx + 0.2 + R() * 0.6) * CS, (cz + 0.2 + R() * 0.6) * CS);
         else if (R() < 0.05) putProp('rockB', (cx + 0.2 + R() * 0.6) * CS, (cz + 0.2 + R() * 0.6) * CS);
     }
+    // v1.1: cover over the open land (out of the towns): boulders, logs, earth mounds, dry-stone
+    // walls along the fields, hedges, outcrops
+    const inSite = (x, z, pad) => SITES.some(s => Math.hypot(x / 100 - s.x, z / 100 - s.z) < s.r + pad);
+    for (let cz = 0; cz < CELLS; cz++) for (let cx = 0; cx < CELLS; cx++) {
+        const x0 = (cx + 0.5) * CS, z0 = (cz + 0.5) * CS;
+        const h = hAt(x0, z0);
+        if (h < 150 || inSite(x0, z0, 25)) continue;
+        const f = fbm(nC, x0 / 20000, z0 / 20000);
+        const n = f > 0.6 ? 2 : R() < (f > 0.45 ? 0.75 : 0.45) ? 1 : 0;
+        for (let i = 0; i < n; i++) {
+            const x = (cx + 0.15 + R() * 0.7) * CS, z = (cz + 0.15 + R() * 0.7) * CS;
+            const p = R();
+            let name;
+            if (h > 2200) name = p < 0.28 ? 'rockB' : p < 0.42 ? 'rockC' : p < 0.6 ? 'rockD' : p < 0.8 ? 'log' : 'mound';
+            else name = p < 0.16 ? 'rockA' : p < 0.28 ? 'rockB' : p < 0.42 ? 'log' : p < 0.56 ? 'mound' : p < 0.63 ? 'moundL' : p < 0.78 ? 'stonewall' : p < 0.9 ? 'hedge' : p < 0.95 ? 'rockD' : 'bush';
+            const r = Math.floor(R() * 4);
+            if (putProp(name, x, z, r) && (name === 'stonewall' || name === 'hedge') && R() < 0.6) {
+                // a second length of it, carrying on the same way
+                const ax = r % 2 ? 0 : 620, az = r % 2 ? 620 : 0;
+                putProp(name, x + ax, z + az, r);
+            }
+        }
+        // a few more trees in the plains: small groves
+        if (h < 2200 && R() < 0.07) { const gx = (cx + 0.2 + R() * 0.6) * CS, gz = (cz + 0.2 + R() * 0.6) * CS; for (let k = 0; k < 3; k++) putProp(R() < 0.6 ? 'oak' : 'pine', gx + (R() - 0.5) * 900, gz + (R() - 0.5) * 900); }
+    }
     // town furniture: cars along the streets, barrels, crates; base: sandbags, barriers, containers; port: containers
     for (const s of SITES) {
         const cx = s.x * 100, cz = s.z * 100, rr = s.r * 100;
@@ -319,6 +346,35 @@ export function generate(seed = 20261025) {
         if (s.kind === 'city' || s.kind === 'base' || s.kind === 'village') for (let t = 0; t < 10; t++) if (putProp('watertower', s.x * 100 + (R() - 0.5) * s.r * 150, s.z * 100 + (R() - 0.5) * s.r * 150)) break;
     }
 
+    // v1.1: where vehicles may stand: by the main roads, and a few in the towns, the base, the farms
+    // and the port (k: 0 any, 1 jeep, 2 pickup, 3 buggy, 4 bike)
+    const vehSpots = [];
+    const vehAt = (x, z, a, k) => {
+        if (x < 3000 || z < 3000 || x > MAP - 3000 || z > MAP - 3000) return false;
+        if (hAt(x, z) < 120 || blocked(x, z, 260)) return false;
+        const c = cellOf(x, z);
+        for (const pr of props) { if (Math.abs(pr.cell % CELLS - c % CELLS) > 1 || Math.abs(Math.floor(pr.cell / CELLS) - Math.floor(c / CELLS)) > 1) continue; if (Math.hypot(pr.x - x, pr.z - z) < (ALL[pr.pf - 1].radius || 100) + 320) return false; }
+        if (vehSpots.some(v => Math.hypot(v.x - x, v.z - z) < 900)) return false;
+        vehSpots.push({ x: Math.round(x), z: Math.round(z), a: Math.round(((a % 360) + 360) % 360), k });
+        return true;
+    };
+    let side = 1;
+    for (const rd of roads) if (!rd.street) for (let i = 3; i < rd.pts.length - 3; i += 5) {
+        const [ax, az] = rd.pts[i], [bx, bz] = rd.pts[i + 1]; const L = Math.hypot(bx - ax, bz - az) || 1;
+        side = -side;
+        const off = rd.w / 2 + 230;
+        vehAt(ax - (bz - az) / L * off * side, az + (bx - ax) / L * off * side, Math.atan2(bx - ax, bz - az) * 180 / Math.PI + (side > 0 ? 0 : 180), 0);
+    }
+    for (const s of SITES) {
+        const want = { city: 6, base: 5, port: 3, village: 2, farm: 2, gas: 2, school: 1 }[s.kind] || 0;
+        const k = s.kind === 'base' ? 1 : s.kind === 'farm' || s.kind === 'port' ? 2 : 0;
+        let got = 0;
+        for (let t = 0; t < 80 && got < want; t++) {
+            const a = R() * Math.PI * 2, d = (0.3 + R() * 0.75) * s.r * 100;
+            if (vehAt(s.x * 100 + Math.cos(a) * d, s.z * 100 + Math.sin(a) * d, Math.floor(R() * 4) * 90, k)) got++;
+        }
+    }
+
     // ---------------- terrain materials per cell
     const cellMat = new Array(CELLS * CELLS);
     for (let cz = 0; cz < CELLS; cz++) for (let cx = 0; cx < CELLS; cx++) {
@@ -338,5 +394,5 @@ export function generate(seed = 20261025) {
         cellMat[cz * CELLS + cx] = m;
     }
 
-    return { H, hAt, cellMat, roadQuads, insts, props, cellB, PF, sites: SITES, roads };
+    return { H, hAt, cellMat, roadQuads, insts, props, cellB, PF, sites: SITES, roads, vehSpots };
 }

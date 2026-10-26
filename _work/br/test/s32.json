@@ -1,0 +1,8 @@
+[{"wait":1500},{"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":30},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":1500},
+ {"set":{"godMode":1,"testCmd":1}},{"wait":800},{"shot":"test/v_near.png"},{"vars":1},
+ {"down":{"code":"KeyF","key":"f","keyCode":70}},{"wait":15},{"up":{"code":"KeyF","key":"f","keyCode":70}},{"wait":800},{"vars":1},{"shot":"test/v_in.png"},
+ {"down":{"code":"KeyW","key":"w","keyCode":87}},{"wait":3000},{"vars":1},{"shot":"test/v_drive1.png"},
+ {"down":{"code":"KeyD","key":"d","keyCode":68}},{"wait":1500},{"up":{"code":"KeyD","key":"d","keyCode":68}},{"wait":2500},{"up":{"code":"KeyW","key":"w","keyCode":87}},{"vars":1},{"shot":"test/v_drive2.png"},
+ {"down":{"code":"Space","key":" ","keyCode":32}},{"wait":1500},{"up":{"code":"Space","key":" ","keyCode":32}},{"vars":1},
+ {"down":{"code":"KeyF","key":"f","keyCode":70}},{"wait":15},{"up":{"code":"KeyF","key":"f","keyCode":70}},{"wait":800},{"vars":1},{"shot":"test/v_out.png"},
+ {"down":{"code":"KeyV","key":"v","keyCode":86}},{"wait":15},{"up":{"code":"KeyV","key":"v","keyCode":86}},{"wait":800},{"shot":"test/v_third.png"},{"vars":1}]
