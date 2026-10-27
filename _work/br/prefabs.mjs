@@ -53,9 +53,11 @@ export function building(name, o) {
     const L = [new Model(name + '0'), new Model(name + '1'), new Model(name + '2')];
     const [m0, m1, m2] = L;
     // ---------- LOD 0
-    // the plinth: from under the ground to the floor, along the outer faces
+    // the plinth: from the ground (the instance's y) to the floor, along the outer faces. It does not
+    // go under the ground: the terrain is drawn first, so anything below it would show through.
+    // Where the ground drops below y, build.mjs closes the gap with a skirt drawn with the terrain.
     for (const m of L) {
-        m.box(-W2, -260, -D2, W2, BASE, D2, { side: 'concreteDark', all: 'concreteDark' }, { skip: 'top bottom', collide: m === m0 });
+        m.box(-W2, 0, -D2, W2, BASE, D2, { side: 'concreteDark', all: 'concreteDark' }, { skip: 'top bottom', collide: m === m0 });
     }
     m0.collider(-W2, -260, -D2, W2, BASE, D2);
     // floors and ceilings: ground floor surface, then a slab at every floor line (with the stair hole)
@@ -278,7 +280,7 @@ function hangar() {
     const L = [new Model('hangar0'), new Model('hangar1'), new Model('hangar2')];
     const seg = 8;
     for (const [li, m] of L.entries()) {
-        m.box(-W2, -260, -D2, W2, BASE, D2, 'concreteDark', { skip: 'top bottom', collide: li === 0 });
+        m.box(-W2, 0, -D2, W2, BASE, D2, 'concreteDark', { skip: 'top bottom', collide: li === 0 });   // not under the ground (see building)
         if (li === 0) m.slab(-W2, -D2, W2, D2, BASE - 10, BASE, 'floorConc', null, [], { collide: false });
         // the arch: piece i spans angles a0..a1 (0 = east, pi = west)
         const ang = (i) => Math.PI * i / seg;
@@ -350,7 +352,7 @@ function gasStation() {
     const L = [new Model('gas0'), new Model('gas1'), new Model('gas2')];
     for (const [li, m] of L.entries()) {
         // forecourt slab
-        m.box(-1100, -60, -900, 1100, 10, 900, { top: 'concrete', side: 'concreteDark' }, { skip: 'bottom', collide: li === 0 });
+        m.box(-1100, 0, -900, 1100, 10, 900, { top: 'concrete', side: 'concreteDark' }, { skip: 'bottom', collide: li === 0 });
         // canopy
         for (const [x, z] of [[-600, -500], [600, -500], [-600, 100], [600, 100]]) m.box(x - 20, 10, z - 20, x + 20, 480, z + 20, 'trim', { skip: 'bottom top', collide: li === 0 });
         m.box(-750, 480, -650, 750, 540, 250, { top: 'trim', side: 'barrelRed', bottom: 'trim' }, { collide: false });

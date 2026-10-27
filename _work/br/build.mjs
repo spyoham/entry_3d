@@ -172,6 +172,27 @@ export function compileWorld(pre) {
         // roads of the cell
         R0.push(RP.A.length + 1);
         for (const q of roadQuads.get(c) || []) { const r = q.v.map(p => ex(p[0], p[1], p[2])); RP.A.push(r[0]); RP.B.push(r[1]); RP.C.push(r[2]); RP.D.push(r[3] || 0); RP.K.push((matIndex(q.m) * 8 + 6) * 8); }
+        // a building's plinth stops at its y. Where the ground drops below that (a corner shared
+        // with a lower building), a skirt closes the gap. It is drawn with the terrain, before the
+        // building, so nothing of it shows under the ground.
+        const bi = g.cellB.get(c);
+        if (bi && ALL[bi.pf - 1].name !== 'tower') {
+            const [fw, fd] = ALL[bi.pf - 1].foot, W2 = fw / 2, D2 = fd / 2;
+            const w = (lx, lz) => { const [a, b] = [[lx, lz], [lz, -lx], [-lx, -lz], [-lz, lx]][bi.r]; return [bi.x + a, bi.z + b]; };
+            const ring = [w(-W2, -D2), w(W2, -D2), w(W2, D2), w(-W2, D2)];
+            for (let e = 0; e < 4; e++) {
+                const [ax, az] = ring[e], [bx, bz] = ring[(e + 1) % 4];
+                const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 400));
+                for (let i = 0; i < n; i++) {
+                    const x0 = Math.round(ax + (bx - ax) * i / n), z0 = Math.round(az + (bz - az) * i / n);
+                    const x1 = Math.round(ax + (bx - ax) * (i + 1) / n), z1 = Math.round(az + (bz - az) * (i + 1) / n);
+                    const h0 = hAt(x0, z0), h1 = hAt(x1, z1);
+                    if (Math.min(h0, h1) > bi.y - 2) continue;
+                    const r = [ex(x0, bi.y, z0), ex(x1, bi.y, z1), ex(x1, Math.round(Math.min(h1, bi.y) - 8), z1), ex(x0, Math.round(Math.min(h0, bi.y) - 8), z0)];
+                    RP.A.push(r[0]); RP.B.push(r[1]); RP.C.push(r[2]); RP.D.push(r[3]); RP.K.push((matIndex('concreteDark') * 8 + 4) * 8);
+                }
+            }
+        }
         RN.push(RP.A.length + 1 - R0[c]);
     }
     Object.assign(out, { TPA: TP.A, TPB: TP.B, TPC: TP.C, TPD: TP.D, TPK: TP.K, TC0: T0, TCN: TN, RPA: RP.A, RPB: RP.B, RPC: RP.C, RPD: RP.D, RPK: RP.K, RC0: R0, RCN: RN, EXX: EX.X, EXY: EX.Y, EXZ: EX.Z });

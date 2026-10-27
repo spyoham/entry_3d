@@ -25,10 +25,12 @@ for (const sh of o.shots) {
   if (sh.wait) await page.waitForTimeout(sh.wait);
   if (sh.inst) {
     // the player in the game itself (HUD on): at (lx, ly, lz) in an instance, looking yaw (prefab frame)
-    const [pf, lx, ly, lz, ly2, lp] = sh.inst, i = near(pf, o.cx ?? 103000, o.cz ?? 101000, sh.nth || 0), r = IR[i];
+    const [pf, lx, ly, lz, ly2, lp] = sh.inst, i = near(pf, sh.cx ?? o.cx ?? 103000, sh.cz ?? o.cz ?? 101000, sh.nth || 0), r = IR[i];
     const w = [[lx, lz], [lz, -lx], [-lx, -lz], [-lz, lx]][r];
     await S({ camThird: 0, thK: 0, plX: IX[i] + w[0], plY: IY[i] + ly, plZ: IZ[i] + w[1], plVY: 0, plYaw: ly2 + r * 90, plPitch: lp });
     await page.waitForTimeout(sh.settle || 900);
+    // forget the sound marks (gunfire nearby) for a clean still
+    if (o.quiet) { await page.evaluate(() => { const v = window.__vm.variables.find(q => q.name === 'SMT'); for (const x of v.array) x.data = -999; }); await page.waitForTimeout(120); }
     await (await page.$('canvas')).screenshot({ path: path.join(outDir, sh.name + '.png') });
     console.log('shot', sh.name, 'inst', i, IX[i], IZ[i]);
     continue;
