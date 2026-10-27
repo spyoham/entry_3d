@@ -3,6 +3,12 @@
 // attachment's index 1..15), firing, bullets in flight, damage.
 const NB = 64;
 let BX = [], BY = [], BZ = [], BVX = [], BVY = [], BVZ = [], BOWN = [], BDMG = [], BLIFE = [], BGUN = [], BON = [], BTR = [];
+// v1.2: where a bullet started, its speed then, the slope it left at, when (for the drop, the flight time, the damage)
+let BV0 = [], BOX = [], BOY = [], BOZ = [], BSL = [], BT0 = [];
+// the air slows a bullet: dv/dt = -k v, so the speed falls in a straight line with the distance
+// (v = v0 - k x). k (1/s) for 9mm, .45 ACP, 5.56, 7.62, .300 Magnum, 12 gauge
+let AMK = [0.9, 0.95, 0.55, 0.5, 0.35, 2.4];
+let hitSpd = 0, hitTof = 0, hitDrop = 0;
 let bTop = 0;
 let gameT = 0;
 // the player's weapon state
@@ -11,7 +17,7 @@ let fireMode = [];
 
 function weaponInit() {
   let i = 1;
-  while (i <= NB) { BX.push(0); BY.push(0); BZ.push(0); BVX.push(0); BVY.push(0); BVZ.push(0); BOWN.push(0); BDMG.push(0); BLIFE.push(0); BGUN.push(0); BON.push(0); BTR.push(0); i = i + 1; }
+  while (i <= NB) { BX.push(0); BY.push(0); BZ.push(0); BVX.push(0); BVY.push(0); BVZ.push(0); BOWN.push(0); BDMG.push(0); BLIFE.push(0); BGUN.push(0); BON.push(0); BTR.push(0); BV0.push(1); BOX.push(0); BOY.push(0); BOZ.push(0); BSL.push(0); BT0.push(0); i = i + 1; }
   i = 1;
   while (i <= NE * 3) { fireMode.push(4); i = i + 1; }
 }
@@ -96,7 +102,21 @@ function fireGun(e, x, y, z, yaw, pitch, spread) {
 function spawnBullet(e, g, x, y, z, vx, vy, vz) {
   bTop = mod(bTop, NB) + 1;
   BX[bTop] = x; BY[bTop] = y; BZ[bTop] = z; BVX[bTop] = vx; BVY[bTop] = vy; BVZ[bTop] = vz;
-  BOWN[bTop] = e; BGUN[bTop] = g; BLIFE[bTop] = 1.6; BON[bTop] = 1; BTR[bTop] = 0;
+  BOWN[bTop] = e; BGUN[bTop] = g; BLIFE[bTop] = 2; BON[bTop] = 1; BTR[bTop] = 0;
+  BV0[bTop] = Math.sqrt(vx * vx + vy * vy + vz * vz); BOX[bTop] = x; BOY[bTop] = y; BOZ[bTop] = z; BSL[bTop] = vy / Math.sqrt(vx * vx + vz * vz + 1); BT0[bTop] = gameT;
+}
+// the flight time (s) of gun g's bullet to d cm, and how far it falls on the way (cm): with v = v0 - k d,
+// t = ln(v0 / v) / k; falling against the same drag, drop = g t / k - g (1 - v / v0) / k^2
+function flightT(g, d) {
+  let k = AMK[GAMMO[g]], v0 = GVEL[g];
+  let v = Math.max(v0 * 0.25, v0 - k * d);
+  return Math.log(v0 / v) / k;
+}
+function dropAt(g, d) {
+  let k = AMK[GAMMO[g]], v0 = GVEL[g];
+  let v = Math.max(v0 * 0.25, v0 - k * d);
+  let tt = Math.log(v0 / v) / k;
+  return 980 * tt / k - 980 * (1 - v / v0) / (k * k);
 }
 // move every bullet; the segment of this frame against the world and the people
 function bulletsStep(dt) {
@@ -105,6 +125,11 @@ function bulletsStep(dt) {
     if (BON[i] == 1) {
       let x0 = BX[i], y0 = BY[i], z0 = BZ[i];
       BVY[i] = BVY[i] - 980 * dt;
+      // the air: the whole velocity loses k of itself a second; too slow, the bullet is spent
+      let kd = 1 - AMK[GAMMO[BGUN[i]]] * dt;
+      BVX[i] = BVX[i] * kd; BVY[i] = BVY[i] * kd; BVZ[i] = BVZ[i] * kd;
+      let spd = Math.sqrt(BVX[i] * BVX[i] + BVY[i] * BVY[i] + BVZ[i] * BVZ[i]);
+      if (spd < BV0[i] * 0.25) { BLIFE[i] = 0; }
       let x1 = x0 + BVX[i] * dt, y1 = y0 + BVY[i] * dt, z1 = z0 + BVZ[i] * dt;
       rayCast(x0, y0, z0, x1, y1, z1);
       let tw = rayT;
@@ -123,25 +148,34 @@ function bulletsStep(dt) {
         } }
         e = e + 1;
       }
+      // v1.2: the range's steel plates
+      let hitS = 0;
+      if (gState == 6) { let hs = plateSeg(x0, y0, z0, x1, y1, z1); if (hs < best) { best = hs; hitS = plateHit; hitE = 0; hitV = 0; } }
       BTR[i] = BTR[i] + 1;
+      if (best < 1) {
+        // where and how it arrived: speed, time in the air, how far below the line it left on
+        let hx = x0 + (x1 - x0) * best, hy = y0 + (y1 - y0) * best, hz = z0 + (z1 - z0) * best;
+        let ox = hx - BOX[i], oz = hz - BOZ[i];
+        hitSpd = spd; hitTof = gameT - BT0[i] + dt * best;
+        hitDrop = BOY[i] + BSL[i] * Math.sqrt(ox * ox + oz * oz) - hy;
+      }
+      if (hitS > 0) { BON[i] = 0; plateStruck(hitS, BOWN[i]); }
       if (hitE > 0) {
         BON[i] = 0;
-        let dist = GVEL[BGUN[i]] * (1.6 - BLIFE[i] + dt * best);
-        hurt(hitE, BOWN[i], gunDamage(BGUN[i], dist, hitP), hitP, BGUN[i]);
+        hurt(hitE, BOWN[i], gunDamage(BGUN[i], spd, hitP), hitP, BGUN[i]);
         fxAdd(x0 + (x1 - x0) * best, y0 + (y1 - y0) * best, z0 + (z1 - z0) * best, 2);
       } else { if (hitV > 0) {
         BON[i] = 0;
-        let dist = GVEL[BGUN[i]] * (1.6 - BLIFE[i] + dt * best);
-        vehShot(hitV, BOWN[i], gunDamage(BGUN[i], dist, 2));
+        vehShot(hitV, BOWN[i], gunDamage(BGUN[i], spd, 2));
         fxAdd(x0 + (x1 - x0) * best, y0 + (y1 - y0) * best, z0 + (z1 - z0) * best, 1);
         soundEvent(x0 + (x1 - x0) * best, y0 + (y1 - y0) * best, z0 + (z1 - z0) * best, 1500, BOWN[i], 2);
       } else {
-        if (tw < 1) {
+        if (tw < 1) { if (hitS == 0) {
           BON[i] = 0;
           fxAdd(x0 + (x1 - x0) * tw, y0 + (y1 - y0) * tw, z0 + (z1 - z0) * tw, 1);
           // a bullet striking near someone is heard by them
           soundEvent(x0 + (x1 - x0) * tw, y0 + (y1 - y0) * tw, z0 + (z1 - z0) * tw, 1500, BOWN[i], 2);
-        } else {
+        } } else {
           BX[i] = x1; BY[i] = y1; BZ[i] = z1;
           BLIFE[i] = BLIFE[i] - dt;
           if (BLIFE[i] <= 0) { BON[i] = 0; }
@@ -181,11 +215,12 @@ function segPerson(e, x0, y0, z0, x1, y1, z1) {
   } } } }
   return r;
 }
-// damage of gun g at distance d (cm) on part p
-function gunDamage(g, d, p) {
+// v1.2: damage of gun g's bullet arriving at speed s (cm/s) on part p. Up to the gun's effective range
+// (where it still has v0 - k range) all of it; slower, as the cube of the speed against that (at least 45%)
+function gunDamage(g, s, p) {
   let dm = GDMG[g];
-  let rg = GRANGE[g];
-  if (d > rg) { dm = dm * Math.max(0.55, 1 - (d - rg) / rg * 0.45); }
+  let vr = GVEL[g] - AMK[GAMMO[g]] * GRANGE[g];
+  if (s < vr) { let f = s / vr; dm = dm * Math.max(0.45, f * f * f); }
   if (p == 1) { dm = dm * 2.1; }
   if (p == 3) { dm = dm * 0.75; }
   return dm;
@@ -454,15 +489,16 @@ function drawViewGun() {
       let ex = 0 - ox * 10, ey = 0 - oy * 10, ez = 0 - oz * 10;
       let lx = cy * ex - sy2 * ez, lz0 = sy2 * ex + cy * ez;
       let ly = cp * ey - sp * lz0, lz = sp * ey + cp * lz0;
+      lbx = lx; lby = ly; lbz = lz;
       // below the gun first (grip, magazine extension), the gun, then on top and in front
       let un = attIn(a, 3), mg = attIn(a, 4), mz = attIn(a, 1), sk = attIn(a, 5);
-      if (un > 0) { M_attDraw(un, GUNY[g], GUNZ[g]); }
-      if (mg > 0) { M_attDraw(mg, GMBY[g], GMBZ[g]); }
+      if (un > 0) { labAtt(un, GUNY[g], GUNZ[g]); }
+      if (mg > 0) { labAtt(mg, GMBY[g], GMBZ[g]); }
       drawModel((GBASE + g - 1) * 3 + 1, lx, ly, lz, 0, 0);
-      if (sk > 0) { M_attDraw(sk, GSTY[g], GSTZ[g]); }
-      if (mz > 0) { M_attDraw(mz, GBORE[g], GMZ[g]); }
+      if (sk > 0) { labAtt(sk, GSTY[g], GSTZ[g]); }
+      if (mz > 0) { labAtt(mz, GBORE[g], GMZ[g]); }
       // the sight: its body only while it is not in front of the eye
-      if (st > 0) { if (t < 0.6) { M_attDraw(st, GRAY[g], GRAZ[g]); } }
+      if (st > 0) { if (t < 0.6) { labAtt(st, GRAY[g], GRAZ[g]); } }
       // the muzzle flash
       if (wFlash > 0) { muzzleFlash(ox, oy, oz + GMZ[g] / 10 * cp, t); }
       // red dot / holographic: the reticle when aiming

@@ -133,7 +133,7 @@ function hz(k) {
   let dx = NDX[k] - NDX[aGoal], dz = NDZ[k] - NDZ[aGoal];
   return Math.sqrt(dx * dx + dz * dz) * 1.1;
 }
-function M_relax(u, v, w) {
+function relaxA(u, v, w) {
   if (ACLOSE[v] != aStamp) {
     let g = AG[u] + w;
     if (ASTMP[v] != aStamp || g < AG[v]) {
@@ -146,7 +146,7 @@ function M_expand(u) {
   if (NDK[u] == 0) {
     let msk = NDM[u], j = 1;
     while (msk > 0) {
-      if (mod(msk, 2) == 1) { let v = CN[NDC[u] + NDOFF[j]]; M_relax(u, v, NDCOST[j]); }
+      if (mod(msk, 2) == 1) { let v = CN[NDC[u] + NDOFF[j]]; relaxA(u, v, NDCOST[j]); }
       msk = idiv(msk, 2);
       j = j + 1;
     }
@@ -155,7 +155,7 @@ function M_expand(u) {
   while (k < ke) {
     let v2 = NEL[k];
     let w2 = Math.abs(NDX[v2] - NDX[u]) + Math.abs(NDZ[v2] - NDZ[u]) + Math.abs(NDY[v2] - NDY[u]) * 2 + 50;
-    M_relax(u, v2, w2);
+    relaxA(u, v2, w2);
     k = k + 1;
   }
 }
@@ -181,11 +181,11 @@ function flowStart(x, z) {
   if (fTarget > 0) {
     fStamp = fStamp + 1; fhSize = 0;
     FD[fTarget] = 0; FNX[fTarget] = fTarget; FST[fTarget] = fStamp;
-    M_fpush(fTarget, 0);
+    fpush(fTarget, 0);
     fOn = 1;
   }
 }
-function M_fpush(n, f) {
+function fpush(n, f) {
   fhSize = fhSize + 1;
   let fi = fhSize, fgo = 1;
   while (fgo == 1) {
@@ -219,7 +219,7 @@ function flowWork(budget) {
           if (NDK[u] == 0) {
             let msk = NDM[u], j = 1;
             while (msk > 0) {
-              if (mod(msk, 2) == 1) { let v = CN[NDC[u] + NDOFF[j]]; M_frelax(u, v, NDCOST[j]); }
+              if (mod(msk, 2) == 1) { let v = CN[NDC[u] + NDOFF[j]]; frelax(u, v, NDCOST[j]); }
               msk = idiv(msk, 2);
               j = j + 1;
             }
@@ -227,7 +227,7 @@ function flowWork(budget) {
           let k = NE0[u], ke = k + NEN[u];
           while (k < ke) {
             let v2 = NEL[k];
-            M_frelax(u, v2, Math.abs(NDX[v2] - NDX[u]) + Math.abs(NDZ[v2] - NDZ[u]) + Math.abs(NDY[v2] - NDY[u]) * 2 + 50);
+            frelax(u, v2, Math.abs(NDX[v2] - NDX[u]) + Math.abs(NDZ[v2] - NDZ[u]) + Math.abs(NDY[v2] - NDY[u]) * 2 + 50);
             k = k + 1;
           }
         }
@@ -236,10 +236,10 @@ function flowWork(budget) {
     n = n + 1;
   }
 }
-function M_frelax(u, v, w) {
+function frelax(u, v, w) {
   let g = FD[u] + w;
   if (FST[v] != fStamp || g < FD[v]) {
     FST[v] = fStamp; FD[v] = g; FNX[v] = u;
-    M_fpush(v, g);
+    fpush(v, g);
   }
 }

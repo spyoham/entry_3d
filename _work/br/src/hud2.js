@@ -15,6 +15,7 @@ function playerHud(dt) {
   pickMsgT = Math.max(0, pickMsgT - dt);
   hurtT = Math.max(0, hurtT - dt);
   hudCross(g);
+  nadePreview();
   // where the hurt came from: a red arc
   if (hurtT > 0) { if (hurtDir > 0) {
     let a = atan2d(EX[hurtDir] - plX, EZ[hurtDir] - plZ) - plYaw;

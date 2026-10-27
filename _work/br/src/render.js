@@ -35,6 +35,9 @@ let skyTop = '#7f9cb4', skyMid = '#a9bac6', seaCol = '#5f7f93';
 function renderInit() {
   let i = 1;
   while (i <= CT2.length) { CT.push(CT2[i]); i = i + 1; }
+  // v1.2: the far land's points (these lists were never filled, so it was never drawn)
+  i = 1;
+  while (i <= 17 * 17) { FVX.push(0); FVY.push(0); FVZ.push(0); FSX.push(0); FSY.push(0); i = i + 1; }
   i = 1;
   let n = GRID * GRID + EXX.length;
   while (i <= n) {
@@ -496,6 +499,8 @@ function M_rect(x0, y0, x1, y1, col) {
 }
 // the far land: 16 x 16 coarse quads (128 m) outside the near cells
 let FVX = [], FVY = [], FVZ = [], FSX = [], FSY = [];
+// (how much fog on it: less on the range's clear day)
+let farFog = 6;
 function drawFar() {
   let i = 1, n = 17 * 17, dx = 0, dy = 0, dz = 0, vz = 0;
   while (i <= n) {
@@ -512,14 +517,14 @@ function drawFar() {
     let ddx = 0 - m;
     while (ddx <= m) {
       let ddz = m - Math.abs(ddx);
-      M_farCell(fcx + ddx, fcz + ddz);
-      if (ddz != 0) { M_farCell(fcx + ddx, fcz - ddz); }
+      farCell(fcx + ddx, fcz + ddz);
+      if (ddz != 0) { farCell(fcx + ddx, fcz - ddz); }
       ddx = ddx + 1;
     }
     m = m - 1;
   }
 }
-function M_farCell(gx, gz) {
+function farCell(gx, gz) {
   if (gx >= 0 && gx < 16 && gz >= 0 && gz < 16) {
     let fk = FK[gz * 16 + gx + 1];
     if (fk > 0) {
@@ -528,7 +533,7 @@ function M_farCell(gx, gz) {
       let mx = Math.max(Math.abs(x0), Math.abs(x1)), mz = Math.max(Math.abs(z0), Math.abs(z1));
       if (mx + mz > drawR - 1) {
         let a = gz * 17 + gx + 1;
-        M_poly(FSX, FSY, FVX, FVY, FVZ, a, a + 17, a + 18, a + 1, CT[fk + 6]);
+        M_poly(FSX, FSY, FVX, FVY, FVZ, a, a + 17, a + 18, a + 1, CT[fk + farFog]);
       }
     }
   }
@@ -538,7 +543,11 @@ function renderWorld() {
   nPoly = 0; nInst = 0; nPT = 0; nPB0 = 0; nPB1 = 0; nPB2 = 0; nVX = 0;
   setCamera();
   drawSky();
-  if (camY - hAt(camX, camZ) > 4000) { drawFar(); }
+  farFog = 6;
+  if (gState == 6) { farFog = 2; }
+  if (camY - hAt(camX, camZ) > 4000 || gState == 6) { drawFar(); }
+  // v1.2: the range's far steel plates, beyond the near cells
+  if (gState == 6) { rangeFarDraw(); }
   // the near cells, far to near
   let o = OSTART[drawR + 1], oe = ODX.length;
   if (drawR >= RMAX) { o = 1; }

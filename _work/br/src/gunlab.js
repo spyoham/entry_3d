@@ -254,12 +254,13 @@ function labStats(g, a) {
   let gx0 = 82, gx1 = 232, gy0 = -128, gy1 = -58;
   hudBox(gx0 - 4, gy0 - 4, gx1 + 4, gy1 + 10, '#141c22');
   hudLine(gx0, gy0, gx1, gy0, 0.6, '#3e4e5a'); hudLine(gx0, gy0, gx0, gy1, 0.6, '#3e4e5a');
-  let rg = GRANGE[g], dmax = Math.min(50000, rg * 2.6);
+  // (as far as the bullet carries: it is spent at a quarter of its speed, v0 - k d)
+  let rg = GRANGE[g], dmax = Math.min(60000, rg * 2.6, 0.75 * GVEL[g] / AMK[GAMMO[g]]);
   let top = dm * 2.1;
   let j = 0, px = gx0, pb = 0, ph = 0;
   while (j <= 24) {
-    let d = dmax * j / 24, f = 1;
-    if (d > rg) { f = Math.max(0.55, 1 - (d - rg) / rg * 0.45); }
+    let d = dmax * j / 24;
+    let f = gunDamage(g, GVEL[g] - AMK[GAMMO[g]] * d, 2) / GDMG[g];
     let x = gx0 + (gx1 - gx0) * j / 24, yb = gy0 + (gy1 - gy0) * dm * f / top, yh = gy0 + (gy1 - gy0) * dm * 2.1 * f / top;
     if (j > 0) { hudLine(px, pb, x, yb, 1.2, '#e8e8e8'); hudLine(px, ph, x, yh, 1.2, '#ffd24a'); }
     px = x; pb = yb; ph = yh;
@@ -267,8 +268,11 @@ function labStats(g, a) {
   }
   let rx = gx0 + (gx1 - gx0) * rg / dmax;
   hudLine(rx, gy0, rx, gy1, 0.6, '#5a6a76');
-  let t100 = 10000 / GVEL[g];
-  tx(54, `거리별 피해 · 100 m 탄낙차 ${Math.round(490 * t100 * t100)} cm (${r2(t100)}초)`, gx0 - 2, gy1 + 8, 5.5, C_DIM, 1);
+  // the drop and the flight time with the air slowing it
+  let dl = `낙차 100 m ${Math.round(dropAt(g, 10000))} cm ${r2(flightT(g, 10000))}초`;
+  if (dmax >= 30000) { dl = `${dl} · 300 m ${Math.round(dropAt(g, 30000))} cm ${r2(flightT(g, 30000))}초`; }
+  if (dmax >= 50000) { dl = `${dl} · 500 m ${Math.round(dropAt(g, 50000))} cm`; }
+  tx(54, dl, gx0 - 2, gy1 + 8, 5.5, C_DIM, 1);
   tx(55, `${Math.round(dmax / 100)} m`, gx1, gy0 - 2, 5, C_DIM, 2);
   tx(56, `${Math.round(top)}`, gx0 - 2, gy1 + 1, 5, '#ffd24a', 2);
 }
@@ -283,29 +287,44 @@ function labModes(g) {
 }
 
 // ---------------------------------------------------------------- the range
-let RTS = [-300, 200, -400, 0, 700, -500, 300, -600, 500, 0], RTK = [0, 0, 1, 0, 2, 0, 0, 0, 0, 0];
-let RTDEAD = [], RTF = [], RTN = [];
-let PPX = [], PPY = [], PPZ = [], PPV = [], PPT = [], PPC = [];
+// Pop-up targets (people) at RTD from 10 m to 300 m - standing, one crouched, two walking - and
+// four steel plates hanging from frames on the slope at 300 - 600 m (PLD). A hit plate rings and
+// swings. Z starts a timed run: every target down once and every plate rung, as fast as you can.
+let RTS = [-300, 200, -400, 0, 700, -500, 300, -600, 500, 0, -200], RTK = [0, 0, 1, 0, 2, 0, 2, 0, 0, 0, 0];
+let PLS = [-450, 350, -250, 200], PLR = [25, 30, 36, 45];
+let RTDEAD = [], RTF = [], RTN = [], RTUP = [], RDONE = [];
+let PST = [], PDN = [], PFAR = [];
+let PPX = [], PPY = [], PPZ = [], PPS = [], PPT = [], PPC = [];
 let ppTop = 0, rgArm = 0, rgInf = 1, rgInit = 0;
-let rgShots = 0, rgShotNo = 0, rgLastHit = 0, rgShotHit = 0, rgHits = 0, rgHead = 0, rgDmg = 0, rgKills = 0;
-let rgLD = 0, rgLP = 0, rgLDm = 0, rgLHP = 0, rgLT = 0, rgTTK = 0, rgTTKn = 0, rgTTKe = 0;
-const NRT = 10;
+let rgShots = 0, rgShotNo = 0, rgLastHit = 0, rgShotHit = 0, rgHits = 0, rgHead = 0, rgDmg = 0, rgKills = 0, rgPlates = 0;
+let rgLD = 0, rgLP = 0, rgLDm = 0, rgLHP = 0, rgLT = 0, rgTTK = 0, rgTTKn = 0, rgTTKe = 0, rgLS = 0, rgLF = 0, rgLDr = 0;
+let rgDrill = 0, rgDT0 = 0, rgDTime = 0, rgDBest = 0, rgDShots = 0, rgDHits = 0, rgDEnd = -99;
+let RGPART = ['머리', '몸통', '다리', '강철판'];
+const NRT = 11, NPL = 4;
 function rangeLists() {
   if (rgInit == 0) {
     rgInit = 1;
     let i = 1;
-    while (i <= NE) { RTDEAD.push(-99); RTF.push(-1); RTN.push(0); i = i + 1; }
+    while (i <= NE) { RTDEAD.push(-99); RTF.push(-1); RTN.push(0); RTUP.push(0); RDONE.push(0); i = i + 1; }
     i = 1;
-    while (i <= 8) { PPX.push(0); PPY.push(0); PPZ.push(0); PPV.push(0); PPT.push(-99); PPC.push('#ffffff'); i = i + 1; }
+    while (i <= 8) { PPX.push(0); PPY.push(0); PPZ.push(0); PPS.push(''); PPT.push(-99); PPC.push('#ffffff'); i = i + 1; }
+    i = 1;
+    while (i <= NPL) { PST.push(-99); PDN.push(0); PFAR.push(0); i = i + 1; }
   }
 }
 // where target i (1..NRT) stands now: rgTX, rgTZ
 let rgTX = 0, rgTZ = 0;
 function rangeSpot(i) {
   let d = RTD[i], s = RTS[i];
-  if (RTK[i] == 2) { s = s + sind(gameT * 40) * 450; }
+  if (RTK[i] == 2) { s = s + sind(gameT * (30 + i * 3)) * 450; }
   let fx = sind(RGA), fz = cosd(RGA);
   rgTX = RGX + fx * d + fz * s; rgTZ = RGZ + fz * d - fx * s;
+}
+// the foot of plate i's frame: pbX, pbY, pbZ
+let pbX = 0, pbY = 0, pbZ = 0;
+function plateBase(i) {
+  let fx = sind(RGA), fz = cosd(RGA);
+  pbX = RGX + fx * PLD[i] + fz * PLS[i]; pbZ = RGZ + fz * PLD[i] - fx * PLS[i]; pbY = hAt(pbX, pbZ);
 }
 function rangeStart() {
   rangeLists();
@@ -320,6 +339,8 @@ function rangeStart() {
   EALIVE[1] = 1; EHP[1] = 100;
   let i = 1;
   while (i <= NRT) { rangeTarget(i); i = i + 1; }
+  i = 1;
+  while (i <= NPL) { PST[i] = -99; PDN[i] = 0; i = i + 1; }
   alive = NRT + 1;
   i = 1;
   while (i <= NFX) { FXT[i] = -99; i = i + 1; }
@@ -327,7 +348,7 @@ function rangeStart() {
   while (i <= 8) { GNF[i] = 0; PPT[i] = -99; i = i + 1; }
   i = 1;
   while (i <= 12) { SMT[i] = -99; i = i + 1; }
-  zPhase = 0; zr = 150000; zDps = 0; planeOn = 0; mapOpen = 0; invOpen = 0;
+  zPhase = 0; zr = 150000; zDps = 0; planeOn = 0; mapOpen = 0; invOpen = 0; rgDrill = 0;
   // the player behind the firing line, looking down the range
   let fx = sind(RGA), fz = cosd(RGA);
   plX = RGX - fx * 120; plZ = RGZ - fz * 120; plYaw = RGA; plPitch = 0; plVY = 0;
@@ -360,50 +381,179 @@ function rangeEquip() {
   playerGunStats();
 }
 function rangeReset() {
-  rgShots = 0; rgShotNo = 0; rgLastHit = 0; rgShotHit = 0; rgHits = 0; rgHead = 0; rgDmg = 0; rgKills = 0;
+  rgShots = 0; rgShotNo = 0; rgLastHit = 0; rgShotHit = 0; rgHits = 0; rgHead = 0; rgDmg = 0; rgKills = 0; rgPlates = 0;
   rgLT = 0; rgTTK = 0; rgTTKn = 0; rgTTKe = 0;
 }
 // a shot of the player
 function rangeShot() { rgShots = rgShots + 1; rgShotNo = rgShotNo + 1; }
+function rangeCount() { if (rgLastHit != rgShotNo) { rgLastHit = rgShotNo; rgShotHit = rgShotHit + 1; } }
+// the last hit: where it came from, how it arrived (bulletsStep left hitSpd, hitTof, hitDrop)
+function rangeLast(x, z, p, dm, hp, who) {
+  let hx = x - plX, hz = z - plZ;
+  rgLD = Math.sqrt(hx * hx + hz * hz) / 100; rgLP = p; rgLDm = dm; rgLHP = hp; rgLT = who;
+  rgLS = hitSpd / 100; rgLF = hitTof; rgLDr = hitDrop;
+}
+function rangePop(x, y, z, s, col) {
+  ppTop = mod(ppTop, 8) + 1;
+  PPX[ppTop] = x; PPY[ppTop] = y; PPZ[ppTop] = z; PPS[ppTop] = s; PPT[ppTop] = gameT; PPC[ppTop] = col;
+}
 // v hit by a for dm (after armour) on part p
 function rangeHit(v, a, dm, p) {
   if (a == 1) { if (v > 1) {
     rgHits = rgHits + 1;
-    if (rgLastHit != rgShotNo) { rgLastHit = rgShotNo; rgShotHit = rgShotHit + 1; }
+    rangeCount();
     if (p == 1) { rgHead = rgHead + 1; }
     rgDmg = rgDmg + dm;
-    let hx = EX[v] - plX, hz = EZ[v] - plZ;
-    rgLD = Math.sqrt(hx * hx + hz * hz) / 100; rgLP = p; rgLDm = dm; rgLHP = Math.max(0, EHP[v]); rgLT = v;
+    rangeLast(EX[v], EZ[v], p, dm, Math.max(0, EHP[v]), v);
     if (RTF[v] < 0) { RTF[v] = gameT; RTN[v] = rgShots; }
-    ppTop = mod(ppTop, 8) + 1;
-    let hy = 110;
-    if (p == 1) { hy = 165; }
-    if (p == 3) { hy = 50; }
+    let hy = 110, col = C_W;
+    if (p == 1) { hy = 165; col = C_GOLD; }
+    if (p == 3) { hy = 50; col = C_DIM; }
     if (ECRO[v] == 1) { hy = hy * 0.72; }
-    PPX[ppTop] = EX[v] + rand(-25, 25); PPY[ppTop] = EY[v] + hy; PPZ[ppTop] = EZ[v] + rand(-25, 25); PPV[ppTop] = Math.round(dm); PPT[ppTop] = gameT;
-    PPC[ppTop] = C_W;
-    if (p == 1) { PPC[ppTop] = C_GOLD; }
-    if (p == 3) { PPC[ppTop] = C_DIM; }
+    rangePop(EX[v] + rand(-25, 25), EY[v] + hy, EZ[v] + rand(-25, 25), `${Math.round(dm)}`, col);
   } }
 }
 function rangeKill(v, a) {
-  EHP[v] = 0; EALIVE[v] = 0; RTDEAD[v] = gameT;
+  EHP[v] = 0; EALIVE[v] = 0; RTDEAD[v] = gameT; RTUP[v] = gameT + rand(10, 25) / 10;
   if (a == 1) {
     rgKills = rgKills + 1; rgLHP = 0;
     rgTTK = gameT - RTF[v]; rgTTKn = rgShots - RTN[v] + 1; rgTTKe = v;
     hitMkC = '#ff4a3d'; sfx(SND_KILL, 0);
+    if (rgDrill == 1) { RDONE[v] = 1; }
   }
+}
+// the steel plates: a bullet's segment against each (a disc, taken as a ball of its radius)
+let plateHit = 0;
+function plateSeg(x0, y0, z0, x1, y1, z1) {
+  let best = 2, i = 1;
+  plateHit = 0;
+  while (i <= NPL) {
+    plateBase(i);
+    let cy = pbY + 175 - PLR[i] - 12;
+    let dx = x1 - x0, dy = y1 - y0, dz = z1 - z0;
+    let L2 = dx * dx + dy * dy + dz * dz;
+    let t = 0;
+    if (L2 > 0) { t = ((pbX - x0) * dx + (cy - y0) * dy + (pbZ - z0) * dz) / L2; }
+    if (t > 0) { if (t < 1) {
+      let ex = x0 + dx * t - pbX, ey = y0 + dy * t - cy, ez = z0 + dz * t - pbZ;
+      if (ex * ex + ey * ey + ez * ez < PLR[i] * PLR[i]) { if (t < best) { best = t; plateHit = i; } }
+    } }
+    i = i + 1;
+  }
+  return best;
+}
+function plateStruck(i, who) {
+  PST[i] = gameT;
+  plateBase(i);
+  if (who == 1) {
+    rgHits = rgHits + 1; rgPlates = rgPlates + 1;
+    rangeCount();
+    rangeLast(pbX, pbZ, 4, 0, -1, 100 + i);
+    rangePop(pbX, pbY + 175, pbZ, `땡  ${Math.round(PLD[i] / 100)} m`, '#ffd27a');
+    hitMk = 0.25; hitMkC = '#ffd24a'; sfx(SND_HIT, 0);
+    if (rgDrill == 1) { PDN[i] = 1; }
+  }
+}
+// in the cells near the eye a plate goes with its cell (dynBuild); beyond, after the far land
+function rangeDyn() {
+  let i = 1, ccx = Math.floor(camX / CS), ccz = Math.floor(camZ / CS);
+  while (i <= NPL) {
+    plateBase(i);
+    PFAR[i] = 0;
+    if (Math.abs(Math.floor(pbX / CS) - ccx) + Math.abs(Math.floor(pbZ / CS) - ccz) <= drawR) { dynAdd(8500 + i, pbX, pbY, pbZ); } else { PFAR[i] = 1; }
+    i = i + 1;
+  }
+}
+function rangeFarDraw() {
+  let i = 1;
+  while (i <= NPL) { if (PFAR[i] == 1) { drawPlate(i); } i = i + 1; }
+}
+// a world point on the screen without the edge test: paX, paY (paOk 0 behind the eye)
+let paX = 0, paY = 0, paOk = 0;
+function projA(x, y, z) {
+  let ax = x - camX, ay = y - camY, az = z - camZ;
+  let vz = r31 * ax + r32 * ay + r33 * az;
+  paOk = 0;
+  if (vz > NZ * 10) { paOk = 1; paX = (r11 * ax + r13 * az) * FOC / vz; paY = (r21 * ax + r22 * ay + r23 * az) * FOC / vz; }
+}
+let PXS = [0, 0, 0, 0, 0, 0, 0, 0], PYS = [0, 0, 0, 0, 0, 0, 0, 0];
+// a plate: two posts and a bar, the plate (an octagon) hanging from the bar, swinging when hit
+function drawPlate(i) {
+  plateBase(i);
+  let fx = sind(RGA), fz = cosd(RGA), rx = fz, rz = 0 - fx;
+  let dx = pbX - camX, dz = pbZ - camZ;
+  let dist = Math.sqrt(dx * dx + dz * dz) + 1;
+  let pw = Math.max(1, 900 / dist * FOC / 240);
+  let hy = pbY + 175, R = PLR[i], hw = R + 30;
+  // the frame
+  let ok = 1;
+  projA(pbX - rx * hw, pbY, pbZ - rz * hw); let ax = paX, ay = paY; ok = ok * paOk;
+  projA(pbX - rx * hw, hy + 6, pbZ - rz * hw); let bx = paX, by = paY; ok = ok * paOk;
+  projA(pbX + rx * hw, pbY, pbZ + rz * hw); let cx = paX, cy = paY; ok = ok * paOk;
+  projA(pbX + rx * hw, hy + 6, pbZ + rz * hw); let ex = paX, ey = paY; ok = ok * paOk;
+  if (ok == 1) {
+    hudLine(ax, ay, bx, by, pw, '#4a3a2c'); hudLine(cx, cy, ex, ey, pw, '#4a3a2c'); hudLine(bx, by, ex, ey, pw, '#3c3f42');
+    // the plate turned th about the bar
+    let age = gameT - PST[i], th = 0;
+    if (age < 1.8) { th = 30 * sind(age * 720) * (1 - age / 1.8); }
+    let L = R + 12, st = sind(th), ct = cosd(th);
+    let qx = pbX + fx * st * L, qy = hy - ct * L, qz = pbZ + fz * st * L;
+    // the plate's own "down" (w) and across (r)
+    let wx = fx * st, wy = 0 - ct, wz = fz * st;
+    let k = 1, all = 1;
+    while (k <= 8) {
+      let cphi = cosd(k * 45 + 22.5) * R, sphi = sind(k * 45 + 22.5) * R;
+      projA(qx + rx * cphi + wx * sphi, qy + wy * sphi, qz + rz * cphi + wz * sphi);
+      PXS[k] = paX; PYS[k] = paY; all = all * paOk;
+      k = k + 1;
+    }
+    if (all == 1) {
+      // the chains
+      projA(qx - wx * R, qy - wy * R, qz - wz * R);
+      hudLine((bx + ex) / 2, (by + ey) / 2, paX, paY, Math.max(1, pw * 0.5), '#2e3134');
+      let col = '#a3adb3';
+      if (age < 0.18) { col = '#fff2b8'; }
+      else { if (rgDrill == 1) { if (PDN[i] == 1) { col = '#7fc87f'; } } }
+      fillStop(); goto(PXS[1], PYS[1]); fillColorHex(col); fillStart();
+      k = 2;
+      while (k <= 8) { goto(PXS[k], PYS[k]); k = k + 1; }
+      fillStop();
+      penSize(Math.max(1, pw * 0.4)); penColorHex('#5d666c'); goto(PXS[8], PYS[8]); penDown();
+      k = 1;
+      while (k <= 8) { goto(PXS[k], PYS[k]); k = k + 1; }
+      penUp();
+    }
+  }
+}
+// Z: the timed run
+function drillStart() {
+  rangeLists();
+  let i = 1;
+  while (i <= NRT) { rangeTarget(i); RDONE[i + 1] = 0; i = i + 1; }
+  i = 1;
+  while (i <= NPL) { PDN[i] = 0; i = i + 1; }
+  rgDrill = 1; rgDT0 = gameT; rgDShots = rgShots; rgDHits = rgShotHit;
+  msgShow('타임 어택 시작! 표적을 모두 쓰러뜨리고 강철판을 모두 맞히세요', 2.5);
+  sfx(SND_EQUIP, 0);
+}
+function drillLeft() {
+  let n = 0, i = 1;
+  while (i <= NRT) { if (RDONE[i + 1] == 0) { n = n + 1; } i = i + 1; }
+  i = 1;
+  while (i <= NPL) { if (PDN[i] == 0) { n = n + 1; } i = i + 1; }
+  return n;
 }
 function rangeFrame(dt) {
   gameT = gameT + dt;
-  if (drawR0 < 9) { drawR0 = 9; drawR = 9; }
+  // (the 300 m target's cell is 10 cells off)
+  if (drawR0 < 11) { drawR0 = 11; drawR = 11; }
   bulletsStep(dt);
   nadesStep(dt);
-  // the targets: the walker walks, the fallen stand up, the left alone heal
+  // the targets: the walkers walk, the fallen pop up again a moment later, the left alone heal
   let i = 1;
   while (i <= NRT) {
     let e = i + 1;
-    if (EALIVE[e] == 0) { if (gameT - RTDEAD[e] > 1.6) { rangeTarget(i); } }
+    if (EALIVE[e] == 0) { if (gameT > RTUP[e]) { if (rgDrill != 1 || RDONE[e] == 0) { rangeTarget(i); } } }
     else {
       if (RTK[i] == 2) {
         rangeSpot(i);
@@ -417,8 +567,14 @@ function rangeFrame(dt) {
     }
     i = i + 1;
   }
-  // endless ammunition (the magazine still has to be reloaded)
+  if (rgDrill == 1) { if (drillLeft() == 0) {
+    rgDrill = 2; rgDTime = gameT - rgDT0; rgDEnd = gameT;
+    if (rgDBest == 0 || rgDTime < rgDBest) { rgDBest = rgDTime; }
+    sfx(SND_WIN, 0);
+  } }
+  // endless ammunition (the magazine still has to be reloaded) and throwables
   if (rgInf == 1) { let g = gunNow(1); if (g > 0) { EAMMO[GAMMO[g]] = 999; } }
+  EFRAG[1] = 5; ESMK[1] = 5;
   if (keyHit(52) == 1) { labPick(labG - 1); rangeEquip(); msgShow(GNAME[labG], 1.2); }
   if (keyHit(53) == 1) { labPick(labG + 1); rangeEquip(); msgShow(GNAME[labG], 1.2); }
   if (keyHit(73) == 1) {
@@ -427,6 +583,7 @@ function rangeFrame(dt) {
     while (i <= NRT) { rangeTarget(i); i = i + 1; }
     if (rgArm == 0) { msgShow('표적 방어구 없음', 1.5); } else { msgShow(`표적 방어구 ${rgArm}레벨 (헬멧 · 조끼)`, 1.5); }
   }
+  if (keyHit(90) == 1) { if (rgDrill == 1) { rgDrill = 0; msgShow('타임 어택을 그만뒀습니다', 1.5); } else { drillStart(); } }
   if (keyHit(78) == 1) { rangeReset(); msgShow('기록을 지웠습니다', 1.2); }
   if (keyHit(80) == 1) { rgInf = 1 - rgInf; if (rgInf == 1) { msgShow('탄약 무한', 1.2); } else { EAMMO[GAMMO[gunNow(1)]] = magSize(labG, labA) * 3; msgShow('탄약 제한 (탄창 3개)', 1.2); } }
   if (keyHit(9) == 1) { labA = EA1[1]; labOpen(6); }
@@ -434,30 +591,28 @@ function rangeFrame(dt) {
 }
 
 // ---------------------------------------------------------------- the range: the screen
-// a world point on the screen: prX, prY (prOk 0 behind the eye)
+// a world point on the screen: prX, prY (prOk 0 behind the eye or off the screen)
 let prX = 0, prY = 0, prOk = 0;
 function project(x, y, z) {
-  let ax = x - camX, ay = y - camY, az = z - camZ;
-  let vz = r31 * ax + r32 * ay + r33 * az;
-  prOk = 0;
-  if (vz > NZ * 10) {
-    prOk = 1;
-    prX = (r11 * ax + r13 * az) * FOC / vz; prY = (r21 * ax + r22 * ay + r23 * az) * FOC / vz;
-    if (Math.abs(prX) > 250) { prOk = 0; }
-    if (Math.abs(prY) > 145) { prOk = 0; }
-  }
+  projA(x, y, z);
+  prX = paX; prY = paY; prOk = paOk;
+  if (Math.abs(prX) > 250) { prOk = 0; }
+  if (Math.abs(prY) > 145) { prOk = 0; }
 }
 function rangeHud(dt) {
   let g = gunNow(1);
   msgT = Math.max(0, msgT - dt);
   hudCross(g);
+  nadePreview();
   if (ERELT[1] > 0) { if (g > 0) { hudBox(-40, -94, -40 + 80 * Math.max(0, 1 - ERELT[1] / reloadOf(g, attNow(1))), -92, '#c8c8c8'); } }
-  // the targets: distance over the head, health when hurt. The far ones stand close together on the
-  // screen: only the one nearest the crosshair is named
+  // labels: the near targets each; of the far ones and the plates (close together on the screen)
+  // only the one nearest the crosshair
   let i = 1, near = 0, nd = 40;
-  while (i <= NRT) {
-    let e = i + 1;
-    if (EALIVE[e] == 1) { if (RTD[i] > 7500) { project(EX[e], EY[e] + 120, EZ[e]); if (prOk == 1) { let d = Math.abs(prX) + Math.abs(prY); if (d < nd) { nd = d; near = i; } } } }
+  while (i <= NRT + NPL) {
+    let hx = 0, hy = 0, hz = 0, on = 0;
+    if (i <= NRT) { if (EALIVE[i + 1] == 1) { if (RTD[i] > 7500) { on = 1; hx = EX[i + 1]; hy = EY[i + 1] + 120; hz = EZ[i + 1]; } } }
+    else { on = 1; plateBase(i - NRT); hx = pbX; hy = pbY + 140; hz = pbZ; }
+    if (on == 1) { project(hx, hy, hz); if (prOk == 1) { let d = Math.abs(prX) + Math.abs(prY); if (d < nd) { nd = d; near = i; } } }
     i = i + 1;
   }
   i = 1;
@@ -467,7 +622,6 @@ function rangeHud(dt) {
       let hy = 200;
       if (ECRO[e] == 1) { hy = 150; }
       project(EX[e], EY[e] + hy, EZ[e]);
-      // (the far ones only near the crosshair or through a sight: they stand close together on the screen)
       let show = 1;
       if (RTD[i] > 7500) { if (i != near) { show = 0; } }
       if (prOk == 1) { if (show == 1) {
@@ -485,14 +639,19 @@ function rangeHud(dt) {
     } else { txOff(14 + i); }
     i = i + 1;
   }
-  // damage numbers rising from the hits
+  if (near > NRT) {
+    plateBase(near - NRT);
+    project(pbX, pbY + 175 + 30, pbZ);
+    if (prOk == 1) { tx(35, `${Math.round(PLD[near - NRT] / 100)} m 강철판`, prX, prY + 9, 6, '#ffe0a0', 0); } else { txOff(35); }
+  } else { txOff(35); }
+  // what the hits did, rising from them
   i = 1;
   while (i <= 8) {
     let age = gameT - PPT[i];
     if (age < 1.1) {
       project(PPX[i], PPY[i] + age * 60, PPZ[i]);
-      if (prOk == 1) { tx(24 + i, `${PPV[i]}`, prX + 6, prY + 4, 9 - age * 2, PPC[i], 1); } else { txOff(24 + i); }
-    } else { txOff(24 + i); }
+      if (prOk == 1) { tx(25 + i, PPS[i], prX + 6, prY + 4, 9 - age * 2, PPC[i], 1); } else { txOff(25 + i); }
+    } else { txOff(25 + i); }
     i = i + 1;
   }
   // the panels
@@ -515,27 +674,36 @@ function rangeHud(dt) {
   }
   let an = '표적 방어구 없음';
   if (rgArm > 0) { an = `표적 방어구 ${rgArm}레벨`; }
-  tx(5, an, -232, 81, 6.5, C_SKY, 1);
+  tx(5, `${an} · 수류탄 연막탄 무한`, -232, 81, 6.5, C_SKY, 1);
   hudBox(64, 136, 238, 50, '#121a20');
   let acc = 0;
   if (rgShots > 0) { acc = Math.round(rgShotHit * 100 / rgShots); }
-  tx(6, `발사 ${rgShots}   명중 ${rgShotHit} (${acc}%)`, 70, 127, 8, C_W, 1);
+  tx(6, `발사 ${rgShots}   명중 ${rgShotHit} (${acc}%)   강철판 ${rgPlates}`, 70, 127, 7.5, C_W, 1);
   tx(7, `헤드샷 ${rgHead}   처치 ${rgKills}   총 피해 ${Math.round(rgDmg)}`, 70, 116, 7, C_W, 1);
   if (rgLT > 0) {
-    let pn = '몸통';
-    if (rgLP == 1) { pn = '머리'; }
-    if (rgLP == 3) { pn = '다리'; }
-    tx(8, `마지막 명중  ${r1(rgLD)} m · ${pn} · 피해 ${r1(rgLDm)}`, 70, 104, 7, C_GOLD, 1);
-    tx(9, `표적 남은 체력 ${Math.round(rgLHP)}`, 70, 94, 7, C_DIM, 1);
+    let s = `마지막 명중  ${r1(rgLD)} m · ${RGPART[rgLP]} · 피해 ${r1(rgLDm)}`;
+    if (rgLP == 4) { s = `마지막 명중  ${r1(rgLD)} m · 강철판`; }
+    tx(8, s, 70, 104, 7, C_GOLD, 1);
+    let s2 = `비행 ${r2(rgLF)}초 · 착탄 ${Math.round(rgLS)} m/s · 낙차 ${Math.round(rgLDr)} cm`;
+    if (rgLS == 0) { s2 = '수류탄 폭발'; }
+    if (rgLHP >= 0) { s2 = `${s2} · 남은 체력 ${Math.round(rgLHP)}`; }
+    tx(9, s2, 70, 94, 6.2, C_DIM, 1);
   } else { tx(8, '표적을 쏘면 피해가 여기에 나옵니다', 70, 104, 7, C_DIM, 1); txOff(9); }
   if (rgTTKe > 0) { tx(10, `처치 시간 ${r2(rgTTK)}초 · ${rgTTKn}발`, 70, 82, 8, '#ff9a80', 1); } else { txOff(10); }
   let gt = '';
   if (g > 0) { gt = `이 총: 몸통 ${hitsToKill(g, 2, rgArm)}발 · 머리 ${hitsToKill(g, 1, rgArm)}발이면 처치`; }
   tx(11, gt, 70, 70, 6, C_DIM, 1);
-  tx(12, `${GTIER[labG]}티어 · 사거리 ${Math.round(GRANGE[labG] / 100)} m · 탄속 ${Math.round(GVEL[labG] / 100)} m/s`, 70, 60, 6, C_DIM, 1);
+  tx(12, `100 m 낙차 ${Math.round(dropAt(labG, 10000))} cm · 300 m ${Math.round(dropAt(labG, 30000))} cm · 탄속 ${Math.round(GVEL[labG] / 100)} m/s`, 70, 60, 6, C_DIM, 1);
+  // the timed run
+  if (rgDrill == 1) {
+    let sh = rgShots - rgDShots;
+    tx(36, `타임 어택  ${r1(gameT - rgDT0)}초 · 남은 표적 ${drillLeft()} · 발사 ${sh}`, 0, 38, 9, '#ff9a80', 0);
+  } else { if (rgDrill == 2) { if (gameT - rgDEnd < 10) {
+    tx(36, `타임 어택 완료  ${r2(rgDTime)}초 · 최고 ${r2(rgDBest)}초`, 0, 38, 9, C_GOLD, 0);
+  } else { txOff(36); } } else { txOff(36); } }
   // help
   hudBox(-238, -138, 238, -124, '#121a20');
-  tx(13, '4 5 총 바꾸기   Tab 부착물·총 고르기   I 표적 방어구   P 탄약 무한   N 기록 지우기   Q 나가기', 0, -129, 6.5, C_DIM, 0);
-  tx(14, '클릭 사격   E 조준   R 장전   B 사격 모드   C 앉기   V 시점', 0, -117, 6.5, C_DIM, 0);
-  if (msgT > 0) { tx(33, msgS, 0, 52, 11, C_GOLD, 0); } else { txOff(33); }
+  tx(13, '4 5 총   Tab 부착물   I 표적 방어구   Z 타임 어택   P 탄약 무한   N 기록 지우기   Q 나가기', 0, -129, 6.3, C_DIM, 0);
+  tx(14, '클릭 사격   E 조준   R 장전   B 모드   C 앉기   V 시점   G T 투척 (누르고 있으면 궤적)', 0, -117, 6.3, C_DIM, 0);
+  if (msgT > 0) { tx(34, msgS, 0, 22, 9, C_GOLD, 0); } else { txOff(34); }
 }

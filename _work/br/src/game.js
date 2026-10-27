@@ -298,20 +298,32 @@ function smokeBlocks(x0, y0, z0, x1, y1, z1) {
 }
 
 // ---------------------------------------------------------------- grenades (k 1 frag, 2 smoke)
+// a bot's throw: a lob that lands near the spot (flight time from the distance)
 function throwNade(e, tx, ty, tz, k) {
+  let x = EX[e], y = EY[e] + 160, z = EZ[e];
+  let dx = tx - x, dz = tz - z;
+  let d = Math.sqrt(dx * dx + dz * dz) + 1;
+  let ft = 0.6 + d / 2200;
+  nadeLaunch(e, x, y, z, dx / ft, (ty - y) / ft + 490 * ft, dz / ft, k);
+}
+function nadeLaunch(e, x, y, z, vx, vy, vz, k) {
   let n = 1, slot = 0;
   while (n <= 8) { if (slot == 0) { if (GNF[n] <= 0) { slot = n; } } n = n + 1; }
   if (slot > 0) {
     if (k == 1) { EFRAG[e] = EFRAG[e] - 1; } else { ESMK[e] = ESMK[e] - 1; }
-    let x = EX[e], y = EY[e] + 160, z = EZ[e];
-    let dx = tx - x, dz = tz - z;
-    let d = Math.sqrt(dx * dx + dz * dz) + 1;
-    // a lob that lands near the spot: flight time from the distance
-    let ft = 0.6 + d / 2200;
-    GNX[slot] = x; GNY[slot] = y; GNZ[slot] = z;
-    GNVX[slot] = dx / ft; GNVZ[slot] = dz / ft; GNVY[slot] = (ty - y) / ft + 490 * ft;
-    GNF[slot] = 3.2; GNK[slot] = k; GNW[slot] = e;
+    GNX[slot] = x; GNY[slot] = y; GNZ[slot] = z; GNVX[slot] = vx; GNVY[slot] = vy; GNVZ[slot] = vz;
+    GNF[slot] = NFUSE; GNK[slot] = k; GNW[slot] = e;
   }
+}
+// v1.2: the player's throw goes where they look, a little above it, at THROWV; held G or T shows
+// where it will go (nadePreview runs the very steps the throw will take)
+const THROWV = 2100, NSTEP = 1 / 30, NFUSE = 3.2;
+let ntX = 0, ntY = 0, ntZ = 0, ntVX = 0, ntVY = 0, ntVZ = 0;
+function throwFrom() {
+  let p = Math.min(80, plPitch + 9), cp = cosd(p);
+  ntX = plX + sind(plYaw) * 30; ntY = plY + plEye - 10; ntZ = plZ + cosd(plYaw) * 30;
+  if (plCrouch == 1) { ntY = plY + 110; }
+  ntVX = sind(plYaw) * cp * THROWV; ntVY = sind(p) * THROWV; ntVZ = cosd(plYaw) * cp * THROWV;
 }
 function playerThrow(k) {
   let ok = 0;
@@ -319,31 +331,84 @@ function playerThrow(k) {
   if (k == 2) { if (ESMK[1] > 0) { ok = 1; } }
   if (ok == 1) {
     EX[1] = plX; EY[1] = plY; EZ[1] = plZ;
-    let cp = cosd(plPitch);
-    let d = 1500 + Math.max(0, plPitch) * 40;
-    throwNade(1, plX + sind(plYaw) * cp * d, plY + 160 + sind(plPitch) * d, plZ + cosd(plYaw) * cp * d, k);
+    throwFrom();
+    nadeLaunch(1, ntX, ntY, ntZ, ntVX, ntVY, ntVZ, k);
+  } else { if (k == 1) { msgShow('수류탄이 없습니다', 1.2); } else { msgShow('연막탄이 없습니다', 1.2); } }
+}
+// one step (NSTEP s) of a throwable at (npX..) moving (npVX..): gravity, bounces off what it meets,
+// rolls to a stop on the ground. npGnd: 1 when it touched the ground this step
+let npX = 0, npY = 0, npZ = 0, npVX = 0, npVY = 0, npVZ = 0, npGnd = 0;
+function nadePhys() {
+  npVY = npVY - 980 * NSTEP;
+  let x1 = npX + npVX * NSTEP, y1 = npY + npVY * NSTEP, z1 = npZ + npVZ * NSTEP;
+  rayCast(npX, npY, npZ, x1, y1, z1);
+  if (rayT < 1) {
+    if (rayNX == 1) { npVX = 0 - npVX * 0.4; }
+    if (rayNX == 2) { npVY = 0 - npVY * 0.3; npVX = npVX * 0.6; npVZ = npVZ * 0.6; }
+    if (rayNX == 3) { npVZ = 0 - npVZ * 0.4; }
+  } else { npX = x1; npY = y1; npZ = z1; }
+  let g = hAt(npX, npZ);
+  npGnd = 0;
+  if (npY < g + 5) { npY = g + 5; npVY = Math.abs(npVY) * 0.25; npVX = npVX * 0.5; npVZ = npVZ * 0.5; npGnd = 1; }
+}
+// the throwables in the air: whole steps of NSTEP (the same as the preview's)
+let nadeAcc = 0;
+function nadesStep(dt) {
+  nadeAcc = nadeAcc + dt;
+  while (nadeAcc >= NSTEP) {
+    nadeAcc = nadeAcc - NSTEP;
+    let n = 1;
+    while (n <= 8) {
+      if (GNF[n] > 0) {
+        npX = GNX[n]; npY = GNY[n]; npZ = GNZ[n]; npVX = GNVX[n]; npVY = GNVY[n]; npVZ = GNVZ[n];
+        nadePhys();
+        GNX[n] = npX; GNY[n] = npY; GNZ[n] = npZ; GNVX[n] = npVX; GNVY[n] = npVY; GNVZ[n] = npVZ;
+        GNF[n] = GNF[n] - NSTEP;
+        if (GNF[n] <= 0.0001) { GNF[n] = 0; nadeBlow(n); }
+      }
+      n = n + 1;
+    }
   }
 }
-function nadesStep(dt) {
-  let n = 1;
-  while (n <= 8) {
-    if (GNF[n] > 0) {
-      GNVY[n] = GNVY[n] - 980 * dt;
-      let x1 = GNX[n] + GNVX[n] * dt, y1 = GNY[n] + GNVY[n] * dt, z1 = GNZ[n] + GNVZ[n] * dt;
-      rayCast(GNX[n], GNY[n], GNZ[n], x1, y1, z1);
-      if (rayT < 1) {
-        // bounce off whatever it hit, losing speed
-        if (rayNX == 1) { GNVX[n] = 0 - GNVX[n] * 0.4; }
-        if (rayNX == 2) { GNVY[n] = 0 - GNVY[n] * 0.3; GNVX[n] = GNVX[n] * 0.6; GNVZ[n] = GNVZ[n] * 0.6; }
-        if (rayNX == 3) { GNVZ[n] = 0 - GNVZ[n] * 0.4; }
-      } else { GNX[n] = x1; GNY[n] = y1; GNZ[n] = z1; }
-      let g = hAt(GNX[n], GNZ[n]);
-      if (GNY[n] < g + 5) { GNY[n] = g + 5; GNVY[n] = Math.abs(GNVY[n]) * 0.25; GNVX[n] = GNVX[n] * 0.5; GNVZ[n] = GNVZ[n] * 0.5; }
-      GNF[n] = GNF[n] - dt;
-      if (GNF[n] <= 0) { GNF[n] = 0; nadeBlow(n); }
+// G or T held: the path it would take (dots), where it first lands, where it goes off and how far
+// that reaches (a ring on the ground: the blast for a grenade, the cloud for smoke)
+let nadeAim = 0;
+function nadePreview() {
+  if (nadeAim > 0) {
+    throwFrom();
+    npX = ntX; npY = ntY; npZ = ntZ; npVX = ntVX; npVY = ntVY; npVZ = ntVZ;
+    let s = 0, n = Math.round(NFUSE / NSTEP), lx = 0, ly = 0, lw = 0, landT = -1, lnx = 0, lnz = 0;
+    let col = '#ffb070';
+    if (nadeAim == 2) { col = '#d8dde2'; }
+    while (s < n) {
+      nadePhys();
+      s = s + 1;
+      if (landT < 0) { if (npGnd == 1) { landT = s * NSTEP; lnx = npX; lnz = npZ; } }
+      project(npX, npY, npZ);
+      if (prOk == 1) {
+        if (lw == 1) { if (mod(s, 2) == 0) { hudLine(lx, ly, prX, prY, 1.6, col); } }
+        lx = prX; ly = prY; lw = 1;
+      } else { lw = 0; }
     }
-    n = n + 1;
-  }
+    // where it goes off
+    let rr = 750;
+    if (nadeAim == 2) { rr = 420; }
+    let k = 0, px = 0, py = 0, pw = 0;
+    while (k <= 24) {
+      let x = npX + sind(k * 15) * rr, z = npZ + cosd(k * 15) * rr;
+      project(x, hAt(x, z) + 10, z);
+      if (prOk == 1) { if (pw == 1) { hudLine(px, py, prX, prY, 1.2, col); } px = prX; py = prY; pw = 1; } else { pw = 0; }
+      k = k + 1;
+    }
+    project(npX, npY + 10, npZ);
+    if (prOk == 1) { dotAt(prX, prY, 2.5, col); }
+    let dx = npX - plX, dz = npZ - plZ;
+    let nm = '수류탄';
+    if (nadeAim == 2) { nm = '연막탄'; }
+    let ls = '';
+    if (landT > 0) { let lx2 = lnx - plX, lz2 = lnz - plZ; ls = ` · ${r1(landT)}초 뒤 ${Math.round(Math.sqrt(lx2 * lx2 + lz2 * lz2) / 100)} m에 떨어짐`; }
+    tx(40, `${nm}${ls} · ${NFUSE}초 뒤 ${Math.round(Math.sqrt(dx * dx + dz * dz) / 100)} m에서 터짐 · 놓으면 던짐`, 0, -60, 7, col, 0);
+  } else { txOff(40); }
 }
 function nadeBlow(n) {
   let x = GNX[n], y = GNY[n] + 20, z = GNZ[n];
@@ -361,7 +426,7 @@ function nadeBlow(n) {
         let d = Math.sqrt(dx * dx + dy * dy + dz * dz);
         if (d < 750) {
           rayCast(x, y, z, px, py, pz);
-          if (rayT >= 1) { hurt(e, GNW[n], 115 * (1 - d / 750) + 8, 2, 0); }
+          if (rayT >= 1) { hitSpd = 0; hitTof = 0; hitDrop = 0; hurt(e, GNW[n], 115 * (1 - d / 750) + 8, 2, 0); }
         }
       } }
       e = e + 1;
@@ -450,6 +515,7 @@ function dynBuild() {
   }
   let f = 1;
   while (f <= NFX) { if (gameT - FXT[f] < 28) { dynAdd(5000 + f, FXX[f], FXY[f], FXZ[f]); } f = f + 1; }
+  if (gState == 6) { rangeDyn(); }
   let n = 1;
   while (n <= 8) { if (GNF[n] > 0) { dynAdd(6000 + n, GNX[n], GNY[n], GNZ[n]); } n = n + 1; }
   // the plane, once the player is out of it
@@ -464,7 +530,7 @@ function dynDraw(id, dist) {
     if (id < 5000) { if (dist < 4500) { drawItemDyn(id - 1000, dist); } }
     else { if (id < 6000) { drawFx(id - 5000, dist); } else { if (id < 7000) { drawNade(id - 6000, dist); } else {
       if (id == 7000) { drawWorldModel((IBASE + 20 - 1) * 3 + 1 + 1, planeX, planeY, planeZ, atan2d(planeX1 - planeX0, planeZ1 - planeZ0), 1, fogOf(dist) * 0); }
-      else { if (id < 9000) { drawZoneLine(id - 8000, dist); } else { drawVeh(id - 9000, dist); } }
+      else { if (id < 8500) { drawZoneLine(id - 8000, dist); } else { if (id < 9000) { drawPlate(id - 8500); } else { drawVeh(id - 9000, dist); } } }
     } } }
   }
 }

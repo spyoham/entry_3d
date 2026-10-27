@@ -90,47 +90,50 @@ function pflush() {
   PBN = 0;
 }
 let pcx = [], pcy = [], pcz = [];
+// (the box's axes in view, its centre, half sizes, material: for pface)
+let pkUx = 0, pkUy = 0, pkUz = 0, pkVx = 0, pkVy = 0, pkVz = 0, pkWx = 0, pkWy = 0, pkWz = 0;
+let pkCx = 0, pkCy = 0, pkCz = 0, pkHx = 0, pkHy = 0, pkHz = 0, pkMat = 0;
 function drawPBox(k) {
   let a = PA[k], ca = cosd(a), sa = sind(a);
   // axes in view: X = col1, Y = ca*col2 + sa*col3... (body Y axis turned: (0, ca, -sa)), Z: (0, sa, ca)
-  let ux = bm11, uy = bm21, uz = bm31;
-  let vx = bm12 * ca - bm13 * sa, vy = bm22 * ca - bm23 * sa, vz = bm32 * ca - bm33 * sa;
-  let wx = bm12 * sa + bm13 * ca, wy = bm22 * sa + bm23 * ca, wz = bm32 * sa + bm33 * ca;
-  let cx = PCX[k], cy = PCY[k], cz = PCZ[k], hx = PHX[k], hy = PHY[k], hz = PHZ[k];
+  pkUx = bm11; pkUy = bm21; pkUz = bm31;
+  pkVx = bm12 * ca - bm13 * sa; pkVy = bm22 * ca - bm23 * sa; pkVz = bm32 * ca - bm33 * sa;
+  pkWx = bm12 * sa + bm13 * ca; pkWy = bm22 * sa + bm23 * ca; pkWz = bm32 * sa + bm33 * ca;
+  pkCx = PCX[k]; pkCy = PCY[k]; pkCz = PCZ[k]; pkHx = PHX[k]; pkHy = PHY[k]; pkHz = PHZ[k];
   // all eight corners in front of the eye?
-  if (cz - Math.abs(uz * hx) - Math.abs(vz * hy) - Math.abs(wz * hz) > NEAR) {
-    let du = ux * cx + uy * cy + uz * cz, dv = vx * cx + vy * cy + vz * cz, dw = wx * cx + wy * cy + wz * cz;
-    let mat = PM[k];
+  if (pkCz - Math.abs(pkUz * pkHx) - Math.abs(pkVz * pkHy) - Math.abs(pkWz * pkHz) > NEAR) {
+    let du = pkUx * pkCx + pkUy * pkCy + pkUz * pkCz, dv = pkVx * pkCx + pkVy * pkCy + pkVz * pkCz, dw = pkWx * pkCx + pkWy * pkCy + pkWz * pkCz;
+    pkMat = PM[k];
     // shading: the world normals of the faces against the sun (yaw, then the swing)
     let syw = sind(bYaw), cyw = cosd(bYaw);
     let sX = 0.55 * cyw + 0.56 * syw;
     let sY = 0.62 * ca - sa * (0.55 * syw - 0.56 * cyw);
     let sZ = 0.62 * sa + ca * (0.55 * syw - 0.56 * cyw);
-    if (du < 0 - hx) { M_pface(1, 1, sX); } else { if (du > hx) { M_pface(1, -1, 0 - sX); } }
-    if (dv < 0 - hy) { M_pface(2, 1, sY); } else { if (dv > hy) { M_pface(2, -1, 0 - sY); } }
-    if (dw < 0 - hz) { M_pface(3, 1, sZ); } else { if (dw > hz) { M_pface(3, -1, 0 - sZ); } }
+    if (du < 0 - pkHx) { pface(1, 1, sX); } else { if (du > pkHx) { pface(1, -1, 0 - sX); } }
+    if (dv < 0 - pkHy) { pface(2, 1, sY); } else { if (dv > pkHy) { pface(2, -1, 0 - sY); } }
+    if (dw < 0 - pkHz) { pface(3, 1, sZ); } else { if (dw > pkHz) { pface(3, -1, 0 - sZ); } }
   }
 }
 // one face of the box: axis ax (1 x, 2 y, 3 z), side sg; corners from the other two axes
-function M_pface(ax, sg, lit) {
+// (v1.2: a function, no longer written out six times in drawPBox - fewer blocks)
+function pface(ax, sg, lit) {
   let ex = 0, ey = 0, ez = 0, fx = 0, fy = 0, fz = 0, gx = 0, gy = 0, gz = 0;
-  if (ax == 1) { ex = ux * hx * sg; ey = uy * hx * sg; ez = uz * hx * sg; fx = vx * hy; fy = vy * hy; fz = vz * hy; gx = wx * hz; gy = wy * hz; gz = wz * hz; }
-  if (ax == 2) { ex = vx * hy * sg; ey = vy * hy * sg; ez = vz * hy * sg; fx = wx * hz; fy = wy * hz; fz = wz * hz; gx = ux * hx; gy = uy * hx; gz = uz * hx; }
-  if (ax == 3) { ex = wx * hz * sg; ey = wy * hz * sg; ez = wz * hz * sg; fx = ux * hx; fy = uy * hx; fz = uz * hx; gx = vx * hy; gy = vy * hy; gz = vz * hy; }
-  let ox = cx + ex, oy = cy + ey, oz = cz + ez;
+  if (ax == 1) { ex = pkUx * pkHx * sg; ey = pkUy * pkHx * sg; ez = pkUz * pkHx * sg; fx = pkVx * pkHy; fy = pkVy * pkHy; fz = pkVz * pkHy; gx = pkWx * pkHz; gy = pkWy * pkHz; gz = pkWz * pkHz; }
+  if (ax == 2) { ex = pkVx * pkHy * sg; ey = pkVy * pkHy * sg; ez = pkVz * pkHy * sg; fx = pkWx * pkHz; fy = pkWy * pkHz; fz = pkWz * pkHz; gx = pkUx * pkHx; gy = pkUy * pkHx; gz = pkUz * pkHx; }
+  if (ax == 3) { ex = pkWx * pkHz * sg; ey = pkWy * pkHz * sg; ez = pkWz * pkHz * sg; fx = pkUx * pkHx; fy = pkUy * pkHx; fz = pkUz * pkHx; gx = pkVx * pkHy; gy = pkVy * pkHy; gz = pkVz * pkHy; }
+  let ox = pkCx + ex, oy = pkCy + ey, oz = pkCz + ez;
   let sh = Math.round(3.6 + lit * 3.4);
   if (sh < 0) { sh = 0; }
   if (sh > 7) { sh = 7; }
   fillStop();
   goto((ox + fx + gx) * FOC / (oz + fz + gz), (oy + fy + gy) * FOC / (oz + fz + gz));
-  fillColorHex(CT[mat + sh * 8 + pFog + 1]);
+  fillColorHex(CT[pkMat + sh * 8 + pFog + 1]);
   fillStart();
   goto((ox + fx - gx) * FOC / (oz + fz - gz), (oy + fy - gy) * FOC / (oz + fz - gz));
   goto((ox - fx - gx) * FOC / (oz - fz - gz), (oy - fy - gy) * FOC / (oz - fz - gz));
   goto((ox - fx + gx) * FOC / (oz - fz + gz), (oy - fy + gy) * FOC / (oz - fz + gz));
   nPoly = nPoly + 1;
 }
-
 // the body -> view matrix of entity e (cm, unit axes)
 function bodyMatrix(x, y, z, yaw) {
   bYaw = yaw;

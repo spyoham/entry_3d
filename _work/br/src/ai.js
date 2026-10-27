@@ -570,7 +570,7 @@ function botFight(e, dt) {
     if (ECRO[t] == 1) { aimY = ty + 88; }
     if (AHEAD[e] == 1) { aimY = aimY + 33; }
     let lead = 0;
-    if (g > 0) { lead = d / GVEL[g] * (0.4 + sk * 0.5); }
+    if (g > 0) { lead = flightT(g, d) * (0.4 + sk * 0.5); }
     let ax = tx + ATVX[e] * lead, az = tz + ATVZ[e] * lead;
     let adx = ax - EX[e], adz = az - EZ[e], ady = aimY - (EY[e] + 155);
     let ad = Math.sqrt(adx * adx + adz * adz) + 1;
@@ -690,7 +690,7 @@ function botFight(e, dt) {
 // aim a little higher for the drop over long distances
 function gravComp(g, d) {
   let a = 0;
-  if (g > 0) { let tt = d / GVEL[g]; a = atand(490 * tt * tt / d); }
+  if (g > 0) { a = atand(dropAt(g, d) / d); }
   return a;
 }
 // a spot behind the nearest solid prop (between me and the threat), within 14 m

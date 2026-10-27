@@ -68,7 +68,7 @@ function keyPoll(code, kd) {
 }
 function pollKeys() {
   keyPoll(9, key(9)); keyPoll(13, key(13)); keyPoll(27, key(27)); keyPoll(32, key(32)); keyPoll(37, key(37)); keyPoll(39, key(39)); keyPoll(49, key(49)); keyPoll(50, key(50)); keyPoll(51, key(51)); keyPoll(52, key(52)); keyPoll(53, key(53));
-  keyPoll(66, key(66)); keyPoll(67, key(67)); keyPoll(69, key(69)); keyPoll(70, key(70)); keyPoll(71, key(71)); keyPoll(72, key(72)); keyPoll(73, key(73)); keyPoll(74, key(74)); keyPoll(77, key(77)); keyPoll(78, key(78)); keyPoll(80, key(80)); keyPoll(81, key(81)); keyPoll(82, key(82)); keyPoll(84, key(84)); keyPoll(86, key(86)); keyPoll(88, key(88));
+  keyPoll(66, key(66)); keyPoll(67, key(67)); keyPoll(69, key(69)); keyPoll(70, key(70)); keyPoll(71, key(71)); keyPoll(72, key(72)); keyPoll(73, key(73)); keyPoll(74, key(74)); keyPoll(77, key(77)); keyPoll(78, key(78)); keyPoll(80, key(80)); keyPoll(81, key(81)); keyPoll(82, key(82)); keyPoll(84, key(84)); keyPoll(86, key(86)); keyPoll(88, key(88)); keyPoll(90, key(90));
   keyPoll(187, key(187)); keyPoll(189, key(189)); keyPoll(107, key(107)); keyPoll(109, key(109)); keyPoll(114, key(114));
 }
 function keyHit(code) { return KHIT[code]; }
@@ -134,6 +134,8 @@ function frame(dt) {
   FOC = 240;
   if (gState >= 1) { if (gState != 5) { FOC = 240 * (1 + (pZoom - 1) * wAdsT); } }
   viewRange();
+  // v1.2: a clear day on the range (the plates 600 m off)
+  if (gState == 6) { fogD = 70000; }
   eraseAll();
   if (gState == 0) {
     menuScreen();
@@ -167,8 +169,10 @@ function playerControl(dt, mMoved) {
     if (keyHit(72) == 1) { let h = bestHeal(1); if (h > 0) { if (h < 4) { useHeal(1, h); } } }
     if (keyHit(74) == 1) { if (EPILL[1] > 0) { useHeal(1, 5); } else { useHeal(1, 4); } }
     if (invOpen == 0) {
-      if (keyHit(71) == 1) { playerThrow(1); }
-      if (keyHit(84) == 1) { playerThrow(2); }
+      // v1.2: G / T held: the path shown; let go: thrown
+      if (nadeAim == 0) { if (keyHit(71) == 1) { nadeAim = 1; } if (keyHit(84) == 1) { nadeAim = 2; } }
+      if (nadeAim == 1) { if (key(71)) { nadeAim = 1; } else { playerThrow(1); nadeAim = 0; } }
+      if (nadeAim == 2) { if (key(84)) { nadeAim = 2; } else { playerThrow(2); nadeAim = 0; } }
     }
     if (plMoving == 1) { if (plSprint == 1) { if (rand(1, 100) <= 6) { soundEvent(plX, plY, plZ, 2400, 1, 3); } } }
   } }

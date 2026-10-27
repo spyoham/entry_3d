@@ -121,42 +121,56 @@ export function compilePrefabs() {
 }
 
 // ------------------------------------------------------------------ the island -> lists
-// v1.2: the shooting range of the gun test. A straight flat strip of land 280 m long with no
-// building near, facing one of the four main directions (the props turn in quarter turns): the
-// field props in it are taken away, sandbags go either side of the firing line, a crate marks
-// every target's distance, and a row of barriers stops the shots at the far end.
-export const RANGE_D = [1000, 2500, 3500, 5000, 5000, 7500, 10000, 15000, 20000, 25000];
+// v1.2: the shooting range of the gun test. A straight strip of land facing one of the four main
+// directions (the props turn in quarter turns), flat for the first 280 m, with no building near
+// for 620 m, and nothing of the ground in the way from the firing line to the steel plates at
+// 300 - 600 m (they stand on the slope beyond, which stops the shots). The field props and
+// vehicle spots in it are taken away; sandbags and barriers make the firing line, a crate marks
+// every distance.
+export const RANGE_D = [1000, 2500, 3500, 5000, 5000, 7500, 10000, 15000, 20000, 25000, 30000];
+export const PLATE_D = [30000, 40000, 50000, 60000];
 function shootingRange(g) {
     const { hAt } = g;
     let best = null;
     const blockers = g.insts.map(it => ({ x: it.x, z: it.z, r: Math.hypot(...ALL[it.pf - 1].foot) / 2 }));
     for (let x = 8000; x < MAP - 8000; x += 800) for (let z = 8000; z < MAP - 8000; z += 800) for (let a = 0; a < 360; a += 90) {
         const dx = Math.round(Math.sin(a * Math.PI / 180)), dz = Math.round(Math.cos(a * Math.PI / 180));
+        const H = (d, s = 0) => hAt(x + dx * d + dz * s, z + dz * d - dx * s);
         let lo = 1e9, hi = -1e9, ok = true;
         for (let d = -1500; d <= 28000 && ok; d += 500) for (const s of [-1500, 0, 1500]) {
-            const h = hAt(x + dx * d + dz * s, z + dz * d - dx * s);
+            const h = H(d, s);
             if (h < 150) { ok = false; break; }
             lo = Math.min(lo, h); hi = Math.max(hi, h);
         }
-        if (!ok || (best && hi - lo >= best.span)) continue;
-        if (blockers.some(o => { const rx = o.x - x, rz = o.z - z, al = rx * dx + rz * dz, sd = rx * dz - rz * dx; return al > -3000 && al < 30000 && Math.abs(sd) < 2500 + o.r; })) continue;
+        if (!ok || hi - lo > 400 || (best && hi - lo >= best.span)) continue;
+        // the plates in sight: the line from the eye to each plate's middle 60 cm clear of the ground
+        const eye = H(0) + 160;
+        for (const D of PLATE_D) {
+            if (H(D) < 150) { ok = false; break; }
+            const top = H(D) + 120;
+            for (let d = 500; d < D - 300 && ok; d += 500) if (eye + (top - eye) * d / D - H(d) < 60) ok = false;
+        }
+        if (!ok) continue;
+        if (blockers.some(o => { const rx = o.x - x, rz = o.z - z, al = rx * dx + rz * dz, sd = rx * dz - rz * dx; return al > -3000 && al < 62000 && Math.abs(sd) < 2500 + o.r; })) continue;
         best = { x, z, a, dx, dz, span: hi - lo };
     }
     const { x, z, a, dx, dz } = best;
     const at = (d, s) => [Math.round(x + dx * d + dz * s), Math.round(z + dz * d - dx * s)];
-    const inStrip = (px, pz, w) => { const rx = px - x, rz = pz - z, al = rx * dx + rz * dz, sd = rx * dz - rz * dx; return al > -2000 && al < 28500 && Math.abs(sd) < w; };
+    const inStrip = (px, pz, w) => { const rx = px - x, rz = pz - z, al = rx * dx + rz * dz, sd = rx * dz - rz * dx; return al > -2000 && (al < 28500 ? Math.abs(sd) < w : al < 62500 && Math.abs(sd) < 1000); };
     const keep = g.props.filter(p => !inStrip(p.x, p.z, 1900));
     g.props.length = 0; g.props.push(...keep);
     const vs = g.vehSpots.filter(v => !inStrip(v.x, v.z, 2200));
     g.vehSpots.length = 0; g.vehSpots.push(...vs);
-    const r = (a / 90) % 2;
+    const r = (a / 90) % 2, rAlong = (r + 1) % 2;
     const prop = (name, d, s, rot = r) => { const [px, pz] = at(d, s); g.props.push({ pf: g.PF[name], x: px, y: Math.round(hAt(px, pz)), z: pz, r: rot, tint: 0, tint2: 0, cell: Math.floor(pz / CS) * CELLS + Math.floor(px / CS), building: false }); };
+    // the firing line: a bench of sandbags either side, barriers along the lane, crates and drums behind
     prop('sandbag', 150, -520); prop('sandbag', 150, 520);
+    for (const d of [200, 600, 1000]) { prop('barrier', d, -1100, rAlong); prop('barrier', d, 1100, rAlong); }
+    prop('crate', -400, -800); prop('crate', -400, 850); prop('barrels', -250, -1050); prop('barrels', -250, 1050);
     for (const d of [...new Set(RANGE_D)]) prop('crate', d, -1350);
-    for (let s = -1600; s <= 1600; s += 400) prop('barrier', 26500, s);
+    for (const d of PLATE_D) prop('crate', d, -900);
     return { RGX: x, RGZ: z, RGA: a };
 }
-
 export function compileWorld(pre) {
     const g = generate();
     const { H, hAt, cellMat, roadQuads } = g;
@@ -442,7 +456,7 @@ export const FILES = ['render.js', 'world.js', 'player.js', 'hud.js', 'hud2.js',
 export function sources(C, data) {
     const decl = (name, arr) => `let ${name} = ${JSON.stringify(arr)};`;
     const lists = Object.entries(data.lists).map(([k, v]) => decl(k, v)).join(NL) + NL + unpackSource(data.pack);
-    const KEYS = [9, 13, 27, 32, 37, 39, 49, 50, 51, 52, 53, 66, 67, 69, 70, 71, 72, 73, 74, 77, 78, 80, 81, 82, 84, 86, 88, 107, 109, 114, 187, 189];
+    const KEYS = [90, 9, 13, 27, 32, 37, 39, 49, 50, 51, 52, 53, 66, 67, 69, 70, 71, 72, 73, 74, 77, 78, 80, 81, 82, 84, 86, 88, 107, 109, 114, 187, 189];
     const keySrc = KEYS.map(k => `on('key:${k}', 'pen', function () { if (KDN[${k}] == 0) { KDN[${k}] = 1; KEV[${k}] = 1; } });`).join(NL) + NL;
     const raw = lists + NL + bankSource(data.nb) + FILES.map(f => fs.readFileSync(path.join(HERE, 'src', f), 'utf8')).join(NL) + NL + keySrc;
     const { src, count } = expandMacros(raw);
@@ -512,7 +526,7 @@ export function buildData() {
     lists.SITEN = SITES.map(s => s.name); lists.SITEX = SITES.map(s => s.x * 100); lists.SITEZ = SITES.map(s => s.z * 100); lists.SITER = SITES.map(s => s.r * 100); lists.SITEW = SITES.map(s => W[s.kind]);
     Object.assign(lists, w.vehicleLists);
     // v1.2: the shooting range's targets (distance cm; see shootingRange)
-    lists.RTD = RANGE_D;
+    lists.RTD = RANGE_D; lists.PLD = PLATE_D;
     const full = { ...lists };
     const pack = packLists(lists);
     Object.assign(lists, { PKA: pack.map(p => p.c0), PKB: pack.map(p => p.n), PKW: pack.map(p => p.w), PKC: pack.map(p => p.sc), PKM: pack.map(p => p.mn) });
