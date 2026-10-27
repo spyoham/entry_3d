@@ -8,6 +8,9 @@ const FH = 300;        // floor to floor
 const BASE = 15;       // ground floor above the terrain
 const DOOR = { w: 100, h: 215 };
 const WIN = { w: 110, h: 120, sill: 95 };
+// how far beside a flight of stairs nothing may collide overhead: more than a body's radius (32), so
+// a body climbing at the edge of the flight cannot get its head into the floor above (and be stuck)
+const SPAD = 36;
 
 // ------------------------------------------------------------------ buildings
 // sides: s (z = -d/2), n (z = +d/2), w (x = -w/2), e (x = +w/2)
@@ -72,7 +75,13 @@ export function building(name, o) {
             continue;
         }
         const hole = st && (!top || o.roofAccess) ? [{ x0: st.x0, z0: st.z0, x1: st.x1, z1: st.z1 }] : [];
-        m0.slab(IX0, IZ0, IX1, IZ1, BASE + k * fh - 20, BASE + k * fh, top ? (roof.roofTop || 'roofTar') : flo, 'ceiling', hole, { edges: 'concrete' });
+        m0.slab(IX0, IZ0, IX1, IZ1, BASE + k * fh - 20, BASE + k * fh, top ? (roof.roofTop || 'roofTar') : flo, 'ceiling', hole, { edges: 'concrete', collide: !hole.length });
+        // (the colliders of a floor with the stair hole: the hole wider by SPAD across the flight)
+        if (hole.length) {
+            const across = st.dir === '+z' || st.dir === '-z';
+            const ch = [{ x0: st.x0 - (across ? SPAD : 0), z0: st.z0 - (across ? 0 : SPAD), x1: st.x1 + (across ? SPAD : 0), z1: st.z1 + (across ? 0 : SPAD) }];
+            m0.slab(IX0, IZ0, IX1, IZ1, BASE + k * fh - 20, BASE + k * fh, null, null, ch, { edges: null });
+        }
     }
     // outside walls (one wall over every floor, with all the holes)
     for (const [sd, S] of Object.entries(sides)) {
@@ -107,7 +116,9 @@ export function building(name, o) {
         // parapet top is the wall top (drawn by the walls); the roof surface is the top slab
         if (o.roofAccess && st) {
             // a small stair house over the stair hole, open toward the climbing direction
-            const hx0 = st.x0 - T, hx1 = st.x1 + T, hz0 = st.z0 - T, hz1 = st.z1 + T, hy0 = top, hy1 = top + 260;
+            // (wider than the hole by SPAD across the flight: the walls clear of a body on the stairs)
+            const across = st.dir === '+z' || st.dir === '-z', px = across ? SPAD : 0, pz = across ? 0 : SPAD;
+            const hx0 = st.x0 - T - px, hx1 = st.x1 + T + px, hz0 = st.z0 - T - pz, hz1 = st.z1 + T + pz, hy0 = top, hy1 = top + 260;
             const openSide = { '+z': 'n', '-z': 's', '+x': 'e', '-x': 'w' }[st.dir];
             const hm = o.headMat || ext;
             if (openSide !== 's') m0.wall('x', hz0 + T / 2, hx0, hx1, hy0, hy1, T, hm, inner, [], { out: -1, caps: true, top: true });
@@ -226,12 +237,12 @@ B(building('warehouse', {
         // catwalk: a slab 3 m up along the north wall, stairs up from the west
         m.slab(-1180, 380, 1180, 780, BASE + 300, BASE + 320, 'metalDark', 'metalDark', [], { edges: null });
         m.stairs(-1180, 0, -1060, 380, BASE, BASE + 320, '+z', 10, 'metalDark', 'metalDark');
-        m.box(-1180, BASE + 320, 370, 1180, BASE + 420, 380, 'metalDark', { skip: 'bottom' });
+        m.box(-1060 + SPAD, BASE + 320, 370, 1180, BASE + 420, 380, 'metalDark', { skip: 'bottom' });
         // shelving rows and crates
         for (const x of [-700, 0, 700]) m.box(x - 350, BASE, -200, x + 350, BASE + 240, -100, { top: 'crateWood', side: 'metalRust' }, { skip: 'bottom' });
         crates(m, -900, -500, BASE); crates(m, 500, -550, BASE); crates(m, 200, 200, BASE);
     },
-    nav: [[0, -1020, 0, 1], [0, -500, 0, 2], [-800, 150, 0, 0], [800, 150, 0, 0], [-1120, -60, 0, 3], [-1120, 560, 0, 3], [0, 580, 0, 4], [900, 580, 0, 4], [1450, 400, 0, 1], [1000, 400, 0, 2]],
+    nav: [[0, -1020, 0, 1], [0, -500, 0, 2], [-800, 150, 0, 0], [800, 150, 0, 0], [-1120, -60, 0, 3], [-1120, 560, 320 / 700, 3], [0, 580, 320 / 700, 4], [900, 580, 320 / 700, 4], [1450, 400, 0, 1], [1000, 400, 0, 2]],
     links: [[0, 1], [1, 2], [1, 3], [2, 4], [4, 5], [5, 6], [6, 7], [8, 9], [9, 3]],
     loot: [[-900, -300, 0], [0, 0, 0], [700, -400, 0], [900, 300, 0], [-500, 580, 0], [500, 580, 0, 2]],
     tier: 2,
@@ -256,13 +267,13 @@ B(building('barn', {
     extra: (m, lod) => {
         if (lod !== 0) return;
         m.slab(-680, -480, -50, 480, BASE + 280, BASE + 300, 'woodPlank', 'woodDark', [], { edges: null });
-        m.stairs(-150, -480, -50, -150, BASE, BASE + 300, '-x', 10, 'woodPlank', null);
+        m.stairs(-50, -480, 250, -360, BASE, BASE + 300, '-x', 10, 'woodPlank', 'woodDark');
         for (const [x, z] of [[300, -300], [450, 280], [-400, 250]]) m.box(x - 70, BASE, z - 50, x + 70, BASE + 90, z + 50, 'hay', { skip: 'bottom' });
         for (const [x, z] of [[-500, -250], [-300, 250]]) m.box(x - 70, BASE + 300, z - 50, x + 70, BASE + 390, z + 50, 'hay', { skip: 'bottom' });
     },
-    nav: [[920, 0, 0, 1], [500, 0, 0, 2], [0, 0, 0, 0], [-100, -400, 0, 3], [-400, 0, 0, 4], [-920, 200, 0, 1], [-550, 200, 0, 2]],
-    links: [[0, 1], [1, 2], [2, 3], [3, 4], [5, 6], [6, 2]],
-    loot: [[300, 0, 0], [0, 350, 0], [-400, -300, 0, 2], [-500, 300, 0, 2]],
+    nav: [[920, 0, 0, 1], [500, 0, 0, 2], [0, 0, 0, 0], [330, -420, 0, 3], [-130, -420, 300 / 550, 3], [-400, 0, 300 / 550, 4], [-920, 200, 0, 1], [-550, 200, 0, 2]],
+    links: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [6, 7], [7, 2]],
+    loot: [[300, 0, 0], [0, 350, 0], [-400, -300, 300 / 550, 2], [-500, 300, 300 / 550, 2]],
 }));
 // 8. shed: 5 x 4
 B(building('shed', {
