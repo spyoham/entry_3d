@@ -10,14 +10,14 @@ let GRIDL = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 function mpx(x) { return mpCX + (x / MPU - mpFX) * mpS; }
 function mpy(z) { return mpCY + (z / MPU - mpFZ) * mpS; }
 // a rectangle in map units, cut to the window
-function M_mrect(a, b, c, d, col) {
+function mrect(a, b, c, d, col) {
   let rx0 = mpCX + (a - mpFX) * mpS, rx1 = mpCX + (c - mpFX) * mpS, ry0 = mpCY + (b - mpFZ) * mpS, ry1 = mpCY + (d - mpFZ) * mpS;
   if (rx1 > mpX0) { if (rx0 < mpX1) { if (ry1 > mpY0) { if (ry0 < mpY1) {
     if (rx0 < mpX0) { rx0 = mpX0; }
     if (rx1 > mpX1) { rx1 = mpX1; }
     if (ry0 < mpY0) { ry0 = mpY0; }
     if (ry1 > mpY1) { ry1 = mpY1; }
-    M_box(rx0, ry0, rx1, ry1, col);
+    hudBox(rx0, ry0, rx1, ry1, col);
   } } } }
 }
 // a line in screen units, cut to the window (Liang-Barsky)
@@ -58,10 +58,10 @@ function drawIsland(cx, cy, size, z, fx, fz, detail) {
   mpCX = cx; mpCY = cy; mpS = size * z / 128;
   mpFX = fx; mpFZ = fz;
   mpX0 = cx - size / 2; mpX1 = cx + size / 2; mpY0 = cy - size / 2; mpY1 = cy + size / 2;
-  M_box(mpX0, mpY0, mpX1, mpY1, '#36586b');
+  hudBox(mpX0, mpY0, mpX1, mpY1, '#36586b');
   // the shallows: a lighter rim round the land
   let i = 1, n = MRX0.length;
-  while (i <= n) { M_mrect(MRX0[i], MRZ0[i], MRX1[i], MRZ1[i], MRC[i]); i = i + 1; }
+  while (i <= n) { mrect(MRX0[i], MRZ0[i], MRX1[i], MRZ1[i], MRC[i]); i = i + 1; }
   // roads
   i = 1; n = MLX0.length;
   let rw = 1 + z * 0.35;
@@ -73,7 +73,7 @@ function drawIsland(cx, cy, size, z, fx, fz, detail) {
     i = i + 1;
   }
   // buildings
-  if (detail >= 1) { i = 1; n = MBX0.length; while (i <= n) { M_mrect(MBX0[i], MBZ0[i], MBX1[i], MBZ1[i], MBC[i]); i = i + 1; } }
+  if (detail >= 1) { i = 1; n = MBX0.length; while (i <= n) { mrect(MBX0[i], MBZ0[i], MBX1[i], MBZ1[i], MBC[i]); i = i + 1; } }
   // the grid: every 256 m, A..H west to east, 1..8 north to south
   if (detail >= 2) {
     i = 1;
@@ -94,12 +94,12 @@ function islandNames(s0, sz) {
     let x = mpx(SITEX[i]), y = mpy(SITEZ[i]);
     let ins = 0;
     if (x > mpX0 + 10) { if (x < mpX1 - 10) { if (y > mpY0 + 6) { if (y < mpY1 - 6) { ins = 1; } } } }
-    if (ins == 1) { tx(s0 + i - 1, SITEN[i], x, y + sz * 0.5 + 2, sz, '#ffffff', 0); M_box(x - 1.2, y - 1.2, x + 1.2, y + 1.2, '#ffffff'); } else { txOff(s0 + i - 1); }
+    if (ins == 1) { tx(s0 + i - 1, SITEN[i], x, y + sz * 0.5 + 2, sz, '#ffffff', 0); hudBox(x - 1.2, y - 1.2, x + 1.2, y + 1.2, '#ffffff'); } else { txOff(s0 + i - 1); }
     i = i + 1;
   }
 }
 // an arrow at (x, y) pointing to yaw, size r
-function M_arrow(x, y, yaw, r, col) {
+function arrowAt(x, y, yaw, r, col) {
   fillStop(); goto(x + sind(yaw) * r, y + cosd(yaw) * r); fillColorHex(col); fillStart();
   goto(x + sind(yaw + 140) * r * 0.8, y + cosd(yaw + 140) * r * 0.8); goto(x, y); goto(x + sind(yaw - 140) * r * 0.8, y + cosd(yaw - 140) * r * 0.8);
   fillStop();
@@ -115,7 +115,7 @@ function bigMapZoom() {
 }
 function bigMap() {
   bigMapZoom();
-  M_box(-245, -140, 245, 140, '#0c1216');
+  hudBox(-245, -140, 245, 140, '#0c1216');
   let size = 250, cx = -38, cy = -6;
   // where it looks: the whole island, or round the player when zoomed in
   let fx = 64, fz = 64;
@@ -134,11 +134,11 @@ function bigMap() {
   if (planeOn == 1) {
     mapLine(mpx(planeX0), mpy(planeZ0), mpx(planeX1), mpy(planeZ1), 1, '#ffd24a');
     let ax = mpx(planeX), ay = mpy(planeZ);
-    if (ax > mpX0) { if (ax < mpX1) { if (ay > mpY0) { if (ay < mpY1) { M_arrow(ax, ay, atan2d(planeX1 - planeX0, planeZ1 - planeZ0), 5, '#ffe080'); } } } }
+    if (ax > mpX0) { if (ax < mpX1) { if (ay > mpY0) { if (ay < mpY1) { arrowAt(ax, ay, atan2d(planeX1 - planeX0, planeZ1 - planeZ0), 5, '#ffe080'); } } } }
   }
   // me
   let px = mpx(plX), py = mpy(plZ);
-  if (px > mpX0) { if (px < mpX1) { if (py > mpY0) { if (py < mpY1) { M_box(px - 4, py - 4, px + 4, py + 4, '#202020'); M_arrow(px, py, plYaw, 6, '#ffd24a'); } } } }
+  if (px > mpX0) { if (px < mpX1) { if (py > mpY0) { if (py < mpY1) { hudBox(px - 4, py - 4, px + 4, py + 4, '#202020'); arrowAt(px, py, plYaw, 6, '#ffd24a'); } } } }
   // grid letters and numbers
   let i = 1;
   while (i <= 8) {
@@ -150,7 +150,7 @@ function bigMap() {
   islandNames(19, 7 + mapZoom);
   // the side panel: title, scale, legend, the match
   let x0 = 100;
-  M_box(x0 - 4, -129, 238, 129, '#141c22');
+  hudBox(x0 - 4, -129, 238, 129, '#141c22');
   tx(32, '새벽섬', x0, 124, 14, C_W, 1);
   tx(33, `2 km × 2 km   확대 ${mapZoom}배`, x0, 106, 8, C_DIM, 1);
   // a scale bar: the longest of 100 / 200 / 500 m that fits in 90 px
@@ -159,16 +159,16 @@ function bigMap() {
   if (20000 / MPU * mpS > 100) { m = 100; }
   if (10000 / MPU * mpS > 100) { m = 50; }
   let bl = m * 100 / MPU * mpS;
-  M_box(x0, 92, x0 + bl, 94, '#ffffff'); M_box(x0, 89, x0 + 1.5, 97, '#ffffff'); M_box(x0 + bl - 1.5, 89, x0 + bl, 97, '#ffffff');
+  hudBox(x0, 92, x0 + bl, 94, '#ffffff'); hudBox(x0, 89, x0 + 1.5, 97, '#ffffff'); hudBox(x0 + bl - 1.5, 89, x0 + bl, 97, '#ffffff');
   tx(34, `${m} m`, x0 + bl + 6, 98, 8, C_W, 1);
   // legend
-  M_arrow(x0 + 5, 72, 0, 5, '#ffd24a'); tx(35, '나', x0 + 16, 76, 8, C_W, 1);
-  M_box(x0, 58, x0 + 12, 60, '#3f7dff'); tx(36, '자기장', x0 + 16, 64, 8, C_W, 1);
-  M_box(x0, 46, x0 + 12, 48, '#ffffff'); tx(37, '다음 안전지대', x0 + 16, 52, 8, C_W, 1);
-  M_box(x0, 34, x0 + 12, 36, '#ffd24a'); tx(38, '비행기 경로', x0 + 16, 40, 8, C_W, 1);
-  M_box(x0, 22, x0 + 12, 25, '#3c3d40'); tx(39, '도로', x0 + 16, 28, 8, C_W, 1);
-  M_box(x0 + 2, 9, x0 + 9, 15, '#5a5650'); tx(40, '건물', x0 + 16, 16, 8, C_W, 1);
-  M_box(x0 + 2, -3, x0 + 9, 3, '#56604a'); tx(41, '군사 시설', x0 + 16, 4, 8, C_W, 1);
+  arrowAt(x0 + 5, 72, 0, 5, '#ffd24a'); tx(35, '나', x0 + 16, 76, 8, C_W, 1);
+  hudBox(x0, 58, x0 + 12, 60, '#3f7dff'); tx(36, '자기장', x0 + 16, 64, 8, C_W, 1);
+  hudBox(x0, 46, x0 + 12, 48, '#ffffff'); tx(37, '다음 안전지대', x0 + 16, 52, 8, C_W, 1);
+  hudBox(x0, 34, x0 + 12, 36, '#ffd24a'); tx(38, '비행기 경로', x0 + 16, 40, 8, C_W, 1);
+  hudBox(x0, 22, x0 + 12, 25, '#3c3d40'); tx(39, '도로', x0 + 16, 28, 8, C_W, 1);
+  hudBox(x0 + 2, 9, x0 + 9, 15, '#5a5650'); tx(40, '건물', x0 + 16, 16, 8, C_W, 1);
+  hudBox(x0 + 2, -3, x0 + 9, 3, '#56604a'); tx(41, '군사 시설', x0 + 16, 4, 8, C_W, 1);
   // the match
   tx(42, `생존 ${alive}명   처치 ${EKILLS[1]}`, x0, -16, 9, C_W, 1);
   let zs = '';
@@ -197,7 +197,7 @@ function btn(x0, y0, x1, y1, slot, label, sel, sz) {
   let col = '#25313a';
   if (hov == 1) { col = '#33434f'; }
   if (sel == 1) { col = '#c89a2a'; if (hov == 1) { col = '#e0b03a'; } }
-  M_box(x0, y0, x1, y1, col);
+  hudBox(x0, y0, x1, y1, col);
   if (sel == 0) { hudLine(x0, y0, x1, y0, 0.6, '#3e4e5a'); }
   let tc = C_W;
   if (sel == 1) { tc = '#15110a'; }
@@ -214,19 +214,21 @@ function menuFrame(dt) {
   if (keyHit(187) == 1 || keyHit(107) == 1) { sens = Math.min(2, sens + 0.05); }
   if (keyHit(189) == 1 || keyHit(109) == 1) { sens = Math.max(0.1, sens - 0.05); }
   if (keyHit(13) == 1) { menuGo = 1; }
+  if (keyHit(84) == 1) { menuGo = 2; }
   showT = showT + dt; showYaw = showYaw + dt * 50;
   if (showT > 4) { showT = 0; showG = mod(showG, NGUN) + 1; }
 }
 let menuGo = 0;
 function menuScreen() {
   // background
-  M_box(-245, -140, 245, 140, '#0e151b');
-  M_box(-245, 104, 245, 140, '#131d25');
-  M_box(-245, 103, 245, 104, '#c89a2a');
+  hudBox(-245, -140, 245, 140, '#0e151b');
+  hudBox(-245, 104, 245, 140, '#131d25');
+  hudBox(-245, 103, 245, 104, '#c89a2a');
   tx(1, '엔트리 배틀로얄 3D', -226, 125, 19, C_W, 1);
-  tx(2, '새벽섬 · 플레이어 1명 + AI 29명 · 마지막 1인이 이긴다', 226, 118, 8, '#c8b48a', 2);
+  tx(2, `새벽섬 · 플레이어 1명 + AI ${NE - 1}명 · 마지막 1인이 이긴다`, 226, 118, 8, '#c8b48a', 2);
   // the left column
-  if (btn(-226, 66, -40, 92, 3, '게임 시작', 1, 15) == 1) { menuGo = 1; }
+  if (btn(-226, 66, -118, 92, 3, '게임 시작', 1, 14) == 1) { menuGo = 1; }
+  if (btn(-115, 66, -40, 92, 24, '총기 테스트', 0, 10) == 1) { menuGo = 2; }
   tx(4, 'AI 난이도', -226, 59, 8, C_DIM, 1);
   if (btn(-226, 34, -166, 50, 5, '쉬움', b01(diff == 1), 9) == 1) { diff = 1; }
   if (btn(-163, 34, -103, 50, 6, '보통', b01(diff == 2), 9) == 1) { diff = 2; }
@@ -241,24 +243,24 @@ function menuScreen() {
   tx(13, '마우스 감도', -226, -7, 8, C_DIM, 1);
   if (btn(-226, -32, -200, -16, 15, '-', 0, 11) == 1) { sens = Math.max(0.1, sens - 0.05); }
   if (btn(-114, -32, -88, -16, 16, '+', 0, 11) == 1) { sens = Math.min(2, sens + 0.05); }
-  M_box(-196, -32, -118, -16, '#1a242c');
-  M_box(-194, -26, -194 + 74 * (sens - 0.1) / 1.9, -22, '#c89a2a');
+  hudBox(-196, -32, -118, -16, '#1a242c');
+  hudBox(-194, -26, -194 + 74 * (sens - 0.1) / 1.9, -22, '#c89a2a');
   tx(14, `${Math.round(sens * 100)}`, -64, -18, 10, C_W, 0);
   // controls
-  M_box(-232, -133, -34, -40, '#141c22');
+  hudBox(-232, -133, -34, -40, '#141c22');
   tx(17, '조작', -226, -44, 9, '#c8b48a', 1);
   tx(18, 'WASD 이동   마우스 둘러보기   클릭 사격', -226, -58, 7, C_W, 1);
   tx(19, 'E 조준   Shift 달리기   C 앉기   Space 점프', -226, -70, 7, C_W, 1);
   tx(20, 'R 장전   B 사격 모드   1 2 3 무기   X 버리기', -226, -82, 7, C_W, 1);
   tx(21, 'F 줍기 · 뛰어내리기 · 낙하산   H 치료   J 부스트', -226, -94, 7, C_W, 1);
-  tx(22, 'G 수류탄   T 연막탄   M 지도   Esc 마우스 풀기', -226, -106, 7, C_W, 1);
+  tx(22, 'G 수류탄   T 연막탄   M 지도   Tab 인벤토리', -226, -106, 7, C_W, 1);
   tx(23, 'V 1·3인칭   F 차 타기·내리기   운전 WASD · Space', -226, -118, 7, C_SKY, 1);
   // the island
   drawIsland(119, 40, 120, 1, 64, 64, 1);
   islandNames(25, 5.5);
   tx(38, `새벽섬 2 km · 건물 ${NBUILD}채 · 엄폐물 ${NCOVER}개 · 차량 4종`, 119, -26, 7, C_DIM, 0);
   // the gun showcase
-  M_box(22, -133, 236, -36, '#1b252d');
+  hudBox(22, -133, 236, -36, '#1b252d');
   // a soft light behind the gun
   fillStop(); goto(76 + 52, -88); fillColorHex('#26343e'); fillStart();
   let li = 1;
@@ -269,19 +271,19 @@ function menuScreen() {
   tx(39, GNAME[g], 136, -40, 12, C_W, 1);
   tx(40, `${CLSN[GCLS[g]]} · ${AMNAME[GAMMO[g]]} · 탄창 ${GMAG[g]}`, 136, -54, 7, C_DIM, 1);
   let rpm = Math.round(60 / GINT[g]);
-  M_stat(41, '피해', GDMG[g] * GPEL[g] / 216, -72);
-  M_stat(42, '연사', rpm / 1100, -85);
-  M_stat(43, '사거리', GRANGE[g] / 50000, -98);
-  M_stat(44, '안정성', 1 - GRV[g] / 3.2, -111);
+  statBar(41, '피해', GDMG[g] * GPEL[g] / 216, -72);
+  statBar(42, '연사', rpm / 1100, -85);
+  statBar(43, '사거리', GRANGE[g] / 50000, -98);
+  statBar(44, '안정성', 1 - GRV[g] / 3.2, -111);
   tx(45, `실총 15종 · 부착물 15종 (${showG} / 15)`, 136, -121, 6, C_DIM, 1);
   if (isTess == 0) { tx(46, 'tessvm 확장에서 실행하세요 (순정 엔트리는 너무 느립니다)', 0, -136 + 8, 8, '#ffcc66', 0); }
 }
 let CLSN = ['권총', '기관단총', '돌격소총', '지정사수 소총', '저격소총', '산탄총', '경기관총'];
-function M_stat(slot, label, v, y) {
+function statBar(slot, label, v, y) {
   let f = Math.max(0.04, Math.min(1, v));
   tx(slot, label, 136, y + 3.5, 7, C_DIM, 1);
-  M_box(168, y - 2, 230, y + 1.5, '#28333c');
-  M_box(168, y - 2, 168 + 62 * f, y + 1.5, '#c89a2a');
+  hudBox(168, y - 2, 230, y + 1.5, '#28333c');
+  hudBox(168, y - 2, 168 + 62 * f, y + 1.5, '#c89a2a');
 }
 // a gun turning (the whole gun, no hands: level 2) centred on the screen point (sx, sy)
 function showGun(g, sx, sy) {
@@ -308,10 +310,10 @@ function showGun(g, sx, sy) {
 function resultHud() {
   let win = 0;
   if (gState == 4) { win = 1; }
-  M_box(-180, -108, 180, 96, '#0e1216');
-  M_box(-180, 95, 180, 96, '#c89a2a');
+  hudBox(-180, -108, 180, 96, '#0e1216');
+  hudBox(-180, 95, 180, 96, '#c89a2a');
   if (win == 1) {
-    M_box(-180, 40, 180, 95, '#1d1708');
+    hudBox(-180, 40, 180, 95, '#1d1708');
     tx(1, 'WINNER WINNER CHICKEN DINNER!', 0, 86, 17, C_GOLD, 0);
     tx(2, '이겼닭! 오늘 저녁은 치킨이닭!', 0, 62, 11, '#ffe8a8', 0);
     drumstick(-150, 62); drumstick(150, 62);

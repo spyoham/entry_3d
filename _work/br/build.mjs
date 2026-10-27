@@ -15,7 +15,7 @@ import { VEHS, vehicleModels } from './vehicles.mjs';
 import { terrainRects, roadLines, buildingRects } from './mapdraw.mjs';
 import { generate, CS, CELLS, GRID, MAP, SITES } from './mapgen.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '1.1';
+export const VERSION = '1.2';
 export const NAME = '엔트리 배틀로얄 3D';
 const NL = '\n';
 
@@ -121,10 +121,47 @@ export function compilePrefabs() {
 }
 
 // ------------------------------------------------------------------ the island -> lists
+// v1.2: the shooting range of the gun test. A straight flat strip of land 280 m long with no
+// building near, facing one of the four main directions (the props turn in quarter turns): the
+// field props in it are taken away, sandbags go either side of the firing line, a crate marks
+// every target's distance, and a row of barriers stops the shots at the far end.
+export const RANGE_D = [1000, 2500, 3500, 5000, 5000, 7500, 10000, 15000, 20000, 25000];
+function shootingRange(g) {
+    const { hAt } = g;
+    let best = null;
+    const blockers = g.insts.map(it => ({ x: it.x, z: it.z, r: Math.hypot(...ALL[it.pf - 1].foot) / 2 }));
+    for (let x = 8000; x < MAP - 8000; x += 800) for (let z = 8000; z < MAP - 8000; z += 800) for (let a = 0; a < 360; a += 90) {
+        const dx = Math.round(Math.sin(a * Math.PI / 180)), dz = Math.round(Math.cos(a * Math.PI / 180));
+        let lo = 1e9, hi = -1e9, ok = true;
+        for (let d = -1500; d <= 28000 && ok; d += 500) for (const s of [-1500, 0, 1500]) {
+            const h = hAt(x + dx * d + dz * s, z + dz * d - dx * s);
+            if (h < 150) { ok = false; break; }
+            lo = Math.min(lo, h); hi = Math.max(hi, h);
+        }
+        if (!ok || (best && hi - lo >= best.span)) continue;
+        if (blockers.some(o => { const rx = o.x - x, rz = o.z - z, al = rx * dx + rz * dz, sd = rx * dz - rz * dx; return al > -3000 && al < 30000 && Math.abs(sd) < 2500 + o.r; })) continue;
+        best = { x, z, a, dx, dz, span: hi - lo };
+    }
+    const { x, z, a, dx, dz } = best;
+    const at = (d, s) => [Math.round(x + dx * d + dz * s), Math.round(z + dz * d - dx * s)];
+    const inStrip = (px, pz, w) => { const rx = px - x, rz = pz - z, al = rx * dx + rz * dz, sd = rx * dz - rz * dx; return al > -2000 && al < 28500 && Math.abs(sd) < w; };
+    const keep = g.props.filter(p => !inStrip(p.x, p.z, 1900));
+    g.props.length = 0; g.props.push(...keep);
+    const vs = g.vehSpots.filter(v => !inStrip(v.x, v.z, 2200));
+    g.vehSpots.length = 0; g.vehSpots.push(...vs);
+    const r = (a / 90) % 2;
+    const prop = (name, d, s, rot = r) => { const [px, pz] = at(d, s); g.props.push({ pf: g.PF[name], x: px, y: Math.round(hAt(px, pz)), z: pz, r: rot, tint: 0, tint2: 0, cell: Math.floor(pz / CS) * CELLS + Math.floor(px / CS), building: false }); };
+    prop('sandbag', 150, -520); prop('sandbag', 150, 520);
+    for (const d of [...new Set(RANGE_D)]) prop('crate', d, -1350);
+    for (let s = -1600; s <= 1600; s += 400) prop('barrier', 26500, s);
+    return { RGX: x, RGZ: z, RGA: a };
+}
+
 export function compileWorld(pre) {
     const g = generate();
     const { H, hAt, cellMat, roadQuads } = g;
     const out = {};
+    Object.assign(out, shootingRange(g));
     out.TH = Array.from(H, (h) => Math.round(h));
     // terrain: one quad a cell where any corner is above the sea (shore cells: the land part only)
     const TP = { A: [], B: [], C: [], D: [], K: [] };     // vertex refs (1..GRID*GRID grid, beyond: extra), colour base
@@ -401,11 +438,11 @@ export function unpackSource(pack) {
     return `function unpackAll() {${NL}${calls || '  let n = 0;'}${NL}}${NL}`;
 }
 
-export const FILES = ['render.js', 'world.js', 'player.js', 'hud.js', 'hud2.js', 'hud3.js', 'people.js', 'weapon.js', 'loot.js', 'nav.js', 'ai.js', 'game.js', 'vehicle.js', 'sound.js', 'main.js'];
+export const FILES = ['render.js', 'world.js', 'player.js', 'hud.js', 'hud2.js', 'hud3.js', 'gunlab.js', 'inv.js', 'people.js', 'weapon.js', 'loot.js', 'nav.js', 'ai.js', 'game.js', 'vehicle.js', 'sound.js', 'main.js'];
 export function sources(C, data) {
     const decl = (name, arr) => `let ${name} = ${JSON.stringify(arr)};`;
     const lists = Object.entries(data.lists).map(([k, v]) => decl(k, v)).join(NL) + NL + unpackSource(data.pack);
-    const KEYS = [9, 13, 27, 32, 49, 50, 51, 52, 53, 66, 67, 69, 70, 71, 72, 73, 74, 77, 78, 80, 81, 82, 84, 86, 88, 107, 109, 114, 187, 189];
+    const KEYS = [9, 13, 27, 32, 37, 39, 49, 50, 51, 52, 53, 66, 67, 69, 70, 71, 72, 73, 74, 77, 78, 80, 81, 82, 84, 86, 88, 107, 109, 114, 187, 189];
     const keySrc = KEYS.map(k => `on('key:${k}', 'pen', function () { if (KDN[${k}] == 0) { KDN[${k}] = 1; KEV[${k}] = 1; } });`).join(NL) + NL;
     const raw = lists + NL + bankSource(data.nb) + FILES.map(f => fs.readFileSync(path.join(HERE, 'src', f), 'utf8')).join(NL) + NL + keySrc;
     const { src, count } = expandMacros(raw);
@@ -474,6 +511,8 @@ export function buildData() {
     const W = { city: 4, base: 4, port: 3, village: 2, farm: 1, gas: 1, school: 2 };
     lists.SITEN = SITES.map(s => s.name); lists.SITEX = SITES.map(s => s.x * 100); lists.SITEZ = SITES.map(s => s.z * 100); lists.SITER = SITES.map(s => s.r * 100); lists.SITEW = SITES.map(s => W[s.kind]);
     Object.assign(lists, w.vehicleLists);
+    // v1.2: the shooting range's targets (distance cm; see shootingRange)
+    lists.RTD = RANGE_D;
     const full = { ...lists };
     const pack = packLists(lists);
     Object.assign(lists, { PKA: pack.map(p => p.c0), PKB: pack.map(p => p.n), PKW: pack.map(p => p.w), PKC: pack.map(p => p.sc), PKM: pack.map(p => p.mn) });
@@ -498,6 +537,7 @@ export function buildProject(out, { more = {} } = {}) {
     Object.assign(cc, { GBASE, ABASE, IBASE, VBASE, NGUN: GUNS.length, NATT: ATTS.length, NITEM: 53, NVK: VEHS.length });
     // (the menu tells how many buildings and how much cover the island has)
     cc.NBUILD = data.world.g.insts.length;
+    cc.RGX = data.world.RGX; cc.RGZ = data.world.RGZ; cc.RGA = data.world.RGA;
     cc.NCOVER = data.world.g.props.filter(p => ALL[p.pf - 1].cover || ALL[p.pf - 1].bush || ['pine', 'oak'].includes(ALL[p.pf - 1].name)).length;
     const prog = compileProgram([src], { consts: cc });
     if (C.LEGACY) legacyMath(prog);

@@ -193,13 +193,14 @@ function gunDamage(g, d, p) {
 // victim v hurt by attacker a (0: the zone) for dm on part p with gun g
 let godMode = 0;
 function hurt(v, a, dm, p, g) {
-  if (v == 1) { if (godMode == 1) { dm = 0; } }
+  if (v == 1) { if (godMode == 1) { dm = 0; } if (gState == 6) { dm = 0; } }
   if (EALIVE[v] == 1) {
     // armour takes its share and wears down
     if (p == 1) { if (EHEL[v] > 0) { dm = dm * (0.85 - EHEL[v] * 0.12); EHELD[v] = EHELD[v] - dm; if (EHELD[v] <= 0) { EHEL[v] = 0; } } }
     if (p == 2) { if (EVES[v] > 0) { dm = dm * (0.85 - EVES[v] * 0.12); EVESD[v] = EVESD[v] - dm; if (EVESD[v] <= 0) { EVES[v] = 0; } } }
     EHP[v] = EHP[v] - dm;
     EHURT[v] = gameT; ELASTA[v] = a;
+    if (gState == 6) { rangeHit(v, a, dm, p); }
     if (EUSE[v] > 0) { EUSE[v] = 0; }
     if (a > 0) { EDMG[a] = EDMG[a] + dm; }
     if (a == 1) {
@@ -213,7 +214,11 @@ function hurt(v, a, dm, p, g) {
   }
 }
 let hurtDir = 0, hurtT = 0;
+// v1.2: on the shooting range a target falls and stands up again
 function kill(v, a, g, p) {
+  if (gState == 6) { rangeKill(v, a); } else { killMatch(v, a, g, p); }
+}
+function killMatch(v, a, g, p) {
   if (EVEH[v] > 0) { vehOut(v, 0); }
   EHP[v] = 0; EALIVE[v] = 0;
   ERANK[v] = alive;
@@ -228,21 +233,39 @@ function kill(v, a, g, p) {
 // ---------------------------------------------------------------- the player's gun
 // effective numbers of the player's gun with its attachments
 let pZoom = 1, pRv = 1, pRh = 1, pRec = 20, pHip = 2, pAds = 0.3, pAdsSpd = 5, pSight = 0;
+// v1.2: the numbers of gun g with attachments a, in sRv.. (the player's gun and the gun test both use them)
+let sZoom = 1, sRv = 1, sRh = 1, sRec = 20, sHip = 2, sAds = 0.3, sAdsSpd = 6, sSight = 0;
+function gunStatsOf(g, a) {
+  sRv = GRV[g]; sRh = GRH[g]; sRec = GREC[g]; sHip = GHIP[g]; sAds = GADS[g]; sZoom = GZOOM[g]; sAdsSpd = 6;
+  let mz = attIn(a, 1), st = attIn(a, 2), un = attIn(a, 3), sk = attIn(a, 5);
+  if (mz == 2) { sRv = sRv * 0.75; sRh = sRh * 0.85; }
+  if (mz == 3) { sRv = sRv * 0.9; sRh = sRh * 0.9; }
+  if (un == 9) { sRv = sRv * 0.85; }
+  if (un == 10) { sRh = sRh * 0.85; sAdsSpd = 7.5; }
+  if (un == 11) { sHip = sHip * 0.7; }
+  if (sk == 14) { sRec = sRec * 1.2; sRv = sRv * 0.92; }
+  if (sk == 15) { sRec = sRec * 1.15; sAds = sAds * 0.7; }
+  sSight = st;
+  if (st > 0) { sZoom = AZOOM[st]; }
+}
 function playerGunStats() {
   let g = gunNow(1), a = attNow(1);
   if (g > 0) {
-    pRv = GRV[g]; pRh = GRH[g]; pRec = GREC[g]; pHip = GHIP[g]; pAds = GADS[g]; pZoom = GZOOM[g]; pAdsSpd = 6;
-    let mz = attIn(a, 1), st = attIn(a, 2), un = attIn(a, 3), sk = attIn(a, 5);
-    if (mz == 2) { pRv = pRv * 0.75; pRh = pRh * 0.85; }
-    if (mz == 3) { pRv = pRv * 0.9; pRh = pRh * 0.9; }
-    if (un == 9) { pRv = pRv * 0.85; }
-    if (un == 10) { pRh = pRh * 0.85; pAdsSpd = 7.5; }
-    if (un == 11) { pHip = pHip * 0.7; }
-    if (sk == 14) { pRec = pRec * 1.2; pRv = pRv * 0.92; }
-    if (sk == 15) { pRec = pRec * 1.15; pAds = pAds * 0.7; }
-    pSight = st;
-    if (st > 0) { pZoom = AZOOM[st]; }
+    gunStatsOf(g, a);
+    pRv = sRv; pRh = sRh; pRec = sRec; pHip = sHip; pAds = sAds; pZoom = sZoom; pAdsSpd = sAdsSpd; pSight = sSight;
   }
+}
+// the reload time of gun g with attachments a
+function reloadOf(g, a) {
+  let t = GREL[g];
+  if (attIn(a, 4) == 13) { if (GCLS[g] != 6) { t = t * 0.7; } }
+  return t;
+}
+// does attachment ai fit gun g
+function attFits(g, ai) {
+  let r = 0;
+  if (g > 0) { if (ai > 0) { if (mod(idiv(AFITS[ai], POW2[GCLS[g] + 1]), 2) == 1) { r = 1; } } }
+  return r;
 }
 function playerWeapon(dt) {
   let g = gunNow(1);
@@ -252,10 +275,10 @@ function playerWeapon(dt) {
   hitMk = Math.max(0, hitMk - dt);
   wSwitch = Math.max(0, wSwitch - dt * 3);
   // slots
-  if (keyHit(49) == 1) { M_slot(1); }
-  if (keyHit(50) == 1) { M_slot(2); }
-  if (keyHit(51) == 1) { M_slot(3); }
-  if (keyHit(66) == 1) { if (g > 0) { M_nextMode(g); } }
+  if (keyHit(49) == 1) { slotPick(1); }
+  if (keyHit(50) == 1) { slotPick(2); }
+  if (keyHit(51) == 1) { slotPick(3); }
+  if (keyHit(66) == 1) { if (g > 0) { nextMode(g); } }
   // X: drop the gun in hand (with its attachments)
   if (keyHit(88) == 1) { if (g > 0) {
     itemAdd(g, plX + sind(plYaw) * 80, plY + 2, plZ + cosd(plYaw) * 80, 1);
@@ -266,6 +289,8 @@ function playerWeapon(dt) {
     ERELT[1] = 0; playerGunStats(); sfx(SND_EQUIP, 0);
   } }
   g = gunNow(1);
+  // v1.2: a mode the gun has (a single-shot gun no longer fires by itself while the button is held)
+  if (g > 0) { let fk = ECUR[1]; let fm = fireMode[fk]; if (mod(idiv(GMODE[g], fm), 2) == 0) { fm = 1; if (mod(idiv(GMODE[g], 4), 2) == 1) { fm = 4; } fireMode[fk] = fm; } }
   // aiming down the sights (E held)
   let ads = 0;
   if (key(69)) { if (g > 0) { if (ERELT[1] <= 0) { if (plSprint == 0) { ads = 1; } } } }
@@ -310,14 +335,14 @@ function playerWeapon(dt) {
   if (wRec > 0) { let r = Math.min(wRec, back); wRec = wRec - r; plPitch = plPitch - r; }
   wKick = wKick * Math.max(0, 1 - dt * 14);
 }
-function M_slot(s) {
+function slotPick(s) {
   let has = 0;
   if (s == 1) { has = EG1[1]; }
   if (s == 2) { has = EG2[1]; }
   if (s == 3) { has = EG3[1]; }
   if (has > 0) { if (ECUR[1] != s) { ECUR[1] = s; ERELT[1] = 0; wSwitch = 1; wAdsT = 0; playerGunStats(); sfx(SND_EQUIP, 0); } }
 }
-function M_nextMode(g) {
+function nextMode(g) {
   let k = (1 - 1) * 3 + ECUR[1];
   let m = fireMode[k], tries = 0, md = GMODE[g];
   let go = 1;
@@ -354,6 +379,7 @@ function playerShoot(g) {
     if (hd > 150) { ay = atan2d(hx, hz); ap = atand((py - oy) / hd); }
   }
   fireGun(1, ox, oy, oz, ay, ap, spread);
+  if (gState == 6) { rangeShot(); }
   // recoil: the view climbs, a little sideways
   let kv = pRv * (1 - wAdsT * 0.25);
   plPitch = plPitch + kv; wRec = wRec + kv * 0.7;
@@ -367,10 +393,7 @@ function startReload(e) {
   if (g > 0) {
     let full = magSize(g, attNow(e));
     if (magNow(e) < full) { if (ammoOf(e, GAMMO[g]) > 0) {
-      let t = GREL[g];
-      if (attIn(attNow(e), 4) == 13) { t = t * 0.7; }
-      if (GCLS[g] == 6) { t = GREL[g]; }
-      ERELT[e] = t;
+      ERELT[e] = reloadOf(g, attNow(e));
       if (e == 1) { wAdsT = 0; sfx(SND_RELOAD, 0); }
     } }
   }
@@ -444,8 +467,8 @@ function drawViewGun() {
       if (wFlash > 0) { muzzleFlash(ox, oy, oz + GMZ[g] / 10 * cp, t); }
       // red dot / holographic: the reticle when aiming
       if (t > 0.6) {
-        if (st == 4) { M_ring(0, 0, 34, '#202020'); M_dot(0, 0, 1.4, '#ff3030'); }
-        if (st == 5) { hudLine(-40, -28, 40, -28, 3, '#202020'); hudLine(-40, -28, -40, 30, 3, '#202020'); hudLine(40, -28, 40, 30, 3, '#202020'); hudLine(-40, 30, 40, 30, 4, '#202020'); M_ring(0, 0, 9, '#ff5040'); M_dot(0, 0, 1.2, '#ff5040'); }
+        if (st == 4) { ringAt(0, 0, 34, '#202020'); dotAt(0, 0, 1.4, '#ff3030'); }
+        if (st == 5) { hudLine(-40, -28, 40, -28, 3, '#202020'); hudLine(-40, -28, -40, 30, 3, '#202020'); hudLine(40, -28, 40, 30, 3, '#202020'); hudLine(-40, 30, 40, 30, 4, '#202020'); ringAt(0, 0, 9, '#ff5040'); dotAt(0, 0, 1.2, '#ff5040'); }
       }
     }
   }
@@ -464,10 +487,10 @@ function muzzleFlash(x, y, z, t) {
     goto(sx - r * 0.4, sy + r * 0.25); goto(sx, sy + r * 1.3); goto(sx + r * 0.4, sy + r * 0.25);
   }
 }
-function M_dot(x, y, r, col) {
+function dotAt(x, y, r, col) {
   fillStop(); goto(x - r, y); fillColorHex(col); fillStart(); goto(x, y + r); goto(x + r, y); goto(x, y - r);
 }
-function M_ring(x, y, r, col) {
+function ringAt(x, y, r, col) {
   penSize(1.2); penColorHex(col); fillStop(); goto(x + r, y); penDown();
   goto(x + r * 0.71, y + r * 0.71); goto(x, y + r); goto(x - r * 0.71, y + r * 0.71); goto(x - r, y); goto(x - r * 0.71, y - r * 0.71); goto(x, y - r); goto(x + r * 0.71, y - r * 0.71); goto(x + r, y);
   penUp();
@@ -487,9 +510,9 @@ function drawScope(st) {
   if (st == 8) {
     hudLine(-R, 0, -6, 0, 1, '#000000'); hudLine(6, 0, R, 0, 1, '#000000'); hudLine(0, -R, 0, -6, 1, '#000000'); hudLine(0, 6, 0, R * 0.6, 1, '#000000');
     hudLine(-R, 0, -40, 0, 3, '#000000'); hudLine(40, 0, R, 0, 3, '#000000'); hudLine(0, -R, 0, -40, 3, '#000000');
-    M_dot(0, 0, 1, '#ff2020');
+    dotAt(0, 0, 1, '#ff2020');
   } else { if (st == 6) {
-    M_dot(0, 0, 1.6, '#ff3030'); hudLine(-R, 0, -12, 0, 1, '#101010'); hudLine(12, 0, R, 0, 1, '#101010');
+    dotAt(0, 0, 1.6, '#ff3030'); hudLine(-R, 0, -12, 0, 1, '#101010'); hudLine(12, 0, R, 0, 1, '#101010');
   } else {
     // ACOG: a chevron and drop marks
     fillStop(); goto(0, 0); fillColorHex('#ff3a20'); fillStart(); goto(-5, -8); goto(-2, -8); goto(0, -4); goto(2, -8); goto(5, -8);

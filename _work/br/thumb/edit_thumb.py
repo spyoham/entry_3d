@@ -42,8 +42,8 @@ sub = ImageFont.truetype('C:/Windows/Fonts/malgunbd.ttf', 42)
 x0, y0 = 60, 56
 title = '배틀로얄 3D'
 tw = o.textlength(title, font=kr)
-top = '엔트리  ·  v1.1' if hud else '엔트리'
-st = '30명 중 최후의 1인  •  탈것  •  3인칭'
+top = '엔트리  ·  v1.2' if hud else '엔트리'
+st = '50명 중 최후의 1인  •  탈것  •  총기 테스트'
 sw = o.textlength(st, font=sub)
 bw2 = max(tw + 40, sw + 70)
 o.polygon([(0, y0 - 20), (x0 + tw + 90, y0 - 20), (x0 + tw + 40, y0 + 220), (0, y0 + 220)], fill=(14, 16, 20, 250 if hud else 225))
@@ -53,7 +53,7 @@ o.text((x0 + 5, y0 + 49), title, font=kr, fill=(0, 0, 0, 170))
 o.text((x0, y0 + 44), title, font=kr, fill=(255, 255, 255, 255))
 o.text((x0 + 4, y0 + 222), st, font=sub, fill=(20, 16, 10, 255))
 # corner badge
-bt = 'v1.1'
+bt = 'v1.2'
 bw = o.textlength(bt, font=black)
 bx, by = W - bw - 70, H - 150
 if not hud:

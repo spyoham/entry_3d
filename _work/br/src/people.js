@@ -1,7 +1,7 @@
 // ===================================================================== people
 // Entity 1 is the player, 2..NE the bots. One set of lists for everyone: the same code
 // shoots, hurts, heals and loots for the player and the bots.
-const NE = 30;
+const NE = 50;
 let EX = [], EY = [], EZ = [], EYAW = [], EPIT = [], EHP = [], EALIVE = [], EBOOST = [];
 let EHEL = [], EHELD = [], EVES = [], EVESD = [], EPACK = [];
 let EG1 = [], EG2 = [], EG3 = [], EA1 = [], EA2 = [], EA3 = [], EM1 = [], EM2 = [], EM3 = [], ECUR = [];
@@ -10,7 +10,7 @@ let EKILLS = [], EDMG = [], ENAME = [], ECLO = [], ESKIN = [], ERANK = [];
 let EFIRE = [], ERELT = [], EBOLT = [], EADS = [], ECRO = [], ESPD = [], EPH = [], EHURT = [], ELASTA = [], ESHOT = [], EUSE = [], EUSEK = [];
 let EVY = [], EGND = [], EMOV = [], EBURST = [], ESEEN = [];
 let alive = 0;
-let BOTNAMES = ['돌개바람', '새벽늑대', '검은매', '조용한곰', '불나방', '은빛여우', '바다사자', '들고양이', '산까치', '번개', '초록뱀', '구름표범', '철새', '하늘소', '모래폭풍', '얼음송곳', '붉은달', '들소', '갈매기', '청설모', '너구리', '호랑나비', '흑곰', '수리부엉이', '천둥', '여우비', '바람개비', '부엉이', '살쾡이', '해오라기', '독수리', '물수리', '노루', '고라니'];
+let BOTNAMES = ['돌개바람', '새벽늑대', '검은매', '조용한곰', '불나방', '은빛여우', '바다사자', '들고양이', '산까치', '번개', '초록뱀', '구름표범', '철새', '하늘소', '모래폭풍', '얼음송곳', '붉은달', '들소', '갈매기', '청설모', '너구리', '호랑나비', '흑곰', '수리부엉이', '천둥', '여우비', '바람개비', '부엉이', '살쾡이', '해오라기', '독수리', '물수리', '노루', '고라니', '까마귀', '반딧불', '바위게', '해달', '참매', '두더지', '산양', '불곰', '흰여우', '오소리', '꿩', '물총새', '스라소니', '삵', '자라', '돌고래', '황새', '두루미', '멧돼지', '박쥐', '뻐꾸기'];
 let CLOTHS = [MT_cloth1, MT_cloth2, MT_cloth3, MT_cloth4, MT_cloth5, MT_cloth6, MT_cloth7, MT_cloth8];
 let CLOL = [], SKINL = [];
 

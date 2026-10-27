@@ -61,14 +61,15 @@ function viewRange() {
 // KDN: the event took this press; cleared once a frame sees the key up (until then the
 // repeats of a held key are not presses)
 let KHIT = [], KEV = [], KDN = [];
-function M_poll(code) {
+// (the key's state comes in as kd: the key block wants its code written in it)
+function keyPoll(code, kd) {
   KHIT[code] = KEV[code]; KEV[code] = 0;
-  if (key(code)) { keyWas[code] = 1; } else { keyWas[code] = 0; KDN[code] = 0; }
+  if (kd) { keyWas[code] = 1; } else { keyWas[code] = 0; KDN[code] = 0; }
 }
 function pollKeys() {
-  M_poll(9); M_poll(13); M_poll(27); M_poll(32); M_poll(49); M_poll(50); M_poll(51); M_poll(52); M_poll(53);
-  M_poll(66); M_poll(67); M_poll(69); M_poll(70); M_poll(71); M_poll(72); M_poll(73); M_poll(74); M_poll(77); M_poll(78); M_poll(80); M_poll(81); M_poll(82); M_poll(84); M_poll(86); M_poll(88);
-  M_poll(187); M_poll(189); M_poll(107); M_poll(109); M_poll(114);
+  keyPoll(9, key(9)); keyPoll(13, key(13)); keyPoll(27, key(27)); keyPoll(32, key(32)); keyPoll(37, key(37)); keyPoll(39, key(39)); keyPoll(49, key(49)); keyPoll(50, key(50)); keyPoll(51, key(51)); keyPoll(52, key(52)); keyPoll(53, key(53));
+  keyPoll(66, key(66)); keyPoll(67, key(67)); keyPoll(69, key(69)); keyPoll(70, key(70)); keyPoll(71, key(71)); keyPoll(72, key(72)); keyPoll(73, key(73)); keyPoll(74, key(74)); keyPoll(77, key(77)); keyPoll(78, key(78)); keyPoll(80, key(80)); keyPoll(81, key(81)); keyPoll(82, key(82)); keyPoll(84, key(84)); keyPoll(86, key(86)); keyPoll(88, key(88));
+  keyPoll(187, key(187)); keyPoll(189, key(189)); keyPoll(107, key(107)); keyPoll(109, key(109)); keyPoll(114, key(114));
 }
 function keyHit(code) { return KHIT[code]; }
 
@@ -79,14 +80,18 @@ function frame(dt) {
   if (testCmd > 0) { testStep(); }
   if (keyHit(114) == 1) { showFps = 1 - showFps; }
   // V: first person / third person
-  if (keyHit(86) == 1) { if (gState >= 1) { camThird = 1 - camThird; if (camThird == 1) { msgShow('3인칭 시점 (V)', 1.5); } else { msgShow('1인칭 시점 (V)', 1.5); } } }
-  // looking around: slower when zoomed in
+  if (keyHit(86) == 1) { if (gState >= 1) { if (gState != 5) {
+    camThird = 1 - camThird;
+    if (camThird == 1) { msgShow('3인칭 시점 (V)', 1.5); } else { msgShow('1인칭 시점 (V)', 1.5); }
+  } } }
+  // looking around: slower when zoomed in (not while a screen with the pointer free is up)
   let dx = mAccX, dy = mAccY;
   mAccX = 0; mAccY = 0;
   if (key(37)) { dx = dx - 350 * dt; }
   if (key(39)) { dx = dx + 350 * dt; }
   if (key(38)) { dy = dy + 260 * dt; }
   if (key(40)) { dy = dy - 260 * dt; }
+  if (invOpen == 1 || gState == 5) { dx = 0; dy = 0; }
   let mMoved = 0;
   if (Math.abs(dx) + Math.abs(dy) > 0.3) { mMoved = 1; }
   let zm = 1 + (pZoom - 1) * wAdsT;
@@ -97,58 +102,44 @@ function frame(dt) {
   if (plPitch > 85) { plPitch = 85; }
   if (plPitch < -85) { plPitch = -85; }
   if (gState == 0) { menuFrame(dt); }
+  else { if (gState == 5) { labFrame(dt); }
   else {
-    matchStep(dt);
-    if (EALIVE[1] == 1) {
-      if (EAIR[1] == 1 || EAIR[1] == 3) { playerAir(dt); }
-      if (EAIR[1] == 0) { if (plVeh > 0) { playerDrive(dt); driveLook(dt, mMoved); healStep(1, dt); } }
-      if (EAIR[1] == 0) { if (plVeh == 0) {
-        playerMove(dt);
-        playerWeapon(dt);
-        playerLoot();
-        healStep(1, dt);
-        if (keyHit(72) == 1) { let h = bestHeal(1); if (h > 0) { if (h < 4) { useHeal(1, h); } } }
-        if (keyHit(74) == 1) { if (EPILL[1] > 0) { useHeal(1, 5); } else { useHeal(1, 4); } }
-        if (keyHit(71) == 1) { playerThrow(1); }
-        if (keyHit(84) == 1) { playerThrow(2); }
-        if (plMoving == 1) { if (plSprint == 1) { if (rand(1, 100) <= 6) { soundEvent(plX, plY, plZ, 2400, 1, 3); } } }
-      } }
-      // the player's body is entity 1 for everyone else
-      EX[1] = plX; EY[1] = plY; EZ[1] = plZ; EYAW[1] = plYaw; EPIT[1] = plPitch; ECRO[1] = plCrouch;
-      EMOV[1] = 0;
-      if (plMoving == 1) { EMOV[1] = 1; if (plSprint == 1) { EMOV[1] = 1.4; } if (plCrouch == 1) { EMOV[1] = 0.5; } }
-      EPH[1] = EPH[1] + EMOV[1] * 480 * dt * 0.75;
-      if (EPH[1] > 360) { EPH[1] = EPH[1] - 360; }
-      if (plVeh > 0) { EYAW[1] = VYAW[plVeh]; EMOV[1] = 0; }
-    }
-    if (keyHit(77) == 1) { if (gState <= 2) { mapOpen = 1 - mapOpen; txClear(); } }
-    if (gState >= 3) {
+    if (gState == 6) { rangeFrame(dt); } else { matchStep(dt); }
+    if (gState != 0) { if (gState != 5) { if (EALIVE[1] == 1) { playerControl(dt, mMoved); } } }
+    if (gState >= 1) { if (gState <= 2) {
+      if (keyHit(77) == 1) { if (invOpen == 1) { invToggle(); } mapOpen = 1 - mapOpen; txClear(); }
+      // v1.2: the inventory
+      if (keyHit(9) == 1 || keyHit(73) == 1) { invToggle(); }
+    } }
+    if (gState == 3 || gState == 4) {
+      if (invOpen == 1) { invOpen = 0; txClear(); }
       if (keyHit(82) == 1) { matchStart(); }
       if (keyHit(13) == 1) { gState = 0; txClear(); }
       // the results want the pointer (their buttons)
       if ($M_LOCK != 0) { $M_LOCK = 0; lockAskT = 0; }
     }
-  }
+  } }
   // the camera
   camX = Math.round(plX); camY = Math.round(plY + plEye); camZ = Math.round(plZ);
-  if (gState >= 1) { if (EAIR[1] == 2) { camY = Math.round(planeY - 200); } }
+  if (gState >= 1) { if (gState <= 2) { if (EAIR[1] == 2) { camY = Math.round(planeY - 200); } } }
   camYaw = plYaw; camPitch = plPitch;
   // v1.1: from behind - in a vehicle always, on foot with V (aiming looks down the sights)
   camMode = 0;
-  if (gState >= 1) { if (gState <= 2) { if (EALIVE[1] == 1) { if (EAIR[1] != 2) {
+  if (gState >= 1) { if (gState <= 2 || gState == 6) { if (EALIVE[1] == 1) { if (EAIR[1] != 2) {
     if (plVeh > 0) { camMode = 2; } else { if (camThird == 1) { if (wAdsT < 0.5) { camMode = 1; } } }
   } } } }
   if (camMode > 0) { camBehind(); }
   // (stills only: the harness sets thK) a free camera, no HUD
   if (thK == 1) { camX = thX; camY = thY; camZ = thZ; camYaw = thYaw; camPitch = thP; }
   FOC = 240;
-  if (gState >= 1) { FOC = 240 * (1 + (pZoom - 1) * wAdsT); }
+  if (gState >= 1) { if (gState != 5) { FOC = 240 * (1 + (pZoom - 1) * wAdsT); } }
   viewRange();
   eraseAll();
   if (gState == 0) {
     menuScreen();
     if (menuGo == 1) { menuGo = 0; clickLatch = 0; plEye = 160; txClear(); matchStart(); }
-  } else {
+    if (menuGo == 2) { menuGo = 0; clickLatch = 0; labOpen(0); }
+  } else { if (gState == 5) { labScreen(); if (labGo == 1) { labGo = 0; clickLatch = 0; rangeGo(); } if (labGo == 2) { labGo = 0; clickLatch = 0; labBack(); } } else { if (invOpen == 1) { invScreen(dt); } else {
     if (mapOpen == 1) { if (gState <= 2) { bigMap(); } else { mapOpen = 0; txClear(); } }
     if (mapOpen == 0) {
       dynBuild();
@@ -156,14 +147,39 @@ function frame(dt) {
       drawZone();
       if (EALIVE[1] == 1) { if (EAIR[1] == 0) { if (camMode == 0) { drawViewGun(); } } }
       if (gState <= 2) { if (thK == 0) { playerHud(dt); } else { txClear(); } }
-      if (gState >= 3) { resultHud(); }
+      if (gState == 3 || gState == 4) { resultHud(); }
+      if (gState == 6) { if (thK == 0) { rangeHud(dt); } else { txClear(); } }
     }
-  }
+  } } }
   clickLatch = 0;
   if (showFps == 1) { tx(56, `FPS ${fpsShow}  k${kStep}  G${gfx}  ${nPoly}`, -236, 136, 7, '#a0a8b0', 1); } else { txOff(56); }
   fillStop();
 }
-// v1.1: the island's long lists come in as text (PKS, see build.mjs): item c0 on, n values of w
+// the player on foot, in the air or driving (a match and the range); with the inventory up only walking
+function playerControl(dt, mMoved) {
+  if (EAIR[1] == 1 || EAIR[1] == 3) { playerAir(dt); }
+  if (EAIR[1] == 0) { if (plVeh > 0) { playerDrive(dt); driveLook(dt, mMoved); healStep(1, dt); } }
+  if (EAIR[1] == 0) { if (plVeh == 0) {
+    playerMove(dt);
+    if (invOpen == 0) { playerWeapon(dt); } else { EFIRE[1] = Math.max(0, EFIRE[1] - dt); wAdsT = 0; }
+    playerLoot();
+    healStep(1, dt);
+    if (keyHit(72) == 1) { let h = bestHeal(1); if (h > 0) { if (h < 4) { useHeal(1, h); } } }
+    if (keyHit(74) == 1) { if (EPILL[1] > 0) { useHeal(1, 5); } else { useHeal(1, 4); } }
+    if (invOpen == 0) {
+      if (keyHit(71) == 1) { playerThrow(1); }
+      if (keyHit(84) == 1) { playerThrow(2); }
+    }
+    if (plMoving == 1) { if (plSprint == 1) { if (rand(1, 100) <= 6) { soundEvent(plX, plY, plZ, 2400, 1, 3); } } }
+  } }
+  // the player's body is entity 1 for everyone else
+  EX[1] = plX; EY[1] = plY; EZ[1] = plZ; EYAW[1] = plYaw; EPIT[1] = plPitch; ECRO[1] = plCrouch;
+  EMOV[1] = 0;
+  if (plMoving == 1) { EMOV[1] = 1; if (plSprint == 1) { EMOV[1] = 1.4; } if (plCrouch == 1) { EMOV[1] = 0.5; } }
+  EPH[1] = EPH[1] + EMOV[1] * 480 * dt * 0.75;
+  if (EPH[1] > 360) { EPH[1] = EPH[1] - 360; }
+  if (plVeh > 0) { EYAW[1] = VYAW[plVeh]; EMOV[1] = 0; }
+}// v1.1: the island's long lists come in as text (PKS, see build.mjs): item c0 on, n values of w
 // base-64 digits each (sc 0: six hex digits, a colour), plus mn, over sc; into scratch list
 // PV<at + 1> (eight of them: Entry keeps no list longer than 5000)
 let PV1 = [], PV2 = [], PV3 = [], PV4 = [], PV5 = [], PV6 = [], PV7 = [], PV8 = [];
@@ -201,8 +217,8 @@ function plainNotice() {
   for (;;) {
     if (TXS.length >= NTX) {
       eraseAll();
-      M_box(-245, -140, 245, 140, '#0e151b');
-      M_box(-245, 103, 245, 104, '#c89a2a');
+      hudBox(-245, -140, 245, 140, '#0e151b');
+      hudBox(-245, 103, 245, 104, '#c89a2a');
       fillStop();
       tx(1, '엔트리 배틀로얄 3D', 0, 60, 19, '#ffffff', 0);
       tx(2, 'tessvm 확장 프로그램에서 실행하세요', 0, 10, 13, '#ffcc66', 0);
@@ -220,7 +236,7 @@ on('start', 'pen', function () {
   penUp();
   isTess = $TESSVM;
   renderInit();
-  peopleInit(); peopleDrawInit(); weaponInit(); lootInit(); navInit(); aiInit(); gameInit(); vehInit();
+  peopleInit(); peopleDrawInit(); weaponInit(); lootInit(); invReset(); navInit(); aiInit(); gameInit(); vehInit();
   let i = 1;
   while (i <= 255) { keyWas.push(0); KHIT.push(0); KEV.push(0); KDN.push(0); i = i + 1; }
   applyGfx();
@@ -272,7 +288,7 @@ function camBehind() {
 on('click', 'pen', function () {
   clickLatch = 1;
   // in a match the pointer is held (again after Esc)
-  if (gState >= 1) { if (gState <= 2) { if ($M_LOCK == 0) { lockReq(); } } }
+  if (invOpen == 0) { if (gState >= 1) { if (gState <= 2 || gState == 6) { if ($M_LOCK == 0) { lockReq(); } } } }
   if (keysLost == 1) { keysLost = 0; msgT = 0; if (EAIR[1] == 2) { msgShow('F: 뛰어내리기', 4); } }
 });
 
@@ -289,7 +305,7 @@ function lockReq() {
 function lockWatch() {
   if (lockAskT > 0) {
     if ($M_LOCK == 1) {
-      if (tickN - lockAskT > 20) { if (gState >= 1) { if (gState <= 2) {
+      if (tickN - lockAskT > 20) { if (gState >= 1) { if (gState <= 2 || gState == 6) {
         $M_LOCK = 0; keysLost = 1;
         msgShow('화면을 한 번 클릭하면 시작합니다 (마우스 잠금 · 키보드)', 999);
       } } }

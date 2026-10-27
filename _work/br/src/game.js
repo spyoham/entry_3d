@@ -36,7 +36,7 @@ function gameInit() {
 function matchStart() {
   matchSeed = rand(0, 999);
   gameT = 0; startT = 0;
-  peopleReset(); aiReset(); lootSpawn(); vehReset();
+  peopleReset(); aiReset(); lootSpawn(); vehReset(); invReset();
   let i = 1;
   while (i <= NFX) { FXT[i] = -99; i = i + 1; }
   i = 1;
@@ -237,7 +237,7 @@ function drawZoneLine(i, dist) {
 function drawZone() {
   if (gState >= 1) { if (zPhase > 0) {
     let dx = camX - zcx, dz = camZ - zcz;
-    if (dx * dx + dz * dz > zr * zr) { penAlpha(70); M_box(-245, 140, 245, -140, '#3060c8'); fillStop(); penAlpha(0); }
+    if (dx * dx + dz * dz > zr * zr) { penAlpha(70); hudBox(-245, 140, 245, -140, '#3060c8'); fillStop(); penAlpha(0); }
   } }
 }
 function M_zline(x, y0, z, y1) {
@@ -378,7 +378,7 @@ function drawNade(n, dist) {
   let vz = r31 * dx + r32 * dy + r33 * dz;
   if (vz > NZ) {
     let sx = (r11 * dx + r13 * dz) * FOC / vz, sy = (r21 * dx + r22 * dy + r23 * dz) * FOC / vz, r = 7 * 16384 * FOC / vz + 0.6;
-    M_box(sx - r, sy - r, sx + r, sy + r, '#3f4a30');
+    hudBox(sx - r, sy - r, sx + r, sy + r, '#3f4a30');
   }
 }
 

@@ -111,6 +111,8 @@ function loadOf(e) {
   let w = 0, t = 1;
   while (t <= 6) { w = w + ammoOf(e, t) * ITW[30 + t]; t = t + 1; }
   w = w + EBAND[e] * 2 + EKIT[e] * 10 + EMED[e] * 20 + EDRK[e] * 4 + EPILL[e] * 10 + EFRAG[e] * 12 + ESMK[e] * 14;
+  // v1.2: the player's spare attachments
+  if (e == 1) { w = w + spareN() * 10; }
   return w;
 }
 // e takes item slot k if it is useful: tookLast 1 taken, 2 part of it, 0 left
@@ -123,7 +125,11 @@ function takeItem(e, k) {
     let pistol = 0;
     if (GCLS[it] == 1) { pistol = 1; }
     if (pistol == 1) {
-      if (EG3[e] == 0) { EG3[e] = it; EA3[e] = 0; EM3[e] = 0; took = 1; } else { if (GTIER[EG3[e]] < GTIER[it]) { itemAdd(EG3[e], x, y, z, 1); EG3[e] = it; EA3[e] = 0; EM3[e] = 0; took = 1; } }
+      if (EG3[e] == 0) { EG3[e] = it; EA3[e] = 0; EM3[e] = 0; took = 1; } else { if (GTIER[EG3[e]] < GTIER[it] || e == 1) {
+        let oa = EA3[e];
+        itemAdd(EG3[e], x, y, z, 1); ammoAdd(e, GAMMO[EG3[e]], EM3[e]); EG3[e] = it; EA3[e] = 0; EM3[e] = 0; took = 1;
+        if (e == 1) { attsMove(3, oa, x, y, z); } else { dropAttsOf(oa, x, y, z); }
+      } }
     } else {
       if (EG1[e] == 0) { EG1[e] = it; EA1[e] = 0; EM1[e] = 0; took = 1; if (ECUR[e] == 3) { if (e > 1) { ECUR[e] = 1; } } }
       else { if (EG2[e] == 0) { EG2[e] = it; EA2[e] = 0; EM2[e] = 0; took = 1; }
@@ -135,8 +141,11 @@ function takeItem(e, k) {
         if (s == 2) { old = EG2[e]; }
         if (e == 1 || GTIER[old] < GTIER[it]) {
           itemAdd(old, x, y, z, 1);
-          dropAtts(e, s, x, y, z);
+          let oa = EA1[e];
+          if (s == 2) { oa = EA2[e]; ammoAdd(e, GAMMO[old], EM2[e]); } else { ammoAdd(e, GAMMO[old], EM1[e]); }
           if (s == 1) { EG1[e] = it; EA1[e] = 0; EM1[e] = 0; } else { EG2[e] = it; EA2[e] = 0; EM2[e] = 0; }
+          // v1.2: the player's attachments move to the new gun (or the backpack); a bot's fall
+          if (e == 1) { attsMove(s, oa, x, y, z); } else { dropAttsOf(oa, x, y, z); }
           took = 1;
         }
       } }
@@ -145,6 +154,8 @@ function takeItem(e, k) {
   } else {
     if (it <= NGUN + NATT) {
       took = attachTo(e, it - NGUN);
+      // v1.2: one that fits none of the player's guns goes in the backpack
+      if (took == 0) { if (e == 1) { took = spareAdd(it - NGUN); } }
     } else {
       if (it <= 36) {
         let room = Math.floor((capOf(e) - loadOf(e)) / ITW[it]);
@@ -208,7 +219,31 @@ function dropAtts(e, s, x, y, z) {
   let k = 1;
   while (k <= 5) { let ai = attIn(a, k); if (ai > 0) { itemAdd(NGUN + ai, x + rand(-40, 40), y, z + rand(-40, 40), 1); } k = k + 1; }
 }
-// on death: everything on the ground in a small heap
+function dropAttsOf(a, x, y, z) {
+  let k = 1;
+  while (k <= 5) { let ai = attIn(a, k); if (ai > 0) { itemAdd(NGUN + ai, x + rand(-40, 40), y, z + rand(-40, 40), 1); } k = k + 1; }
+}
+// the attachments a of the gun that left slot s: onto the new gun there when they fit, else the backpack, else the ground
+function attsMove(s, a, x, y, z) {
+  let k = 1, g = EG1[1];
+  if (s == 2) { g = EG2[1]; }
+  if (s == 3) { g = EG3[1]; }
+  while (k <= 5) {
+    let ai = attIn(a, k);
+    if (ai > 0) {
+      let put = 0;
+      if (attFits(g, ai) == 1) {
+        if (s == 1) { EA1[1] = attPut(EA1[1], k, ai); }
+        if (s == 2) { EA2[1] = attPut(EA2[1], k, ai); }
+        if (s == 3) { EA3[1] = attPut(EA3[1], k, ai); }
+        put = 1;
+      }
+      if (put == 0) { put = spareAdd(ai); }
+      if (put == 0) { itemAdd(NGUN + ai, x + rand(-40, 40), y, z + rand(-40, 40), 1); }
+    }
+    k = k + 1;
+  }
+}// on death: everything on the ground in a small heap
 function dropAll(e) {
   let x = EX[e], y = EY[e] + 2, z = EZ[e];
   if (EG1[e] > 0) { itemAdd(EG1[e], x + 40, y, z, 1); dropAtts(e, 1, x, y, z); }
@@ -224,6 +259,7 @@ function dropAll(e) {
   if (EMED[e] > 0) { itemAdd(48, x + rand(-50, 50), y, z + rand(-50, 50), 1); }
   if (EDRK[e] > 0) { itemAdd(49, x + rand(-50, 50), y, z + rand(-50, 50), 1); }
   if (EFRAG[e] > 0) { itemAdd(51, x + rand(-50, 50), y, z + rand(-50, 50), 1); }
+  if (e == 1) { let i = 1; while (i <= 15) { while (INVA[i] > 0) { itemAdd(NGUN + i, x + rand(-50, 50), y, z + rand(-50, 50), 1); INVA[i] = INVA[i] - 1; } i = i + 1; } }
   itemAdd(53, x, y, z, 0);
   EG1[e] = 0; EG2[e] = 0; EG3[e] = 0; EHEL[e] = 0; EVES[e] = 0; EPACK[e] = 0;
 }
