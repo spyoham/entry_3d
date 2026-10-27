@@ -83,12 +83,13 @@ export function building(name, o) {
         const hs = (p.doors || (p.door !== undefined ? [p.door] : [])).map(at => ({ a: at - 50, b: at + 50, y0: y0, y1: y0 + DOOR.h }));
         m0.wall(p.axis, p.c, a, b, y0, y1, 14, p.mat || inner, p.mat2 || o.inner2 || inner, hs, { out: 1, caps: p.caps ?? false, top: false, jamb: 'frame' });
     }
-    // stairs, one flight per floor (stacked), climbing to the floor above
+    // stairs, one flight per floor (stacked), climbing to the floor above. The ground
+    // flight is solid underneath; the ones above are slabs, so the flight below has head room.
     if (st) {
         const flights = nf - 1 + (o.roofAccess ? 1 : 0);
         for (let k = 0; k < flights; k++) {
             const y0 = BASE + k * fh, y1 = y0 + fh;
-            m0.stairs(st.x0, st.z0, st.x1, st.z1, y0, y1, st.dir, 10, 'stair', 'plasterIn2');
+            m0.stairs(st.x0, st.z0, st.x1, st.z1, y0, y1, st.dir, 10, 'stair', 'plasterIn2', { thin: k > 0 ? 20 : 0 });
         }
     }
     // roof

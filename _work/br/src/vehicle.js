@@ -467,7 +467,7 @@ function drawVehModel(q, x, y, z, yaw, pit, rol, fog, tint) {
 }
 
 // (tests only: the harness sets testCmd) 1: the player on the ground beside vehicle 1; 2: in it
-let testCmd = 0;
+let testCmd = 0, tPF = 0, tLX = 0, tLY = 0, tLZ = 0, tYaw = 0, tPitch = 0;
 function testStep() {
   if (testCmd == 1) {
     EAIR[1] = 0; gState = 2; plVY = 0;
@@ -475,5 +475,21 @@ function testStep() {
     scanBoxes(plX, 99999, plZ, PRAD, PH, 999999); plY = gndB; plYaw = VYAW[1]; plPitch = -5;
   }
   if (testCmd == 2) { if (plVeh == 0) { vehIn(1, 1); } }
+  // 3: the player at (tLX, tLY, tLZ) inside the first instance of prefab tPF, looking tYaw (prefab frame), tPitch
+  if (testCmd == 3) {
+    let ti = 1;
+    while (ti <= IPF.length) { if (IPF[ti] == tPF) { tPF = 0 - tPF; } else { ti = ti + 1; } if (tPF < 0) { tPF = 0 - tPF; ti = ti + 1000000; } }
+    ti = ti - 1000000;
+    if (ti >= 1) {
+      let tr = IR[ti];
+      let twx = tLX, twz = tLZ;
+      if (tr == 1) { twx = tLZ; twz = 0 - tLX; }
+      if (tr == 2) { twx = 0 - tLX; twz = 0 - tLZ; }
+      if (tr == 3) { twx = 0 - tLZ; twz = tLX; }
+      EAIR[1] = 0; gState = 2; plVY = 0;
+      plX = IX[ti] + twx; plZ = IZ[ti] + twz; plY = IY[ti] + tLY;
+      plYaw = tYaw + tr * 90; plPitch = tPitch;
+    }
+  }
   testCmd = 0;
 }

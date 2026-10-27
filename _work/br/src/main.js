@@ -139,6 +139,8 @@ function frame(dt) {
     if (plVeh > 0) { camMode = 2; } else { if (camThird == 1) { if (wAdsT < 0.5) { camMode = 1; } } }
   } } } }
   if (camMode > 0) { camBehind(); }
+  // (stills only: the harness sets thK) a free camera, no HUD
+  if (thK == 1) { camX = thX; camY = thY; camZ = thZ; camYaw = thYaw; camPitch = thP; }
   FOC = 240;
   if (gState >= 1) { FOC = 240 * (1 + (pZoom - 1) * wAdsT); }
   viewRange();
@@ -153,7 +155,7 @@ function frame(dt) {
       renderWorld();
       drawZone();
       if (EALIVE[1] == 1) { if (EAIR[1] == 0) { if (camMode == 0) { drawViewGun(); } } }
-      if (gState <= 2) { playerHud(dt); }
+      if (gState <= 2) { if (thK == 0) { playerHud(dt); } else { txClear(); } }
       if (gState >= 3) { resultHud(); }
     }
   }
@@ -298,6 +300,7 @@ function lockWatch() {
 
 // measuring: start a match at once, drop the player in the city
 let benchT = 0;
+let thK = 0, thX = 0, thY = 0, thZ = 0, thYaw = 0, thP = 0;
 function benchStep() {
   benchT = benchT + 1;
   if (benchT == 2) {

@@ -190,38 +190,46 @@ export class Model {
     }
     // straight stairs: from (x0..x1, z0..z1) rising from y0 to y1, climbing toward dir
     // ('+z', '-z', '+x', '-x'), n steps. Colliders: one box per step.
-    stairs(x0, z0, x1, z1, y0, y1, dir, n, m, mSide = null) {
+    // thin: 0 = solid under the flight (sides, a back face); > 0 = a slab of that thickness
+    // with an underside, so a flight stacked above another leaves head room and is not
+    // seen through from below or behind.
+    stairs(x0, z0, x1, z1, y0, y1, dir, n, m, mSide = null, { thin = 0 } = {}) {
         const rise = (y1 - y0) / n;
+        const alongZ = dir === '+z' || dir === '-z', sd = dir[0] === '+' ? 1 : -1;
+        // s: along the climb (bottom s0 to top s1), c: across (c0..c1)
+        const s0 = alongZ ? (sd > 0 ? z0 : z1) : (sd > 0 ? x0 : x1), s1 = alongZ ? (sd > 0 ? z1 : z0) : (sd > 0 ? x1 : x0);
+        const c0 = alongZ ? x0 : z0, c1 = alongZ ? x1 : z1;
+        const P = (s, y, c) => alongZ ? [c, y, s] : [s, y, c];
+        const run = alongZ ? [0, 0, sd] : [sd, 0, 0], across = alongZ ? [1, 0, 0] : [0, 0, 1];
+        const under = (t) => y0 + (y1 - thin - y0) * t;      // the underside of a thin flight
         for (let i = 0; i < n; i++) {
             const t0 = i / n, t1 = (i + 1) / n, ty = y0 + rise * (i + 1);
-            let a0, a1, b0, b1;
-            if (dir === '+z') { a0 = x0; a1 = x1; b0 = z0 + (z1 - z0) * t0; b1 = z0 + (z1 - z0) * t1; }
-            else if (dir === '-z') { a0 = x0; a1 = x1; b0 = z1 - (z1 - z0) * t1; b1 = z1 - (z1 - z0) * t0; }
-            else if (dir === '+x') { b0 = z0; b1 = z1; a0 = x0 + (x1 - x0) * t0; a1 = x0 + (x1 - x0) * t1; }
-            else { b0 = z0; b1 = z1; a0 = x1 - (x1 - x0) * t1; a1 = x1 - (x1 - x0) * t0; }
+            const sa = s0 + (s1 - s0) * t0, sb = s0 + (s1 - s0) * t1;
             // tread
-            this.quad([a0, ty, b0], [a0, ty, b1], [a1, ty, b1], [a1, ty, b0], m);
+            this.face(orderFace([P(sa, ty, c0), P(sb, ty, c0), P(sb, ty, c1), P(sa, ty, c1)], [0, 1, 0]), m);
             // riser (faces down the stairs)
-            const by = ty - rise;
-            if (dir === '+z') this.quad([a0, by, b0], [a0, ty, b0], [a1, ty, b0], [a1, by, b0], m);
-            if (dir === '-z') this.quad([a1, by, b1], [a1, ty, b1], [a0, ty, b1], [a0, by, b1], m);
-            if (dir === '+x') this.quad([a0, by, b1], [a0, ty, b1], [a0, ty, b0], [a0, by, b0], m);
-            if (dir === '-x') this.quad([a1, by, b0], [a1, ty, b0], [a1, ty, b1], [a1, by, b1], m);
-            this.collider(a0, y0, b0, a1, ty, b1);
+            this.face(orderFace([P(sa, ty - rise, c0), P(sa, ty, c0), P(sa, ty, c1), P(sa, ty - rise, c1)], run.map(v => -v)), m);
+            const [ax, , az] = P(sa, 0, c0), [bx, , bz] = P(sb, 0, c1);
+            this.collider(ax, thin ? Math.min(under(t0), ty - rise) : y0, az, bx, ty, bz);
         }
-        // the two sides: a solid triangle under the flight (front-bottom, back-top, back-bottom)
+        if (thin) {
+            // underside, from the foot of the first riser to the top edge
+            this.face(orderFace([P(s0, y0, c0), P(s0, y0, c1), P(s1, y1 - thin, c1), P(s1, y1 - thin, c0)], [-run[0], -1, -run[2]]), mSide || m);
+        } else {
+            // back face, under the top step
+            this.face(orderFace([P(s1, y0, c0), P(s1, y0, c1), P(s1, y1, c1), P(s1, y1, c0)], run), mSide || m);
+        }
+        // the two sides: solid under the flight, or the stringer of a thin flight. Both reach
+        // up to the front edges of the treads, so no notch between two steps is open.
         if (mSide) {
-            if (dir === '+z' || dir === '-z') {
-                const s0 = dir === '+z' ? z0 : z1, s1 = dir === '+z' ? z1 : z0;
-                for (const x of [x0, x1]) this.face(orderFace([[x, y0, s0], [x, y1, s1], [x, y0, s1]], [x === x0 ? -1 : 1, 0, 0]), mSide);
-            } else {
-                const s0 = dir === '+x' ? x0 : x1, s1 = dir === '+x' ? x1 : x0;
-                for (const z of [z0, z1]) this.face(orderFace([[s0, y0, z], [s1, y1, z], [s1, y0, z]], [0, 0, z === z0 ? -1 : 1]), mSide);
+            for (const c of [c0, c1]) {
+                const want = across.map(v => v * (c === c0 ? -1 : 1));
+                const v = [P(s0, y0, c), P(s0, y0 + rise, c), P(s1, y1, c), P(s1, thin ? y1 - thin : y0, c)];
+                this.face(orderFace(v, want), mSide);
             }
         }
         return this;
-    }
-    // gable roof over [x0,x1]x[z0,z1] from height y (eaves) rising by h at the ridge.
+    }    // gable roof over [x0,x1]x[z0,z1] from height y (eaves) rising by h at the ridge.
     // ridge along 'x' or 'z'. over: overhang. gables: material of the triangular ends (null: none)
     gable(x0, z0, x1, z1, y, h, ridge, mRoof, mGable, over = 40, { under = null } = {}) {
         if (ridge === 'x') {
