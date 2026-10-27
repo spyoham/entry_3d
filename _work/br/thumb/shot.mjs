@@ -18,8 +18,21 @@ const S = (kv) => page.evaluate((kv) => { for (const [n, val] of Object.entries(
 await page.waitForTimeout(1500);
 await S(o.set || {});
 await page.waitForTimeout(o.wait || 5000);
+const IPF = await V('IPF'), IX = await V('IX'), IY = await V('IY'), IZ = await V('IZ'), IR = await V('IR');
+// the instance of prefab pf (1-based) nearest (x, z), its k-th nearest with sh.nth
+const near = (pf, x, z, nth = 0) => IPF.map((p, i) => [p, i]).filter(([p]) => p == pf).map(([, i]) => [i, (IX[i] - x) ** 2 + (IZ[i] - z) ** 2]).sort((a, b) => a[1] - b[1])[nth][0];
 for (const sh of o.shots) {
   if (sh.wait) await page.waitForTimeout(sh.wait);
+  if (sh.inst) {
+    // the player in the game itself (HUD on): at (lx, ly, lz) in an instance, looking yaw (prefab frame)
+    const [pf, lx, ly, lz, ly2, lp] = sh.inst, i = near(pf, o.cx ?? 103000, o.cz ?? 101000, sh.nth || 0), r = IR[i];
+    const w = [[lx, lz], [lz, -lx], [-lx, -lz], [-lz, lx]][r];
+    await S({ camThird: 0, thK: 0, plX: IX[i] + w[0], plY: IY[i] + ly, plZ: IZ[i] + w[1], plVY: 0, plYaw: ly2 + r * 90, plPitch: lp });
+    await page.waitForTimeout(sh.settle || 900);
+    await (await page.$('canvas')).screenshot({ path: path.join(outDir, sh.name + '.png') });
+    console.log('shot', sh.name, 'inst', i, IX[i], IZ[i]);
+    continue;
+  }
   if (sh.pyaw !== undefined) await S({ plYaw: sh.pyaw, plPitch: sh.ppitch ?? 0 });
   await S({ camThird: sh.fp ? 0 : 1, thK: 0 });
   await page.waitForTimeout(150);
