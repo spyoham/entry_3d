@@ -1,9 +1,46 @@
 # 엔트리 배틀로얄 3D — 작업 인계 메모
 
 ## 결과물
-- 루트 `엔트리 배틀로얄 3D v1.1.ent` (v1.0은 `old/`로)
-- 설명서 `엔트리 배틀로얄 3D v1.1 설명서.md`, 사용법 `엔트리 배틀로얄 3D v1.1 사용법.txt`
+- 루트 `엔트리 배틀로얄 3D v1.3.ent` (이전 판은 `old/`로)
+- 설명서 `엔트리 배틀로얄 3D v1.3 설명서.md`, 사용법 `엔트리 배틀로얄 3D v1.3 사용법.txt`
 - 설계 `_work/br/설계.md`: 처음 세운 설계. 구현하면서 바뀐 점은 아래에 적었다.
+
+## v1.3 맵 3개, AI, 계단, 투척 궤적 (2026-10-28)
+사용자 요청: "AI가 무식하게 지평선 너머에서 쏘기도 하고, 낙하 후 초기에 적을 만나도 공격하지 않는 결함도 있음(맨손으로). 또한 중후반에 차량만 타고 다니면 모든 적에게 찍혀서 다구리 당하기도 함. + 아직도 계단 렌더링 문제 있음(C누르고 가니까 겨우 내려가짐)" 그리고 이어서 "맵을 2개 더 추가해줘(최대한 디테일하게, 사막맵 포함) 투척류 궤적이 배그처럼 빨간 선으로".
+
+- **계단** (`test/stairsim.mjs`: player.js·world.js의 몸 이동을 그대로 옮긴 노드 시뮬레이터. 모든 계단을 오르내리고 dt 1/60–0.2로 돈다. `fix head`로 고친 규칙을 켠다)
+  - 원인: 몸은 반지름 32 안에서 가장 높은 디딤판 위에 선다. 맨 위 디딤판(315)에 선 채 위층 계단 밑면(483, 수평 56 cm 떨어짐)과 반지름이 겹쳐 머리 여유가 168 < 178이었다. 오를 때는 낮은 지금 높이로 앞을 검사해서 통과했고, 내려갈 때만 막혔다(앉으면 hh 125라 통과).
+  - 고침 1 `world.js M_scanCell`: 상자 아래가 발에서 1 m 위면(머리 높이) rad < 40(사람)일 때 반지름 14로만 부딪친다.
+  - 고침 2 `player.js bodyStep`, `ai.js botMove1`: 막혔는데 그 자리 땅이 한 계단(STEP+12) 안에서 더 낮으면 그 높이에서 다시 검사해 내려선다.
+  - 고침 3: 한 프레임 이동을 16 cm씩 나눈다(`bodyMove`/`botStep`). 1/15초 프레임에서 32 cm가 디딤판 두 칸(60 cm 위)을 넘어 오르기가 막혔다.
+  - 확인: 하네스 `test/s40.json`(아파트 3→2층, 학교 2→1층 W만으로 내려감, 1층→2층 오름).
+- **AI** (ai.js)
+  - `engageD(g, a)`: GRANGE×1.15, 조준경 상한 180/260/350/450 m. `botReach(e)`: 탄 있는 총 중 최대(0이면 맨손).
+  - 지각: reach×1.2(최소 90 m) 밖이면 DET를 0.9까지만 올린다(보고 쳐다보기만, 차가 아니면 AHX로 고개). 사격은 engageD×1.1 안에서만(전에는 GRANGE×3 → M416 420 m).
+  - 차: 엔진 1.8배는 60 m 안만. 70 m 밖·|VSPD| > 700이면 far. 차 탄 표적이 2초 안 보이면 fresh 해제. `EMOV[1]`에 차 속도를 넣어 조준 바닥값이 커진다(EMOV > 2면 +0.25/단위).
+  - `attackers(f, e)`: 최근 3초 안에 f를 본 FULL 교전 AI가 3명이면 40 m 밖에서는 새로 잡지 않는다(나를 쏜 상대는 예외).
+  - 맨손: `botFight`가 `botReach > 0`이면 `botShoot`(예전 본문), 아니면 `botMelee`. botDecide는 25 m 안 걸어 다니는 적이고 (상대도 맨손 | 7 m 안 | AAGR > 0.7)일 때만 FIGHT. `punch(e, t, dm)` = hurt(…, g = -2) → 킬 로그 `[주먹]`. `EPUN[e]`는 주먹 애니메이션 시각.
+  - 플레이어 `playerPunch`(weapon.js): 맨손 클릭, 1.7 m·±45°·벽 검사, 14 피해. `drawFists`는 2D 주먹.
+  - 확인: 갓 모드 한 판(`test/full13.log`) 50→1명 714초, 오류 0, `[주먹]` 킬 있음.
+- **투척 궤적** (game.js `nadePreview`): 첫 착지까지 빨간 실선(#7a0d08 3.4 위에 #ff3b30 1.8), 착지 빨간 고리(반지름 60, 착지 높이), 그 뒤는 옅은 점선.
+- **맵** (`maps.mjs`: DESERT·SNOW, `mapgen.mjs`: ISLAND와 `generate(def)`)
+  - generate는 def의 훅(height, bset, flora, cover, grove, furniture, furnCount, landmarks, extra, cellMat, coverRate, lone, fallback)으로 돈다. 섬은 리팩터 전과 데이터가 같다(`test/maphash.mjs`로 확인한 뒤 v1.3 변경을 넣었다).
+  - 새 프리팹은 `prefabs.mjs EXTRA`(ALL 끝, 섬 번호 불변): adobeS·adobeM(평지붕, 옥상 계단, 들보, 차양), cactus, cactusS(덤불), palm, deadTree, tent(덤불), pumpjack, pineSnow. 새 재질 7개(geom.mjs).
+  - 맵 색: 맵마다 `colours`(재질 → 색)와 `fog`, `sky`. 색표 CT는 런타임 `makeColours(m)`이 MATR/G/B와 MOV*로 만든다(저장 안 함).
+  - 빌드: `MAP_GROUPS`(맵마다 길이가 같은 리스트 묶음)를 맵 순서대로 PKS에 넣는다. 게임 리스트는 처음에 비어 있고 `loadMapLists(m)`(생성 코드)이 모든 리스트를 PVA(리스트 j는 (j−1)×5000부터)에 풀고 묶음마다 키워 덮어쓴다. 길이는 `N_<첫 리스트>`(N_IPF, N_NDX …)로 읽는다. 리스트 끝에 지난 맵 값이 남을 수 있으니 `.length` 대신 N_를 쓸 것.
+  - 저장하지 않고 `mapLoad`(src/mapsel.js)가 계산: CI0/TC0/RC0/NE0(개수의 누적), 평지 칸의 땅 사각형(TH 네 모서리 ≥ 0이면 모서리 참조, 아니면 TQA..TQD에서), WP*, SITEN(MAPSN), 하늘색.
+  - 런타임 리스트 크기는 맵 최대(MAXND, MAXINST, MAXVP, MAXWP, MAXTP 상수).
+  - 메뉴: 단추 3개(slot 47–50) 또는 M. 고르면 바로 mapLoad. `matchStart`는 mapSel ≠ curMap이면 부른다. 사격장(rangeStart)은 섬을 부른다.
+  - 확인: `test/s42.json`(메뉴 전환), `test/s43.json`(사막·설원 스크린숏 `test/mp_sheet.png`), `test/s44.json`(사막 한 판 관전).
+- **저장 크기** (편집기 저장 JSON, `test/savesize.mjs`)
+  - 맵을 그대로 셋 넣으면 16.55 MB였다. 줄인 것:
+    - 모델 은행이 5개가 되면 bspB5 등 약 1100블록이 생긴다. 새 프리팹 LOD 1을 줄이고 은행 배치를 first-fit으로 바꿔 4개로 유지.
+    - 색표·평지 사각형·누적 시작 번호를 런타임 계산으로.
+    - unpack의 M_unp 펼침 8개 → PVA 하나(tessvm은 5000 넘는 리스트를 받는다. 순정 엔트리는 plainNotice에서 멈춰 풀지 않는다).
+    - 맵 로더는 한 반복으로 모두 풀고 묶음마다 덮어쓰기(처음 짠 remove/push 분기는 1790블록이었다).
+    - 시험 코드(`// @test{` … `// @test}`)는 TEST=1 또는 BENCH=1 빌드에만 들어간다. 하네스 시험은 `node build.mjs x.ent TEST=1`로 빌드할 것(testCmd가 필요).
+  - 결과: 블록 61,174(v1.2 60.2k), 저장 JSON 15.74 MB(v1.2 14.86 MB, 문턱 약 16.17 MB).
+- **확인**: 갓 모드 한 판 새벽섬(`test/full13.log`)과 붉은사막(`test/full13d.log`) 모두 50→1명 약 710초, 자기장 7단계, 오류 0. 투척 미리 보기 `test/th1.png`.
 
 ## v1.2 계단에 끼이는 버그 (2026-10-27)
 사용자 요청: "헛간에서 계단처럼 생긴 구조물에 끼이는 버그와 계단을 오르는 도중 옆으로 가면 몸이 끼이는 버그 해결해줘."

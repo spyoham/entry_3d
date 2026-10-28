@@ -5,7 +5,7 @@ const { src } = B.sources(B.consts, d);
 const cc = { ...B.consts }; 
 const { MAT_ORDER } = await import('../geom.mjs');
 MAT_ORDER.forEach((n, i) => { cc['MT_' + n] = i * 64; });
-Object.assign(cc, { GBASE: B.GBASE, ABASE: B.ABASE, IBASE: B.IBASE, VBASE: B.VBASE, NGUN: 15, NATT: 15, NITEM: 53, NVK: 4, NBUILD: 0, NCOVER: 0, RGX: 0, RGZ: 0, RGA: 0 });
+Object.assign(cc, { GBASE: B.GBASE, ABASE: B.ABASE, IBASE: B.IBASE, VBASE: B.VBASE, NGUN: 15, NATT: 15, NITEM: 53, NVK: 4, RGX: 0, RGZ: 0, RGA: 0, MAXND: 1, MAXINST: 1, MAXVP: 1, MAXWP: 1, NMAP: 3, MAXTP: 1, NMAT: MAT_ORDER.length });
 delete cc.LEGACY; delete cc.SLIM;
 const prog = compileProgram([src], { consts: cc });
 const rows = prog.functions.map(f => { const c = JSON.parse(f.content)[0][0]; const name = c.params[0].params[0]; return [name, f.content.split('"type"').length - 1, f.content.length]; }).sort((a, b) => b[2] - a[2]);

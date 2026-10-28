@@ -186,9 +186,12 @@ function drawPerson(e, dist) {
     pbox(-17, sh, lean, 62, -14, 0, 5, 14, 5, cl);
     pbox(17, sh, lean, 55, -14, 0, 5, 14, 5, cl);
     pbox(-14, sh - 13, 22 + lean, 92, -12, 0, 4.5, 12, 4.5, sk);
-    pbox(12, sh - 15, 18 + lean, 95, -10, 0, 4.5, 10, 4.5, sk);
+    // (v1.3: no gun - fists up, the right one thrown on a punch)
+    let pj = 0;
+    if (g == 0) { pj = Math.max(0, 1 - (gameT - EPUN[e]) * 4) * 24; }
+    pbox(12, sh - 15 + pj * 0.3, 18 + lean + pj, 95, -10, 0, 4.5, 10, 4.5, sk);
     // the gun
-    if (seated == 0) { pbox(5, sh - 18, 30 + lean, 92, 0, 0, 2.6, gl, 4, MT_gunBlack); }
+    if (seated == 0) { if (g > 0) { pbox(5, sh - 18, 30 + lean, 92, 0, 0, 2.6, gl, 4, MT_gunBlack); } }
   } else {
     if (dist < 8000) {
       pbox(-9, hipY, 0, swing, -44, 0, 7.5, 44, 8, cl);

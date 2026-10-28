@@ -34,6 +34,8 @@ function gameInit() {
 
 // ---------------------------------------------------------------- a new match
 function matchStart() {
+  // v1.3: the map chosen in the menu
+  if (mapSel != curMap) { mapLoad(mapSel); }
   matchSeed = rand(0, 999);
   gameT = 0; startT = 0;
   peopleReset(); aiReset(); lootSpawn(); vehReset(); invReset();
@@ -69,12 +71,12 @@ function matchStart() {
 function botPlanJump(e) {
   let x = 0, z = 0, r = rand(1, 100);
   if (r <= 78) {
-    let s = rand(1, SITEX.length);
+    let s = rand(1, N_SITEX);
     let w = SITEW[s];
-    if (rand(1, 100) > w * 20) { s = rand(1, SITEX.length); }
+    if (rand(1, 100) > w * 20) { s = rand(1, N_SITEX); }
     x = SITEX[s] + rand(-100, 100) / 100 * SITER[s]; z = SITEZ[s] + rand(-100, 100) / 100 * SITER[s];
   } else {
-    let b = rand(1, IPF.length);
+    let b = rand(1, N_IPF);
     x = IX[b] + rand(-800, 800); z = IZ[b] + rand(-800, 800);
   }
   // the moment the plane is nearest to that spot, less a little
@@ -370,23 +372,26 @@ function nadesStep(dt) {
     }
   }
 }
-// G or T held: the path it would take (dots), where it first lands, where it goes off and how far
-// that reaches (a ring on the ground: the blast for a grenade, the cloud for smoke)
+// G or T held: the path it would take, where it first lands, where it goes off and how far that
+// reaches (a ring on the ground: the blast for a grenade, the cloud for smoke). v1.3: the flight to
+// where it first lands is a solid red line (dark under bright), the roll after it a faint one
 let nadeAim = 0;
 function nadePreview() {
   if (nadeAim > 0) {
     throwFrom();
     npX = ntX; npY = ntY; npZ = ntZ; npVX = ntVX; npVY = ntVY; npVZ = ntVZ;
-    let s = 0, n = Math.round(NFUSE / NSTEP), lx = 0, ly = 0, lw = 0, landT = -1, lnx = 0, lnz = 0;
-    let col = '#ffb070';
-    if (nadeAim == 2) { col = '#d8dde2'; }
+    let s = 0, n = Math.round(NFUSE / NSTEP), lx = 0, ly = 0, lw = 0, landT = -1, lnx = 0, lny = 0, lnz = 0;
+    let col = '#ff3b30';
     while (s < n) {
       nadePhys();
       s = s + 1;
-      if (landT < 0) { if (npGnd == 1) { landT = s * NSTEP; lnx = npX; lnz = npZ; } }
+      if (landT < 0) { if (npGnd == 1) { landT = s * NSTEP; lnx = npX; lny = npY; lnz = npZ; } }
       project(npX, npY, npZ);
       if (prOk == 1) {
-        if (lw == 1) { if (mod(s, 2) == 0) { hudLine(lx, ly, prX, prY, 1.6, col); } }
+        if (lw == 1) {
+          if (landT < 0 || landT == s * NSTEP) { hudLine(lx, ly, prX, prY, 3.4, '#7a0d08'); hudLine(lx, ly, prX, prY, 1.8, col); }
+          else { if (mod(s, 2) == 0) { hudLine(lx, ly, prX, prY, 1, '#ff9a90'); } }
+        }
         lx = prX; ly = prY; lw = 1;
       } else { lw = 0; }
     }
@@ -402,6 +407,8 @@ function nadePreview() {
     }
     project(npX, npY + 10, npZ);
     if (prOk == 1) { dotAt(prX, prY, 2.5, col); }
+    // where it first lands: a red ring
+    if (landT > 0) { k = 0; pw = 0; while (k <= 12) { let x = lnx + sind(k * 30) * 60, z = lnz + cosd(k * 30) * 60; project(x, lny + 8, z); if (prOk == 1) { if (pw == 1) { hudLine(px, py, prX, prY, 2.4, col); } px = prX; py = prY; pw = 1; } else { pw = 0; } k = k + 1; } }
     let dx = npX - plX, dz = npZ - plZ;
     let nm = '수류탄';
     if (nadeAim == 2) { nm = '연막탄'; }
@@ -454,6 +461,7 @@ function killFeed(a, v, g, p) {
   let w = '자기장';
   if (g > 0) { w = GNAME[g]; } else { if (a > 0) { w = '수류탄'; } }
   if (g < 0) { w = '차량'; }
+  if (g == -2) { w = '주먹'; }
   let hs = '';
   if (p == 1) { hs = ' (헤드샷)'; }
   if (a > 0) { KFS[1] = `${ENAME[a]} ▶ ${ENAME[v]}  [${w}]${hs}`; } else { KFS[1] = `${ENAME[v]} - ${w}`; }

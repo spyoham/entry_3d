@@ -35,6 +35,8 @@ for (const [n, h] of Object.entries({
     fenceWood: '#8b7354', fenceMetal: '#7f868c', hay: '#c8a85a', sofa: '#3b4a5e', sheet: '#8a8478',
     // nature
     bark: '#5b4632', pine: '#2f4e32', pine2: '#3a5b38', leaf: '#476f35', leaf2: '#5a7f3d', bush: '#4c6d39', rock: '#7e7a72', rock2: '#6a675f',
+    // v1.3: the desert and the snow (the maps also recolour the rest: maps.mjs)
+    cactus: '#4d7a46', cactus2: '#6b8f4e', palmLeaf: '#557d33', palmTrunk: '#8b7353', deadwood: '#8a7a66', canvas: '#d2c4a0', snowCap: '#eef2f5',
     // people
     skin1: '#e0b998', skin2: '#c49272', skin3: '#8d5e43', hair: '#2b2420',
     cloth1: '#4b5b3a', cloth2: '#3b4a5e', cloth3: '#6b5a44', cloth4: '#7a3b34', cloth5: '#2e2f33', cloth6: '#8a8478', cloth7: '#506e7a', cloth8: '#6f6340',

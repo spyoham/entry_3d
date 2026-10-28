@@ -1,0 +1,5 @@
+[{"wait":1500},{"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":30},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":2500},{"set":{"godMode":1}},
+ {"set":{"tPF":3,"tLX":0,"tLY":470,"tLZ":40,"tYaw":180,"tPitch":-25,"testCmd":3}},{"wait":500},{"shot":"test/st5.png"},
+ {"set":{"tPF":3,"tLX":0,"tLY":470,"tLZ":40,"tYaw":0,"tPitch":15,"testCmd":3}},{"wait":500},{"shot":"test/st6.png"},
+ {"set":{"tPF":3,"tLX":-300,"tLY":315,"tLZ":40,"tYaw":90,"tPitch":-10,"testCmd":3}},{"wait":500},{"shot":"test/st7.png"},
+ {"set":{"tPF":3,"tLX":0,"tLY":315,"tLZ":330,"tYaw":180,"tPitch":-20,"testCmd":3}},{"wait":500},{"shot":"test/st8.png"}]

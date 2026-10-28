@@ -34,18 +34,12 @@ let skyTop = '#7f9cb4', skyMid = '#a9bac6', seaCol = '#5f7f93';
 
 function renderInit() {
   let i = 1;
-  while (i <= CT2.length) { CT.push(CT2[i]); i = i + 1; }
   // v1.2: the far land's points (these lists were never filled, so it was never drawn)
   i = 1;
   while (i <= 17 * 17) { FVX.push(0); FVY.push(0); FVZ.push(0); FSX.push(0); FSY.push(0); i = i + 1; }
+  // (the ground's points: as many as the map with the most has; mapLoad fills them)
   i = 1;
-  let n = GRID * GRID + EXX.length;
-  while (i <= n) {
-    if (i <= GRID * GRID) { WPX.push(mod(i - 1, GRID) * CS); WPZ.push(idiv(i - 1, GRID) * CS); WPY.push(TH[i]); }
-    else { WPX.push(EXX[i - GRID * GRID]); WPY.push(EXY[i - GRID * GRID]); WPZ.push(EXZ[i - GRID * GRID]); }
-    VSX.push(0); VSY.push(0); VVX.push(0); VVY.push(0); VVZ.push(0); VST.push(0);
-    i = i + 1;
-  }
+  while (i <= MAXWP) { WPX.push(0); WPY.push(0); WPZ.push(0); VSX.push(0); VSY.push(0); VVX.push(0); VVY.push(0); VVZ.push(0); VST.push(0); i = i + 1; }
   i = 1;
   while (i <= 6000) { QX.push(0); QY.push(0); QVX.push(0); QVY.push(0); QVZ.push(0); QS.push(0); i = i + 1; }
   i = 1;
@@ -490,7 +484,7 @@ function drawSky() {
     let y2 = Math.max(hz + 14, -140);
     if (y2 < top) { M_rect(-245, top, 245, y2, skyMid); top = y2; }
     let y3 = Math.max(hz, -140);
-    if (y3 < top) { M_rect(-245, top, 245, y3, FOGSKY); top = y3; }
+    if (y3 < top) { M_rect(-245, top, 245, y3, fogSky); top = y3; }
   }
   if (top > -140) { M_rect(-245, top, 245, -140, seaCol); }
 }

@@ -25,7 +25,8 @@ export function terrainRects(g, n) {
         const band = h > 3500 ? 2 : h > 1500 ? 1 : 0;
         const key = mat + sh + band;
         if (!palette.has(key)) {
-            const base = MATERIALS[mat === 'concrete' ? 'concrete' : mat];
+            const ov = g.def && g.def.colours[mat];
+            const base = ov ? [1, 3, 5].map(i => parseInt(ov.slice(i, i + 2), 16)) : MATERIALS[mat];
             const k = (0.82 + sh * 0.12) * (1 + band * 0.07);
             palette.set(key, hex(base.map(v => v * k + 8)));
         }

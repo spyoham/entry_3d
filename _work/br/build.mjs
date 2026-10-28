@@ -13,25 +13,27 @@ import { GUNS, ATTS, AMMO, gunModels, attModels, itemModels } from './guns.mjs';
 import { makeSounds } from './sounds.mjs';
 import { VEHS, vehicleModels } from './vehicles.mjs';
 import { terrainRects, roadLines, buildingRects } from './mapdraw.mjs';
-import { generate, CS, CELLS, GRID, MAP, SITES } from './mapgen.mjs';
+import { generate, CS, CELLS, GRID, MAP } from './mapgen.mjs';
+import { MAPS } from './maps.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '1.2';
+export const VERSION = '1.3';
 export const NAME = '엔트리 배틀로얄 3D';
 const NL = '\n';
 
 export const consts = {
-    CS, CELLS, GRID, MAP, NEAR: 15, RMAX: 14, FOGSKY: '#b9c3c9', TEST: 0, LEGACY: 1, SLIM: 1, BENCH: 0,
+    CS, CELLS, GRID, MAP, NEAR: 15, RMAX: 14, TEST: 0, LEGACY: 1, SLIM: 1, BENCH: 0,
 };
 
 // ------------------------------------------------------------------ colours
 // world materials first; the rest (people, guns, effects) go to a second table
 const FIRST_ACTOR = MAT_ORDER.indexOf('skin1');
-const FOG = [185, 195, 201];
-export function colourTables() {
+// v1.3: a map's own table: its fog, and its colours for some materials (grass to sand or snow ...)
+export function colourTables(FOG = [185, 195, 201], over = {}) {
+    const rgbOf = (h) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
     const hex = (c) => '#' + c.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
     const T1 = [], T2 = [];
     MAT_ORDER.forEach((name, i) => {
-        const rgb = MATERIALS[name];
+        const rgb = over[name] ? rgbOf(over[name]) : MATERIALS[name];
         for (let s = 0; s < 8; s++) for (let f = 0; f < 8; f++) {
             const k = 0.5 + s / 14, fog = f === 0 ? 0 : Math.min(0.92, (f / 7) * 0.92);
             const c = rgb.map((v, j) => v * k * (1 - fog) + FOG[j] * fog);
@@ -70,7 +72,9 @@ export function compilePrefabs() {
             const verts = new Map();
             let nFaces = 0;
             for (const nd of bsp.nodes) for (const f of nd.faces) { for (const q of toQuads(f.v)) { nFaces++; for (const p of q) verts.set(p.map(Math.round).join(','), 1); } }
-            if (bank.X.length + verts.size > BANK_MAX || bank.F1.length + nFaces > BANK_MAX || bank.NX.length + bsp.nodes.length > BANK_MAX) bank = newBank();
+            // v1.3: the first bank it fits in (a fifth bank costs a thousand blocks of code)
+            const fits = (b) => b.X.length + verts.size <= BANK_MAX && b.F1.length + nFaces <= BANK_MAX && b.NX.length + bsp.nodes.length <= BANK_MAX;
+            bank = banks.find(fits) || newBank();
             const bi = banks.indexOf(bank) + 1;
             const v0 = bank.X.length + 1;
             const vid = new Map();
@@ -171,11 +175,12 @@ function shootingRange(g) {
     for (const d of PLATE_D) prop('crate', d, -900);
     return { RGX: x, RGZ: z, RGA: a };
 }
-export function compileWorld(pre) {
-    const g = generate();
+export function compileWorld(pre, def = MAPS[0]) {
+    const g = generate(def);
     const { H, hAt, cellMat, roadQuads } = g;
     const out = {};
-    Object.assign(out, shootingRange(g));
+    // (the shooting range is on the island)
+    if (def.key === 'island') Object.assign(out, shootingRange(g));
     out.TH = Array.from(H, (h) => Math.round(h));
     // terrain: one quad a cell where any corner is above the sea (shore cells: the land part only)
     const TP = { A: [], B: [], C: [], D: [], K: [] };     // vertex refs (1..GRID*GRID grid, beyond: extra), colour base
@@ -192,7 +197,8 @@ export function compileWorld(pre) {
         const P = [[cx, cz], [cx + 1, cz], [cx + 1, cz + 1], [cx, cz + 1]].map(([x, z]) => [x * CS, H[z * GRID + x], z * CS, gref(x, z)]);
         const hs = P.map(p => p[1]);
         const mi = matIndex(cellMat[c]);
-        if (Math.min(...hs) >= 0) {
+        // (v1.3: decided on the rounded heights the game has: it makes these quads itself)
+        if (Math.min(...hs.map(Math.round)) >= 0) {
             // counter-clockwise seen from above: (x0,z0) (x0,z1) (x1,z1) (x1,z0)
             TP.A.push(P[0][3]); TP.B.push(P[3][3]); TP.C.push(P[2][3]); TP.D.push(P[1][3]);
             TP.K.push((mi * 8 + shade(P[0], P[3], P[1])) * 8);
@@ -409,56 +415,79 @@ export function bankSource(nb) {
 const PACKMIN = 64;          // lists at least this long are packed
 const PKCH = 8000;           // characters of data a PKS item
 export const B64 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$';
-export function packLists(lists) {
-    const out = [], chunks = [];
+const PKS_CHUNKS = [];
+// one list as text (null: it cannot be: not all numbers in tenths, nor all colours)
+function packOne(k, v, need = true) {
     const push = (body, w) => {
-        const per = Math.floor(PKCH / w) * w, c0 = chunks.length + 1;
+        const per = Math.floor(PKCH / w) * w, c0 = PKS_CHUNKS.length + 1;
         // (each item starts with 'P': tessvm would take an all-digit text for a number)
-        for (let i = 0; i < body.length; i += per) chunks.push('P' + body.slice(i, i + per));
+        for (let i = 0; i < body.length; i += per) PKS_CHUNKS.push('P' + body.slice(i, i + per));
         return c0;
     };
+    if (v.length && v.every((x) => typeof x === 'string' && /^#[0-9a-f]{6}$/.test(x))) return { k, n: v.length, w: 6, sc: 0, mn: 0, c0: push(v.map((x) => x.slice(1)).join(''), 6) };
+    const bad = () => { if (need) throw new Error('cannot pack ' + k); return null; };
+    if (!v.every((x) => typeof x === 'number' && isFinite(x))) return bad();
+    // whole numbers, or tenths
+    let sc = 1;
+    if (!v.every((x) => Number.isInteger(x))) { if (v.every((x) => Math.abs(Math.round(x * 10) - x * 10) < 1e-6)) sc = 10; else return bad(); }
+    const ints = v.map((x) => Math.round(x * sc));
+    const mn = ints.length ? Math.min(...ints) : 0, span = ints.length ? Math.max(...ints) - mn : 0;
+    let w = 1; while (64 ** w <= span) w++;
+    const enc = (x) => { let s = ''; for (let j = 0; j < w; j++) { s = B64[x % 64] + s; x = Math.floor(x / 64); } return s; };
+    return { k, n: v.length, w, sc, mn, c0: push(ints.map((x) => enc(x - mn)).join(''), w) };
+}
+export function packLists(lists) {
+    const out = [];
     for (const [k, v] of Object.entries(lists)) {
         if (process.env.NOPACK || v.length < PACKMIN) continue;
-        if (v.every((x) => typeof x === 'string' && /^#[0-9a-f]{6}$/.test(x))) {
-            out.push({ k, n: v.length, w: 6, sc: 0, mn: 0, c0: push(v.map((x) => x.slice(1)).join(''), 6) });
-            lists[k] = [];
-            continue;
-        }
-        if (!v.every((x) => typeof x === 'number' && isFinite(x))) continue;
-        // whole numbers, or tenths
-        let sc = 1;
-        if (!v.every((x) => Number.isInteger(x))) { if (v.every((x) => Math.abs(Math.round(x * 10) - x * 10) < 1e-6)) sc = 10; else continue; }
-        const ints = v.map((x) => Math.round(x * sc));
-        const mn = Math.min(...ints), span = Math.max(...ints) - mn;
-        let w = 1; while (64 ** w <= span) w++;
-        const enc = (x) => { let s = ''; for (let j = 0; j < w; j++) { s = B64[x % 64] + s; x = Math.floor(x / 64); } return s; };
-        out.push({ k, n: v.length, w, sc, mn, c0: push(ints.map((x) => enc(x - mn)).join(''), w) });
+        const p = packOne(k, v, false);
+        if (!p) continue;
+        out.push(p);
         lists[k] = [];
     }
-    lists.PKS = chunks;
     return out;
 }
+// v1.3: loadMapLists(m): map m's lists into the lists the game uses. All of them are decoded first
+// (list j to PVA from (j - 1) x 5000 on), then a group at a time: its lists grown to the longest
+// any map has had, then written over; N_<first list> is how many this map has (the lists may be
+// longer: what lies past that is the last map's and is not read)
+export function mapLoadSource(nBase) {
+    const out = [`let ${MAP_GROUPS.map(g => `N_${g[0]} = 0`).join(', ')};`, `function loadMapLists(m) {`, `  let mo = (m - 1) * ${MAP_LISTS.length} + ${nBase}, j = 1;`, `  while (j <= ${MAP_LISTS.length}) { unpack(j + mo, j - 1); j = j + 1; }`];
+    let j = 1;
+    for (const grp of MAP_GROUPS) {
+        const L0 = grp[0];
+        out.push(`  mapN = PKB[${j} + mo]; N_${L0} = mapN;`);
+        out.push(`  while (${L0}.length < mapN) { ${grp.map(k => `${k}.push(0);`).join(' ')} }`);
+        out.push(`  mapU = 1;`);
+        out.push(`  while (mapU <= mapN) { ${grp.map((k, i) => `${k}[mapU] = PVA[${(j + i - 1) * 5000} + mapU];`).join(' ')} mapU = mapU + 1; }`);
+        j += grp.length;
+    }
+    out.push('}');
+    return out.join(NL) + NL;
+}
 export function unpackSource(pack) {
-    // decoded into a scratch list (unpack(j, at): the j-th packed list, its numbers in PKA..PKM, into PV<at + 1>),
-    // then pushed on from where the list stands (should Entry have kept what a last run put in it).
-    // Lists of one length that follow each other (a bank's) share one loop: up to 8, one scratch list each
+    // every list decoded first (unpack(j, at): the j-th packed list, its numbers in PKA..PKM, into
+    // PVA from at x 5000 on), then pushed on from where the list stands (should Entry have kept what
+    // a last run put in it). Lists of one length that follow each other (a bank's) share one loop
     const groups = [];
-    pack.forEach((p, j) => { const g = groups[groups.length - 1]; if (g && g[0].n === p.n && g.length < 8) g.push({ ...p, j }); else groups.push([{ ...p, j }]); });
+    pack.forEach((p, j) => { const g = groups[groups.length - 1]; if (g && g[0].n === p.n && g.length < 20) g.push({ ...p, j }); else groups.push([{ ...p, j }]); });
     const calls = groups.map((g) => {
-        const un = g.map((p, i) => `unpack(${p.j + 1}, ${i});`).join(' ');
-        const push = g.map((p, i) => `${p.k}.push(PV${i + 1}[u]);`).join(' ');
-        return `  ${un} for (const _ of rep(${g[0].n} - ${g[0].k}.length)) { let u = ${g[0].k}.length + 1; ${push} }`;
+        const push = g.map((p) => `${p.k}.push(PVA[${p.j * 5000} + u]);`).join(' ');
+        return `  for (const _ of rep(${g[0].n} - ${g[0].k}.length)) { let u = ${g[0].k}.length + 1; ${push} }`;
     }).join(NL);
-    return `function unpackAll() {${NL}${calls || '  let n = 0;'}${NL}}${NL}`;
+    return `function unpackAll() {${NL}  let j = 1;${NL}  while (j <= ${pack.length}) { unpack(j, j - 1); j = j + 1; }${NL}${calls}${NL}}${NL}`;
 }
 
-export const FILES = ['render.js', 'world.js', 'player.js', 'hud.js', 'hud2.js', 'hud3.js', 'gunlab.js', 'inv.js', 'people.js', 'weapon.js', 'loot.js', 'nav.js', 'ai.js', 'game.js', 'vehicle.js', 'sound.js', 'main.js'];
+export const FILES = ['render.js', 'world.js', 'player.js', 'hud.js', 'hud2.js', 'hud3.js', 'gunlab.js', 'inv.js', 'people.js', 'weapon.js', 'loot.js', 'nav.js', 'ai.js', 'game.js', 'vehicle.js', 'sound.js', 'mapsel.js', 'main.js'];
 export function sources(C, data) {
     const decl = (name, arr) => `let ${name} = ${JSON.stringify(arr)};`;
-    const lists = Object.entries(data.lists).map(([k, v]) => decl(k, v)).join(NL) + NL + unpackSource(data.pack);
+    const nBase = data.pack.length - MAP_LISTS.length * data.maps.length;
+    const lists = Object.entries(data.lists).map(([k, v]) => decl(k, v)).join(NL) + NL + `let mapN = 0, mapU = 0;` + NL + unpackSource(data.pack.slice(0, nBase)) + mapLoadSource(nBase);
     const KEYS = [90, 9, 13, 27, 32, 37, 39, 49, 50, 51, 52, 53, 66, 67, 69, 70, 71, 72, 73, 74, 77, 78, 80, 81, 82, 84, 86, 88, 107, 109, 114, 187, 189];
     const keySrc = KEYS.map(k => `on('key:${k}', 'pen', function () { if (KDN[${k}] == 0) { KDN[${k}] = 1; KEV[${k}] = 1; } });`).join(NL) + NL;
-    const raw = lists + NL + bankSource(data.nb) + FILES.map(f => fs.readFileSync(path.join(HERE, 'src', f), 'utf8')).join(NL) + NL + keySrc;
+    // v1.3: the harness's and the measurements' code (between '// @test{' and '// @test}') only in a TEST or BENCH build
+    const strip = (t) => (C.TEST || C.BENCH ? t : t.replace(/[^\n]*\/\/ @test\{[\s\S]*?\/\/ @test\}[^\n]*\n/g, ''));
+    const raw = lists + NL + bankSource(data.nb) + FILES.map(f => strip(fs.readFileSync(path.join(HERE, 'src', f), 'utf8').replace(/\r\n/g, NL))).join(NL) + NL + keySrc;
     const { src, count } = expandMacros(raw);
     return { src: declareImplicit(src), count };
 }
@@ -498,39 +527,80 @@ export function gunData() {
     return L;
 }
 
-export function buildData() {
-    const pre = compilePrefabs();
-    const w = compileWorld(pre);
-    const { CT, CT2 } = colourTables();
-    const lists = {
-        CT, CT2,
-        QB: pre.Q.B, QR: pre.Q.R, QV0: pre.Q.V0, QVN: pre.Q.VN, QL: pre.Q.L,
-        PFR: pre.P.R, PFCY: pre.P.CY, PFX0: pre.P.X0, PFX1: pre.P.X1, PFZ0: pre.P.Z0, PFZ1: pre.P.Z1, PFH: pre.P.H, PFC0: pre.P.C0, PFCN: pre.P.CN, PFK: pre.P.K, PFBU: pre.P.BUSH, PFCV: pre.P.COV,
-        CBX0: pre.COL.X0, CBY0: pre.COL.Y0, CBZ0: pre.COL.Z0, CBX1: pre.COL.X1, CBY1: pre.COL.Y1, CBZ1: pre.COL.Z1,
-    };
-    for (const k of ['NDX', 'NDY', 'NDZ', 'NDK', 'NDC', 'NDB', 'NDM', 'NE0', 'NEN', 'NEL', 'CN', 'IN0', 'INN', 'LSX', 'LSY', 'LSZ', 'LST', 'LSB']) lists[k] = w[k];
-    for (const k of ['TH', 'TPA', 'TPB', 'TPC', 'TPD', 'TPK', 'TC0', 'TCN', 'RPA', 'RPB', 'RPC', 'RPD', 'RPK', 'RC0', 'RCN', 'EXX', 'EXY', 'EXZ', 'FH', 'FK', 'IPF', 'IX', 'IY', 'IZ', 'IR', 'IT', 'IT2', 'IL', 'CI0', 'CIN', 'CIB', 'ODX', 'ODZ', 'ODM', 'OSTART']) lists[k] = w[k];
-    pre.banks.forEach((b, i) => { for (const n of BANK_LISTS) lists[`K${i + 1}${n}`] = b[n]; });
-    Object.assign(lists, gunData());
-    // the island as flat shapes for the maps (128 x 128 units)
+// v1.3: the lists of a map, in groups of the same length on every map (loadMapLists fills a group
+// in one loop). CI0, TC0, RC0, NE0 are not stored: the map's loading adds up their counts.
+export const MAP_GROUPS = [['NDX', 'NDY', 'NDZ', 'NDK', 'NDC', 'NDB', 'NDM', 'NEN'], ['NEL'], ['CN', 'TCN', 'RCN', 'CIN', 'CIB'],
+    ['IPF', 'IX', 'IY', 'IZ', 'IR', 'IT', 'IT2', 'IL'], ['IN0', 'INN'], ['LSX', 'LSY', 'LSZ', 'LST', 'LSB'], ['TH'], ['TQA', 'TQB', 'TQC', 'TQD'], ['TPK'],
+    ['RPA', 'RPB', 'RPC', 'RPD', 'RPK'], ['EXX', 'EXY', 'EXZ'], ['FH'], ['FK'], ['MRX0', 'MRZ0', 'MRX1', 'MRZ1', 'MRC'], ['MLX0', 'MLZ0', 'MLX1', 'MLZ1', 'MLW'],
+    ['MBX0', 'MBZ0', 'MBX1', 'MBZ1', 'MBC'], ['SITEX', 'SITEZ', 'SITER', 'SITEW'], ['VPX', 'VPZ', 'VPA', 'VPK']];
+export const MAP_LISTS = MAP_GROUPS.flat();
+function mapLists(pre, def) {
+    const w = compileWorld(pre, def);
+    const L = {};
+    for (const k of ['NDX', 'NDY', 'NDZ', 'NDK', 'NDC', 'NDB', 'NDM', 'NEN', 'NEL', 'CN', 'IN0', 'INN', 'LSX', 'LSY', 'LSZ', 'LST', 'LSB']) L[k] = w[k];
+    // the land's quads: only those of the shore, the water and the lake (a cell of plain land has
+    // one quad on its corners: mapLoad makes it)
+    const plain = []; for (let c = 0; c < CELLS * CELLS; c++) { const cx = c % CELLS, cz = Math.floor(c / CELLS); const hs = [[cx, cz], [cx + 1, cz], [cx + 1, cz + 1], [cx, cz + 1]].map(([x, z]) => w.TH[z * GRID + x]); for (let k = 0; k < w.TCN[c]; k++) plain.push(Math.min(...hs) >= 0); }
+    for (const [q, p] of [['TQA', 'TPA'], ['TQB', 'TPB'], ['TQC', 'TPC'], ['TQD', 'TPD']]) L[q] = w[p].filter((_, i) => !plain[i]);
+    for (const k of ['TH', 'TPK', 'TCN', 'RPA', 'RPB', 'RPC', 'RPD', 'RPK', 'RCN', 'EXX', 'EXY', 'EXZ', 'FH', 'FK', 'IPF', 'IX', 'IY', 'IZ', 'IR', 'IT', 'IT2', 'IL', 'CIN', 'CIB']) L[k] = w[k];
+    // the map as flat shapes for the maps (128 x 128 units)
     const g = w.g;
     const TR = terrainRects(g, 128), RL = roadLines(g, 128, g.roads), BR = buildingRects(g, 128);
     const r1 = (v) => Math.round(v * 10) / 10;
-    Object.assign(lists, {
+    Object.assign(L, {
         MRX0: TR.map(r => r[0]), MRZ0: TR.map(r => r[1]), MRX1: TR.map(r => r[2]), MRZ1: TR.map(r => r[3]), MRC: TR.map(r => r[4]),
         MLX0: RL.map(r => r1(r[0])), MLZ0: RL.map(r => r1(r[1])), MLX1: RL.map(r => r1(r[2])), MLZ1: RL.map(r => r1(r[3])), MLW: RL.map(r => r[4]),
         MBX0: BR.map(r => r1(r[0])), MBZ0: BR.map(r => r1(r[1])), MBX1: BR.map(r => r1(r[2])), MBZ1: BR.map(r => r1(r[3])), MBC: BR.map(r => r[4]),
     });
-    // the towns: names, places, sizes, how many land there
+    // the towns: places, sizes, how many land there (their names: MAPSN)
     const W = { city: 4, base: 4, port: 3, village: 2, farm: 1, gas: 1, school: 2 };
-    lists.SITEN = SITES.map(s => s.name); lists.SITEX = SITES.map(s => s.x * 100); lists.SITEZ = SITES.map(s => s.z * 100); lists.SITER = SITES.map(s => s.r * 100); lists.SITEW = SITES.map(s => W[s.kind]);
-    Object.assign(lists, w.vehicleLists);
+    const S = g.sites;
+    Object.assign(L, { SITEX: S.map(s => s.x * 100), SITEZ: S.map(s => s.z * 100), SITER: S.map(s => s.r * 100), SITEW: S.map(s => W[s.kind]) });
+    Object.assign(L, w.vehicleLists);
+    for (const grp of MAP_GROUPS) for (const k of grp) {
+        if (!L[k]) throw new Error('map list ' + k);
+        if (L[k].length !== L[grp[0]].length) throw new Error(`${def.key}: ${k} (${L[k].length}) not as long as ${grp[0]} (${L[grp[0]].length})`);
+        if (L[k].length > 5000) throw new Error(`${def.key}: ${k} past 5000 (${L[k].length})`);
+    }
+    const nCover = g.props.filter(p => ALL[p.pf - 1].cover || ALL[p.pf - 1].bush || ['pine', 'oak', 'pineSnow', 'palm'].includes(ALL[p.pf - 1].name)).length;
+    // the colours it changes (material index, r, g, b), its fog
+    const ov = Object.entries(def.colours).map(([m, h]) => [matIndex(m), ...[1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16))]);
+    return { L, w, info: { name: def.name, sites: S.map(s => s.name), nBuild: g.insts.length, nCover, sky: def.sky, nWP: GRID * GRID + w.EXX.length, nTP: w.TPK.length, ov, fog: def.fog } };
+}
+export function buildData() {
+    const pre = compilePrefabs();
+    const maps = MAPS.map(def => mapLists(pre, def));
+    const w = maps[0].w;
+    const lists = {
+        QB: pre.Q.B, QR: pre.Q.R, QV0: pre.Q.V0, QVN: pre.Q.VN, QL: pre.Q.L,
+        PFR: pre.P.R, PFCY: pre.P.CY, PFX0: pre.P.X0, PFX1: pre.P.X1, PFZ0: pre.P.Z0, PFZ1: pre.P.Z1, PFH: pre.P.H, PFC0: pre.P.C0, PFCN: pre.P.CN, PFK: pre.P.K, PFBU: pre.P.BUSH, PFCV: pre.P.COV,
+        CBX0: pre.COL.X0, CBY0: pre.COL.Y0, CBZ0: pre.COL.Z0, CBX1: pre.COL.X1, CBY1: pre.COL.Y1, CBZ1: pre.COL.Z1,
+    };
+    for (const k of ['ODX', 'ODZ', 'ODM', 'OSTART']) lists[k] = w[k];
+    pre.banks.forEach((b, i) => { for (const n of BANK_LISTS) lists[`K${i + 1}${n}`] = b[n]; });
+    Object.assign(lists, gunData());
     // v1.2: the shooting range's targets (distance cm; see shootingRange)
     lists.RTD = RANGE_D; lists.PLD = PLATE_D;
+    // v1.3: each map's names and numbers (small: kept as they are), the town names one after another
+    const I = maps.map(m => m.info);
+    Object.assign(lists, { MAPN: I.map(i => i.name), MNB: I.map(i => i.nBuild), MNC: I.map(i => i.nCover), MSKY1: I.map(i => i.sky[0]), MSKY2: I.map(i => i.sky[1]), MSKY3: I.map(i => i.sky[2]), MSKY4: I.map(i => i.sky[3]) });
+    lists.MAPSN = I.flatMap(i => i.sites); lists.MAPS0 = I.map((i, k) => I.slice(0, k).reduce((a, j) => a + j.sites.length, 0));
+    // the colour table is made at the start (makeColours): every material's colour, and each map's
+    // changes to them and its fog
+    lists.MATR = MAT_ORDER.map(n => MATERIALS[n][0]); lists.MATG = MAT_ORDER.map(n => MATERIALS[n][1]); lists.MATB = MAT_ORDER.map(n => MATERIALS[n][2]);
+    lists.MOVM = I.flatMap(i => i.ov.map(o => o[0])); lists.MOVR = I.flatMap(i => i.ov.map(o => o[1])); lists.MOVG = I.flatMap(i => i.ov.map(o => o[2])); lists.MOVB = I.flatMap(i => i.ov.map(o => o[3]));
+    lists.MOV0 = I.map((i, k) => I.slice(0, k).reduce((a, j) => a + j.ov.length, 0)); lists.MOVN = I.map(i => i.ov.length);
+    lists.MFOGR = I.map(i => i.fog[0]); lists.MFOGG = I.map(i => i.fog[1]); lists.MFOGB = I.map(i => i.fog[2]);
     const full = { ...lists };
+    maps.forEach((m, i) => { for (const k of MAP_LISTS) full[i ? `${k}@${i + 1}` : k] = m.L[k]; });
     const pack = packLists(lists);
+    // the maps' lists after the rest, map by map in the same order; the lists themselves start empty
+    for (const m of maps) for (const k of MAP_LISTS) pack.push(packOne(k, m.L[k]));
+    lists.PKS = PKS_CHUNKS.splice(0);
+    for (const k of MAP_LISTS) lists[k] = [];
+    const sizes = { maxTP: Math.max(...maps.map(m => m.info.nTP)), maxNodes: Math.max(...maps.map(m => m.L.NDX.length)), maxInst: Math.max(...maps.map(m => m.L.IPF.length)), maxVP: Math.max(...maps.map(m => m.L.VPX.length)), maxWP: Math.max(...maps.map(m => m.info.nWP)) };
     Object.assign(lists, { PKA: pack.map(p => p.c0), PKB: pack.map(p => p.n), PKW: pack.map(p => p.w), PKC: pack.map(p => p.sc), PKM: pack.map(p => p.mn) });
-    return { lists, full, pack, nb: pre.banks.length, world: w, pre };
+    return { lists, full, pack, nb: pre.banks.length, world: w, pre, maps, sizes };
 }
 
 const DOT = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
@@ -550,9 +620,11 @@ export function buildProject(out, { more = {} } = {}) {
     MAT_ORDER.forEach((n, i) => { cc['MT_' + n] = i * 64; });
     Object.assign(cc, { GBASE, ABASE, IBASE, VBASE, NGUN: GUNS.length, NATT: ATTS.length, NITEM: 53, NVK: VEHS.length });
     // (the menu tells how many buildings and how much cover the island has)
-    cc.NBUILD = data.world.g.insts.length;
     cc.RGX = data.world.RGX; cc.RGZ = data.world.RGZ; cc.RGA = data.world.RGA;
-    cc.NCOVER = data.world.g.props.filter(p => ALL[p.pf - 1].cover || ALL[p.pf - 1].bush || ['pine', 'oak'].includes(ALL[p.pf - 1].name)).length;
+    // v1.3: the biggest any map needs (lists made once at the start, long enough for every map)
+    cc.MAXND = data.sizes.maxNodes; cc.MAXINST = data.sizes.maxInst; cc.MAXVP = data.sizes.maxVP; cc.MAXWP = data.sizes.maxWP; cc.NMAP = data.maps.length; cc.MAXTP = data.sizes.maxTP; cc.NMAT = MAT_ORDER.length;
+    // (the scratch list: as many lists as are decoded at once, 5000 a list)
+    { const nb = data.pack.length - MAP_LISTS.length * data.maps.length; cc.PVSZ = (Math.max(nb, MAP_LISTS.length) + 1) * 5000; }
     const prog = compileProgram([src], { consts: cc });
     if (C.LEGACY) legacyMath(prog);
     if (C.SLIM) slimBlocks(prog);

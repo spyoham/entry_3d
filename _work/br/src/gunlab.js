@@ -327,6 +327,8 @@ function plateBase(i) {
   pbX = RGX + fx * PLD[i] + fz * PLS[i]; pbZ = RGZ + fz * PLD[i] - fx * PLS[i]; pbY = hAt(pbX, pbZ);
 }
 function rangeStart() {
+  // (the range is on the island)
+  if (curMap != 1) { mapLoad(1); }
   rangeLists();
   gameT = 0;
   peopleReset();

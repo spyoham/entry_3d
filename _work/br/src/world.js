@@ -72,7 +72,13 @@ function M_scanCell(c) {
           if (top <= ly + step) {
             if (top + IY[i] > gndB) { gndB = top + IY[i]; }
           } else {
-            if (CBY0[b] < ly + hh) { hitB = 1; hitInst = i; }
+            if (CBY0[b] < ly + hh) {
+              // v1.3: a box over the knees is met by the head and shoulders only (narrower than the
+              // body): under the flight above, a body on the top step overlapped its underside
+              if (CBY0[b] > ly + 100 && rad < 40) {
+                if (lx > CBX0[b] - 14) { if (lx < CBX1[b] + 14) { if (lz > CBZ0[b] - 14) { if (lz < CBZ1[b] + 14) { hitB = 1; hitInst = i; } } } }
+              } else { hitB = 1; hitInst = i; }
+            }
           }
         } } } }
         b = b + 1;

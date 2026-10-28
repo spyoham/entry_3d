@@ -182,33 +182,25 @@ function playerControl(dt, mMoved) {
   if (plMoving == 1) { EMOV[1] = 1; if (plSprint == 1) { EMOV[1] = 1.4; } if (plCrouch == 1) { EMOV[1] = 0.5; } }
   EPH[1] = EPH[1] + EMOV[1] * 480 * dt * 0.75;
   if (EPH[1] > 360) { EPH[1] = EPH[1] - 360; }
-  if (plVeh > 0) { EYAW[1] = VYAW[plVeh]; EMOV[1] = 0; }
+  // (v1.3: in a vehicle its speed: the bots' aim suffers as for a runner)
+  if (plVeh > 0) { EYAW[1] = VYAW[plVeh]; EMOV[1] = Math.abs(VSPD[plVeh]) / 480; }
 }// v1.1: the island's long lists come in as text (PKS, see build.mjs): item c0 on, n values of w
 // base-64 digits each (sc 0: six hex digits, a colour), plus mn, over sc; into scratch list
-// PV<at + 1> (eight of them: Entry keeps no list longer than 5000)
-let PV1 = [], PV2 = [], PV3 = [], PV4 = [], PV5 = [], PV6 = [], PV7 = [], PV8 = [];
+// PVA from at x 5000 on (v1.3: one long list - tessvm keeps a list past Entry's 5000, and plain
+// Entry never unpacks: it only shows plainNotice)
+let PVA = [];
 function unpack(pk, at) {
   let c0 = PKA[pk], n = PKB[pk], w = PKW[pk], sc = PKC[pk], mn = PKM[pk];
-  let c = c0, s = PKS[c0], L = strlen(s), p = 2, i = 1, v = 0, j = 0;
-  if (at == 0) { M_unp(PV1); }
-  if (at == 1) { M_unp(PV2); }
-  if (at == 2) { M_unp(PV3); }
-  if (at == 3) { M_unp(PV4); }
-  if (at == 4) { M_unp(PV5); }
-  if (at == 5) { M_unp(PV6); }
-  if (at == 6) { M_unp(PV7); }
-  if (at == 7) { M_unp(PV8); }
-}
-function M_unp(T) {
+  let c = c0, s = PKS[c0], L = strlen(s), p = 2, i = 1, v = 0, j = 0, o = at * 5000;
   while (i <= n) {
     if (p > L) { c = c + 1; s = PKS[c]; L = strlen(s); p = 2; }
-    if (sc == 0) { T[i] = `#${substr(s, p, p + 5)}`; p = p + 6; }
+    if (sc == 0) { PVA[o + i] = `#${substr(s, p, p + 5)}`; p = p + 6; }
     else {
       v = 0; j = 0;
       while (j < w) { v = v * 64 + indexOf(B64S, charAt(s, p)) - 1; p = p + 1; j = j + 1; }
       v = v + mn;
       if (sc > 1) { v = v / sc; }
-      T[i] = v;
+      PVA[o + i] = v;
     }
     i = i + 1;
   }
@@ -233,14 +225,16 @@ function plainNotice() {
 }
 on('start', 'pen', function () {
   if ($TESSVM == 0) { plainNotice(); }
-  let pi = PV1.length;
-  while (pi < 5000) { PV1.push(0); PV2.push(0); PV3.push(0); PV4.push(0); PV5.push(0); PV6.push(0); PV7.push(0); PV8.push(0); pi = pi + 1; }
+  let pi = PVA.length;
+  while (pi < PVSZ) { PVA.push(0); pi = pi + 1; }
   unpackAll();
   hide();
   penUp();
   isTess = $TESSVM;
   renderInit();
   peopleInit(); peopleDrawInit(); weaponInit(); lootInit(); invReset(); navInit(); aiInit(); gameInit(); vehInit();
+  // v1.3: the first map (the menu can choose another)
+  mapsInit(); mapLoad(1);
   let i = 1;
   while (i <= 255) { keyWas.push(0); KHIT.push(0); KEV.push(0); KDN.push(0); i = i + 1; }
   applyGfx();
@@ -323,6 +317,7 @@ let benchT = 0;
 let thK = 0, thX = 0, thY = 0, thZ = 0, thYaw = 0, thP = 0;
 function benchStep() {
   benchT = benchT + 1;
+  // @test{
   if (benchT == 2) {
     matchStart(); playerJump(); EAIR[1] = 0; plX = 103000; plZ = 101000; plYaw = 40; plPitch = -3; scanBoxes(plX, 99999, plZ, PRAD, PH, 999999); plY = gndB; plEye = 160;
     EG1[1] = 7; EM1[1] = 30; ammoAdd(1, 3, 120); EA1[1] = attPut(attPut(0, 2, 4), 1, 2); ECUR[1] = 1; playerGunStats();
@@ -338,4 +333,5 @@ function benchStep() {
       e = e + 1;
     }
   }
+  // @test}
 }

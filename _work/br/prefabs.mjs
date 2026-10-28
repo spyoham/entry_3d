@@ -1,7 +1,7 @@
 // Prefabs: the buildings, props and trees of the island, each in three levels of
 // detail (LOD 0: everything, inside too; LOD 1: the outside with window decals;
 // LOD 2: a box and a roof). Built with the kit in geom.mjs.
-import { Model, orderFace } from './geom.mjs';
+import { Model, orderFace, sub, norm, cross } from './geom.mjs';
 
 const T = 20;          // wall thickness
 const FH = 300;        // floor to floor
@@ -528,6 +528,162 @@ P('rockD', three('rockD', (m, li) => {
     if (li === 0) { m.collider(-300, -30, -300, 300, 185, 300); m.collider(-10, 185, -60, 250, 360, 180); m.prism(-260, -200, 90, -10, 110, 5, 'rock2', { r1: 50, collide: true }); }
 }), { radius: 430, height: 380, cover: true });
 
-// every prefab: buildings first, then props
-export const ALL = [...BUILDINGS, ...PROPS];
+// ------------------------------------------------------------------ v1.3: the desert and the snow
+// (after everything else: the island's prefabs keep their numbers)
+export const EXTRA = [];
+const X = (p) => { EXTRA.push(p); return p; };
+const PX = (name, lods, opt = {}) => X({ name, lods, kind: 'prop', ...opt });
+// a four-sided limb from a to b, r thick (branches, a leaning trunk)
+function limb(m, a, b, r, mt, { cap = true } = {}) {
+    const d = sub(b, a), u = norm(d);
+    const t = Math.abs(u[1]) < 0.9 ? norm(cross(u, [0, 1, 0])) : [1, 0, 0];
+    const w = cross(t, u);
+    const C = (p, s1, s2, k) => [p[0] + (t[0] * s1 + w[0] * s2) * r * k, p[1] + (t[1] * s1 + w[1] * s2) * r * k, p[2] + (t[2] * s1 + w[2] * s2) * r * k];
+    const S = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+    const A = S.map(([p, q]) => C(a, p, q, 1)), B = S.map(([p, q]) => C(b, p, q, 0.8));
+    for (let i = 0; i < 4; i++) {
+        const j = (i + 1) % 4, [p, q] = S[i], [p2, q2] = S[j];
+        const out = [t[0] * (p + p2) + w[0] * (q + q2), t[1] * (p + p2) + w[1] * (q + q2), t[2] * (p + p2) + w[2] * (q + q2)];
+        m.face(orderFace([A[i], A[j], B[j], B[i]], out), mt);
+    }
+    if (cap) m.face(orderFace(B, u), mt);
+}
+// a leaf seen from both sides: a strip from a through b to c, w wide at b (pointed at a and c)
+function frond(m, a, b, c, w, mt) {
+    const d = norm(sub(c, a)), side = norm(cross(d, [0, 1, 0])), sw = side.map(v => v * w);
+    const L = [b[0] + sw[0], b[1] + sw[1], b[2] + sw[2]], Rr = [b[0] - sw[0], b[1] - sw[1], b[2] - sw[2]];
+    // two triangles folded along the midrib, each seen from both sides
+    for (const v of [[a, L, c], [a, c, Rr]]) { m.face(v, mt); m.face(v.slice().reverse(), mt); }
+}
+// desert houses: thick adobe walls (the plaster colours: the desert map turns them to clay, ochre,
+// whitewash), a flat roof behind a parapet you can get up on, roof beams through the walls, an awning
+function adobeExtra(m, li, { W2, D2, top }) {
+    if (li > 0) return;
+    // the beams (vigas) poking out under the parapet, south and north
+    for (const sz of [-1, 1]) for (let x = -W2 + 100; x <= W2 - 100; x += 200) m.box(x - 9, top - 40, sz * D2 - (sz < 0 ? 45 : 0), x + 9, top - 22, sz * D2 + (sz > 0 ? 45 : 0), 'woodDark', { skip: 'bottom', collide: false });
+    if (li === 0) {
+        // a cloth awning on two poles over the door side, water jars by the wall
+        m.box(-W2 + 60, 235, -D2 - 190, -W2 + 330, 242, -D2, { top: 'canvas', side: 'canvas', bottom: 'canvas' }, { collide: false });
+        for (const x of [-W2 + 66, -W2 + 324]) m.box(x - 5, 0, -D2 - 186, x + 5, 235, -D2 - 176, 'woodDark', { skip: 'bottom top', collide: false });
+    }
+}
+X(building('adobeS', {
+    w: 900, d: 800, floors: 1, ext: 'plasterY', inner: 'plasterIn', floor: 'floorTile', roof: { type: 'flat', parapet: 80 }, roofAccess: true, headMat: 'plasterY',
+    doors: [{ side: 's', at: 120 }, { side: 'n', at: -200 }], winW: 80, winH: 90, sill: 110, winSpacing: 280,
+    stair: { x0: 260, z0: -250, x1: 380, z1: 30, dir: '+z' },
+    parts: [{ floor: 0, axis: 'x', c: 60, a: -430, b: 200, door: -250 }],
+    furniture: (m, k, y) => { table(m, -250, 230, y); bed(m, -200, -230, y, true); shelf(m, 100, 330, y, true); },
+    nav: [[120, -620, 0, 1], [120, -200, 0, 2], [-250, -150, 0, 0], [-250, 250, 0, 0], [320, -320, 0, 3], [320, 110, 1, 4], [-250, 250, 1, 4], [-200, 620, 0, 1]],
+    links: [[0, 1], [1, 2], [2, 3], [1, 4], [4, 5], [5, 6], [3, 7]],
+    loot: [[-300, -250, 0], [-250, 300, 0], [100, 250, 0], [-300, 0, 1, 0.5]],
+    extra: adobeExtra, tier: 1,
+}));
+X(building('adobeM', {
+    w: 1200, d: 900, floors: 2, ext: 'plasterW', inner: 'plasterIn', floor: 'floorTile', roof: { type: 'flat', parapet: 90 }, roofAccess: true, headMat: 'plasterW',
+    doors: [{ side: 's', at: -300 }, { side: 'e', at: 200 }], winW: 80, winH: 100, sill: 105, winSpacing: 300,
+    stair: { x0: 420, z0: -380, x1: 540, z1: -100, dir: '+z' },
+    parts: [{ floor: 0, axis: 'z', c: 100, a: -430, b: 430, door: -200 }, { floor: 1, axis: 'z', c: 100, a: -430, b: 430, door: 200 }],
+    furniture: (m, k, y) => { if (k === 0) { table(m, -350, 200, y); sofa(m, -350, -250, y, true); shelf(m, 300, 330, y, true); } else { bed(m, -350, 250, y, true); bed(m, -350, -250, y, true); shelf(m, 250, 330, y, true); } },
+    nav: [[-300, -670, 0, 1], [-300, -250, 0, 2], [-300, 200, 0, 0], [300, -200, 0, 0], [480, -450, 0, 3], [480, -30, 1, 3], [300, 200, 1, 0], [-300, 200, 1, 0], [480, -450, 1, 3], [480, -30, 2, 4], [-400, 300, 2, 4], [820, 200, 0, 1], [300, 250, 0, 0], [300, -240, 1, 0]],
+    links: [[0, 1], [1, 2], [1, 3], [3, 4], [4, 5], [5, 6], [6, 7], [5, 13], [13, 8], [8, 9], [9, 10], [3, 12], [12, 11]],
+    loot: [[-350, 250, 0], [-350, -250, 0], [300, 300, 0], [-350, 250, 1], [-350, -150, 1], [300, 250, 1], [0, 0, 2, 0.5]],
+    extra: adobeExtra, tier: 2,
+}));
+// a saguaro: a ribbed trunk and two arms
+PX('cactus', three('cactus', (m, li) => {
+    const n = li === 0 ? 8 : li === 1 ? 6 : 4;
+    m.prism(0, 0, 24, 0, 430, n, 'cactus', { r1: 20, phase: 0.2 });
+    if (li < 2) {
+        if (li === 0) m.prism(0, 0, 20, 430, 455, n, 'cactus2', { r1: 8 });
+        // arms: out, then up
+        for (const [s, y0, len, up] of [[1, 170, 70, 150], [-1, 240, 55, 120]]) {
+            m.box(s > 0 ? 0 : -len, y0, -14, s > 0 ? len : 0, y0 + 28, 14, 'cactus', { skip: li ? 'top bottom' : '', collide: false });
+            m.prism(s * len, 0, 16, y0, y0 + up, li === 0 ? 6 : 4, 'cactus', { r1: 13 });
+            if (li === 0) m.prism(s * len, 0, 13, y0 + up, y0 + up + 14, 6, 'cactus2', { r1: 5 });
+        }
+    }
+    if (li === 0) m.collider(-20, 0, -20, 20, 430, 20);
+}), { radius: 90, height: 455 });
+// prickly pear and barrel cacti: a low clump you can crouch in
+PX('cactusS', three('cactusS', (m, li) => {
+    if (li === 2) { m.prism(0, 0, 90, 0, 90, 4, 'cactus2', { r1: 50 }); return; }
+    m.prism(-40, 10, 40, 0, 70, li ? 5 : 7, 'cactus', { r1: 30, phase: 0.3 });
+    m.prism(35, -20, 34, 0, 95, li ? 5 : 7, 'cactus2', { r1: 26 });
+    if (li === 0) m.prism(10, 45, 28, 0, 55, 6, 'cactus', { r1: 22 });
+    if (li === 0) { m.obox(-30, 95, 0, 28, 30, 6, 20, 'cactus2', { ay: 30 }); m.obox(40, 120, -10, 24, 26, 6, -25, 'cactus', { ay: 70 }); m.obox(0, 70, 45, 22, 24, 5, 15, 'cactus2', { ay: 120 }); }
+}), { radius: 100, height: 140, bush: true });
+// a palm: a leaning trunk in three pieces, a crown of drooping fronds, dates
+PX('palm', three('palm', (m, li) => {
+    const pts = [[0, 0, 0], [25, 300, 10], [70, 560, 25], [130, 780, 40]];
+    if (li === 2) {
+        limb(m, pts[0], pts[3], 22, 'palmTrunk');
+        for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + 0.3, c = Math.cos(a), d = Math.sin(a), e = Math.cos(a + 1.2), f = Math.sin(a + 1.2); const v = [[130, 790, 40], [130 + c * 320, 650, 40 + d * 320], [130 + e * 200, 700, 40 + f * 200]]; m.face(v, 'palmLeaf'); m.face(v.slice().reverse(), 'palmLeaf'); }
+        return;
+    }
+    for (let i = 0; i + 1 < pts.length; i++) limb(m, pts[i], pts[i + 1], li === 2 ? 22 : 24 - i * 3, 'palmTrunk', { cap: i === pts.length - 2 });
+    const T = pts[3], n = li === 0 ? 9 : li === 1 ? 7 : 5;
+    for (let k = 0; k < n; k++) {
+        const a = k / n * Math.PI * 2 + 0.3, dx = Math.cos(a), dz = Math.sin(a), L = li === 2 ? 300 : 330;
+        frond(m, [T[0], T[1] + 10, T[2]], [T[0] + dx * L * 0.45, T[1] + 45, T[2] + dz * L * 0.45], [T[0] + dx * L, T[1] - 150, T[2] + dz * L], li === 2 ? 60 : 55, k % 2 ? 'palmLeaf' : 'leaf');
+    }
+    if (li === 0) { m.prism(T[0], T[2], 30, T[1] - 70, T[1] - 5, 5, 'woodDark', { r1: 20 }); m.collider(-28, 0, -28, 28, 560, 28); }
+}), { radius: 330, height: 820 });
+// a dead tree: a bare trunk and branches
+PX('deadTree', three('deadTree', (m, li) => {
+    const T = [10, 300, -5];
+    limb(m, [0, -10, 0], T, li === 2 ? 20 : 18, 'deadwood');
+    if (li < 2) {
+        const br = [[[10, 300, -5], [-120, 470, 30], 9], [[10, 300, -5], [140, 520, -40], 9], [[10, 300, -5], [30, 560, 60], 8]];
+        if (li === 0) br.push([[5, 200, 0], [120, 300, 90], 7]);
+        if (li === 0) br.push([[-120, 470, 30], [-200, 540, 0], 5], [[140, 520, -40], [200, 600, -20], 5], [[30, 560, 60], [-20, 640, 100], 4]);
+        for (const [a, b, r] of br) limb(m, a, b, r, 'deadwood');
+    }
+    if (li === 0) m.collider(-20, 0, -20, 20, 300, 20);
+}), { radius: 200, height: 640 });
+// a Bedouin tent: a low ridge of cloth on poles, open in front; something to hide in
+PX('tent', three('tent', (m, li) => {
+    const W = 260, D = 220, H = 210, E = 120;
+    m.quad([-W, E, -D], [-W, H, 0], [W, H, 0], [W, E, -D], 'canvas');
+    m.quad([W, E, D], [W, H, 0], [-W, H, 0], [-W, E, D], 'canvas');
+    if (li === 0) {
+        m.quad([-W, E, -D], [W, E, -D], [W, H, 0], [-W, H, 0], 'sheet');
+        m.quad([W, E, D], [-W, E, D], [-W, H, 0], [W, H, 0], 'sheet');
+        // the back closed, poles at the corners and the ridge
+        m.face(orderFace([[-W, 0, -D], [-W, E, -D], [-W, H, 0], [-W, E, D], [-W, 0, D]], [-1, 0, 0]), 'canvas');
+        for (const [x, z, h] of [[W, -D, E], [W, D, E], [-W, -D, E], [-W, D, E], [0, 0, H]]) m.box(x - 5, 0, z - 5, x + 5, h, z + 5, 'woodDark', { skip: 'bottom top', collide: false });
+    }
+    if (li === 0) { m.box(-180, 0, -150, -40, 30, 150, 'sofa', { skip: 'bottom' }); m.collider(-W, 0, -D, -W + 10, E, D); m.lootAt(60, 2, 0, 1); }
+}), { radius: 300, height: 210, bush: true });
+// an oil pumpjack: base, samson post, walking beam with the horse head, cranks and weights, motor
+PX('pumpjack', three('pumpjack', (m, li) => {
+    m.box(-380, 0, -110, 380, 40, 110, 'concrete', { skip: 'bottom' });
+    if (li === 2) { m.box(-300, 40, -40, 300, 420, 40, 'containerY', { skip: 'bottom' }); return; }
+    limb(m, [-60, 40, -90], [0, 400, 0], 12, 'metalDark'); limb(m, [-60, 40, 90], [0, 400, 0], 12, 'metalDark'); limb(m, [80, 40, 0], [0, 400, 0], 12, 'metalDark');
+    m.box(-330, 395, -20, 260, 440, 20, { top: 'containerY', side: 'containerY', bottom: 'metalDark' }, { collide: false });
+    // the horse head over the well
+    m.obox(300, 360, 0, 50, 110, 22, -20, 'containerY');
+    m.box(305, 40, -8, 315, 260, 8, 'gunSteel', { skip: 'bottom', collide: false });
+    m.prism(310, 0, 30, 40, 80, 6, 'metalDark', { r1: 22 });
+    if (li > 0) return;
+    // cranks, weights, motor
+    m.box(-330, 120, -70, -250, 330, -50, 'metalDark', { skip: '', collide: false }); m.box(-330, 120, 50, -250, 330, 70, 'metalDark', { skip: '', collide: false });
+    m.box(-360, 110, -95, -220, 190, 95, 'containerR', { skip: 'bottom', collide: false });
+    m.box(-370, 40, -60, -270, 110, 60, 'metalSheet', { skip: 'bottom' }); m.collider(-380, 0, -110, 380, 120, 110); m.collider(-40, 0, -40, 40, 400, 40);
+}), { radius: 400, height: 460, cover: true });
+// a pine under snow: dark tiers, each with a white cap
+PX('pineSnow', three('pineSnow', (m, li) => {
+    const n = li === 0 ? 6 : li === 1 ? 5 : 4;
+    m.prism(0, 0, 22, 0, 260, li === 0 ? 5 : 4, 'bark', { top: false, collide: false });
+    if (li === 2) { m.prism(0, 0, 230, 160, 980, n, 'pine', { r1: 0 }); return; }
+    const tiers = li === 0 ? [[260, 160, 520], [210, 400, 760], [150, 640, 980]] : [[250, 160, 600], [170, 520, 980]];
+    tiers.forEach(([r, y0, y1], i) => {
+        const ym = y0 + (y1 - y0) * 0.45, rm = r * (1 - 0.45);
+        m.prism(0, 0, r, y0, ym, n, i % 2 ? 'pine2' : 'pine', { r1: rm, top: false, phase: i * 0.4 });
+        m.prism(0, 0, rm * 1.05, ym - 8, y1, n, 'snowCap', { r1: 0, phase: i * 0.4 });
+    });
+    if (li === 0) m.collider(-25, 0, -25, 25, 600, 25);
+}), { radius: 260, height: 980 });
+
+// every prefab: buildings first, then props (then the v1.3 ones)
+export const ALL = [...BUILDINGS, ...PROPS, ...EXTRA];
 export const byName = Object.fromEntries(ALL.map((p, i) => [p.name, { ...p, id: i + 1 }]));

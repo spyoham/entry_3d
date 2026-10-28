@@ -14,6 +14,8 @@ let EAIR = [], AJT = [], AJX = [], AJZ = [], ALDX = [], ALDZ = [], ALDT = [];
 let DET = [], BLOOT = [];
 // v1.1: the vehicle a bot walks to (AVEH), where a driving bot heads (AVTX/Z, renewed at AVTT)
 let AVEH = [], AVTX = [], AVTZ = [], AVTT = [], AVSTK = [], ASMK = [];
+// v1.3: when each one last threw a punch (the player too)
+let EPUN = [];
 let abTurn = 1, diff = 2;
 // sound events: a ring of 32 (position, how far it carries, who, kind, when)
 let SEX = [], SEY = [], SEZ = [], SER = [], SEW = [], SEK = [], SET = [];
@@ -28,13 +30,13 @@ function aiInit() {
     AHX.push(0); AHZ.push(0); AHT.push(-99); AALERT.push(-99); ALOOTB.push(0); ALOOTT.push(0); ABURST.push(0); ABURSTT.push(0); AHEAD.push(0);
     ATVX.push(0); ATVZ.push(0); ATPX.push(0); ATPZ.push(0); ADMGT.push(0); ALASTH.push(0); ASWT.push(0); AABS.push(0); ANADE.push(0);
     EAIR.push(0); AJT.push(0); AJX.push(0); AJZ.push(0); ALDX.push(0); ALDZ.push(0); ALDT.push(0);
-    AVEH.push(0); AVTX.push(0); AVTZ.push(0); AVTT.push(0); AVSTK.push(0); ASMK.push(0);
+    AVEH.push(0); AVTX.push(0); AVTZ.push(0); AVTT.push(0); AVSTK.push(0); ASMK.push(0); EPUN.push(-9);
     i = i + 1;
   }
   i = 1;
   while (i <= NE * NE) { DET.push(0); i = i + 1; }
   i = 1;
-  while (i <= IPF.length) { BLOOT.push(0); i = i + 1; }
+  while (i <= MAXINST) { BLOOT.push(0); i = i + 1; }
   i = 1;
   while (i <= 32) { SEX.push(0); SEY.push(0); SEZ.push(0); SER.push(0); SEW.push(0); SEK.push(0); SET.push(-99); i = i + 1; }
 }
@@ -47,13 +49,13 @@ function aiReset() {
     if (diff == 1) { sk = 0.55 + rand(0, 100) / 100 * 0.25; }
     if (diff == 3) { sk = 1.15 + rand(0, 100) / 100 * 0.4; }
     ASKILL[i] = sk; AAGR[i] = rand(15, 95) / 100; ADEC[i] = 0; APER[i] = rand(0, 100) / 500; AFULL[i] = 0; ANADE[i] = 0;
-    AVEH[i] = 0; AVTT[i] = 0; AVSTK[i] = 0; ASMK[i] = 0;
+    AVEH[i] = 0; AVTT[i] = 0; AVSTK[i] = 0; ASMK[i] = 0; EPUN[i] = -9;
     i = i + 1;
   }
   i = 1;
   while (i <= NE * NE) { DET[i] = 0; i = i + 1; }
   i = 1;
-  while (i <= IPF.length) { BLOOT[i] = 0; i = i + 1; }
+  while (i <= N_IPF) { BLOOT[i] = 0; i = i + 1; }
   i = 1;
   while (i <= 32) { SET[i] = -99; i = i + 1; }
 }
@@ -139,6 +141,8 @@ function botPerceive(e) {
   let cone = 0.5;
   if (alert == 1) { cone = -0.1; }
   let sk = ASKILL[e], los = 0;
+  // v1.3: no further than its guns and sight carry (they used to take on anyone in the picture)
+  let reach = Math.max(9000, botReach(e) * 1.2);
   AVIS[e] = 0;
   let f = 1;
   while (f <= NE) {
@@ -176,13 +180,23 @@ function botPerceive(e) {
         if (ECRO[f] == 1) { rate = rate * 0.6; }
         if (f == 1) { if (plInBush == 1) { rate = rate * 0.4; } }
         if (alert == 1) { rate = rate * 1.5; }
-        if (EVEH[f] > 0) { rate = rate * 1.8; }
-        DET[k] = Math.min(1.6, DET[k] + rate * 0.2);
+        // (an engine is loud near by only)
+        if (EVEH[f] > 0) { if (d < 6000) { rate = rate * 1.8; } }
+        // v1.3: out of reach, or a vehicle going fast past 70 m: watched, not taken on
+        let far = 0;
+        if (d > reach) { far = 1; }
+        if (EVEH[f] > 0) { if (d > 7000) { if (Math.abs(VSPD[EVEH[f]]) > 700) { far = 1; } } }
+        if (far == 1) {
+          DET[k] = Math.min(0.9, DET[k] + rate * 0.2);
+          if (DET[k] > 0.5) { if (AVIS[e] == 0) { if (EVEH[f] == 0) { AHX[e] = EX[f]; AHZ[e] = EZ[f]; AHT[e] = gameT; } } }
+        } else { DET[k] = Math.min(1.6, DET[k] + rate * 0.2); }
         if (DET[k] >= 1) {
           // seen: keep the one that is the bigger threat (nearer, or shooting me)
           let take = 0;
           if (ATGT[e] == 0 || EALIVE[ATGT[e]] == 0) { take = 1; }
           else { if (ATGT[e] != f) { let td = Math.abs(EX[ATGT[e]] - ex) + Math.abs(EZ[ATGT[e]] - ez); if (d < td * 0.6 || AVIS[e] == 0) { take = 1; } if (ELASTA[e] == f) { if (gameT - EHURT[e] < 2) { take = 1; } } } }
+          // v1.3: three on one already: others leave it be unless it is close or hurting them
+          if (take == 1) { if (d > 4000) { if (ELASTA[e] != f || gameT - EHURT[e] > 3) { if (attackers(f, e) >= 3) { take = 0; } } } }
           if (take == 1) { botAcquire(e, f, d); }
           if (ATGT[e] == f) {
             AVIS[e] = 1;
@@ -235,6 +249,40 @@ function botAcquire(e, f, d) {
     ABURST[e] = 0; ABURSTT[e] = 0; ACOV[e] = 0;
   }
 }
+// v1.3: how far a bot fights with gun g (attachments a): the gun's reach, held to what its sight
+// makes out (iron sight or red dot 180 m, 2x 260 m, 4x 350 m, 8x 450 m)
+function engageD(g, a) {
+  let r = 0;
+  if (g > 0) {
+    let st = attIn(a, 2), cap = 18000;
+    if (st == 6) { cap = 26000; }
+    if (st == 7) { cap = 35000; }
+    if (st == 8) { cap = 45000; }
+    r = Math.min(GRANGE[g] * 1.15, cap);
+  }
+  return r;
+}
+// the furthest bot e fights at with a gun it has ammunition for (0: none - fists)
+function botReach(e) {
+  let r = 0, s = 1;
+  while (s <= 3) {
+    let g = EG1[e], a = EA1[e], m = EM1[e];
+    if (s == 2) { g = EG2[e]; a = EA2[e]; m = EM2[e]; }
+    if (s == 3) { g = EG3[e]; a = EA3[e]; m = EM3[e]; }
+    if (g > 0) { if (m + ammoOf(e, GAMMO[g]) > 0) { r = Math.max(r, engageD(g, a)); } }
+    s = s + 1;
+  }
+  return r;
+}
+// how many other bots near the player are fighting f and saw it lately
+function attackers(f, e) {
+  let n = 0, j = 2;
+  while (j <= NE) {
+    if (j != e) { if (ATGT[j] == f) { if (EALIVE[j] == 1) { if (AFULL[j] == 1) { if (AMODE[j] == MD_FIGHT) { if (gameT - ALT[j] < 3) { n = n + 1; } } } } } }
+    j = j + 1;
+  }
+  return n;
+}
 // hit by a: know where it came from
 function botHurtBy(v, a) {
   if (v > 1) {
@@ -266,8 +314,10 @@ function botDecide(e) {
   let t = ATGT[e];
   let fresh = 0;
   if (t > 0) { if (EALIVE[t] == 1) { if (gameT - ALT[e] < 9) { fresh = 1; } } else { ATGT[e] = 0; } }
+  // v1.3: a vehicle out of sight is gone (not hunted on foot)
+  if (fresh == 1) { if (EVEH[t] > 0) { if (gameT - ALT[e] > 2) { fresh = 0; ATGT[e] = 0; } } }
   let armed = 0;
-  if (EG1[e] + EG2[e] + EG3[e] > 0) { armed = 1; }
+  if (botReach(e) > 0) { armed = 1; }
   let mode = MD_HOLD;
   // where the zone stands
   let zin = 1, zd = 0;
@@ -281,7 +331,16 @@ function botDecide(e) {
   let gs = gearScore(e);
   let want = 7;
   if (gameT > 420) { want = 4; }
-  if (fresh == 1) { if (armed == 1) { mode = MD_FIGHT; } else { mode = MD_MOVE; } }
+  if (fresh == 1) {
+    if (armed == 1) { mode = MD_FIGHT; }
+    else {
+      // v1.3: no gun: fists for someone near on foot (unarmed too, very close, or a bold bot);
+      // otherwise on with the looting (a gun first)
+      let fx = ALX[e] - EX[e], fz = ALZ[e] - EZ[e];
+      let fd = Math.sqrt(fx * fx + fz * fz);
+      if (EVEH[t] == 0) { if (fd < 2500) { if (Math.abs(EY[t] - EY[e]) < 200) { if (EG1[t] + EG2[t] + EG3[t] == 0 || fd < 700 || AAGR[e] > 0.7) { mode = MD_FIGHT; } } } }
+    }
+  }
   if (mode != MD_FIGHT) {
     if (EHP[e] < 78 || EBOOST[e] < 30) { if (bestHeal(e) > 0) { if (gameT - EHURT[e] > 3) { mode = MD_HEAL; } } }
     if (mode != MD_HEAL) {
@@ -448,14 +507,35 @@ function botFace(e, y, dt, rate) {
   if (EYAW[e] >= 360) { EYAW[e] = EYAW[e] - 360; }
   if (EYAW[e] < 0) { EYAW[e] = EYAW[e] + 360; }
 }
-// one step with velocity (vx, vz) cm/s: collisions, stairs, gravity, the walk animation
+// one step with velocity (vx, vz) cm/s: collisions, stairs, gravity, the walk animation.
+// v1.3: in pieces of at most 16 cm, as the player's body (a slow frame skipped stair treads)
 function botStep(e, vx, vz, dt) {
   let hh = PH;
   if (ECRO[e] == 1) { hh = PHC; vx = vx * 0.5; vz = vz * 0.5; }
+  let x0 = EX[e], z0 = EZ[e];
+  let n = Math.ceil(Math.sqrt(vx * vx + vz * vz) * dt / 16);
+  if (n < 1) { n = 1; }
+  let i = 0;
+  while (i < n) { botMove1(e, vx, vz, dt / n, hh); i = i + 1; }
+  let mvx = EX[e] - x0, mvz = EZ[e] - z0;
+  let spd = Math.sqrt(mvx * mvx + mvz * mvz) / dt;
+  EMOV[e] = spd / 480;
+  EPH[e] = EPH[e] + spd * dt * 0.75;
+  if (EPH[e] > 360) { EPH[e] = EPH[e] - 360; }
+  // running feet are heard nearby
+  if (spd > 420) { if (rand(1, 100) <= 8) { soundEvent(EX[e], EY[e], EZ[e], 2200, e, 3); } }
+}
+function botMove1(e, vx, vz, dt, hh) {
   let x = EX[e], y = EY[e], z = EZ[e];
   let nx = x + vx * dt, nz = z + vz * dt;
   if (vx != 0 || vz != 0) {
     scanBoxes(nx, y, nz, PRAD, hh, STEP);
+    // blocked, but the ground there is lower by a step: down the stairs, at that height
+    if (hitB == 1) { if (EGND[e] == 1) { if (gndB < y - 2) { if (gndB > y - STEP - 12) {
+      let gd = gndB;
+      scanBoxes(nx, gd, nz, PRAD, hh, STEP);
+      if (hitB == 0) { y = gd; }
+    } } } }
     if (hitB == 0) { x = nx; z = nz; }
     else {
       scanBoxes(nx, y, z, PRAD, hh, STEP);
@@ -470,14 +550,7 @@ function botStep(e, vx, vz, dt) {
     y = y + EVY[e] * dt;
     if (y <= g) { y = g; EVY[e] = 0; EGND[e] = 1; }
   } else { y = g; EGND[e] = 1; EVY[e] = 0; }
-  let mvx = x - EX[e], mvz = z - EZ[e];
-  let spd = Math.sqrt(mvx * mvx + mvz * mvz) / dt;
-  EMOV[e] = spd / 480;
-  EPH[e] = EPH[e] + spd * dt * 0.75;
-  if (EPH[e] > 360) { EPH[e] = EPH[e] - 360; }
   EX[e] = x; EY[e] = y; EZ[e] = z;
-  // running feet are heard nearby
-  if (spd > 420) { if (rand(1, 100) <= 8) { soundEvent(x, y, z, 2200, e, 3); } }
 }
 // walk to the nearest item within 7 m on this floor (1: walking to one, 0: none)
 function botFetch(e, dt) {
@@ -554,7 +627,47 @@ function botPickGun(e) {
 function botFight(e, dt) {
   let t = ATGT[e];
   if (t == 0 || EALIVE[t] == 0) { ATGT[e] = 0; AMODE[e] = MD_HOLD; botStep(e, 0, 0, dt); }
+  else { if (botReach(e) > 0) { botShoot(e, t, dt); } else { botMelee(e, t, dt); } }
+}
+// v1.3: no gun with ammunition: fists. Straight at them, a swing when in reach and facing them
+function botMelee(e, t, dt) {
+  let vis = AVIS[e];
+  let tx = ALX[e], tz = ALZ[e];
+  if (vis == 1) { tx = EX[t]; tz = EZ[t]; }
+  let dx = tx - EX[e], dz = tz - EZ[e];
+  let d = Math.sqrt(dx * dx + dz * dz) + 1;
+  ECRO[e] = 0; EADS[e] = 0;
+  let want = atan2d(dx, dz);
+  botFace(e, want, dt, 300 + 200 * ASKILL[e]);
+  EPIT[e] = EPIT[e] * 0.8;
+  if (EVEH[t] > 0 || gameT - ALT[e] > 4 || Math.abs(EY[t] - EY[e]) > 250) { ATGT[e] = 0; AMODE[e] = MD_HOLD; ADEC[e] = 0; botStep(e, 0, 0, dt); }
   else {
+    // close: side to side; else at them
+    let sp = 560, mx = dx / d, mz = dz / d;
+    if (d < 110) {
+      sp = 200;
+      ASTRT[e] = ASTRT[e] - dt;
+      if (ASTRT[e] <= 0) { ASTRT[e] = 0.4 + rand(0, 100) / 200; ASTR[e] = 0 - ASTR[e]; }
+      mx = 0 - dz / d * ASTR[e]; mz = dx / d * ASTR[e];
+    }
+    if (vis == 0) { if (d < 150) { sp = 0; } }
+    botStep(e, mx * sp, mz * sp, dt);
+    let yd = Math.abs(want - EYAW[e]);
+    if (yd > 180) { yd = 360 - yd; }
+    if (vis == 1) { if (d < 150) { if (yd < 35) { if (Math.abs(EY[t] - EY[e]) < 110) { if (EFIRE[e] <= 0) { if (gameT >= AREACT[e]) {
+      EFIRE[e] = 0.45 + rand(0, 100) / 250 / ASKILL[e];
+      punch(e, t, 10 + ASKILL[e] * 3);
+    } } } } } }
+  }
+}
+// e's punch lands on t (dm)
+function punch(e, t, dm) {
+  EPUN[e] = gameT;
+  hurt(t, e, dm, 2, -2);
+  soundEvent(EX[t], EY[t] + 120, EZ[t], 1500, e, 2);
+}
+function botShoot(e, t, dt) {
+  if (t > 0) {
     let g = gunNow(e);
     let sk = ASKILL[e];
     let vis = AVIS[e];
@@ -579,6 +692,7 @@ function botFight(e, dt) {
     let floor = 0.48 / sk + d / 25000;
     if (EMOV[e] > 0.3) { floor = floor + 1.0 / sk; }
     if (EMOV[t] > 0.6) { floor = floor + 0.6; }
+    if (EMOV[t] > 2) { floor = floor + (EMOV[t] - 2) * 0.25; }
     if (ECRO[t] == 1) { floor = floor + 0.2; }
     let er = AERR[e] + floor;
     let wantY = atan2d(adx, adz) + AERX[e] * er;
@@ -594,7 +708,7 @@ function botFight(e, dt) {
     if (g > 0) { if (vis == 1) { if (gameT >= AREACT[e]) { if (EFIRE[e] <= 0) { if (EBOLT[e] <= 0) { if (ERELT[e] <= 0) { if (ASWT[e] <= 0) { if (magNow(e) > 0) {
       let yd = Math.abs(wantY - EYAW[e]);
       if (yd > 180) { yd = 360 - yd; }
-      if (yd < 3 + er) { if (d < GRANGE[g] * 3) {
+      if (yd < 3 + er) { if (d < engageD(g, attNow(e)) * 1.1) {
         // the rhythm: close - hold; middle - bursts; far - taps
         let go = 0;
         if (ABURSTT[e] > 0) { ABURSTT[e] = ABURSTT[e] - dt; }

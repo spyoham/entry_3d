@@ -60,10 +60,10 @@ function drawIsland(cx, cy, size, z, fx, fz, detail) {
   mpX0 = cx - size / 2; mpX1 = cx + size / 2; mpY0 = cy - size / 2; mpY1 = cy + size / 2;
   hudBox(mpX0, mpY0, mpX1, mpY1, '#36586b');
   // the shallows: a lighter rim round the land
-  let i = 1, n = MRX0.length;
+  let i = 1, n = N_MRX0;
   while (i <= n) { mrect(MRX0[i], MRZ0[i], MRX1[i], MRZ1[i], MRC[i]); i = i + 1; }
   // roads
-  i = 1; n = MLX0.length;
+  i = 1; n = N_MLX0;
   let rw = 1 + z * 0.35;
   while (i <= n) {
     let col = '#3c3d40';
@@ -73,7 +73,7 @@ function drawIsland(cx, cy, size, z, fx, fz, detail) {
     i = i + 1;
   }
   // buildings
-  if (detail >= 1) { i = 1; n = MBX0.length; while (i <= n) { mrect(MBX0[i], MBZ0[i], MBX1[i], MBZ1[i], MBC[i]); i = i + 1; } }
+  if (detail >= 1) { i = 1; n = N_MBX0; while (i <= n) { mrect(MBX0[i], MBZ0[i], MBX1[i], MBZ1[i], MBC[i]); i = i + 1; } }
   // the grid: every 256 m, A..H west to east, 1..8 north to south
   if (detail >= 2) {
     i = 1;
@@ -90,13 +90,15 @@ function drawIsland(cx, cy, size, z, fx, fz, detail) {
 // the towns' names, from slot s0 (those outside the window are switched off)
 function islandNames(s0, sz) {
   let i = 1;
-  while (i <= SITEX.length) {
+  while (i <= N_SITEX) {
     let x = mpx(SITEX[i]), y = mpy(SITEZ[i]);
     let ins = 0;
     if (x > mpX0 + 10) { if (x < mpX1 - 10) { if (y > mpY0 + 6) { if (y < mpY1 - 6) { ins = 1; } } } }
     if (ins == 1) { tx(s0 + i - 1, SITEN[i], x, y + sz * 0.5 + 2, sz, '#ffffff', 0); hudBox(x - 1.2, y - 1.2, x + 1.2, y + 1.2, '#ffffff'); } else { txOff(s0 + i - 1); }
     i = i + 1;
   }
+  // (a map with fewer towns than the last one shown)
+  while (i <= 13) { txOff(s0 + i - 1); i = i + 1; }
 }
 // an arrow at (x, y) pointing to yaw, size r
 function arrowAt(x, y, yaw, r, col) {
@@ -215,6 +217,8 @@ function menuFrame(dt) {
   if (keyHit(189) == 1 || keyHit(109) == 1) { sens = Math.max(0.1, sens - 0.05); }
   if (keyHit(13) == 1) { menuGo = 1; }
   if (keyHit(84) == 1) { menuGo = 2; }
+  // v1.3: M: the next map
+  if (keyHit(77) == 1) { mapSel = mod(mapSel, NMAP) + 1; mapLoad(mapSel); }
   showT = showT + dt; showYaw = showYaw + dt * 50;
   if (showT > 4) { showT = 0; showG = mod(showG, NGUN) + 1; }
 }
@@ -225,7 +229,7 @@ function menuScreen() {
   hudBox(-245, 104, 245, 140, '#131d25');
   hudBox(-245, 103, 245, 104, '#c89a2a');
   tx(1, '엔트리 배틀로얄 3D', -226, 125, 19, C_W, 1);
-  tx(2, `새벽섬 · 플레이어 1명 + AI ${NE - 1}명 · 마지막 1인이 이긴다`, 226, 118, 8, '#c8b48a', 2);
+  tx(2, `${MAPN[curMap]} · 플레이어 1명 + AI ${NE - 1}명 · 마지막 1인이 이긴다`, 226, 118, 8, '#c8b48a', 2);
   // the left column
   if (btn(-226, 66, -118, 92, 3, '게임 시작', 1, 14) == 1) { menuGo = 1; }
   if (btn(-115, 66, -40, 92, 24, '총기 테스트', 0, 10) == 1) { menuGo = 2; }
@@ -258,7 +262,9 @@ function menuScreen() {
   // the island
   drawIsland(119, 40, 120, 1, 64, 64, 1);
   islandNames(25, 5.5);
-  tx(38, `새벽섬 2 km · 건물 ${NBUILD}채 · 엄폐물 ${NCOVER}개 · 차량 4종`, 119, -26, 7, C_DIM, 0);
+  tx(38, `${MAPN[curMap]} 2 km · 건물 ${MNB[curMap]}채 · 엄폐물 ${MNC[curMap]}개 · 차량 4종`, 119, -26, 7, C_DIM, 0);
+  // v1.3: the maps
+  mapButtons();
   // the gun showcase
   hudBox(22, -133, 236, -36, '#1b252d');
   // a soft light behind the gun

@@ -3,8 +3,16 @@ let plX = 102400, plY = 0, plZ = 102400, plVY = 0, plGround = 1, plCrouch = 0, p
 let plYaw = 0, plPitch = 0, plEye = 160, plMoving = 0, plSprint = 0, plNoclip = 0, plInBush = 0;
 const PRAD = 32, PH = 178, PHC = 125, STEP = 48, GRAV = 1900, JUMPV = 520;
 
-// move the body by (mx, mz) cm this frame, with collisions and stepping
+// move the body by (mx, mz) cm this frame, with collisions and stepping. v1.3: in pieces of at
+// most 16 cm (a slow frame's step crossed two stair treads at once: 60 cm up, more than STEP)
 function bodyMove(mx, mz, dt) {
+  let n = 1;
+  if (plNoclip == 0) { n = Math.ceil(Math.sqrt(mx * mx + mz * mz) / 16); }
+  if (n < 1) { n = 1; }
+  let i = 0;
+  while (i < n) { bodyStep(mx / n, mz / n, dt / n); i = i + 1; }
+}
+function bodyStep(mx, mz, dt) {
   let hh = PH;
   if (plCrouch == 1) { hh = PHC; }
   if (plNoclip == 1) {
@@ -12,6 +20,12 @@ function bodyMove(mx, mz, dt) {
   } else {
     let nx = plX + mx, nz = plZ + mz;
     scanBoxes(nx, plY, nz, PRAD, hh, STEP);
+    // v1.3: blocked, but the ground there is lower by a step: down the stairs, at that height
+    if (hitB == 1) { if (plGround == 1) { if (gndB < plY - 2) { if (gndB > plY - STEP - 12) {
+      let gd = gndB;
+      scanBoxes(nx, gd, nz, PRAD, hh, STEP);
+      if (hitB == 0) { plY = gd; }
+    } } } }
     if (hitB == 0) { plX = nx; plZ = nz; }
     else {
       scanBoxes(nx, plY, plZ, PRAD, hh, STEP);

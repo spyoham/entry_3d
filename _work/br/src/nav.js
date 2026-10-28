@@ -18,7 +18,7 @@ let FD = [], FNX = [], FST = [], FHN = [], FHF = [];
 let fhSize = 0, fOn = 0, fStamp = 0, fTarget = 0;
 
 function navInit() {
-  let i = 1, n = NDX.length;
+  let i = 1, n = MAXND;
   while (i <= n) { AG.push(0); AP.push(0); ASTMP.push(0); ACLOSE.push(0); FD.push(0); FNX.push(0); FST.push(0); i = i + 1; }
   i = 1;
   while (i <= n + 10) { HN.push(0); HF.push(0); FHN.push(0); FHF.push(0); i = i + 1; }

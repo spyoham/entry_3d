@@ -18,14 +18,14 @@ function vehInit() {
     i = i + 1;
   }
   i = 1;
-  while (i <= VPX.length) { VUSED.push(0); i = i + 1; }
+  while (i <= MAXVP) { VUSED.push(0); i = i + 1; }
   i = 1;
   while (i <= NE) { EVEH.push(0); EVHT.push(-99); i = i + 1; }
 }
 // a new match: vehicles on spots chosen at random (each spot once)
 function vehReset() {
   let i = 1;
-  while (i <= VPX.length) { VUSED[i] = 0; i = i + 1; }
+  while (i <= N_VPX) { VUSED[i] = 0; i = i + 1; }
   i = 1;
   while (i <= NE) { EVEH[i] = 0; EVHT[i] = -99; i = i + 1; }
   plVeh = 0; vTurn = 0;
@@ -34,7 +34,7 @@ function vehReset() {
     VON[v] = 0;
     let s = 0, tries = 0;
     while (s == 0) {
-      let c = rand(1, VPX.length);
+      let c = rand(1, N_VPX);
       if (VUSED[c] == 0) { s = c; }
       tries = tries + 1;
       if (tries > 30) { s = -1; }
@@ -469,6 +469,7 @@ function drawVehModel(q, x, y, z, yaw, pit, rol, fog, tint) {
 // (tests only: the harness sets testCmd) 1: the player on the ground beside vehicle 1; 2: in it
 let testCmd = 0, tPF = 0, tLX = 0, tLY = 0, tLZ = 0, tYaw = 0, tPitch = 0;
 function testStep() {
+  // @test{
   if (testCmd == 1) {
     EAIR[1] = 0; gState = 2; plVY = 0;
     plX = VX[1] + cosd(VYAW[1]) * 300; plZ = VZ[1] - sind(VYAW[1]) * 300;
@@ -478,7 +479,7 @@ function testStep() {
   // 3: the player at (tLX, tLY, tLZ) inside the first instance of prefab tPF, looking tYaw (prefab frame), tPitch
   if (testCmd == 3) {
     let ti = 1;
-    while (ti <= IPF.length) { if (IPF[ti] == tPF) { tPF = 0 - tPF; } else { ti = ti + 1; } if (tPF < 0) { tPF = 0 - tPF; ti = ti + 1000000; } }
+    while (ti <= N_IPF) { if (IPF[ti] == tPF) { tPF = 0 - tPF; } else { ti = ti + 1; } if (tPF < 0) { tPF = 0 - tPF; ti = ti + 1000000; } }
     ti = ti - 1000000;
     if (ti >= 1) {
       let tr = IR[ti];
@@ -491,5 +492,6 @@ function testStep() {
       plYaw = tYaw + tr * 90; plPitch = tPitch;
     }
   }
+  // @test}
   testCmd = 0;
 }

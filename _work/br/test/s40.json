@@ -1,0 +1,7 @@
+[{"wait":1500},{"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":30},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":2500},{"set":{"godMode":1}},
+ {"set":{"tPF":3,"tLX":0,"tLY":615,"tLZ":250,"tYaw":180,"tPitch":-20,"testCmd":3}},{"wait":400},{"vars":1},
+ {"down":{"code":"KeyW","key":"w","keyCode":87}},{"wait":1500},{"vars":1},{"shot":"test/st1.png"},{"wait":1500},{"up":{"code":"KeyW","key":"w","keyCode":87}},{"vars":1},{"shot":"test/st2.png"},
+ {"set":{"tPF":4,"tLX":960,"tLY":315,"tLZ":-130,"tYaw":180,"tPitch":-20,"testCmd":3}},{"wait":400},{"vars":1},
+ {"down":{"code":"KeyW","key":"w","keyCode":87}},{"wait":2500},{"up":{"code":"KeyW","key":"w","keyCode":87}},{"vars":1},{"shot":"test/st3.png"},
+ {"set":{"tPF":3,"tLX":0,"tLY":15,"tLZ":-200,"tYaw":0,"tPitch":10,"testCmd":3}},{"wait":400},
+ {"down":{"code":"KeyW","key":"w","keyCode":87}},{"wait":1600},{"up":{"code":"KeyW","key":"w","keyCode":87}},{"vars":1},{"shot":"test/st4.png"}]

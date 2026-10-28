@@ -364,6 +364,8 @@ function playerWeapon(dt) {
       if (wBurstN > 0) { if (wBurstN < 3) { if (EFIRE[1] <= 0) { if (magNow(1) > 0) { playerShoot(g); wBurstN = wBurstN - 1; } else { wBurstN = 0; } } } else { wBurstN = 0; } }
     }
   }
+  // v1.3: no gun in hand: a punch a click
+  if (g == 0) { if (trig == 1) { if (wTrig == 0) { if (EFIRE[1] <= 0) { playerPunch(); } } wTrig = 1; } else { wTrig = 0; } }
   clickLatch = 0;
   // recoil recovers
   let back = pRec * dt;
@@ -447,8 +449,40 @@ function reloadDone(e) {
 }
 
 // ---------------------------------------------------------------- the gun in the player's hands
+// v1.3: a punch: the nearest one in front within reach (not through a wall)
+let wPunch = 0;
+function playerPunch() {
+  EFIRE[1] = 0.42; wPunch = 1; EPUN[1] = gameT;
+  let best = 0, bd = 170, e = 2;
+  let syw = sind(plYaw), cyw = cosd(plYaw);
+  while (e <= NE) {
+    if (EALIVE[e] == 1) { if (EAIR[e] == 0) { if (EVEH[e] == 0) {
+      let dx = EX[e] - plX, dz = EZ[e] - plZ;
+      let d = Math.sqrt(dx * dx + dz * dz) + 1;
+      if (d < bd) { if ((dx * syw + dz * cyw) / d > 0.7) { if (Math.abs(EY[e] - plY) < 110) { bd = d; best = e; } } }
+    } } }
+    e = e + 1;
+  }
+  if (best > 0) { rayCast(plX, plY + 140, plZ, EX[best], EY[best] + 120, EZ[best]); if (rayT < 1) { best = 0; } }
+  if (best > 0) { punch(1, best, 14); }
+}
+// two fists low in the view; the right one jabs
+function drawFists() {
+  wPunch = Math.max(0, wPunch - dtF * 3.5);
+  let j = sind(wPunch * 180), bob = 0;
+  if (plMoving == 1) { wSwayT = wSwayT + dtF * (6 + plSprint * 4); bob = sind(wSwayT * 57) * 3; }
+  fist(-150, -112 + bob, 1);
+  fist(150 - j * 100, -112 - bob + j * 66, 1 - j * 0.35);
+}
+function fist(x, y, s) {
+  let r = 30 * s;
+  fillStop(); goto(x - r * 0.7, y - r); fillColorHex('#3b4450'); fillStart(); goto(x - r * 1.1, -140); goto(x + r * 1.3, -140); goto(x + r * 0.8, y - r);
+  fillStop(); goto(x - r, y - r * 0.7); fillColorHex('#c98e6a'); fillStart(); goto(x - r * 0.9, y + r * 0.6); goto(x - r * 0.3, y + r); goto(x + r * 0.6, y + r * 0.9); goto(x + r, y + r * 0.3); goto(x + r * 0.8, y - r);
+  hudLine(x - r * 0.55, y + r * 0.5, x + r * 0.65, y + r * 0.45, 2, '#9c6a4c');
+}
 function drawViewGun() {
   let g = gunNow(1);
+  if (g == 0) { drawFists(); }
   if (g > 0) {
     let st = pSight;
     // a 4x or 8x scope fully up: the scope picture instead of the gun

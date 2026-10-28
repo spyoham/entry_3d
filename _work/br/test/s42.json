@@ -1,0 +1,1 @@
+[{"wait":2500},{"shot":"test/m_menu1.png"},{"vars":1},{"click":[10,56]},{"wait":1500},{"shot":"test/m_menu2.png"},{"vars":1},{"click":[10,34]},{"wait":1500},{"shot":"test/m_menu3.png"},{"vars":1},{"click":[10,78]},{"wait":1200},{"vars":1}]

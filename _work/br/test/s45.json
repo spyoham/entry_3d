@@ -1,0 +1,4 @@
+[{"wait":2000},{"down":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":30},{"up":{"code":"Enter","key":"Enter","keyCode":13}},{"wait":1500},{"set":{"godMode":1,"testCmd":1}},{"wait":500},
+ {"eval":"(()=>{const v=window.__vm.variables.find(q=>q.name==='EFRAG');const a=v.array;if(a[0]&&typeof a[0]==='object')a[0].data=3;else a[0]=3;const w=window.__vm.variables.find(q=>q.name==='ESMK').array;if(w[0]&&typeof w[0]==='object')w[0].data=2;else w[0]=2;return 1})()"},
+ {"set":{"plPitch":8}},{"wait":300},
+ {"down":{"code":"KeyG","key":"g","keyCode":71}},{"wait":700},{"shot":"test/th1.png"},{"set":{"plPitch":25}},{"wait":500},{"shot":"test/th2.png"},{"up":{"code":"KeyG","key":"g","keyCode":71}},{"wait":200},{"vars":1}]

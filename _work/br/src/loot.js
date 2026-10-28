@@ -93,7 +93,7 @@ function countOf(it) {
 function lootSpawn() {
   lootClear();
   let i = 1;
-  while (i <= LSX.length) {
+  while (i <= N_LSX) {
     if (rand(1, 100) <= 72) {
       let it = rollItem(LST[i]);
       itemAdd(it, LSX[i] + rand(-30, 30), LSY[i], LSZ[i] + rand(-30, 30), countOf(it));
