@@ -42,6 +42,13 @@
   - 결과: 블록 61,174(v1.2 60.2k), 저장 JSON 15.74 MB(v1.2 14.86 MB, 문턱 약 16.17 MB).
 - **확인**: 갓 모드 한 판 새벽섬(`test/full13.log`)과 붉은사막(`test/full13d.log`) 모두 50→1명 약 710초, 자기장 7단계, 오류 0. 투척 미리 보기 `test/th1.png`.
 
+## v1.3 썸네일 (2026-10-28)
+사용자 요청: "썸네일 수정해줘"
+- 루트 `엔트리 배틀로얄 3D 썸네일.png`: 맵 세 개를 기울어진 세 칸(붉은사막 오아시스 | 눈보라섬 눈 덮인 전나무 | 새벽섬 아파트 옥상과 M416)으로 놓고, 제목·"맵 3개 · 50명 중 최후의 1인 · 탈것 · 총기 테스트"·v1.3 배지를 얹었다.
+- `thumb/edit_thumb3.py island desert snow out`. 원본은 `thumb/island_raw.png`, `desert_raw.png`, `snow_raw.png`.
+- `thumb/shot.mjs`(BENCH=1 빌드)에 더한 것: `cam: [x, y, z, yaw, pitch]`(자유 카메라, HUD 없음, 몸은 2.5 m 뒤로), `inst`의 `clean: 1`(같은 자리를 자유 카메라로: 총은 남고 HUD·조준점은 없음). 다른 맵은 `set`에 `mapSel`과 `benchT: 0`을 넣으면 벤치가 그 맵으로 판을 다시 연다(시작 전에 넣은 변수는 시작 때 초기화된다).
+- 후보 카메라: `thumb/shots_desert.json`, `shots_snow.json`, `shots_snow2.json`, `shots_island.json`, `shots_roofc.json`.
+
 ## v1.2 계단에 끼이는 버그 (2026-10-27)
 사용자 요청: "헛간에서 계단처럼 생긴 구조물에 끼이는 버그와 계단을 오르는 도중 옆으로 가면 몸이 끼이는 버그 해결해줘."
 

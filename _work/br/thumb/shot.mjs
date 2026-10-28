@@ -12,6 +12,9 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--enable-gpu',
 const page = await browser.newPage({ viewport: { width: 1000, height: 600 }, deviceScaleFactor: 2 });
 await page.goto('http://localhost:3100/harness/index.html');
 await page.waitForFunction(() => window.__ready, null, { timeout: 120000 });
+const S0 = (kv) => page.evaluate((kv) => { for (const [n, val] of Object.entries(kv)) { const v = window.__vm.variables.find(q => q.name === n); v.setValue ? v.setValue(val) : (v.value = val); } }, kv);
+// (v1.3) pre: set before the start (mapSel: the map the bench match is on)
+if (o.pre) await S0(o.pre);
 await page.evaluate(() => window.__handle.start());
 const V = (n) => page.evaluate((n) => { const v = window.__vm.variables.find(q => q.name === n); return v.isList ? v.array.map(x => x.data) : v.value; }, n);
 const S = (kv) => page.evaluate((kv) => { for (const [n, val] of Object.entries(kv)) { const v = window.__vm.variables.find(q => q.name === n); v.setValue ? v.setValue(val) : (v.value = val); } }, kv);
@@ -29,10 +32,25 @@ for (const sh of o.shots) {
     const w = [[lx, lz], [lz, -lx], [-lx, -lz], [-lz, lx]][r];
     await S({ camThird: 0, thK: 0, plX: IX[i] + w[0], plY: IY[i] + ly, plZ: IZ[i] + w[1], plVY: 0, plYaw: ly2 + r * 90, plPitch: lp });
     await page.waitForTimeout(sh.settle || 900);
+    // (v1.3) clean: the same view through the free camera - the gun stays, the HUD goes
+    if (sh.clean) { await S({ thK: 1, thX: IX[i] + w[0], thY: IY[i] + ly + 160, thZ: IZ[i] + w[1], thYaw: ly2 + r * 90, thP: lp }); await page.waitForTimeout(400); }
     // forget the sound marks (gunfire nearby) for a clean still
     if (o.quiet) { await page.evaluate(() => { const v = window.__vm.variables.find(q => q.name === 'SMT'); for (const x of v.array) x.data = -999; }); await page.waitForTimeout(120); }
     await (await page.$('canvas')).screenshot({ path: path.join(outDir, sh.name + '.png') });
     console.log('shot', sh.name, 'inst', i, IX[i], IZ[i]);
+    continue;
+  }
+  // (v1.3) cam: [x, y, z, yaw, pitch]: the free camera there, no HUD
+  if (sh.cam) {
+    const [x, y, z, yw, p] = sh.cam;
+    // (the player's body well behind the camera: out of the picture, the cells drawn round it)
+    const bx = x - Math.sin(yw * Math.PI / 180) * 2500, bz = z - Math.cos(yw * Math.PI / 180) * 2500;
+    await S({ plNoclip: 1, camThird: 1, plX: bx, plZ: bz, plY: y, plYaw: yw, thK: 1, thX: x, thY: y, thZ: z, thYaw: yw, thP: p });
+    await page.waitForTimeout(sh.settle || 1500);
+    await S({ thK: 1, thX: x, thY: y, thZ: z, thYaw: yw, thP: p });
+    await page.waitForTimeout(400);
+    await (await page.$('canvas')).screenshot({ path: path.join(outDir, sh.name + '.png') });
+    console.log('shot', sh.name, 'cam');
     continue;
   }
   if (sh.pyaw !== undefined) await S({ plYaw: sh.pyaw, plPitch: sh.ppitch ?? 0 });
