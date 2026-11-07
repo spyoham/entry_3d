@@ -1,0 +1,101 @@
+{
+ "when": "2026-11-07T11:49:16.248Z",
+ "cases": [
+  {
+   "W": 4,
+   "R": 2,
+   "tick": 16,
+   "tps": 62.7,
+   "fps": 59.3,
+   "pattern": "ooooooooooooxooooooooooo"
+  },
+  {
+   "W": 10,
+   "R": 4,
+   "tick": 16,
+   "tps": 63,
+   "fps": 55.7,
+   "pattern": "oooooxoooooooxooooooooxo"
+  },
+  {
+   "W": 12,
+   "R": 6,
+   "tick": 16,
+   "tps": 62.7,
+   "fps": 35.3,
+   "pattern": "oxoxoxooxoxoxoxooxoxoxoo"
+  },
+  {
+   "W": 8,
+   "R": 10,
+   "tick": 16,
+   "tps": 63,
+   "fps": 46.3,
+   "pattern": "oooxooxoooxoooxoooxooxoo"
+  },
+  {
+   "W": 14,
+   "R": 6,
+   "tick": 16,
+   "tps": 54,
+   "fps": 35,
+   "pattern": "oxoooxoxoooxoxoooxoxooox"
+  },
+  {
+   "W": 20,
+   "R": 4,
+   "tick": 16,
+   "tps": 43.7,
+   "fps": 24.7,
+   "pattern": "oxooxoxoxooxoxoxoxooxoxo"
+  },
+  {
+   "W": 12,
+   "R": 6,
+   "tick": 33,
+   "tps": 30.3,
+   "fps": 30.3,
+   "pattern": "oooooooooooooooooooooooo"
+  },
+  {
+   "W": 14,
+   "R": 6,
+   "tick": 33,
+   "tps": 30.3,
+   "fps": 30.3,
+   "pattern": "oooooooooooooooooooooooo"
+  },
+  {
+   "W": 12,
+   "R": 6,
+   "tick": 22,
+   "tps": 45.7,
+   "fps": 45.7,
+   "pattern": "oooooooooooooooooooooooo"
+  },
+  {
+   "W": 14,
+   "R": 6,
+   "tick": 22,
+   "tps": 46,
+   "fps": 45.7,
+   "pattern": "oooooooooooooooooooooooo"
+  },
+  {
+   "W": 2,
+   "R": 18,
+   "tick": 16,
+   "tps": 57.3,
+   "fps": 20.3,
+   "pattern": "oxxoxxoxxoxxoxxoxxoxxoxx"
+  },
+  {
+   "W": 2,
+   "R": 34,
+   "tick": 16,
+   "tps": 52.7,
+   "fps": 10.7,
+   "pattern": "oxxxxoxxxxoxxxxoxxxxoxxx"
+  }
+ ]
+}
