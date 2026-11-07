@@ -14,6 +14,8 @@ const { chromium } = require('@playwright/test');
 const OUT = path.join(HERE, '..', '..', '노하우 팁', '최적화');
 fs.mkdirSync(OUT, { recursive: true });
 const R = JSON.parse(fs.readFileSync(path.join(HERE, 'result.json'), 'utf8'));
+const R2 = JSON.parse(fs.readFileSync(path.join(HERE, 'result2.json'), 'utf8')).results;   // bench2.mjs
+const u2 = (k) => (R2[k].us ?? R2[k].usPerClone).toFixed(1);
 const one = (k) => Number(R.results[k][0]);
 const best = (k) => Math.min(...R.results['E3 ' + k].map(Number));
 const empty = best('empty loop');
@@ -115,7 +117,39 @@ const pages = {
 <tr><td>1 ÷ 300000000000000000000</td><td class="bad">${R.results['E5 1 / 3e20'][0]}</td><td>몫이 0.00000000000000000001 보다 작으면 0</td></tr>
 <tr><td>0.0001 부터 0.9999 사이의 무작위 수, 2000번</td><td class="bad">0 이 ${R.results['E5 zeros of rand(0.0001,0.9999) in 2000'][0]}번</td><td>경계에 소수가 있으면 소수 둘째 자리로 반올림한다. (0 부터 999999 사이의 무작위 수) ÷ 1000000 을 쓴다</td></tr>
 </table></div>`,
-    '사진10 두 엔진': `<div class="wrap"><h1>순정 엔트리와 tessvm은 병목이 다르다</h1><p class="sub">tessvm = 엔트리 작품을 자바스크립트로 바꿔 실행하는 크롬 확장</p>
+    '사진10 여러 블록의 값': (() => {
+        const row = (name, k, note, cls = '') => `<tr><td>${name}</td><td class="r ${cls}">${u2(k)} µs</td><td>${note}</td></tr>`;
+        const grp = (t) => `<tr><td colspan="3" style="color:#5b6577;font-weight:600;padding-top:16px">${t}</td></tr>`;
+        return `<div class="wrap"><h1>여러 블록이 걸리는 시간</h1><p class="sub">문장 하나 (7번 재서 가장 짧은 값). 비교: 지역 변수 = 1 은 0.9 µs, 소수 더하기는 2.9 µs</p>
+<table><col style="width:330px"><col style="width:120px"><col>
+${grp('변수 찾기')}
+${row('전역 변수 읽기 (맨 앞 변수)', 'local = global made first of 300', '')}
+${row('전역 변수 읽기 (300개 뒤 변수)', 'local = global made last of 300', '엔진은 변수를 목록 앞에서부터 찾는다', 'bad')}
+${row('함수 매개변수 읽기', 'local = parameter', '찾지 않고 바로 꺼낸다', 'good')}
+${grp('리스트 (4000칸, 숨김)')}
+${row('맨 뒤에 넣기 / 지우기', 'add at end, delete last (each)', '')}
+${row('맨 앞에 넣기 / 지우기', 'insert at 1, delete 1 (each)', '4000칸에서는 맨 뒤와 거의 같다')}
+${row('2000번째 항목 읽기', 'local = item 2000 of 4000', '몇 번째든 같다')}
+${row('~이(가) 포함되어 있는가 (없음)', 'local = list contains (absent)', '처음부터 끝까지 본다. 길이에 비례', 'bad')}
+${grp('글자')}
+${row('합치기 / n번째 글자 / 길이', 'local = join two texts', '1.3 ~ 1.8 µs. 사칙연산보다 싸다')}
+${grp('오브젝트 (CreateJS 그리기)')}
+${row('x: y: 위치로 이동하기', 'move to x: y:', '')}
+${row('방향 정하기', 'turn to (direction)', '')}
+${row('모양 바꾸기', 'change costume', '')}
+${row('투명도 효과 바꾸기', 'change transparency', '')}
+${row('색깔 효과 바꾸기', 'change color effect', '투명도의 두 배')}
+${row('글상자 쓰기', 'textbox write', '블록만. 글자 그림은 그릴 때 만든다')}
+${row('말하기', 'say (speech bubble)', '', 'bad')}
+${row('~에 닿았는가 (멀리 있음)', 'local = touching other object', '상자가 안 겹치면 바로 끝난다')}
+${row('~에 닿았는가 (겹쳐 있음)', 'local = touching overlapping object', '겹치면 픽셀까지 비교한다', 'bad')}
+${grp('복제본과 신호')}
+${row('복제본 만들기', 'create clone (plain)', '')}
+${row('복제본 만들기 (지역 리스트 1000칸)', 'create clone (1000-item local list)', '지역 리스트를 통째로 복사한다', 'bad')}
+${row('신호 보내기', 'send signal (no receivers)', '한 틱에 50번 보내면 받는 스크립트 50개가 모두 돈다')}
+</table><p class="note">오브젝트 블록은 블록 자체의 시간이고, 화면을 다시 그리는 시간은 따로 든다. 편집기의 CreateJS 그리기에서 쟀다. playentry의 WebGL 그리기에서는 효과와 충돌 판정의 값이 다를 수 있다.</p></div>`;
+    })(),
+    '사진11 두 엔진': `<div class="wrap"><h1>순정 엔트리와 tessvm은 병목이 다르다</h1><p class="sub">tessvm = 엔트리 작품을 자바스크립트로 바꿔 실행하는 크롬 확장</p>
 <table><col style="width:190px"><col style="width:340px"><col><tr><th></th><th>순정 엔트리</th><th>tessvm</th></tr>
 <tr><td>블록 하나</td><td>0.3 ~ 2 µs</td><td>수 ns (수백 배 빠름)</td></tr>
 <tr><td>소수 사칙연산</td><td>1 ~ 3 µs</td><td>정수 3 ns, 소수 15 ~ 250 ns</td></tr>
@@ -126,7 +160,7 @@ const pages = {
 <tr><td>붓</td><td>선마다 따로 그림</td><td>같은 색 선 16개 이상이 이어지면 한 번에 그림</td></tr>
 <tr><td class="k">그래서 줄일 것</td><td class="k">블록 수</td><td class="k">소수 계산과 그리기 횟수</td></tr></table>
 <p class="note">tessvm 값은 지금까지 작품을 만들며 잰 값이다. 둘 다 실행하려면 5000칸 한도는 순정에, 빠르기는 tessvm에 맞춘다.</p></div>`,
-    '사진11 작품 사례': (() => {
+    '사진12 작품 사례': (() => {
         const cases = [
             ['exp 함수 (순정)', '사칙연산 15개 → 4개', 38.6, 20.5, ' µs'],
             ['OBJ 렌더러 (순정)', '옛 사칙연산 블록', 122, 108, ' ms'],
@@ -142,17 +176,17 @@ const pages = {
 <div class="row" style="margin:4px 0"><div class="track" style="border:0"><div class="bar" style="width:${(b / a * 80).toFixed(1)}%"></div><div class="val" style="left:${(b / a * 80).toFixed(1)}%">${b}${u}</div></div></div></div>`).join('')}
 <p class="note">레이싱 틱은 "13~21 ms → 5~6 ms"(싱가포르 ULTRA)의 큰 쪽 값. 레이트레이서 재귀판은 27~31 ms, 무지연 반복판은 13~14 ms의 가운데 값. 출처는 각 작품의 설명서와 작업 기록.</p></div>`;
     })(),
-    '사진12 점검표': `<div class="wrap"><h1>무거운 작품 점검표</h1><p class="sub">위에서부터 효과가 큰 순서</p>
+    '사진13 점검표': `<div class="wrap"><h1>무거운 작품 점검표</h1><p class="sub">위에서부터 효과가 큰 순서</p>
 <table>
 <tr><td class="k">1</td><td>무거운 반복의 몸체 끝에 <b>&lt;이번 반복 건너뛰기 가 아니다&gt; 이(가) 될 때까지 기다리기</b>를 넣었나 (몸체가 끝나는 모든 길에)</td></tr>
 <tr><td class="k">2</td><td>그 반복 안에 빈 "아니면", 빈 함수, 0초 기다리기, 신호 보내고 기다리기가 없나</td></tr>
 <tr><td class="k">3</td><td>값을 돌려주는 함수 안에 반복이나 기다리기가 없나. 몸체가 비어 있지 않나</td></tr>
-<tr><td class="k">4</td><td>계산 중간값을 함수 지역 변수에 두었나. 계산에 쓰는 변수와 리스트를 숨겼나</td></tr>
+<tr><td class="k">4</td><td>계산 중간값을 함수 지역 변수에 두었나. 계산에 쓰는 변수와 리스트를 숨겼나. 쓰지 않는 변수를 지웠고, 자주 쓰는 변수가 변수 목록 앞쪽에 있나</td></tr>
 <tr><td class="k">5</td><td>사칙연산 수를 줄였나 (제곱·몫·나머지·리스트 읽기로 바꾸기, 같은 값 다시 계산하지 않기, 순정이면 옛 사칙연산 블록)</td></tr>
 <tr><td class="k">6</td><td>한 장의 그림을 한 틱 안에서 "모든 붓 지우기 → 전부 그리기"로 끝내나. 지우지 않고 쌓지 않나</td></tr>
 <tr><td class="k">7</td><td>위치는 "x: y: 위치로 이동하기" 한 블록으로. 필요 없는 붓과 채우기는 멈췄나</td></tr>
 <tr><td class="k">8</td><td>그리고/또는 의 양쪽은 모두 계산된다. 비싼 조건은 만일을 겹쳐 썼나</td></tr>
-<tr><td class="k">9</td><td>신호와 복제본을 매 장 돌리는 계산에 쓰지 않나</td></tr>
+<tr><td class="k">9</td><td>신호와 복제본을 매 장 돌리는 계산에 쓰지 않나. 복제할 오브젝트에 큰 지역 리스트가 없나. 충돌은 좌표로 먼저 걸렀나</td></tr>
 <tr><td class="k">10</td><td>리스트가 5000칸을 넘지 않나. 저장 크기가 16 MB 아래인가</td></tr>
 <tr><td class="k">11</td><td>소수를 쌓을 때 "만큼 더하기" 대신 "정하기"를 썼나. 무작위 실수는 정수로 뽑아 나눴나</td></tr>
 <tr><td class="k">12</td><td>바꾸기 전과 뒤를 번갈아 여러 번 재서 가장 짧은 값끼리 비교했나</td></tr>
