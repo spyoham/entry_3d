@@ -1,4 +1,4 @@
-// The pictures of the write-up (root: "엔트리 exp 함수 만든 방법"): two charts, two cards, and the three
+// The pictures of the write-up (root: "노하우 팁/엔트리 exp 함수 만든 방법"): two charts, two cards, and the three
 // functions as the editor draws them (a function is one long row of blocks: cut into rows and stacked).
 // usage: node article.mjs
 import fs from 'node:fs';
@@ -9,7 +9,7 @@ import { HERE } from './lib.mjs';
 import { NAME, VERSION } from './build.mjs';
 const require = createRequire(new URL('../../entry-vibe-coding/package.json', import.meta.url));
 const { chromium } = require('@playwright/test');
-const OUT = path.join(HERE, '..', '..', '엔트리 exp 함수 만든 방법');
+const OUT = path.join(HERE, '..', '..', '노하우 팁', '엔트리 exp 함수 만든 방법');
 fs.mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch();
 
