@@ -1,0 +1,20 @@
+{
+ "when": "2026-11-07T11:39:39.622Z",
+ "x": 100000,
+ "events": {
+  "B start": 1024.5,
+  "B end": 1985.199999999255,
+  "C woke (asked 1200)": 2003.599999997765
+ },
+ "ticksA": 250,
+ "spanA": 4927.5,
+ "bigGaps": [
+  {
+   "atMs": 1024.099999997765,
+   "gapMs": 962.5
+  }
+ ],
+ "ticksInFirst200msAfterStall": 13,
+ "medianGapOutsideStall": 16,
+ "errors": []
+}
