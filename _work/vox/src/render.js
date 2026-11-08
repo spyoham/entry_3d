@@ -44,6 +44,7 @@ function ltkBuild() {
   while (lt < 256) {
     lv = idiv(lt, 16) - dark; bl = mod(lt, 16);
     if (bl > lv) { lv = bl; } if (lv < dimAmb) { lv = dimAmb; }
+    if (nightVis == 1) { lv = 15; }
     d = 0;
     while (d < 8) { LTK[lt * 8 + d + 1] = BIDX[lv * 8 + d + 1] * 8; d = d + 1; }
     lt = lt + 1;

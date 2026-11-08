@@ -5,6 +5,7 @@ let testCmd = 0, tX = 0, tY = 0, tZ = 0, tYaw = 0, tPitch = 0, tStage = 0;
 function testStep() {
   // 4: to world tStage at (tX, tZ)
   if (testCmd == 4) { testCmd = 0; startTravel(tStage, tX, tZ, 1 + tStage * 0); if (tStage == 2) { travelKind = 2; } }
+  if (testCmd == 5) { testCmd = 0; setBlock(tX, tY, tZ, tStage); }
   // 3: run stage tStage of the player's chunk once more (for timing)
   if (testCmd == 3) {
     let s = slotOf(idiv(Math.floor(px), 16), idiv(Math.floor(pz), 16));

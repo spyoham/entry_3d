@@ -24,8 +24,8 @@ function genColumnU(x, z) {
     if (y <= f) { v = 48; if (y == f) { if (sand > 0.3) { v = 49; } } if (bas > 0.6) { v = 53; } }
     if (y >= c) { v = 48; if (bas > 0.6) { v = 53; } }
     if (v == 0) { if (y <= 12) { v = 35; } }
-    if (y == 0 || y == WY - 1) { v = 6; }
-    if (y == 1 || y == WY - 2) { if (rnd() < 0.5) { v = 6; } }
+    if (y == 0 || y >= UH - 1) { v = 6; }
+    if (y == 1 || y == UH - 2) { if (rnd() < 0.5) { v = 6; } }
     W[i] = v; LT[i] = 0;
     y = y + 1; i = i + 1;
   }
@@ -45,11 +45,13 @@ function fortZ(x) {
 function featuresU(cx, cz) {
   chunkSeed(cx, cz, 2);
   veins(51, 6, 3, 7, 14, 50);
+  // the ashen debris, deep and rare (whatever is round it)
+  veins(59, 1.6, 1, 3, 8, 22);
   veins(49, 3, 10, 20, 12, 30);
   // glowing crystals hanging from the ceiling
   let k = rndI(1, 3);
   while (k > 0) {
-    let x = gx0 + rndI(2, 13), z = gz0 + rndI(2, 13), y = WY - 3;
+    let x = gx0 + rndI(2, 13), z = gz0 + rndI(2, 13), y = UH - 3;
     while (y > 20 && W[wi(x, y, z)] != 0) { y = y - 1; }
     if (y > 20) { if (W[wi(x, y + 1, z)] == 48) { genBlob(x, y, z, 50, rndI(5, 14), 0 - 1); } }
     k = k - 1;
@@ -66,7 +68,7 @@ function featuresU(cx, cz) {
 function genBlob(x, y, z, b, n, dir) {
   let k = 0, d = 0;
   while (k < n) {
-    if (x >= gx0 && x <= gx1 && z >= gz0 && z <= gz1 && y > 1 && y < WY - 1) {
+    if (x >= gx0 && x <= gx1 && z >= gz0 && z <= gz1 && y > 1 && y < UH - 1) {
       let i = wi(x, y, z);
       if (W[i] == 0) { W[i] = b; }
     }
@@ -180,14 +182,9 @@ function featuresV(cx, cz) {
   }
   // the way home, once the warden is gone
   if (bossDead == 1) { gateAt(0, 41, 0, 0); }
-  // towers on the far islands
-  if (Math.abs(gx0) > 400 || Math.abs(gz0) > 400) {
-    if (rnd() < 0.18) {
-      let x = gx0 + rndI(4, 11), z = gz0 + rndI(4, 11);
-      voidIsland(x, z);
-      if (vTop > 0) { towerAt(x, vTop + 1, z, rndI(12, 18)); }
-    }
-  }
+  // the far gate once the warden is gone, the cities on the far islands
+  featuresFarGate();
+  featuresCity(cx, cz);
 }
 // a 3 x 3 floor of gate (in this chunk only)
 function gateAt(x, y, z, b) {
@@ -342,11 +339,12 @@ function arrive() {
     if (bossDead == 0) { bossSpawn(); }
   }
   if (travelKind == 3) { findSpawn(); px = spawnX; py = spawnY; pz = spawnZ; }
+  if (travelKind == 4 || travelKind == 5) { farArrive(); }
   fallTop = py; gateCool = 1;
   gState = 2; txClear();
   lockReq();
   if (dim == 1) { msgShow('잿빛 심연', 3); }
-  if (dim == 2) { msgShow('공허의 섬 - 수호 수정을 부수고 공허의 수호자를 쓰러뜨리세요', 5); }
+  if (dim == 2) { if (travelKind == 2) { msgShow('공허의 섬 - 수호 수정을 부수고 공허의 수호자를 쓰러뜨리세요', 5); } if (travelKind == 4) { msgShow('바깥 섬 - 보랏빛 도시를 찾아보세요', 5); } }
 }
 // a fire veil within 16 columns (its lowest cell)
 let veilX = 0, veilY = 0 - 1, veilZ = 0;
@@ -378,7 +376,7 @@ function makeGateNear(x, z) {
     a = 0;
     while (a < 12 && y < 0) {
       let tx = Math.floor(x + sind(a * 30) * r), tz = Math.floor(z + cosd(a * 30) * r), ty = 16;
-      while (ty < WY - 6 && y < 0) {
+      while (ty < UH - 6 && y < 0) {
         if (BSOL[blockAt(tx, ty - 1, tz) + 1] == 1 && blockAt(tx, ty - 1, tz) != 35) {
           if (blockAt(tx, ty, tz) == 0 && blockAt(tx, ty + 1, tz) == 0 && blockAt(tx, ty + 2, tz) == 0 && blockAt(tx, ty + 3, tz) == 0) { y = ty; x = tx; z = tz; }
         }
@@ -418,21 +416,23 @@ function gateStep(dt) {
   let b0 = blockAt(Math.floor(px), Math.floor(py + 0.2), Math.floor(pz)), b1 = blockAt(Math.floor(px), Math.floor(py + 1.2), Math.floor(pz));
   let inV = 0, onG = 0;
   if (b0 == 47 || b1 == 47) { inV = 1; }
+  let onF = 0;
+  if (b0 == 63 || b1 == 63) { onF = 1; }
   if (b0 == 56 || blockAt(Math.floor(px), Math.floor(py - 0.2), Math.floor(pz)) == 56) { onG = 1; }
-  if (inV + onG == 0) { gateCool = 0; gateT = 0; }
+  if (inV + onG + onF == 0) { gateCool = 0; gateT = 0; }
   else {
     if (gateCool == 0) {
       gateT = gateT + dt;
       let need = 2.5;
-      if (gameMode == 1 || onG == 1) { need = 0.4; }
+      if (gameMode == 1 || onG == 1 || onF == 1) { need = 0.4; }
       if (gateT >= need) {
         gateT = 0;
-        if (inV == 1) {
+        if (onF == 1) { farGateGo(); } else { if (inV == 1) {
           if (dim == 0) { startTravel(1, Math.floor(px / 8) + 0.5, Math.floor(pz / 8) + 0.5, 1); }
           else { startTravel(0, Math.floor(px) * 8 + 0.5, Math.floor(pz) * 8 + 0.5, 1); }
         } else {
           if (dim == 2) { startTravel(0, spawnX, spawnZ, 3); } else { startTravel(2, 0.5, 0 - 47.5, 2); }
-        }
+        } }
       }
     }
   }
@@ -528,6 +528,7 @@ function bossDies(e) {
   findTop(0, 0);
   let y = topY + 1, a = 0 - 1;
   while (a <= 1) { let c = 0 - 1; while (c <= 1) { setBlock(a, y - 1, c, 56); c = c + 1; } a = a + 1; }
+  farGateOpen();
   winT = 12;
 }
 let winT = 0;

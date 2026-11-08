@@ -57,6 +57,7 @@ call(() => { const e = s.peek('bossE'); fn.mobHurt(e, 999, 0, 0); });
 F(2);
 console.log('asleep: hp', s.peek('EHP')[s.peek('bossE') - 1]);
 // the crystals broken: it wakes, and falls
+s.poke('px', 0.5); s.poke('pz', 0.5); s.poke('py', 60); F(400);
 for (let r = 0; r < 20 && s.peek('nCrystal') > 0; r++) { call(() => { for (let k = 0; k < 8; k++) { fn.pillarAt(k); fn.setBlock(s.peek('pilX'), s.peek('pilH') + 1, s.peek('pilZ'), 0); } }); F(60); }
 console.log('crystals', s.peek('nCrystal'), 'awake', s.peek('bossWake'));
 call(() => { const e = s.peek('bossE'); fn.mobHurt(e, 999, 0, 0); });

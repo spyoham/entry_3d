@@ -43,6 +43,7 @@ function keyPoll(code, kd) {
 function pollKeys() {
   keyPoll(27, key(27)); keyPoll(37, key(37)); keyPoll(39, key(39));
   keyPoll(49, key(49)); keyPoll(50, key(50)); keyPoll(51, key(51)); keyPoll(52, key(52)); keyPoll(53, key(53)); keyPoll(54, key(54)); keyPoll(55, key(55)); keyPoll(56, key(56)); keyPoll(57, key(57));
+  keyPoll(32, key(32)); keyPoll(84, key(84)); keyPoll(191, key(191));
   keyPoll(69, key(69)); keyPoll(70, key(70)); keyPoll(71, key(71)); keyPoll(72, key(72)); keyPoll(80, key(80)); keyPoll(81, key(81)); keyPoll(114, key(114)); keyPoll(13, key(13));
 }
 function keyHit(code) { return KHIT[code]; }
@@ -153,6 +154,8 @@ function playFrame(dt) {
       if (keyHit(81) == 1) { dropHeld(); }
       if (keyHit(69) == 1) { if (gameMode == 1) { uiOpen(5); } else { uiOpen(1); } }
       if (keyHit(80) == 1) { uiMode = 6; mouseFree(); txClear(); }
+      // a command: T or /
+      if (keyHit(84) == 1 || keyHit(191) == 1) { chatOpen(); }
       if (keyHit(71) == 1) { viewWant = viewWant + 8; if (viewWant > 48) { viewWant = 8; } setView(viewWant); msgShow(`시야 거리 ${viewWant} 블록`, 1.5); }
     } else {
       playerMove(dt);
@@ -161,6 +164,7 @@ function playFrame(dt) {
       uiInput();
     }
     survival(dt);
+    effectsStep(dt);
   } else { pickOn = 0; breakStage = 0; uiInput(); }
   wheelAcc = 0;
   if (keyHit(114) == 1) { showDbg = 1 - showDbg; }
@@ -171,7 +175,7 @@ function playFrame(dt) {
   let cw = 1;
   if (kStep == 1) { cw = 2; }
   chunkWork(cw); remeshSome(6);
-  if (BENCH == 0) { tday = tday + dt / dayLen; }
+  if (BENCH == 0) { if (grDay == 1) { tday = tday + dt / dayLen; } }
   if (tday >= 1) { tday = tday - 1; }
   if (dim == 0) { dimAmb = 0; daySky(); } else { dimSky(); }
   gateStep(dt);
@@ -196,7 +200,7 @@ function playFrame(dt) {
   if (hurtFlash > 0) { penAlpha(70); box(-245, 140, 245, -140, '#c00000'); fillStop(); penAlpha(0); }
   if (uiMode == 0) { if (dead == 0) { drawHand(); } }
   if (uiMode <= 6) { if (dead == 0) { drawHud(dt); } }
-  if (uiMode >= 1) { if (uiMode <= 5) { invScreen(); } }
+  if (uiMode >= 1) { if (uiMode <= 5 || uiMode == 8) { invScreen(); } }
   if (uiMode == 6) { pauseScreen(); }
   if (uiMode == 7) { deathScreen(); }
   if (helpT > 0) { helpT = helpT - dt; helpText(); } else { if (uiMode == 0) { txOff(15); txOff(16); txOff(17); txOff(18); txOff(19); } }
@@ -207,11 +211,11 @@ function playFrame(dt) {
 function helpText() {
   tx(15, 'WASD 이동 · 스페이스 점프(크리에이티브: 두 번 눌러 날기) · Shift 웅크리기 · W 두 번/R 달리기', 0, 104, 7, '#ffffff', 0);
   tx(16, '클릭(누르고 있기) 부수기·공격 · F 놓기·쓰기(먹기, 작업대·화로·상자 열기) · Q 버리기', 0, 94, 7, '#ffffff', 0);
-  tx(17, '1~9·휠 손에 들 것 · E 소지품·제작 · G 시야 거리 · F3 정보 · P 메뉴 · H 도움말', 0, 84, 7, '#ffffff', 0);
+  tx(17, '1~9·휠 손에 들 것 · E 소지품·제작 · G 시야 거리 · T 또는 / 명령어 · F3 정보 · P 메뉴 · H 도움말', 0, 84, 7, '#ffffff', 0);
 }
 // clicks on the screens
 function uiInput() {
-  if (uiMode >= 1 && uiMode <= 5) {
+  if (uiMode >= 1 && uiMode <= 5 || uiMode == 8) {
     if (keyHit(69) == 1 || keyHit(27) == 1) { uiClose(); lockReq(); }
     else {
       if (uiMode == 5) {

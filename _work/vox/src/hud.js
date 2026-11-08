@@ -231,6 +231,7 @@ function drawHud(dt) {
   } else { txOff(93); }
   if (winT > 0) { winT = winT - dt; tx(94, '승리!', 0, 70, 22, '#ffe880', 0); tx(95, '공허의 수호자를 쓰러뜨렸습니다 · 수호자의 심장을 주워 가세요', 0, 48, 8, '#ffffff', 0); }
   else { txOff(94); txOff(95); }
+  effectsHud();
   msgT = msgT - dt;
   if (msgT > 0) { tx(11, msgText, 0, 40, 9, '#ffff80', 0); } else { txOff(11); }
   if (showDbg == 1) {
@@ -286,8 +287,9 @@ function slotXY(s) {
     else { slX = -52 + mod(k, 3) * 18; slY = 66 - idiv(k, 3) * 18; }
   } else { if (s == 50) { if (cgSize == 2) { slX = 66; slY = 53; } else { slX = 40; slY = 48; } }
   else { if (s == 51) { slX = -24; slY = 66; } else { if (s == 52) { slX = -24; slY = 30; } else { if (s == 53) { slX = 36; slY = 48; }
+  else { if (s == 54) { slX = -52; slY = 48; } else { if (s == 55) { slX = -16; slY = 48; } else { if (s == 56) { slX = 40; slY = 48; }
   else { if (s <= 87) { slX = -72 + mod(s - 61, 9) * 18; slY = 66 - idiv(s - 61, 9) * 18; }
-  else { slX = -72 + mod(s - 101, 9) * 18; slY = 70 - idiv(s - 101, 9) * 18; } } } } } } } } }
+  else { slX = -72 + mod(s - 101, 9) * 18; slY = 70 - idiv(s - 101, 9) * 18; } } } } } } } } } } } }
 }
 // is slot s part of the screen now?
 function slotIn(s) {
@@ -297,6 +299,7 @@ function slotIn(s) {
   if (s >= 41 && s <= 49) { if (uiMode == 1) { if (s - 40 <= 4) { r = 1; } } if (uiMode == 2) { r = 1; } }
   if (s == 50) { if (uiMode == 1 || uiMode == 2) { r = 1; } }
   if (s >= 51 && s <= 53) { if (uiMode == 3) { r = 1; } }
+  if (s >= 54 && s <= 56) { if (uiMode == 8) { r = 1; } }
   if (s >= 61 && s <= 87) { if (uiMode == 4) { r = 1; } }
   if (s >= 101 && s <= 136) { if (uiMode == 5) { r = 1; } }
   if (uiMode == 5) { if (s >= 10 && s <= 36) { r = 0; } }
@@ -307,7 +310,7 @@ function slotsInit() {
   SLOTS = [];
   let s = 1;
   while (s <= 40) { SLOTS.push(s); s = s + 1; }
-  s = 41; while (s <= 53) { SLOTS.push(s); s = s + 1; }
+  s = 41; while (s <= 56) { SLOTS.push(s); s = s + 1; }
   s = 61; while (s <= 87) { SLOTS.push(s); s = s + 1; }
   s = 101; while (s <= 136) { SLOTS.push(s); s = s + 1; }
 }
@@ -319,10 +322,11 @@ function invScreen() {
   if (uiMode == 2) { title = '작업대'; }
   if (uiMode == 3) { title = '화로'; }
   if (uiMode == 4) { title = '상자'; }
+  if (uiMode == 8) { title = '대장장이 작업대: 다이아몬드 장비 + 심연철 주괴'; }
   if (uiMode == 5) { title = `크리에이티브 (${uiPage + 1}/${Math.ceil(PAL.length / 36)})  ← → 쪽 넘기기`; }
   panel(-88, top, 88, -94);
   tx(20, title, -80, top - 6, 8, '#404040', 1);
-  if (uiMode <= 4) { tx(21, '소지품', -80, 0, 8, '#404040', 1); } else { txOff(21); }
+  if (uiMode <= 4 || uiMode == 8) { tx(21, '소지품', -80, 0, 8, '#404040', 1); } else { txOff(21); }
   let i = 1, s = 0, ti = 22, hov = 0;
   let mx = mouseX(), my = mouseY();
   while (i <= SLOTS.length) {

@@ -143,7 +143,16 @@ function columnShape(x, z) {
   let e = fbm3(x - (0 - 2871), z - (0 - 214), 29);
   let h = SEA + 2 + c * 16 + e * 4;
   let mt = 0;
-  if (m > 0.2) { mt = (m - 0.2) * (m - 0.2) * 110 * (0.6 + 0.4 * e); if (c < -0.1) { mt = mt * 0.3; } h = h + mt; }
+  // mountains: a broad rise where the noise is high, with ridged crags on it
+  if (m > 0.05) {
+    mt = (m - 0.05) * (m - 0.05) * 200 * (0.65 + 0.35 * e);
+    let rg = 1 - Math.abs(noise2(x - (0 - 7417), z - (0 - 3191), 17));
+    mt = mt * (0.75 + 0.45 * rg * rg);
+    if (c < -0.1) { mt = mt * 0.3; }
+    h = h + mt;
+    // (the tops eased under the roof of the world)
+    if (h > 96) { h = 96 + (h - 96) * 0.35; }
+  }
   // rivers: the land dips to the sea along a line of the noise
   let rv = Math.abs(noise2(x - (0 - 16687), z - (0 - 21), 42));
   if (rv < 0.06) { if (h > SEA - 3) { if (mt < 6) { h = SEA - 3 + (h - SEA + 3) * rv / 0.06; } } }
@@ -488,6 +497,8 @@ function featuresO(cx, cz) {
   }  // now and then a broken gate frame of obsidian on the ground (with what fell off lying by it)
   chunkSeed(cx, cz, 4);
   if (rndI(1, 9) == 1) { ruinFrame(gx0 + rndI(4, 9), gz0 + rndI(5, 10)); }
+  // the old ruins with their gates
+  featuresRuins();
 }
 function ruinFrame(x0, z0) {
   findTop(x0 + 1, z0);
@@ -730,6 +741,7 @@ function chunkWork(steps) {
   }
 }
 function worldInit() {
+  effectsInit(); riding = 0; gliding = 0;
   if (W.length == 0) {
     let i = 0;
     while (i < WS * WS * WY) { W.push(0); LT.push(0); i = i + 1; }

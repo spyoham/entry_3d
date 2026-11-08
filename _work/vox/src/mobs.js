@@ -60,12 +60,12 @@ function spawnStep(dt) {
           nHostile = nHostile + 1;
           // far away ones go
           if ((EX[i] - px) * (EX[i] - px) + (EZ[i] - pz) * (EZ[i] - pz) > 56 * 56) { ET[i] = 0; }
-        } else { nPassive = nPassive + 1; }
+        } else { nPassive = nPassive + 1; if (MNEU[ET[i]] == 1 || ET[i] == 12) { if ((EX[i] - px) * (EX[i] - px) + (EZ[i] - pz) * (EZ[i] - pz) > 64 * 64) { ET[i] = 0; } } }
       }
       i = i + 1;
     }
-    if (BENCH == 0) { if (dim == 1) { spawnDepths(); } }
-    if (BENCH == 0) { if (dim == 0) { if (gameMode == 0 || SPAWNC == 1) {
+    if (BENCH == 0 && grMobs == 1) { if (dim == 1) { spawnDepths(); } if (dim == 2) { spawnVoid(); } }
+    if (BENCH == 0 && grMobs == 1) { if (dim == 0) { if (gameMode == 0 || SPAWNC == 1) {
       if (nHostile < 10) {
         let a = rand(0, 359), r = rand(18, 40);
         let x = Math.floor(px + sind(a) * r), z = Math.floor(pz + cosd(a) * r);
@@ -80,7 +80,7 @@ function spawnStep(dt) {
               let lv = Math.max(idiv(LT[i2], 16) - dark, mod(LT[i2], 16));
               if (lv <= 7) {
                 let r2 = rand(1, 100), t = 5;
-                if (r2 > 45) { t = 6; } if (r2 > 80) { t = 7; }
+                if (r2 > 45) { t = 6; } if (r2 > 80) { t = 7; } if (r2 > 93) { t = 11; }
                 mobAdd(t, x + 0.5, y + 0.02, z + 0.5);
               }
             }
@@ -119,12 +119,17 @@ function mobsStep(dt) {
 }
 function mobStep(e, dt) {
   let t = ET[e];
+  if (t == 12) { shellStep(e, dt); }
+  else { if (t == 13) { boatStep(e, dt); } else { if (t == 11) { wanderStep(e, dt); } mobStep0(e, dt); } }
+}
+function mobStep0(e, dt) {
+  let t = ET[e];
   let w = MW[t] / 2, h = MH[t];
   let dxp = px - EX[e], dzp = pz - EZ[e], dyp = py - EY[e];
   let dist = Math.sqrt(dxp * dxp + dzp * dzp);
   let want = 0, wy = EYAW[e], spd = MSPD[t];
   ETM[e] = ETM[e] - dt; EHURT[e] = EHURT[e] - dt; EATK[e] = EATK[e] - dt;
-  if (MHOST[t] == 1) {
+  if (MHOST[t] == 1 || EST[e] == 4) {
     // hostile: after the player when near (not in creative)
     if (dist < 16 && gameMode == 0 && dead == 0) {
       wy = atan2d(dxp, dzp);
@@ -154,7 +159,7 @@ function mobStep(e, dt) {
             EATK[e] = 2 + rand(0, 10) / 10;
           }
         } }
-      } else { if (t < 8) {
+      } else { if (t < 8 || t == 11) {
         if (dist < 1.2 + w) { if (Math.abs(dyp) < 1.5) { if (EATK[e] <= 0) {
           EATK[e] = 1;
           hurt(MDMG[t], `${MNAME[t]}에게 당했습니다`);
@@ -249,6 +254,7 @@ function mobHurt(e, n, fx, fz) {
     }
     let t = ET[e];
     if (MHOST[t] == 0) { EST[e] = 3; ETM[e] = 3; EWY[e] = atan2d(EX[e] - px, EZ[e] - pz); }
+    if (t == 11) { EST[e] = 4; ETM[e] = 30; if (EHP[e] > 0) { if (rand(1, 10) <= 6) { wanderTeleport(e); } } }
     if (EHP[e] <= 0) {
       if (t == 10) { bossDies(e); }
       // drops
@@ -331,6 +337,7 @@ function arrowShoot(x, y, z, tx, ty, tz, own) {
     } else {
       if (own == 2) { sp = 11; }
       if (own == 1) { sp = 32; AYY[a] = y + dy / d * 0.6; }
+      if (own == 4) { sp = 5; }
       AVX[a] = dx / d * sp; AVY[a] = dy / d * sp; AVZ[a] = dz / d * sp;
     }
     AAGE[a] = 0; ASTK[a] = 0;
@@ -341,6 +348,7 @@ function arrowsStep(dt) {
   while (a <= NARR) {
     if (AON[a] > 0) {
       AAGE[a] = AAGE[a] + dt;
+      if (AON[a] >= 5) { boltStep(a, dt); } else {
       if (ASTK[a] == 0) {
         if (AON[a] != 3) { AVY[a] = AVY[a] - 20 * dt; }
         let nx = AXX[a] + AVX[a] * dt, ny = AYY[a] + AVY[a] * dt, nz = AZZ[a] + AVZ[a] * dt;
@@ -374,6 +382,7 @@ function arrowsStep(dt) {
         if (AAGE[a] > 8) { AON[a] = 0; }
         // a stuck arrow can be picked up
         if (Math.abs(AXX[a] - px) < 1 && Math.abs(AZZ[a] - pz) < 1 && Math.abs(AYY[a] - py - 0.5) < 1.5) { if (AON[a] <= 2) { if (gameMode == 0) { if (rand(1, 2) == 1 || AON[a] == 2) { addItem(115, 1, 0); } } } AON[a] = 0; }
+      }
       }
       if (AAGE[a] > 20) { AON[a] = 0; }
     }
@@ -463,6 +472,7 @@ function lightAt(x, y, z) {
     lv = Math.max(idiv(LT[i], 16) - dark, mod(LT[i], 16));
   } }
   if (lv < dimAmb) { lv = dimAmb; }
+  if (nightVis == 1) { lv = 15; }
   return lv;
 }
 
@@ -583,6 +593,8 @@ function drawArrow(a, fog) {
     let nx = 0 - uy / ul * w, ny = ux / ul * w;
     let col = CARROW, kb = 20;
     if (AON[a] == 3) { col = CFLAME; kb = 23; nx = nx * 5; ny = ny * 5; }
+    if (AON[a] == 5) { col = CFLAME; kb = 18; nx = nx * 4; ny = ny * 4; }
+    if (AON[a] == 6) { col = CTORCH; kb = 23; nx = nx * 4; ny = ny * 4; }
     fillStop(); goto(ax + nx, ay + ny); fillColorHex(CT[col + kb * 8 + fog + 1]); fillStart(); goto(bx + nx, by + ny); goto(bx - nx, by - ny); goto(ax - nx, ay - ny);
     nFill = nFill + 1;
   }

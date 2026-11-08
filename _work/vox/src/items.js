@@ -183,7 +183,7 @@ function chestOpen(x, y, z) {
   chestNew = 0;
   chestAt(x, y, z);
   // a chest the world made (the depths, the void): its loot the first time it is opened
-  if (chestNew == 1) { if (dim != 0) { chestLoot(cFound); } }
+  if (chestNew == 1) { lootUnder = blockAt(x, y - 1, z); if (dim != 0 || lootUnder == 60) { chestLoot(cFound); } }
   if (cFound > 0) { curChest = cFound; uiOpen(4); } else { msgShow('상자가 너무 많습니다', 2); }
 }
 // a furnace or chest broken: what was in it falls out
@@ -220,8 +220,9 @@ function slotGet(s) {
   else { if (s == 51) { gI = FII[curFur]; gN = FIN[curFur]; }
   else { if (s == 52) { gI = FFI[curFur]; gN = FFN[curFur]; }
   else { if (s == 53) { gI = FOI[curFur]; gN = FON[curFur]; }
+  else { if (s == 54) { gI = SMI1; gN = SMN1; gD = SMD1; } else { if (s == 55) { gI = SMI2; gN = SMN2; } else { if (s == 56) { gI = smOut; gN = 1; gD = SMD1; }
   else { if (s <= 87) { let j = (curChest - 1) * 27 + s - 60; gI = CHI[j]; gN = CHN[j]; gD = CHD[j]; }
-  else { let k = uiPage * 36 + s - 100; if (k <= PAL.length) { gI = PAL[k]; gN = ITST[gI + 1]; } } } } } } } }
+  else { let k = uiPage * 36 + s - 100; if (k <= PAL.length) { gI = PAL[k]; gN = ITST[gI + 1]; } } } } } } } } } } }
   if (gI == 0) { gN = 0; gD = 0; }
 }
 function slotSet(s, i, n, d) {
@@ -231,13 +232,20 @@ function slotSet(s, i, n, d) {
   else { if (s == 51) { FII[curFur] = i; FIN[curFur] = n; }
   else { if (s == 52) { FFI[curFur] = i; FFN[curFur] = n; }
   else { if (s == 53) { FOI[curFur] = i; FON[curFur] = n; }
-  else { if (s >= 61) { if (s <= 87) { let j = (curChest - 1) * 27 + s - 60; CHI[j] = i; CHN[j] = n; CHD[j] = d; } } } } } } }
+  else { if (s == 54) { SMI1 = i; SMN1 = n; SMD1 = d; smithMatch(); } else { if (s == 55) { SMI2 = i; SMN2 = n; smithMatch(); }
+  else { if (s >= 61) { if (s <= 87) { let j = (curChest - 1) * 27 + s - 60; CHI[j] = i; CHN[j] = n; CHD[j] = d; } } } } } } } } }
 }
 // a click on slot s (half: Shift held)
 function slotClick(s, half) {
   slotGet(s);
   let si = gI, sn = gN, sd = gD;
-  if (s == 50) {
+  if (s == 56) {
+    // the smithing result: onto an empty cursor (Shift: into the inventory)
+    if (smOut > 0) {
+      if (half == 1) { addItem(smOut, 1, SMD1); if (addLeft > 0) { dropItem(smOut, addLeft, SMD1, px, py + 1, pz, 1); } smithTake(); sndPlay(6); }
+      else { if (curI == 0) { curI = smOut; curN = 1; curD = SMD1; smithTake(); sndPlay(6); } }
+    }
+  } else { if (s == 50) {
     // the crafting result: onto the cursor (Shift: as many as can be made, into the inventory)
     if (si > 0) {
       if (half == 1) {
@@ -305,7 +313,7 @@ function slotClick(s, half) {
       }
       if (curN <= 0) { curI = 0; curN = 0; curD = 0; }
     }
-  } }
+  } } }
 }
 // slot s into slots a..b (stacks first, then empty ones)
 function moveRange(s, a, b) {
@@ -338,6 +346,7 @@ function uiClose() {
     curI = 0; curN = 0; curD = 0;
   }
   craftOut = 0; craftCnt = 0;
+  smithBack();
   uiMode = 0;
   txClear();
 }
@@ -351,12 +360,22 @@ function startKit() {
 }
 
 // what a fort chest (the depths) or a tower chest (the void) holds
+let lootUnder = 0;
 function chestLoot(c) {
   let n = rand(4, 8), k = 0, j = 0, id = 0, cnt = 0;
   while (k < n) {
     j = (c - 1) * 27 + rand(1, 27);
     let r = rand(1, 100);
-    if (dim == 1) {
+    if (dim == 0) {
+      // the old ruin
+      id = 102; cnt = rand(1, 5);
+      if (r > 25) { id = 105; cnt = rand(1, 3); }
+      if (r > 45) { id = 170; cnt = rand(1, 2); }
+      if (r > 62) { id = 103; cnt = rand(1, 3); }
+      if (r > 75) { id = 101; cnt = rand(2, 6); }
+      if (r > 85) { id = 171; cnt = 1; }
+      if (r > 93) { id = 104; cnt = rand(1, 2); }
+    } else { if (dim == 1) {
       id = 102; cnt = rand(1, 4);
       if (r > 30) { id = 103; cnt = rand(1, 3); }
       if (r > 50) { id = 123; cnt = rand(1, 3); }
@@ -372,8 +391,11 @@ function chestLoot(c) {
       if (r > 70) { id = 154 + rand(0, 3); cnt = 1; }
       if (r > 85) { id = 158 + rand(0, 3); cnt = 1; }
       if (r > 93) { id = 133; cnt = 1; }
-    }
+      if (r > 97) { id = 128; cnt = 1; }
+    } }
     CHI[j] = id; CHN[j] = cnt; CHD[j] = 0;
     k = k + 1;
   }
+  // a ship's hold (on its deck of planks): the glider
+  if (dim == 2) { if (lootUnder == 5) { CHI[(c - 1) * 27 + 14] = 173; CHN[(c - 1) * 27 + 14] = 1; CHD[(c - 1) * 27 + 14] = 0; } }
 }

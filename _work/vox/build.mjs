@@ -7,7 +7,7 @@ import { compileProgram } from './ejs.mjs';
 import { expandMacros, declareImplicit } from './inline.mjs';
 import { packEnt } from './pack.mjs';
 import { legacyMath, slimBlocks } from './legacy.mjs';
-import { TEX, CRACK, BLOCKS, NBLOCK, ITEMS, TIERS, KINDS, TOOL0, toolId, NITEM, RECIPES, SMELT, MOBS, ARM0, ARMT, ARMP, armorId } from './blocks.mjs';
+import { TEX, CRACK, BLOCKS, NBLOCK, ITEMS, TIERS, KINDS, TOOL0, TOOL4, SMITH, toolId, NITEM, RECIPES, SMELT, MOBS, ARM0, ARMT, ARMP, armorId } from './blocks.mjs';
 import { makeSounds } from './sounds.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 export const VERSION = '1.2';
@@ -15,17 +15,17 @@ export const NAME = '블록 월드';
 
 // the ring window of loaded chunks: NCH x NCH slots of 16 x 16 columns; chunks are made within
 // CR chunks of the player (2 CR + 1 < NCH keeps a free row of slots between the two ends)
-const NCH = 14, WS = NCH * 16, WY = 64, CR = 6;
+const NCH = 10, WS = NCH * 16, WY = 128, CR = 4;
 function chunkOffsets(r) {
     const o = [];
     for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) if (dx * dx + dz * dz <= r * r) o.push([dx, dz]);
     return o.sort((a, b) => (a[0] ** 2 + a[1] ** 2) - (b[0] ** 2 + b[1] ** 2));
 }
 export const consts = {
-    WS, NCH, CR, WY, SEA: 30, LAVAY: 5, NSX: WS / 8, NSY: WY / 8, NSEC: (WS / 8) * (WS / 8) * (WY / 8), SXS: WS * WY, OFF: 32768,
+    WS, NCH, CR, WY, UH: 64, SEA: 30, LAVAY: 5, NSX: WS / 8, NSY: WY / 8, NSEC: (WS / 8) * (WS / 8) * (WY / 8), SXS: WS * WY, OFF: 32768,
     NOFF: chunkOffsets(CR).length, CVN: 24, FORTY: 30, NSTART: chunkOffsets(2).length,
-    NEARZ: Math.round(0.05 * 256 * 16384), DEC2: 20, PLANT2: 225, CLOUDY: WY + 8, MK: 160 * 1048576,
-    NMOB: 40, NITM: 64, NARR: 24, NFUR: 16, NCHEST: 16, ANIMALS: 36, SMELTT: 8, NTX: 96, TOOL0,
+    NEARZ: Math.round(0.05 * 256 * 16384), DEC2: 20, PLANT2: 225, CLOUDY: 110, MK: 160 * 1048576,
+    NMOB: 40, NITM: 64, NARR: 24, NFUR: 16, NCHEST: 48, ANIMALS: 36, SMELTT: 8, NTX: 104, TOOL0,
     SPAWNC: 0, BENCH: 0, NOCAVE: 0, AUTOSEED: 0, AUTOMODE: 0, TESTRUN: 0, SIMRUN: 0, LEGACY: 0, SLIM: 1,
 };
 
@@ -118,7 +118,7 @@ export function makeData() {
     Object.assign(L, B);
 
     // items
-    const I = { ITNAME: [], ITK: [], ITST: [], ITFOOD: [], ITFUEL: [], ITTK: [], ITTT: [], ITDUR: [], ITDMG: [], ITISO: [], IC0: [], ICN: [], ITC1: [], ITC2: [], ITDEF: [], ITSLOT: [] };
+    const I = { ITKEY: [], ITNAME: [], ITK: [], ITST: [], ITFOOD: [], ITFUEL: [], ITTK: [], ITTT: [], ITDUR: [], ITDMG: [], ITISO: [], IC0: [], ICN: [], ITC1: [], ITC2: [], ITDEF: [], ITSLOT: [] };
     const SMELTT = 8;
     const iconOf = (grid, p) => putRects(rectsOf(grid, (ch) => ch !== '.', (ch) => col(p[ch])));
     const iconCol = (grid, p) => { const c = {}; for (const r of grid) for (const ch of r) if (ch !== '.') c[ch] = (c[ch] || 0) + 1; return col(p[Object.entries(c).sort((a, b) => b[1] - a[1])[0][0]]); };
@@ -126,8 +126,8 @@ export function makeData() {
     for (let id = 0; id < NITEM; id++) {
         const b = id < NBLOCK ? BLOCKS[id] : null;
         const it = ITEMS.find(x => x.id === id);
-        const tool = id >= TOOL0 && id < TOOL0 + 16 ? { kind: Math.floor((id - TOOL0) / 4), tier: (id - TOOL0) % 4 } : null;
-        const arm = id >= ARM0 && id < ARM0 + 12 ? { tier: Math.floor((id - ARM0) / 4), piece: (id - ARM0) % 4 } : null;
+        const tool = id >= TOOL0 && id < TOOL0 + 16 ? { kind: Math.floor((id - TOOL0) / 4), tier: (id - TOOL0) % 4 } : (id >= TOOL4 && id < TOOL4 + 4 ? { kind: id - TOOL4, tier: 4 } : null);
+        const arm = id >= ARM0 && id < ARM0 + 16 ? { tier: Math.floor((id - ARM0) / 4), piece: (id - ARM0) % 4 } : null;
         let name = '', k = 1, st = 64, food = 0, fuel = 0, tk = -1, tt = -1, dur = 0, dmg = 1, iso = 0, ic = [0, 0], c1 = col('ff00ff'), c2 = c1, def = 0, slot = 0;
         if (b) {
             name = b.ko; k = 0;
@@ -141,6 +141,9 @@ export function makeData() {
         } else if (it) {
             name = it.ko; food = it.food || 0; fuel = it.fuel || 0; k = food ? 2 : 1;
             if (it.n === 'bow' || it.n === 'igniter') { st = 1; dur = it.n === 'bow' ? 384 : 64; }
+            if (it.n === 'boat' || it.n === 'voidKey') { st = 1; }
+            if (it.n === 'voidPearl' || it.n === 'voidEye') { st = 16; }
+            if (it.slot) { k = 4; st = 1; slot = it.slot; dur = it.dur; }
             ic = iconOf(it.icon, it.p); c1 = c2 = iconCol(it.icon, it.p);
         } else if (tool) {
             const T = TIERS[tool.tier], K = KINDS[tool.kind];
@@ -152,11 +155,14 @@ export function makeData() {
             name = `${T.ko} ${P.ko}`; k = 4; st = 1; dur = T.dur; def = T.def[arm.piece]; slot = arm.piece + 1;
             ic = iconOf(P.icon, { h: T.dark, d: T.col }); c1 = c2 = col(T.col);
         }
+        const key = b ? b.n : it ? it.n : tool ? KINDS[tool.kind].n + TIERS[tool.tier].n : arm ? ARMP[arm.piece].n + ARMT[arm.tier].n : '';
+        I.ITKEY.push((key || ' ').toLowerCase());
         I.ITNAME.push(name || ' '); I.ITK.push(k); I.ITST.push(st); I.ITFOOD.push(food); I.ITFUEL.push(fuel / 10 * SMELTT);
         I.ITTK.push(tk); I.ITTT.push(tt); I.ITDUR.push(dur); I.ITDMG.push(dmg); I.ITISO.push(iso); I.IC0.push(ic[0]); I.ICN.push(ic[1]); I.ITC1.push(c1); I.ITC2.push(c2); I.ITDEF.push(def); I.ITSLOT.push(slot);
     }
     Object.assign(L, I);
     L.TSPEED = TIERS.map(t => t.speed);
+    L.SMA = SMITH.map(p => p[0]); L.SMB = SMITH.map(p => p[1]);
 
     // HUD pictures
     const HUD = [
@@ -182,11 +188,11 @@ export function makeData() {
     L.SMI = SMELT.map(s => idOf(s[0])); L.SMO = SMELT.map(s => idOf(s[1]));
 
     // mobs
-    L.MHP = []; L.MW = []; L.MH = []; L.MSPD = []; L.MHOST = []; L.MBURN = []; L.MDMG = []; L.MNAME = []; L.MB0 = []; L.MBN = []; L.MD0 = []; L.MDN = []; L.MFLY = []; L.MFIRE = [];
+    L.MHP = []; L.MW = []; L.MH = []; L.MSPD = []; L.MHOST = []; L.MBURN = []; L.MDMG = []; L.MNAME = []; L.MB0 = []; L.MBN = []; L.MD0 = []; L.MDN = []; L.MFLY = []; L.MFIRE = []; L.MNEU = []; L.MSTILL = [];
     L.BX0 = []; L.BY0 = []; L.BZ0 = []; L.BX1 = []; L.BY1 = []; L.BZ1 = []; L.BCOL = []; L.BPART = [];
     L.MDI = []; L.MDLO = []; L.MDHI = [];
     for (const m of MOBS.slice(1)) {
-        L.MFLY.push(m.fly || 0); L.MFIRE.push(m.fireproof || 0);
+        L.MFLY.push(m.fly || 0); L.MFIRE.push(m.fireproof || 0); L.MNEU.push(m.neutral || 0); L.MSTILL.push(m.still || 0);
         L.MHP.push(m.hp); L.MW.push(m.w); L.MH.push(m.h); L.MSPD.push(m.speed); L.MHOST.push(m.hostile || 0); L.MBURN.push(m.burns || 0); L.MDMG.push(m.dmg || 0); L.MNAME.push(m.ko);
         L.MB0.push(L.BX0.length + 1); L.MBN.push(m.boxes.length);
         for (const [x0, y0, z0, x1, y1, z1, c, part] of m.boxes) { const t = (v) => Math.round(v * 10); L.BX0.push(t(x0)); L.BY0.push(t(y0)); L.BZ0.push(t(z0)); L.BX1.push(t(x1)); L.BY1.push(t(y1)); L.BZ1.push(t(z1)); L.BCOL.push(col(c)); L.BPART.push(part); }
@@ -233,7 +239,7 @@ export function makeData() {
 }
 
 // ------------------------------------------------------------------ sources
-export const FILES = ['world.js', 'dims.js', 'mesh.js', 'render.js', 'player.js', 'mobs.js', 'items.js', 'hud.js', 'main.js', 'test.js'];
+export const FILES = ['world.js', 'dims.js', 'mesh.js', 'render.js', 'player.js', 'mobs.js', 'items.js', 'hud.js', 'extra.js', 'main.js', 'test.js'];
 export function allConsts(more = {}) {
     const { C } = makeData();
     return { ...consts, ...C, ...more };

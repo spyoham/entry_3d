@@ -104,8 +104,15 @@ function bodyIn(x, y, z, w, h) {
 
 // ---------------------------------------------------------------- moving
 function playerMove(dt) {
-  if (cOK(Math.floor(px), Math.floor(pz)) == 0) { pvx = 0; pvy = 0; pvz = 0; fallTop = py; }
-  else { playerMove2(dt); }
+  // in a boat: it carries you (Shift to get out)
+  if (riding > 0) { if (ET[riding] != 13) { riding = 0; } }
+  if (riding > 0) {
+    if (key(16)) { if (uiMode == 0) { riding = 0; py = py + 0.9; pvy = 2; } }
+    else { px = EX[riding]; py = EY[riding] + 0.25; pz = EZ[riding]; pvx = 0; pvy = 0; pvz = 0; fallTop = py; onGround = 1; }
+  } else {
+    if (cOK(Math.floor(px), Math.floor(pz)) == 0) { pvx = 0; pvy = 0; pvz = 0; fallTop = py; }
+    else { playerMove2(dt); }
+  }
 }
 function playerMove2(dt) {
   let fw = 0, st = 0;
@@ -127,6 +134,7 @@ function playerMove2(dt) {
   if (sneaking == 1) { if (flying == 0) { sp = 1.3; } }
   if (flying == 1) { sp = 10.9; if (sprinting == 1) { sp = 21.6; } }
   if (inWater == 1 || inLava == 1) { if (flying == 0) { sp = sp * 0.45; } }
+  sp = sp * (1 + 0.2 * fx(1)) * Math.max(0.1, 1 - 0.15 * fx(2));
   let l = Math.sqrt(fw * fw + st * st);
   let wx = 0, wz = 0;
   if (l > 0) {
@@ -139,7 +147,7 @@ function playerMove2(dt) {
   if (flying == 1) { acc = 8; }
   if (inWater == 1) { acc = 6; }
   let a = Math.min(1, acc * dt);
-  pvx = pvx + (wx - pvx) * a; pvz = pvz + (wz - pvz) * a;
+  if (gliding == 0) { pvx = pvx + (wx - pvx) * a; pvz = pvz + (wz - pvz) * a; }
   // creative flying: Space twice
   let spc = key(32);
   if (uiMode != 0) { spc = 0; }
@@ -157,9 +165,17 @@ function playerMove2(dt) {
       if (spc) { pvy = Math.min(pvy + 30 * dt, 3.2); }
       fallTop = py;
     } else {
-      pvy = pvy - 32 * dt;
+      // the glider: Space in the air while falling
+      if (gliding == 0) { if (onGround == 0) { if (pvy < 0) { if (keyHit(32) == 1) { if (gliderOn() == 1) { gliding = 1; } } } } }
+      if (gliding == 1) { if (onGround == 1 || gliderOn() == 0) { gliding = 0; } }
+      if (gliding == 1) { glideStep(dt); }
+      else {
+        pvy = pvy - 32 * dt;
+        if (fx(10) > 0) { pvy = pvy + (0.9 * fx(10) - pvy) * Math.min(1, 5 * dt) + 32 * dt; fallTop = py; }
+        if (fx(11) > 0) { if (pvy < -1.8) { pvy = 0 - 1.8; } fallTop = py; }
+      }
       if (pvy < -60) { pvy = -60; }
-      if (spc) { if (onGround == 1) { pvy = 8.9; exhaust = exhaust + 0.05; if (sprinting == 1) { exhaust = exhaust + 0.15; pvx = pvx * 1.25; pvz = pvz * 1.25; } } }
+      if (spc) { if (onGround == 1) { pvy = Math.sqrt(79.2 + 32 * fx(4)); exhaust = exhaust + 0.05; if (sprinting == 1) { exhaust = exhaust + 0.15; pvx = pvx * 1.25; pvz = pvz * 1.25; } } }
     }
   }
   jumpWas = 0;
@@ -184,7 +200,7 @@ function playerMove2(dt) {
   if (onGround == 1) {
     if (was == 0) {
       let fd = fallTop - py;
-      if (fd > 3.4) { if (gameMode == 0) { if (inWater == 0) { hurt(Math.floor(fd - 3), '높은 곳에서 떨어졌습니다'); } } }
+      if (fd > 3.4) { if (gameMode == 0) { if (inWater == 0) { if (grFall == 1) { hurt(Math.floor(fd - 3), '높은 곳에서 떨어졌습니다'); } } } }
     }
     fallTop = py;
   }
@@ -207,6 +223,7 @@ function hurt(n, why) {
     // armour takes 4 % a point (20 at most), and wears
     let def = armorDef();
     if (def > 0) { n = Math.max(1, Math.round(n * (1 - Math.min(20, def) * 0.04))); armorWear(); }
+    if (fx(6) > 0) { n = Math.round(n * Math.max(0, 1 - 0.2 * fx(6))); }
     hp = hp - n; hurtT = 0.5; hurtFlash = 0.35; exhaust = exhaust + 0.1;
     sndPlay(3);
     if (hp <= 0) { hp = 0; die(why); }
@@ -220,7 +237,7 @@ function survival(dt) {
     regenT = regenT + dt;
     if (regenT >= 4) {
       regenT = 0;
-      if (food >= 18) { if (hp < 20) { hp = hp + 1; exhaust = exhaust + 6; } }
+      if (grRegen == 1) { if (food >= 18) { if (hp < 20) { hp = hp + 1; exhaust = exhaust + 6; } } }
       if (food == 0) { if (hp > 1) { hurtT = 0; hurt(1, '굶주렸습니다'); } }
     }
     // breath
@@ -228,7 +245,7 @@ function survival(dt) {
       air = air - 20 * dt;
       if (air <= 0) { air = 0; drownT = drownT + dt; if (drownT >= 1) { drownT = 0; hurtT = 0; hurt(2, '물에 빠졌습니다'); } }
     } else { air = Math.min(300, air + 300 * dt); }
-    if (inLava == 1) { lavaT = lavaT + dt; if (lavaT >= 0.5) { lavaT = 0; hurtT = 0; hurt(4, '용암에 빠졌습니다'); } }
+    if (inLava == 1 && fx(7) == 0) { lavaT = lavaT + dt; if (lavaT >= 0.5) { lavaT = 0; hurtT = 0; hurt(4, '용암에 빠졌습니다'); } }
     bodyIn(px, py, pz, 0.3, 1.8);
     if (inC == 1) { cactusT = cactusT + dt; if (cactusT >= 0.5) { cactusT = 0; hurt(1, '선인장에 찔렸습니다'); } }
   }
@@ -238,9 +255,10 @@ function die(why) {
   // everything carried falls where the player died
   let i = 1;
   while (i <= 40) {
-    if (INVI[i] > 0) { dropItem(INVI[i], INVN[i], INVD[i], px, py + 1, pz, 1); INVI[i] = 0; INVN[i] = 0; INVD[i] = 0; }
+    if (grKeep == 0) { if (INVI[i] > 0) { dropItem(INVI[i], INVN[i], INVD[i], px, py + 1, pz, 1); INVI[i] = 0; INVN[i] = 0; INVD[i] = 0; } }
     i = i + 1;
   }
+  riding = 0; gliding = 0; effectsInit();
   mouseFree();
 }
 function respawn() {
@@ -332,7 +350,7 @@ function breakTime(b) {
   if (kind == 3) { if (BLEAF[b + 1] == 1) { sp = 1.5; } if (b == 19) { sp = 1.5; } }
   harvest = 1;
   if (BTIER[b + 1] >= 0) { harvest = 0; if (kind == 0) { if (tier >= BTIER[b + 1]) { harvest = 1; } } }
-  let t = h * 1.5 / sp;
+  let t = h * 1.5 / sp / (1 + 0.2 * fx(3));
   if (harvest == 0) { t = h * 5 / sp; }
   if (h < 0) { t = 99999; }
   return t;
@@ -371,6 +389,7 @@ function breakBlock(x, y, z, byP) {
       if (ITTK[id + 1] >= 0) { if (BHARD[b + 1] > 0) { wearHeld(1); } }
     }
   }
+  if (b == 64) { shellBoxBroken(x, y, z); }
   setBlock(x, y, z, 0);
   if (b == 57) { crystalBreak(x, y, z); }
   // ice leaves water
@@ -386,6 +405,7 @@ function blockDrops(b, x, y, z) {
     if (b == 14) { if (rand(1, 40) == 1) { d = 105; n = 1; } }
   }
   if (b == 40) { n = rand(4, 8); }
+  if (b == 64) { d = 0; }
   if (b == 46) { n = rand(0, 2); }
   if (d > 0) { if (n > 0) { dropItem(d, n, 0, x + 0.5, y + 0.3, z + 0.5, 0); } }
 }
@@ -491,12 +511,16 @@ function useKey() {
   if (placeCool <= 0) {
     let id = INVI[hotSel];
     let used = 0;
+    // a boat looked at: in
+    if (mobPick > 0) { if (ET[mobPick] == 13) { riding = mobPick; used = 1; placeCool = 0.4; } }
     // a block that opens something
-    if (pickOn == 1) {
+    if (pickOn == 1 && used == 0) {
       if (sneaking == 0) {
         if (pickB == 17) { uiOpen(2); used = 1; }
         if (pickB == 18) { furnaceOpen(pickX, pickY, pickZ); used = 1; }
         if (pickB == 37) { chestOpen(pickX, pickY, pickZ); used = 1; }
+        if (pickB == 58) { uiOpen(8); used = 1; }
+        if (pickB == 64) { shellBoxOpen(pickX, pickY, pickZ); used = 1; }
       }
     }
     if (used == 0) {
@@ -506,6 +530,9 @@ function useKey() {
         if (id == 122) { used = 1; placeCool = 0.3; if (pickOn == 1) { pickNeighbour(); lightGate(nbX, nbY, nbZ); if (gateOK == 1) { wearHeld(1); sndPlay(2); } else { msgShow('흑요석 틀(안쪽 2 x 3 이상) 안을 불붙이개로 켜세요', 3); } } }
         if (id == 124) { used = 1; placeCool = 0.5; useVoidKey(); }
         if (id == 125) { used = 1; shootBow(); }
+        // the void eye: into a gate frame, or thrown toward the nearest ruin
+        if (id == 171) { used = 1; let fr = 0; if (pickOn == 1) { if (pickB == 61) { fr = 1; } } if (fr == 1) { if (gameMode == 0) { takeHeld(1); } placeCool = 0.3; frameEye(pickX, pickY, pickZ); } else { eyeThrow(); } }
+        if (id == 174) { used = 1; boatPlace(); }
         // armour: on
         if (ITK[id + 1] == 4) { used = 1; placeCool = 0.3; let s = 36 + ITSLOT[id + 1]; let ti = INVI[s], tn = INVN[s], td = INVD[s]; INVI[s] = id; INVN[s] = 1; INVD[s] = INVD[hotSel]; INVI[hotSel] = ti; INVN[hotSel] = tn; INVD[hotSel] = td; sndPlay(6); }
       }
@@ -514,6 +541,7 @@ function useKey() {
   }
 }
 function placeBlock(b) {
+  let du0 = INVD[hotSel];
   pickNeighbour();
   let x = nbX, y = nbY, z = nbZ;
   // a plant, water or air there can be replaced; a click on a plant replaces the plant itself
@@ -540,6 +568,7 @@ function placeBlock(b) {
       if (gameMode == 0) { takeHeld(1); }
       if (b == 18) { furnaceAt(x, y, z); }
       if (b == 37) { chestAt(x, y, z); }
+      if (b == 64) { shellBoxPlaced(x, y, z, du0); }
     }
   }
 }
