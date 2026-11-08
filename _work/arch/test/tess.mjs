@@ -1,0 +1,35 @@
+// The game in tessvm's own vm (Node, no picture): ms a tick on a stage
+//   node test/tess.mjs stage [ticks] [K=V ...]
+import fs from 'node:fs';
+import path from 'node:path';
+import url from 'node:url';
+import cp from 'node:child_process';
+import zlib from 'node:zlib';
+import { buildProject } from '../build.mjs';
+const HERE = path.dirname(url.fileURLToPath(import.meta.url));
+const a = process.argv.slice(2);
+const st = Number(a[0] || 1), ticks = Number(a[1] || 300);
+const more = Object.fromEntries(a.slice(2).filter(x => x.includes('=')).map(x => x.split('=')).map(([k, v]) => [k, Number(v)]));
+const file = path.join(HERE, 'tess.ent');
+buildProject(file, { name: 'tess', more: { AUTOSTART: st, ...more } });
+const EXT = path.join(HERE, '../../tessvm/ext');
+const imp = (p) => import(url.pathToFileURL(path.join(EXT, p)).href);
+const tmp = path.join(HERE, '.nrun');
+fs.rmSync(tmp, { recursive: true, force: true }); fs.mkdirSync(tmp, { recursive: true });
+cp.execSync('tar -xf -', { cwd: tmp, input: zlib.gunzipSync(fs.readFileSync(file)) });
+const work = JSON.parse(fs.readFileSync(path.join(tmp, 'temp/project.json'), 'utf8'));
+work.id = 'local';
+const { toTessProject } = await imp('page/tess-project.js');
+const { Vm } = await imp('vendor/tessvm/runtime/engine.js');
+const conv = toTessProject(work);
+if (conv.dropped && conv.dropped.length) console.log('dropped', JSON.stringify(conv.dropped).slice(0, 300));
+const vm = new Vm({ kernel: null, store: null });
+vm.load(conv.project);
+vm.start();
+const V = (n) => { const v = vm.variables.find(v => v.name === n); return v && v.value; };
+for (let i = 0; i < 60; i++) vm.tick();
+const t0 = performance.now();
+for (let i = 0; i < ticks; i++) vm.tick();
+const ms = (performance.now() - t0) / ticks;
+console.log(`stage ${st}: ${ms.toFixed(2)} ms/tick  isTess ${V('isTess')} maxD ${V('maxD')} fills ${V('nFill')} rooms ${V('nRoomDraw')} room ${V('pr')} errors ${JSON.stringify(vm.errors.slice(0, 3))}`);
+fs.rmSync(tmp, { recursive: true, force: true });

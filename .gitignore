@@ -53,3 +53,14 @@ _work/pitch/voice_trim.wav
 _work/pitch/.tmp/
 _work/pitch/.pack/
 _work/pitch/page.artifact.html
+
+# 경계의 건축가: 시험 산출물(그림, 임시 작품, 단계 파일)
+_work/arch/shots/
+_work/arch/.pack/
+_work/arch/.nrun/
+_work/arch/test/*.png
+_work/arch/test/*.ent
+_work/arch/test/steps.json
+_work/arch/test/funcs.json
+_work/arch/test/src_dump.js
+_work/arch/*.ent
