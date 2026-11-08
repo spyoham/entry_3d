@@ -20,10 +20,7 @@ function solidIn(x0, x1, y0, y1, z0, z1) {
     while (z <= z1) {
       y = y0;
       while (y <= y1) {
-        b = 0;
-        if (x < 0 || x >= SZ || z < 0 || z >= SZ) { b = 6; }
-        else { if (y >= 0 && y < WY) { b = W[(x * SZ + z) * WY + y + 1]; } else { if (y < 0) { b = 6; } } }
-        if (BSOL[b + 1] == 1) { solidHit = 1; }
+        if (BSOL[blockAt(x, y, z) + 1] == 1) { solidHit = 1; }
         y = y + 1;
       }
       z = z + 1;
@@ -79,17 +76,16 @@ let inW = 0, inL = 0, inC = 0;
 function bodyIn(x, y, z, w, h) {
   inW = 0; inL = 0; inC = 0;
   let x0 = Math.floor(x - w), x1 = Math.floor(x + w), y0 = Math.floor(y + 0.1), y1 = Math.floor(y + h - 0.1), z0 = Math.floor(z - w), z1 = Math.floor(z + w);
-  if (x0 < 0) { x0 = 0; } if (z0 < 0) { z0 = 0; } if (x1 > SZ - 1) { x1 = SZ - 1; } if (z1 > SZ - 1) { z1 = SZ - 1; }
   if (y0 < 0) { y0 = 0; } if (y1 > WY - 1) { y1 = WY - 1; }
-  let a = x0, c = 0, k = 0, i = 0, yy = 0;
+  let a = x0, c = 0, k = 0, yy = 0;
   while (a <= x1) {
     c = z0;
     while (c <= z1) {
-      i = (a * SZ + c) * WY + y0 + 1; yy = y0;
+      yy = y0;
       while (yy <= y1) {
-        k = W[i];
+        k = blockAt(a, yy, c);
         if (k == 7) { inW = 1; } if (k == 35) { inL = 1; }
-        yy = yy + 1; i = i + 1;
+        yy = yy + 1;
       }
       c = c + 1;
     }
@@ -100,7 +96,7 @@ function bodyIn(x, y, z, w, h) {
     a = Math.floor(x - w - 0.05);
     while (a <= Math.floor(x + w + 0.05)) {
       c = Math.floor(z - w - 0.05);
-      while (c <= Math.floor(z + w + 0.05)) { if (a >= 0 && a < SZ && c >= 0 && c < SZ) { if (W[(a * SZ + c) * WY + y0 + 1] == 19) { inC = 1; } } c = c + 1; }
+      while (c <= Math.floor(z + w + 0.05)) { if (blockAt(a, y0, c) == 19) { inC = 1; } c = c + 1; }
       a = a + 1;
     }
   }
@@ -108,6 +104,10 @@ function bodyIn(x, y, z, w, h) {
 
 // ---------------------------------------------------------------- moving
 function playerMove(dt) {
+  if (cOK(Math.floor(px), Math.floor(pz)) == 0) { pvx = 0; pvy = 0; pvz = 0; fallTop = py; }
+  else { playerMove2(dt); }
+}
+function playerMove2(dt) {
   let fw = 0, st = 0;
   if (key(87)) { fw = fw + 1; } if (key(83)) { fw = fw - 1; }
   if (key(68)) { st = st + 1; } if (key(65)) { st = st - 1; }
@@ -190,7 +190,6 @@ function playerMove(dt) {
   }
   if (flying == 1) { fallTop = py; }
   // world edges
-  if (px < 0.4) { px = 0.4; } if (pz < 0.4) { pz = 0.4; } if (px > SZ - 0.4) { px = SZ - 0.4; } if (pz > SZ - 0.4) { pz = SZ - 0.4; }
   if (py < -20) { hurt(4, '세계 밖으로 떨어졌습니다'); }
   // walking: the view bobs, hunger goes
   let moved = Math.sqrt((px - ox) * (px - ox) + (pz - oz) * (pz - oz));
@@ -300,7 +299,7 @@ function pickRay() {
     k = k + 1;
   }
   if (found == 1) {
-    if (x >= 0 && x < SZ && z >= 0 && z < SZ && y >= 0 && y < WY) { pickOn = 1; pickX = x; pickY = y; pickZ = z; pickF = face; pickB = b; pickT = t; }
+    if (y >= 0 && y < WY && cOK(x, z) == 1) { pickOn = 1; pickX = x; pickY = y; pickZ = z; pickF = face; pickB = b; pickT = t; }
   }
   // a mob nearer than the block?
   mobPick = mobRay(ex, ey, ez, dx, dy, dz, Math.min(reach - 1.5, pickT));
@@ -389,8 +388,8 @@ function blockDrops(b, x, y, z) {
 let lbX0 = 9999, lbX1 = -1, lbZ0 = 9999, lbZ1 = -1, dirtyN = 0;
 let DIRTY = [], SDIRTY = [];
 function setBlock(x, y, z, b) {
-  if (x >= 0 && x < SZ && z >= 0 && z < SZ && y >= 0 && y < WY) {
-    W[(x * SZ + z) * WY + y + 1] = b;
+  if (y >= 0 && y < WY && cOK(x, z) == 1) {
+    logOn = 1; wput(x, y, z, b); logOn = 0;
     markDirty(x, y, z);
     lbX0 = Math.min(lbX0, x - 14); lbX1 = Math.max(lbX1, x + 14); lbZ0 = Math.min(lbZ0, z - 14); lbZ1 = Math.max(lbZ1, z + 14);
     if (b == 0) { blockGone(x, y, z); }
@@ -406,12 +405,12 @@ function setBlock(x, y, z, b) {
 function markDirty(x, y, z) {
   markSec(secOf(x, y, z));
   let lx = mod(x, 8), ly = mod(y, 8), lz = mod(z, 8);
-  if (lx == 0) { if (x > 0) { markSec(secOf(x - 1, y, z)); } }
-  if (lx == 7) { if (x < SZ - 1) { markSec(secOf(x + 1, y, z)); } }
+  if (lx == 0) { markSec(secOf(x - 1, y, z)); }
+  if (lx == 7) { markSec(secOf(x + 1, y, z)); }
   if (ly == 0) { if (y > 0) { markSec(secOf(x, y - 1, z)); } }
   if (ly == 7) { if (y < WY - 1) { markSec(secOf(x, y + 1, z)); } }
-  if (lz == 0) { if (z > 0) { markSec(secOf(x, y, z - 1)); } }
-  if (lz == 7) { if (z < SZ - 1) { markSec(secOf(x, y, z + 1)); } }
+  if (lz == 0) { markSec(secOf(x, y, z - 1)); }
+  if (lz == 7) { markSec(secOf(x, y, z + 1)); }
 }
 function markSec(s) {
   if (SDIRTY[s] != 1) { SDIRTY[s] = 1; dirtyN = dirtyN + 1; if (dirtyN > DIRTY.length) { DIRTY.push(s); } else { DIRTY[dirtyN] = s; } }
@@ -419,7 +418,7 @@ function markSec(s) {
 function worldFlush() {
   if (lbX1 >= 0) { relight(lbX0, lbX1, lbZ0, lbZ1); lbX0 = 9999; lbX1 = -1; lbZ0 = 9999; lbZ1 = -1; }
   let i = 1;
-  while (i <= dirtyN) { meshSection(DIRTY[i]); SDIRTY[DIRTY[i]] = 0; i = i + 1; }
+  while (i <= dirtyN) { if (SOK[DIRTY[i]] == 1) { meshSection(DIRTY[i]); } SDIRTY[DIRTY[i]] = 0; i = i + 1; }
   dirtyN = 0;
 }
 // sand and gravel drop to the first support
@@ -427,8 +426,8 @@ function fallBlock(x, y, z) {
   let b = blockAt(x, y, z), y2 = y;
   while (y2 > 0 && (blockAt(x, y2 - 1, z) == 0 || blockAt(x, y2 - 1, z) == 7 || BSHP[blockAt(x, y2 - 1, z) + 1] == 1)) { y2 = y2 - 1; }
   if (y2 < y) {
-    W[(x * SZ + z) * WY + y + 1] = 0; markDirty(x, y, z);
-    W[(x * SZ + z) * WY + y2 + 1] = b; markDirty(x, y2, z);
+    logOn = 1; wput(x, y, z, 0); wput(x, y2, z, b); logOn = 0;
+    markDirty(x, y, z); markDirty(x, y2, z);
     // what stood on it falls after it
     let up = blockAt(x, y + 1, z);
     if (up == 8 || up == 9) { fallBlock(x, y + 1, z); }
@@ -448,11 +447,11 @@ function blockGone(x, y, z) {
 let flowN = 0;
 function flowInto(x, y, z, lq, side) {
   if (flowN < 40) {
-    if (x >= 0 && x < SZ && z >= 0 && z < SZ && y >= 1 && y < WY) {
-      let b = W[(x * SZ + z) * WY + y + 1];
+    if (y >= 1 && y < WY && cOK(x, z) == 1) {
+      let b = W[wi(x, y, z)];
       if (b == 0 || BSHP[b + 1] == 1 || b == 27) {
         flowN = flowN + 1;
-        W[(x * SZ + z) * WY + y + 1] = lq; markDirty(x, y, z);
+        logOn = 1; wput(x, y, z, lq); logOn = 0; markDirty(x, y, z);
         lbX0 = Math.min(lbX0, x - 14); lbX1 = Math.max(lbX1, x + 14); lbZ0 = Math.min(lbZ0, z - 14); lbZ1 = Math.max(lbZ1, z + 14);
         let below = blockAt(x, y - 1, z);
         if (below == 0 || BSHP[below + 1] == 1) { flowInto(x, y - 1, z, lq, 0); }
@@ -467,8 +466,10 @@ function flowInto(x, y, z, lq, side) {
         }
       } else {
         // water meets lava
-        if (lq == 7) { if (b == 35) { W[(x * SZ + z) * WY + y + 1] = 34; markDirty(x, y, z); } }
-        if (lq == 35) { if (b == 7) { W[(x * SZ + z) * WY + y + 1] = 4; markDirty(x, y, z); } }
+        logOn = 1;
+        if (lq == 7) { if (b == 35) { wput(x, y, z, 34); markDirty(x, y, z); } }
+        if (lq == 35) { if (b == 7) { wput(x, y, z, 4); markDirty(x, y, z); } }
+        logOn = 0;
       }
     }
   }
@@ -500,8 +501,8 @@ function placeBlock(b) {
   let x = nbX, y = nbY, z = nbZ;
   // a plant, water or air there can be replaced; a click on a plant replaces the plant itself
   if (BSHP[pickB + 1] == 1) { if (pickB != 31) { x = pickX; y = pickY; z = pickZ; } }
-  if (x >= 0 && x < SZ && z >= 0 && z < SZ && y >= 0 && y < WY) {
-    let o = W[(x * SZ + z) * WY + y + 1];
+  if (y >= 0 && y < WY && cOK(x, z) == 1) {
+    let o = W[wi(x, y, z)];
     let ok = 0;
     if (o == 0 || o == 7 || o == 35 || BSHP[o + 1] == 1) { ok = 1; }
     // not into the player or a mob
@@ -535,15 +536,18 @@ function randomTicks(dt) {
     let k = 0;
     while (k < 30) {
       let x = Math.floor(px) + rand(-24, 24), z = Math.floor(pz) + rand(-24, 24), y = rand(1, WY - 12);
-      if (x >= 2 && x < SZ - 2 && z >= 2 && z < SZ - 2) {
-        let b = W[(x * SZ + z) * WY + y + 1];
+      if (cOK(x, z) == 1) {
+        let i = wi(x, y, z);
+        let b = W[i];
         if (b == 31) {
-          if (SKL[(x * SZ + z) * WY + y + 1] >= 9 || BKL[(x * SZ + z) * WY + y + 1] >= 9) {
+          if (idiv(LT[i], 16) >= 9 || mod(LT[i], 16) >= 9) {
             if (rand(1, 6) == 1) {
               let kind = 0;
-              if (BIOM[x * SZ + z + 1] == 5 || BIOM[x * SZ + z + 1] == 6) { kind = 2; }
-              W[(x * SZ + z) * WY + y + 1] = 0;
+              if (BIOM[wcol(x, z)] == 5 || BIOM[wcol(x, z)] == 6) { kind = 2; }
+              logOn = 1;
+              wput(x, y, z, 0);
               growTree(x, y - 1, z, kind);
+              logOn = 0;
               let a = x - 3;
               while (a <= x + 3) { let c = z - 3; while (c <= z + 3) { let yy = y - 1; while (yy <= y + 10) { if (yy < WY) { markDirty(a, yy, c); } yy = yy + 4; } c = c + 3; } a = a + 3; }
               markDirty(x, y + 9, z);
@@ -553,13 +557,13 @@ function randomTicks(dt) {
         }
         // grass spreads to lit dirt next to it, and dies under a block
         if (b == 3) {
-          if (W[(x * SZ + z) * WY + y + 2] == 0) {
-            if (SKL[(x * SZ + z) * WY + y + 2] >= 9) {
+          if (W[i + 1] == 0) {
+            if (idiv(LT[i + 1], 16) >= 9) {
               if (blockAt(x + 1, y, z) == 2 || blockAt(x - 1, y, z) == 2 || blockAt(x, y, z + 1) == 2 || blockAt(x, y, z - 1) == 2) { setBlock(x, y, z, 2); }
             }
           }
         }
-        if (b == 2) { if (BHC[W[(x * SZ + z) * WY + y + 2] + 1] == 1) { setBlock(x, y, z, 3); } }
+        if (b == 2) { if (BHC[W[i + 1] + 1] == 1) { setBlock(x, y, z, 3); } }
       }
       k = k + 1;
     }

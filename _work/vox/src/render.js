@@ -10,7 +10,6 @@ let cxi = 0, cyi = 0, czi = 0, cx256 = 0, cy256 = 0, cz256 = 0;
 let r11 = 0, r13 = 0, r21 = 0, r22 = 0, r23 = 0, r31 = 0, r32 = 0, r33 = 0;
 let ux1 = 0, ux2 = 0, ux3 = 0, uy2 = 0, uy3 = 0, uz1 = 0, uz2 = 0, uz3 = 0;
 let tanX = 1, tanY = 0.6, kX = 1.5, kY = 1.2;
-let AX1 = [], AX2 = [], AX3 = [], AY2 = [], AY3 = [], AZ1 = [], AZ2 = [], AZ3 = [];
 let frameNo = 0, nFill = 0, nFace = 0, nSec = 0, nScan = 0;
 let viewR = 32, viewR2 = 1024, kMax = 80, dark = 0, underWater = 0;
 let HD = [], BF = [], BN = [], BD2 = [];
@@ -22,12 +21,8 @@ let SVF = [], SIN = [], SQ = [], SFI = [];
 let skyHex = '#78a7ff', voidHex = '#101018';
 
 function renderInit() {
-  AX1 = []; AX2 = []; AX3 = []; AY2 = []; AY3 = []; AZ1 = []; AZ2 = []; AZ3 = [];
   let i = 0;
-  while (i <= SZ) { AX1.push(0); AX2.push(0); AX3.push(0); AZ1.push(0); AZ2.push(0); AZ3.push(0); i = i + 1; }
-  i = 0;
-  while (i <= WY + 8) { AY2.push(0); AY3.push(0); i = i + 1; }
-  HD = []; i = 0;
+  HD = [];
   while (i < 220) { HD.push(0); i = i + 1; }
   BF = []; BN = []; BD2 = [];
   SVF = []; SIN = []; SQ = []; i = 0;
@@ -100,12 +95,6 @@ function setCamera() {
   kX = Math.sqrt(1 + tanX * tanX); kY = Math.sqrt(1 + tanY * tanY);
   cx256 = Math.round(camX * 256); cy256 = Math.round(camY * 256); cz256 = Math.round(camZ * 256);
   cxi = Math.floor(camX); cyi = Math.floor(camY); czi = Math.floor(camZ);
-  let i = 0, d = 0 - cx256;
-  while (i <= SZ) { AX1[i + 1] = r11 * d; AX2[i + 1] = r21 * d; AX3[i + 1] = r31 * d; i = i + 1; d = d + 256; }
-  i = 0; d = 0 - cz256;
-  while (i <= SZ) { AZ1[i + 1] = r13 * d; AZ2[i + 1] = r23 * d; AZ3[i + 1] = r33 * d; i = i + 1; d = d + 256; }
-  i = 0; d = 0 - cy256;
-  while (i <= WY + 7) { AY2[i + 1] = r22 * d; AY3[i + 1] = r32 * d; i = i + 1; d = d + 256; }
   frameNo = frameNo + 1;
 }
 // a sphere (world, blocks) in the view?
@@ -124,14 +113,15 @@ function inView(x, y, z, rad) {
 // sides its open cells join (the cave culling of block games), and only into the view.
 let VSL = [];
 let nVS = 0;
-function M_secTry(NS, FOUT, FIN) {
-  if (SVF[NS] != frameNo) {
+// NS: the slot of world section (NX, ny, NZ) (blocks)
+function M_secTry(NS, NX, NZ, FOUT, FIN) {
+  if (SVF[NS] != frameNo) { if (SOK[NS] == 1) { if (SOX[NS] == NX) { if (SOZ[NS] == NZ) {
     let ok = 1;
     if (fin0 >= 0) { if (NOCAVE == 0) { if (mod(idiv(vis0, POW2[fin0 * 6 + FOUT + 1]), 2) == 0) { ok = 0; } } }
     if (ok == 1) {
-      let nsy = mod(NS - 1, NSY), nsxz = idiv(NS - 1, NSY);
+      let nsy = mod(NS - 1, NSY);
       // the middle of the section against the view, as whole numbers (256 a block)
-      let qx = idiv(nsxz, NSX) * 2048 - hx, qz = mod(nsxz, NSX) * 2048 - hz, qy = nsy * 2048 - hy;
+      let qx = NX * 256 - hx, qz = NZ * 256 - hz, qy = nsy * 2048 - hy;
       if (qx * qx + qz * qz < vlim) {
         let p1 = n1x * qx + n1y * qy + n1z * qz, p2 = n2x * qx + n2y * qy + n2z * qz, p3 = n3x * qx + n3y * qy + n3z * qz, p4 = n4x * qx + n4y * qy + n4z * qz;
         if (p1 >= sm1 && p2 >= sm1 && p3 >= sm2 && p4 >= sm2) {
@@ -141,12 +131,11 @@ function M_secTry(NS, FOUT, FIN) {
         }
       }
     }
-  }
+  } } } }
 }
 function findSections() {
   let csx = Math.floor(camX / 8), csy = Math.floor(camY / 8), csz = Math.floor(camZ / 8);
-  if (csx < 0) { csx = 0; } if (csx >= NSX) { csx = NSX - 1; } if (csz < 0) { csz = 0; } if (csz >= NSX) { csz = NSX - 1; }
-  let qh = 1, qt = 0, s = 0, sx = 0, sy = 0, sz = 0, sxz = 0, fin0 = 0, vis0 = 0, n = 0;
+  let qh = 1, qt = 0, s = 0, sy = 0, fin0 = 0, vis0 = 0, n = 0, x0 = 0, z0 = 0;
   // (section middles: hx = eye - 4 blocks; a section reaches 6.93 blocks from its middle, the
   // margins fm are for 0.87 block)
   let hx = cx256 - 1024, hy = cy256 - 1024, hz = cz256 - 1024, sm1 = 0 - fm1 * 8, sm2 = 0 - fm2 * 8;
@@ -157,33 +146,34 @@ function findSections() {
     let ly = NSY - 1, lf = 3;
     if (csy < 0) { ly = 0; lf = 2; }
     fin0 = 0 - 1;
-    let a = 0;
-    while (a < NSX) {
-      let c = 0;
-      while (c < NSX) {
-        n = (a * NSX + c) * NSY + ly + 1;
-        M_secTry(n, 0, lf);
+    let rr = idiv(viewR, 8) + 2, a = csx - rr;
+    while (a <= csx + rr) {
+      let c = csz - rr;
+      while (c <= csz + rr) {
+        n = (mod(a, NSX) * NSX + mod(c, NSX)) * NSY + ly + 1;
+        M_secTry(n, a * 8, c * 8, 0, lf);
         c = c + 1;
       }
       a = a + 1;
     }
     if (csy >= NSY) { csy = NSY - 1; } else { csy = 0; }
   } else {
-    n = (csx * NSX + csz) * NSY + csy + 1;
-    SVF[n] = frameNo; SIN[n] = 0 - 1; SFI[n] = 0; qt = 1; SQ[1] = n;
+    n = (mod(csx, NSX) * NSX + mod(csz, NSX)) * NSY + csy + 1;
+    if (SOK[n] == 1) { SVF[n] = frameNo; SIN[n] = 0 - 1; SFI[n] = 0; qt = 1; SQ[1] = n; }
   }
+  let ex = csx * 8, ez = csz * 8;
   while (qh <= qt) {
     s = SQ[qh]; qh = qh + 1;
     if (SEMP[s] == 0) { nVS = nVS + 1; VSL[nVS] = s; }
-    sy = mod(s - 1, NSY); sxz = idiv(s - 1, NSY); sz = mod(sxz, NSX); sx = idiv(sxz, NSX);
+    sy = mod(s - 1, NSY); x0 = SOX[s]; z0 = SOZ[s];
     fin0 = SIN[s]; vis0 = SVIS[s];
     // move -x (enter by +x) ... ; never toward the eye's section
-    if (sx > 0) { if (sx <= csx) { n = s - NSX * NSY; M_secTry(n, 0, 1); } }
-    if (sx < NSX - 1) { if (sx >= csx) { n = s + NSX * NSY; M_secTry(n, 1, 0); } }
-    if (sy > 0) { if (sy <= csy) { n = s - 1; M_secTry(n, 2, 3); } }
-    if (sy < NSY - 1) { if (sy >= csy) { n = s + 1; M_secTry(n, 3, 2); } }
-    if (sz > 0) { if (sz <= csz) { n = s - NSY; M_secTry(n, 4, 5); } }
-    if (sz < NSX - 1) { if (sz >= csz) { n = s + NSY; M_secTry(n, 5, 4); } }
+    if (x0 <= ex) { n = (mod(idiv(x0, 8) - 1, NSX) * NSX + mod(idiv(z0, 8), NSX)) * NSY + sy + 1; M_secTry(n, x0 - 8, z0, 0, 1); }
+    if (x0 >= ex) { n = (mod(idiv(x0, 8) + 1, NSX) * NSX + mod(idiv(z0, 8), NSX)) * NSY + sy + 1; M_secTry(n, x0 + 8, z0, 1, 0); }
+    if (sy > 0) { if (sy <= csy) { n = s - 1; M_secTry(n, x0, z0, 2, 3); } }
+    if (sy < NSY - 1) { if (sy >= csy) { n = s + 1; M_secTry(n, x0, z0, 3, 2); } }
+    if (z0 <= ez) { n = (mod(idiv(x0, 8), NSX) * NSX + mod(idiv(z0, 8) - 1, NSX)) * NSY + sy + 1; M_secTry(n, x0, z0 - 8, 4, 5); }
+    if (z0 >= ez) { n = (mod(idiv(x0, 8), NSX) * NSX + mod(idiv(z0, 8) + 1, NSX)) * NSY + sy + 1; M_secTry(n, x0, z0 + 8, 5, 4); }
   }
 }
 
@@ -208,7 +198,7 @@ function collectGroup(f, fe, mode, tv, full) {
   let m1 = 0 - fm1, m2 = 0 - fm2, hx = cx256 - 128, hy = cy256 - 128, hz = cz256 - 128, cx = cxi, cy = cyi, cz = czi, vr2 = viewR2, bt = bTop;
   nScan = nScan - (f - fe);
   while (f < fe) {
-    p = FP[f]; x = idiv(p, 65536); p = p - x * 65536; y = idiv(p, 256); z = p - y * 256;
+    p = FP[f]; x = idiv(p, 16777216); p = p - x * 16777216; y = idiv(p, 65536); z = p - y * 65536 - OFF; x = x - OFF;
     ok = 1;
     if (mode == 2) {
       ok = 0;
@@ -253,7 +243,7 @@ function collectFaces() {
   while (vi <= nVS) {
     s = VSL[vi]; vi = vi + 1;
     sb = (s - 1) * 16;
-    y0 = mod(s - 1, NSY) * 8; sxz = idiv(s - 1, NSY); z0 = mod(sxz, NSX) * 8; x0 = idiv(sxz, NSX) * 8; full = SFI[s];
+    y0 = mod(s - 1, NSY) * 8; z0 = SOZ[s]; x0 = SOX[s]; full = SFI[s];
     // -x faces (on the plane x) are seen from the west of it, +x faces (x + 1) from the east ...
     if (cx < x0 + 7) { if (cx < x0) { M_grp(0, 1, 0); } else { M_grp(0, 2, 0); } }
     if (cx > x0) { if (cx > x0 + 7) { M_grp(1, 1, 1); } else { M_grp(1, 2, 1); } }
@@ -309,7 +299,7 @@ function drawBuckets() {
       f = BF[n];
       if (f > 0) {
         p = BD2[n]; d2 = idiv(p, 8); d = p - d2 * 8;
-        p = FP[f]; x = idiv(p, 65536); p = p - x * 65536; y = idiv(p, 256); z = p - y * 256;
+        p = FP[f]; x = idiv(p, 16777216); p = p - x * 16777216; y = idiv(p, 65536); z = p - y * 65536 - OFF; x = x - OFF;
         // the cell's corner (x, y, z) in camera space
         ex = x * 256 - hx; ey = y * 256 - hy; ez = z * 256 - hz;
         bx = c11 * ex - c13 * ez;
@@ -636,7 +626,8 @@ function drawPick() {
 }
 let PKX = [0, 0, 0, 0, 0, 0, 0, 0], PKY = [0, 0, 0, 0, 0, 0, 0, 0], PKZ = [0, 0, 0, 0, 0, 0, 0, 0];
 function pkCorner(k, x, y, z) {
-  PKX[k] = AX1[x + 1] + AZ1[z + 1]; PKY[k] = AX2[x + 1] + AY2[y + 1] + AZ2[z + 1]; PKZ[k] = AX3[x + 1] + AY3[y + 1] + AZ3[z + 1];
+  let ex = x * 256 - cx256, ey = y * 256 - cy256, ez = z * 256 - cz256;
+  PKX[k] = r11 * ex + r13 * ez; PKY[k] = r21 * ex + r22 * ey + r23 * ez; PKZ[k] = r31 * ex + r32 * ey + r33 * ez;
 }
 function pkEdge(a, b) {
   let za = PKZ[a], zb = PKZ[b], ax = PKX[a], ay = PKY[a], bx = PKX[b], by = PKY[b];
@@ -655,7 +646,8 @@ function pkEdge(a, b) {
 // cracks on the face that was hit (the face of pickF), dark rects of the crack picture
 function drawCracks() {
   let x = pickX, y = pickY, z = pickZ, d = pickF;
-  let bx = AX1[x + 1] + AZ1[z + 1], by = AX2[x + 1] + AY2[y + 1] + AZ2[z + 1], bz = AX3[x + 1] + AY3[y + 1] + AZ3[z + 1];
+  pkCorner(1, x, y, z);
+  let bx = PKX[1], by = PKY[1], bz = PKZ[1];
   if (d == 0) { q0x = bx; q0y = by + uy2; q0z = bz + uy3; q1x = q0x + uz1; q1y = q0y + uz2; q1z = q0z + uz3; q3x = bx; q3y = by; q3z = bz; }
   if (d == 1) { q3x = bx + ux1 + uz1; q3y = by + ux2 + uz2; q3z = bz + ux3 + uz3; q0x = q3x; q0y = q3y + uy2; q0z = q3z + uy3; q1x = q0x - uz1; q1y = q0y - uz2; q1z = q0z - uz3; }
   if (d == 2) { q0x = bx + uz1; q0y = by + uz2; q0z = bz + uz3; q1x = q0x + ux1; q1y = q0y + ux2; q1z = q0z + ux3; q3x = bx; q3y = by; q3z = bz; }

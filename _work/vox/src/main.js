@@ -1,6 +1,6 @@
 // ===================================================================== main loop
 // Every tick: count it, gather the mouse movement and the wheel (tessvm writes $DELTA_X/Y and
-// $SCROLL_Y fresh each tick). Every kStep ticks: a frame (the game and the picture) with dt the
+// $SCROLL_Y only in a tick the wheel turned: the work sets it back to 0 itself). Every kStep ticks: a frame (the game and the picture) with dt the
 // time since the last one.
 let $TESSVM = 0, $M_LOCK = 0, $DELTA_X = 0, $DELTA_Y = 0, $SCROLL_Y = 0, $CURSOR = '';
 let tickN = 0, lastFrameTick = 0, kStep = 1, frames = 0, fpsShow = 0, tpsShow = 0;
@@ -140,8 +140,9 @@ function playFrame(dt) {
       // the hotbar: number keys, the wheel
       let k = 1;
       while (k <= 9) { if (keyHit(48 + k) == 1) { hotSel = k; } k = k + 1; }
-      if (wheelAcc > 0.5) { hotSel = hotSel + 1; wheelAcc = 0; if (hotSel > 9) { hotSel = 1; } }
-      if (wheelAcc < -0.5) { hotSel = hotSel - 1; wheelAcc = 0; if (hotSel < 1) { hotSel = 9; } }
+      // (a notch down: the next slot)
+      while (wheelAcc >= 1) { hotSel = hotSel + 1; wheelAcc = wheelAcc - 1; if (hotSel > 9) { hotSel = 1; } }
+      while (wheelAcc <= -1) { hotSel = hotSel - 1; wheelAcc = wheelAcc + 1; if (hotSel < 1) { hotSel = 9; } }
       playerMove(dt);
       camX = px; camY = py + eyeH; camZ = pz; camYaw = yaw; camPitch = pitch;
       pickRay();
@@ -166,6 +167,10 @@ function playFrame(dt) {
   if (keyHit(72) == 1) { helpT = 12 - helpT; if (helpT < 0) { helpT = 0; } }
   mobsStep(dt); itemsStep(dt); arrowsStep(dt); furnacesStep(dt); spawnStep(dt); randomTicks(dt);
   worldFlush();
+  // the world round the player: a few chunk stages and some sections a frame
+  let cw = 1;
+  if (kStep == 1) { cw = 2; }
+  chunkWork(cw); remeshSome(6);
   if (BENCH == 0) { tday = tday + dt / dayLen; }
   if (tday >= 1) { tday = tday - 1; }
   daySky();
@@ -210,8 +215,8 @@ function uiInput() {
       if (uiMode == 5) {
         if (keyHit(37) == 1) { if (uiPage > 0) { uiPage = uiPage - 1; } }
         if (keyHit(39) == 1) { if ((uiPage + 1) * 36 < PAL.length) { uiPage = uiPage + 1; } }
-        if (wheelAcc > 0.5) { if ((uiPage + 1) * 36 < PAL.length) { uiPage = uiPage + 1; } }
-        if (wheelAcc < -0.5) { if (uiPage > 0) { uiPage = uiPage - 1; } }
+        if (wheelAcc >= 1) { if ((uiPage + 1) * 36 < PAL.length) { uiPage = uiPage + 1; } }
+        if (wheelAcc <= -1) { if (uiPage > 0) { uiPage = uiPage - 1; } }
       }
       if (clickLatch == 1) {
         let sh = 0;
@@ -290,7 +295,7 @@ function titleFrame(dt) {
   button(-100, -26, 100, -46, `시드: ${seedText}`, 6, 1); if (btnHot == 1) { menuSel = 3; }
   button(-100, -52, 100, -72, `시야 거리: ${viewWant} 블록`, 7, 1); if (btnHot == 1) { menuSel = 4; }
   tx(8, 'WASD 이동 · 클릭 부수기 · F 놓기 · E 소지품 · H 도움말', 0, -92, 7, '#d0d0d0', 0);
-  tx(9, `세계 ${SZ} x ${SZ} x ${WY} 블록 · 동굴 · 광석 · 8가지 생물 군계 · 몹 · 제작`, 0, -104, 7, '#a0a0a0', 0);
+  tx(9, `끝없는 세계 (높이 ${WY}) · 동굴 · 광석 · 8가지 생물 군계 · 몹 · 제작`, 0, -104, 7, '#a0a0a0', 0);
   if (clickLatch == 1) {
     if (menuSel == 1 || menuSel == 2) {
       gameMode = menuSel - 1;
@@ -298,6 +303,7 @@ function titleFrame(dt) {
       let s = titleSeed;
       if (s == 0) { s = rand(1, 99999999); }
       seed = s;
+      thingsInit();
       genStart(s);
       gState = 1;
     }
@@ -325,12 +331,12 @@ function loadFrame() {
   tx(1, '세계를 만들고 있습니다', 0, 30, 12, '#ffffff', 0);
   tx(2, genMsg, 0, 5, 9, '#d0d0d0', 0);
   box(-101, -13, 101, -23, '#000000');
-  box(-100, -14, -100 + 200 * (genPhase - 1 + genN) / 6, -22, '#80ff80');
+  box(-100, -14, -100 + 200 * Math.min(1, genN), -22, '#80ff80');
   fillStop();
   if (genPhase == 7) {
     txClear();
     findSpawn();
-    thingsInit(); spawnAnimals(); storesInit(); startKit();
+    storesInit(); startKit();
     setView(viewWant);
     respawn();
     yaw = 45; pitch = -10; flying = 0; FOC = 210;
@@ -364,13 +370,17 @@ on('start', 'pen', function () {
   while (i <= 255) { KW.push(0); KHIT.push(0); i = i + 1; }
   i = 0;
   while (i < NSEC) { SDIRTY.push(0); i = i + 1; }
-  meshInit(); slotsInit(); invInit(); storesInit(); thingsInit();
+  meshInit(); worldInit(); slotsInit(); invInit(); storesInit(); thingsInit();
   renderInit();
   volume(70);
   if (AUTOSEED > 0) { genStart(AUTOSEED); gameMode = AUTOMODE; gState = 1; }
   for (;;) {
     tickN = tickN + 1; secTicks = secTicks + 1;
-    if (isTess == 1) { mAccX = mAccX + $DELTA_X; mAccY = mAccY + $DELTA_Y; wheelAcc = wheelAcc + $SCROLL_Y; lockWatch(); }
+    if (isTess == 1) { mAccX = mAccX + $DELTA_X; mAccY = mAccY + $DELTA_Y; lockWatch();
+      // the wheel: tessvm writes $SCROLL_Y in the tick it turned and leaves it there, so it is
+      // read once and set back to 0 (one step a turn, down is +1)
+      if ($SCROLL_Y != 0) { if ($SCROLL_Y < 0) { wheelAcc = wheelAcc + 1; } else { wheelAcc = wheelAcc - 1; } $SCROLL_Y = 0; }
+    }
     let s = dateSec();
     if (s != secNow) { if (secNow >= 0) { paceSecond(); } secNow = s; }
     if (tickN - lastFrameTick >= kStep) {

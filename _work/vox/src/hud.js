@@ -209,9 +209,9 @@ function drawHud(dt) {
   msgT = msgT - dt;
   if (msgT > 0) { tx(11, msgText, 0, 40, 9, '#ffff80', 0); } else { txOff(11); }
   if (showDbg == 1) {
-    let bn = BNAMES[BIOM[Math.floor(px) * SZ + Math.floor(pz) + 1] + 1];
+    let bn = BNAMES[BIOM[wcol(Math.floor(px), Math.floor(pz))] + 1];
     tx(12, `XYZ ${Math.floor(px * 10) / 10} / ${Math.floor(py * 10) / 10} / ${Math.floor(pz * 10) / 10}  ${bn}`, -236, 128, 7, '#ffffff', 1);
-    tx(13, `FPS ${fpsShow} (k${kStep})  면 ${nFace}/${nScan}  칠 ${nFill}  구역 ${nVS}  시야 ${viewR}`, -236, 118, 7, '#ffffff', 1);
+    tx(13, `FPS ${fpsShow} (k${kStep})  청크 ${nChunks}  면 ${nFace}/${nScan}  칠 ${nFill}  구역 ${nVS}  시야 ${viewR}`, -236, 118, 7, '#ffffff', 1);
     let li = lightAt(px, py + 1, pz);
     tx(14, `빛 ${li}  시각 ${timeText()}  시드 ${seed}  몹 ${nHostile}/${nPassive}`, -236, 108, 7, '#ffffff', 1);
   } else { txOff(12); txOff(13); txOff(14); }

@@ -42,10 +42,31 @@ console.log(`generated: ${n} ticks ${(performance.now() - t0).toFixed(0)} ms (lo
 if (kv.X !== undefined) { set('tX', kv.X); set('tY', kv.Y); set('tZ', kv.Z); set('tYaw', kv.YAW || 0); set('tPitch', kv.PITCH || 0); set('testCmd', 1); }
 if (kv.VIEW) { set('viewWant', kv.VIEW); set('autoView', 0); vm.tick(); set('viewR', kv.VIEW); set('viewR2', kv.VIEW * kv.VIEW); set('kMax', Math.floor(kv.VIEW * 1.45) + 66); }
 for (let i = 0; i < 120; i++) vm.tick();
+if (kv.STAGES) {
+  const tick = () => { const t = performance.now(); vm.tick(); return performance.now() - t; };
+  const med = (a) => a.sort((x, y) => x - y)[a.length >> 1];
+  const idle = []; for (let i = 0; i < 40; i++) idle.push(tick());
+  const base = med(idle);
+  for (const st of [0, 1, 2, 3, 4]) {
+    const ts = [];
+    for (let r = 0; r < 15; r++) { set('tStage', st); set('testCmd', 3); ts.push(tick()); tick(); }
+    console.log('stage', st, 'ms', (med(ts) - base).toFixed(2), '(idle tick', base.toFixed(2) + ')');
+  }
+  process.exit(0);
+}
+if (kv.FLY) { set('gameMode', 1); set('flying', 1); set('yaw', 30); set('pitch', -10); vm.pressedKeys.add(87); vm.pressedKeys.add(82); }
 if (kv.VIEW) { vm.variables.find(v => v.name === 'viewR'); }
 t0 = performance.now(); maxT = 0;
 const fr0 = Vv('frames');
-for (let i = 0; i < ticks; i++) { const t = performance.now(); vm.tick(); maxT = Math.max(maxT, performance.now() - t); }
+const spikes = [];
+for (let i = 0; i < ticks; i++) {
+  if (kv.FLY) { set('py', 61); set('pvy', 0); }
+  set('lastStage', 0);
+  const t = performance.now(); vm.tick(); const dt = performance.now() - t;
+  maxT = Math.max(maxT, dt);
+  if (dt > 35) spikes.push(dt.toFixed(0) + ':' + Vv('lastStage') + ':' + Vv('rqN') + ':' + (vm.variables.find(v => v.name === 'WBX').array || []).length);
+}
+if (spikes.length) console.log('spikes (ms:stages:remesh queue:cave pool)', spikes.slice(0, 30).join(' '));
 const ms = (performance.now() - t0) / ticks;
-console.log(`${ms.toFixed(2)} ms/tick (max ${maxT.toFixed(1)}), frames ${Vv('frames') - fr0}/${ticks}, k ${Vv('kStep')} view ${Vv('viewR')} faces ${Vv('nFace')}/${Vv('nScan')} fills ${Vv('nFill')} sections ${Vv('nVS')} pos ${(+Vv('px')).toFixed(1)} ${(+Vv('py')).toFixed(1)} ${(+Vv('pz')).toFixed(1)} errors ${JSON.stringify(vm.errors.slice(0, 3))}`);
+console.log(`${ms.toFixed(2)} ms/tick (max ${maxT.toFixed(1)}), frames ${Vv('frames') - fr0}/${ticks}, k ${Vv('kStep')} view ${Vv('viewR')} chunks ${Vv('nChunks')} faces ${Vv('nFace')}/${Vv('nScan')} fills ${Vv('nFill')} sections ${Vv('nVS')} pos ${(+Vv('px')).toFixed(1)} ${(+Vv('py')).toFixed(1)} ${(+Vv('pz')).toFixed(1)} errors ${JSON.stringify(vm.errors.slice(0, 3))}`);
 fs.rmSync(tmp, { recursive: true, force: true });

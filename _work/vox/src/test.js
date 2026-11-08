@@ -1,7 +1,15 @@
 // ===================================================================== test hooks (sim / headless)
 // testCmd set from outside: 1 stand at (tX, tY, tZ) looking (tYaw, tPitch)
-let testCmd = 0, tX = 0, tY = 0, tZ = 0, tYaw = 0, tPitch = 0;
+let testCmd = 0, tX = 0, tY = 0, tZ = 0, tYaw = 0, tPitch = 0, tStage = 0;
 function testStep() {
+  // 3: run stage tStage of the player's chunk once more (for timing)
+  if (testCmd == 3) {
+    let s = slotOf(idiv(Math.floor(px), 16), idiv(Math.floor(pz), 16));
+    CKST[s] = tStage; CKSUB[s] = 0;
+    chunkStage(s);
+    CKST[s] = 5;
+    testCmd = 0;
+  }
   if (testCmd == 1) {
     px = tX; py = tY; pz = tZ; yaw = tYaw; pitch = tPitch; pvx = 0; pvy = 0; pvz = 0; fallTop = py;
     testCmd = 0;

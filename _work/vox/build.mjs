@@ -10,12 +10,20 @@ import { legacyMath, slimBlocks } from './legacy.mjs';
 import { TEX, CRACK, BLOCKS, NBLOCK, ITEMS, TIERS, KINDS, TOOL0, toolId, NITEM, RECIPES, SMELT, MOBS } from './blocks.mjs';
 import { makeSounds } from './sounds.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '1.0';
+export const VERSION = '1.1';
 export const NAME = '블록 월드';
 
-const SZ = 128, WY = 64;
+// the ring window of loaded chunks: NCH x NCH slots of 16 x 16 columns; chunks are made within
+// CR chunks of the player (2 CR + 1 < NCH keeps a free row of slots between the two ends)
+const NCH = 14, WS = NCH * 16, WY = 64, CR = 6;
+function chunkOffsets(r) {
+    const o = [];
+    for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) if (dx * dx + dz * dz <= r * r) o.push([dx, dz]);
+    return o.sort((a, b) => (a[0] ** 2 + a[1] ** 2) - (b[0] ** 2 + b[1] ** 2));
+}
 export const consts = {
-    SZ, WY, SEA: 30, LAVAY: 5, NSX: SZ / 8, NSY: WY / 8, NSEC: (SZ / 8) * (SZ / 8) * (WY / 8), SXS: SZ * WY,
+    WS, NCH, CR, WY, SEA: 30, LAVAY: 5, NSX: WS / 8, NSY: WY / 8, NSEC: (WS / 8) * (WS / 8) * (WY / 8), SXS: WS * WY, OFF: 32768,
+    NOFF: chunkOffsets(CR).length, CVN: 24, NSTART: chunkOffsets(2).length,
     NEARZ: Math.round(0.05 * 256 * 16384), DEC2: 20, PLANT2: 225, CLOUDY: WY + 8, MK: 160 * 1048576,
     NMOB: 40, NITM: 64, NARR: 24, NFUR: 16, NCHEST: 16, ANIMALS: 36, SMELTT: 8, NTX: 96, TOOL0,
     SPAWNC: 0, BENCH: 0, NOCAVE: 0, AUTOSEED: 0, AUTOMODE: 0, TESTRUN: 0, SIMRUN: 0, LEGACY: 0, SLIM: 1,
@@ -199,6 +207,7 @@ export function makeData() {
     for (let k = 0; k < 40; k++) { const cx = Math.floor(rnd() * 32), cz = Math.floor(rnd() * 32), w = 1 + Math.floor(rnd() * 4), h = 1 + Math.floor(rnd() * 3); for (let a = 0; a < w; a++) for (let b = 0; b < h; b++) cl[((cx + a) % 32) * 32 + (cz + b) % 32] = 1; }
     L.CLOUD = cl;
 
+    L.OFFX = chunkOffsets(CR).map(o => o[0]); L.OFFZ = chunkOffsets(CR).map(o => o[1]);
     L.PAL = [];
     for (let id = 1; id < NBLOCK; id++) if (BLOCKS[id] && id !== 6) L.PAL.push(id);
     L.PAL.push(6);

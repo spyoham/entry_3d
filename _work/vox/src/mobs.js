@@ -24,25 +24,24 @@ function mobAdd(t, x, y, z) {
     EHP[e] = MHP[t]; EST[e] = 0; ETM[e] = rand(1, 40) / 10; EHURT[e] = 0; EWALK[e] = 0; EATK[e] = 0; EBURN[e] = 0; EGND[e] = 0;
   }
 }
-// animals on the grass when the world is made
-function spawnAnimals() {
-  let k = 0, made = 0;
-  while (k < 600 && made < ANIMALS) {
-    let x = rand(2, SZ - 3), z = rand(2, SZ - 3);
-    findTop(x, z);
-    let b = W[(x * SZ + z) * WY + topY + 1];
-    if (b == 2 || b == 20) {
-      if (W[(x * SZ + z) * WY + topY + 2] == 0 || W[(x * SZ + z) * WY + topY + 2] == 28) {
-        let t = rand(1, 4);
-        // a few of the same kind together
-        let n = rand(2, 4), j = 0;
-        while (j < n) {
-          mobAdd(t, x + 0.5 + rand(-10, 10) / 10, topY + 1.05, z + 0.5 + rand(-10, 10) / 10);
-          j = j + 1; made = made + 1;
+// animals on the grass of a chunk just made (a few chunks in ten)
+function chunkAnimals(cx, cz) {
+  if (nPassive < ANIMALS) {
+    chunkSeed(cx, cz, 4);
+    if (rnd() < 0.18) {
+      let x = cx * 16 + rndI(3, 12), z = cz * 16 + rndI(3, 12);
+      findTop(x, z);
+      let i = wi(x, topY, z);
+      if (W[i] == 2 || W[i] == 20) {
+        if (W[i + 1] == 0 || W[i + 1] == 28) {
+          let t = rndI(1, 4), n = rndI(2, 4), j = 0;
+          while (j < n) {
+            mobAdd(t, x + 0.5 + rndI(-10, 10) / 10, topY + 1.05, z + 0.5 + rndI(-10, 10) / 10);
+            j = j + 1; nPassive = nPassive + 1;
+          }
         }
       }
     }
-    k = k + 1;
   }
 }
 
@@ -67,15 +66,15 @@ function spawnStep(dt) {
       if (nHostile < 10) {
         let a = rand(0, 359), r = rand(18, 40);
         let x = Math.floor(px + sind(a) * r), z = Math.floor(pz + cosd(a) * r);
-        if (x >= 1 && x < SZ - 1 && z >= 1 && z < SZ - 1) {
+        if (cOK(x, z) == 1) {
           // a spot: on the surface (night) or deep in a cave
           findTop(x, z);
           let y = topY + 1;
           if (rand(1, 3) == 1) { y = rand(5, Math.max(6, topY - 4)); }
-          let i2 = (x * SZ + z) * WY + y + 1;
+          let i2 = wi(x, y, z);
           if (y > 1 && y < WY - 2) {
             if (W[i2] == 0 && W[i2 + 1] == 0 && BSOL[W[i2 - 1] + 1] == 1 && W[i2 - 1] != 19) {
-              let lv = Math.max(SKL[i2] - dark, BKL[i2]);
+              let lv = Math.max(idiv(LT[i2], 16) - dark, mod(LT[i2], 16));
               if (lv <= 7) {
                 let r2 = rand(1, 100), t = 5;
                 if (r2 > 45) { t = 6; } if (r2 > 80) { t = 7; }
@@ -94,7 +93,10 @@ function mobsStep(dt) {
   let e = 1;
   while (e <= NMOB) {
     // (far from the player they rest: only the ones near are worth the time)
-    if (ET[e] > 0) { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 1600) { mobStep(e, dt); } }
+    if (ET[e] > 0) {
+      if (cOK(Math.floor(EX[e]), Math.floor(EZ[e])) == 0) { ET[e] = 0; }
+      else { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 1600) { mobStep(e, dt); } }
+    }
     e = e + 1;
   }
 }
@@ -138,8 +140,8 @@ function mobStep(e, dt) {
     if (MBURN[t] == 1) {
       EBURN[e] = 0;
       if (dark <= 2) {
-        let ci = cellOf(Math.floor(EX[e]), Math.floor(EY[e] + 1.5), Math.floor(EZ[e]));
-        if (EY[e] + 1.5 < WY) { if (SKL[ci] == 15) { if (headIn(e) == 0) { EBURN[e] = 1; } } }
+        let ci = wi(Math.floor(EX[e]), Math.floor(EY[e] + 1.5), Math.floor(EZ[e]));
+        if (EY[e] + 1.5 < WY) { if (LT[ci] >= 240) { if (headIn(e) == 0) { EBURN[e] = 1; } } }
       }
       if (EBURN[e] == 1) { if (rand(1, 60) == 1) { mobHurt(e, 1, 0, 0); } }
     }
@@ -181,7 +183,6 @@ function mobStep(e, dt) {
   // a wall in the way: jump it
   if (hit == 1) { if (bmGround == 1) { if (want != 0) { EVY[e] = 8.4; } } }
   EX[e] = bmX; EY[e] = bmY; EZ[e] = bmZ;
-  if (EX[e] < 0.5) { EX[e] = 0.5; } if (EZ[e] < 0.5) { EZ[e] = 0.5; } if (EX[e] > SZ - 0.5) { EX[e] = SZ - 0.5; } if (EZ[e] > SZ - 0.5) { EZ[e] = SZ - 0.5; }
   let sp = Math.sqrt(EVX[e] * EVX[e] + EVZ[e] * EVZ[e]);
   EWALK[e] = EWALK[e] + sp * dt * 3.2;
   if (EY[e] < -10) { ET[e] = 0; }
@@ -394,10 +395,10 @@ function drawThing(id, d2) {
 // the light where a thing stands (0..15 with the night)
 function lightAt(x, y, z) {
   let lv = 15 - dark;
-  if (x >= 0 && x < SZ && z >= 0 && z < SZ && y >= 0 && y < WY) {
-    let i = (Math.floor(x) * SZ + Math.floor(z)) * WY + Math.floor(y) + 1;
-    lv = Math.max(SKL[i] - dark, BKL[i]);
-  }
+  if (y >= 0 && y < WY) { if (cOK(Math.floor(x), Math.floor(z)) == 1) {
+    let i = wi(Math.floor(x), Math.floor(y), Math.floor(z));
+    lv = Math.max(idiv(LT[i], 16) - dark, mod(LT[i], 16));
+  } }
   if (lv < 0) { lv = 0; }
   return lv;
 }
