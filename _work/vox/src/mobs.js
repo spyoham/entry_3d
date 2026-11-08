@@ -239,7 +239,8 @@ function atan2d(x, z) {
 }
 // a mob hit (by the player: knocked away from (fx, fz))
 function mobHurt(e, n, fx, fz) {
-  if (EHURT[e] <= 0) {
+  if (ET[e] == 10) { if (nCrystal > 0) { n = 0; msgShow('수호 수정이 수호자를 지키고 있습니다', 1.5); } }
+  if (EHURT[e] <= 0 && n > 0) {
     EHP[e] = EHP[e] - n; EHURT[e] = 0.5;
     sndPlay(4);
     if (fx != 0 || fz != 0) {

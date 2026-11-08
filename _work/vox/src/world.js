@@ -292,6 +292,13 @@ function genCaves(cx, cz) {
     }
     a = a + 1;
   }
+  // the top of cave lava under air cools to obsidian (the only way to it: there are no buckets)
+  a = gx0;
+  while (a <= gx1) {
+    c = gz0;
+    while (c <= gz1) { let i = (mod(a, WS) * WS + mod(c, WS)) * WY + LAVAY + 1; if (W[i] == 35) { if (W[i + 1] == 0) { W[i] = 34; } } c = c + 1; }
+    a = a + 1;
+  }
 }
 
 // ---------------------------------------------------------------- ores and trees of one chunk
@@ -301,7 +308,7 @@ function genVein(b, n, ylo, yhi) {
   while (k < n) {
     if (x >= gx0 && x <= gx1 && z >= gz0 && z <= gz1 && y >= 1 && y < WY) {
       i = (mod(x, WS) * WS + mod(z, WS)) * WY + y + 1;
-      if (W[i] == 1) { W[i] = b; }
+      if (W[i] == 1 || W[i] == 48) { W[i] = b; }
     }
     d = rndI(0, 5);
     if (d == 0) { x = x + 1; } if (d == 1) { x = x - 1; } if (d == 2) { y = y + 1; }
@@ -478,7 +485,33 @@ function featuresO(cx, cz) {
     lz = 0;
     while (lz < 16) { decorate(gx0 + lx, gz0 + lz, lx, lz); lz = lz + 1; }
     lx = lx + 1;
-  }
+  }  // now and then a broken gate frame of obsidian on the ground (with what fell off lying by it)
+  chunkSeed(cx, cz, 4);
+  if (rndI(1, 9) == 1) { ruinFrame(gx0 + rndI(4, 9), gz0 + rndI(5, 10)); }
+}
+function ruinFrame(x0, z0) {
+  findTop(x0 + 1, z0);
+  let y0 = topY, b = W[wi(x0 + 1, y0, z0)];
+  if (y0 > SEA) { if (y0 < WY - 9) { if (b == 2 || b == 3 || b == 8 || b == 1) {
+    let a = x0 - 1, c = 0, y = 0;
+    // a floor of old stone, clear above it
+    while (a <= x0 + 4) {
+      c = z0 - 1;
+      while (c <= z0 + 1) {
+        W[wi(a, y0, c)] = 4; if (rndI(1, 3) == 1) { W[wi(a, y0, c)] = 36; }
+        y = y0 + 1; while (y <= y0 + 7) { W[wi(a, y, c)] = 0; y = y + 1; }
+        c = c + 1;
+      }
+      a = a + 1;
+    }
+    // what still stands of the frame (the bottom and the low sides), the rest fallen about it
+    W[wi(x0 + 1, y0 + 1, z0)] = 34; W[wi(x0 + 2, y0 + 1, z0)] = 34;
+    W[wi(x0, y0 + 2, z0)] = 34; W[wi(x0, y0 + 3, z0)] = 34; W[wi(x0 + 3, y0 + 2, z0)] = 34;
+    W[wi(x0 - 1, y0 + 1, z0 + 1)] = 34; W[wi(x0 + 1, y0 + 1, z0 + 1)] = 34; W[wi(x0 + 4, y0 + 1, z0)] = 34;
+    W[wi(x0 + 2, y0 + 1, z0 - 1)] = 34;
+    if (rndI(1, 2) == 1) { W[wi(x0 + 3, y0 + 1, z0 + 1)] = 34; } else { W[wi(x0 + 3, y0 + 1, z0)] = 34; }
+    W[wi(x0 - 1, y0 + 1, z0 - 1)] = 36; W[wi(x0 + 4, y0 + 1, z0 - 1)] = 4;
+  } } }
 }
 
 // ---------------------------------------------------------------- light
@@ -716,7 +749,7 @@ function genStart(s) {
   let i = 1;
   while (i <= NCH * NCH) { if (CKST[i] > 0) { chunkDrop(i); } i = i + 1; }
   EDX = []; EDY = []; EDZ = []; EDB = []; EDD = [];
-  logOn = 0; dim = 0; bossDead = 0;
+  logOn = 0; dim = 0; bossDead = 0; bossWake = 0;
   cavesInit();
   px = 8.5; pz = 8.5; pcxW = -99999; pczW = -99999;
   genPhase = 1; genN = 0;

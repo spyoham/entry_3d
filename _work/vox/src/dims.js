@@ -454,10 +454,11 @@ function useVoidKey() {
 }
 
 // ---------------------------------------------------------------- the warden of the void
-// It circles the island high up, and every few seconds dives at the player. While any warding
-// crystal stands on the pillars it heals. Killed: its heart drops and the gate home opens in the
-// middle of the island.
-let bossE = 0, bossPh = 0, bossT = 0, bossAng = 0, bossHealT = 0, nCrystal = 0;
+// While any warding crystal stands on the pillars, the warden sleeps: it only circles the
+// island, and nothing hurts it. The last crystal broken, it wakes: it circles, dives at the
+// player, and every other turn lands on the middle of the island for a while (then it can be
+// hit freely). Killed: its heart drops and the gate home opens in the middle of the island.
+let bossE = 0, bossPh = 0, bossT = 0, bossAng = 0, nCrystal = 8, bossN = 0, bossWake = 0;
 function bossSpawn() {
   mobAdd(10, 0.5, 52, 0.5);
   bossE = lastMob; bossPh = 0; bossT = 0;
@@ -467,40 +468,56 @@ function bossStep(dt) {
     if (bossE == 0) { bossSpawn(); } else { if (ET[bossE] != 10) { bossSpawn(); } }
     let e = bossE;
     if (e > 0) {
-      // the crystals still standing
+      // the crystals still standing (a pillar in a chunk not made counts as standing)
       nCrystal = 0;
       let k = 0;
-      while (k < 8) { pillarAt(k); if (blockAt(pilX, pilH + 1, pilZ) == 57) { nCrystal = nCrystal + 1; } k = k + 1; }
-      bossHealT = bossHealT + dt;
-      if (bossHealT > 0.5) { bossHealT = 0; if (nCrystal > 0) { if (EHP[e] < MHP[10]) { EHP[e] = Math.min(MHP[10], EHP[e] + 1); } } }
+      while (k < 8) { pillarAt(k); if (cOK(pilX, pilZ) == 0) { nCrystal = nCrystal + 1; } else { if (blockAt(pilX, pilH + 1, pilZ) == 57) { nCrystal = nCrystal + 1; } } k = k + 1; }
       EHURT[e] = EHURT[e] - dt; EATK[e] = EATK[e] - dt;
       bossT = bossT + dt;
       let tx = 0, ty = 0, tz = 0, sp = 9;
+      if (nCrystal > 0) { bossPh = 0; bossT = 0 - 6; }
+      // the last crystal gone: it wakes (and circles a while first: time to come down)
+      if (nCrystal == 0) { if (bossWake == 0) { bossWake = 1; msgShow('공허의 수호자가 깨어났습니다!', 4); } }
       if (bossPh == 0) {
         bossAng = bossAng + dt * 16;
         tx = cosd(bossAng) * 40; tz = sind(bossAng) * 40; ty = 52 + sind(bossT * 40) * 3;
-        if (bossT > 8) { if (gameMode == 0 && dead == 0) { bossPh = 1; bossT = 0; } }
-      } else {
+        if (nCrystal == 0) { if (bossT > 6) { if (gameMode == 0 && dead == 0) {
+          bossT = 0; bossN = bossN + 1;
+          if (mod(bossN, 2) == 0) { bossPh = 2; } else { bossPh = 1; }
+        } } }
+      } else { if (bossPh == 1) {
         tx = px; ty = py + 1; tz = pz; sp = 15;
         if (bossT > 5) { bossPh = 0; bossT = 0; }
-      }
+      } else {
+        // landed on the middle of the island
+        findTop(0, 0);
+        tx = 0.5; ty = topY + 1; tz = 0.5; sp = 8;
+        if (bossT > 9) { bossPh = 0; bossT = 0; }
+      } }
       let dx = tx - EX[e], dy = ty - EY[e] - 1.5, dz = tz - EZ[e];
+      if (bossPh == 2) { dy = ty - EY[e]; }
       let d = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.001;
-      EVX[e] = EVX[e] + (dx / d * sp - EVX[e]) * Math.min(1, 2 * dt);
-      EVY[e] = EVY[e] + (dy / d * sp - EVY[e]) * Math.min(1, 2 * dt);
-      EVZ[e] = EVZ[e] + (dz / d * sp - EVZ[e]) * Math.min(1, 2 * dt);
+      let f = Math.min(1, 2 * dt);
+      if (bossPh == 2) { if (d < 1) { f = 1; sp = 0; } }
+      EVX[e] = EVX[e] + (dx / d * sp - EVX[e]) * f;
+      EVY[e] = EVY[e] + (dy / d * sp - EVY[e]) * f;
+      EVZ[e] = EVZ[e] + (dz / d * sp - EVZ[e]) * f;
       EX[e] = EX[e] + EVX[e] * dt; EY[e] = EY[e] + EVY[e] * dt; EZ[e] = EZ[e] + EVZ[e] * dt;
       if (EY[e] < 30) { EY[e] = 30; }
-      EYAW[e] = atan2d(EVX[e], EVZ[e]);
+      if (bossPh != 2) { EYAW[e] = atan2d(EVX[e], EVZ[e]); }
       EWALK[e] = EWALK[e] + dt * 2;
-      // it hits what it runs into
-      let hx = px - EX[e], hy = py + 0.9 - EY[e] - 1.5, hz = pz - EZ[e];
-      if (hx * hx + hy * hy + hz * hz < 9) { if (EATK[e] <= 0) {
-        EATK[e] = 1.2;
-        hurt(MDMG[10], '공허의 수호자에게 당했습니다');
-        pvx = pvx + hx * 4; pvz = pvz + hz * 4; pvy = 7;
-        bossPh = 0; bossT = 0;
-      } }
+      // awake, it hits what it runs into (on the ground less often)
+      if (nCrystal == 0) {
+        let hx = px - EX[e], hy = py + 0.9 - EY[e] - 1.5, hz = pz - EZ[e];
+        if (hx * hx + hy * hy + hz * hz < 9) { if (EATK[e] <= 0) {
+          EATK[e] = 1.2;
+          if (bossPh == 2) { EATK[e] = 2; }
+          hurt(MDMG[10], '공허의 수호자에게 당했습니다');
+          let hl = Math.sqrt(hx * hx + hz * hz) + 0.01;
+          pvx = pvx + hx / hl * 4; pvz = pvz + hz / hl * 4;
+          if (bossPh == 1) { bossPh = 0; bossT = 0; }
+        } }
+      }
     }
   }
 }
@@ -514,11 +531,12 @@ function bossDies(e) {
   winT = 12;
 }
 let winT = 0;
-// a warding crystal goes off: it hurts what is near
+// a warding crystal goes off: it hurts what is within 4 blocks (break it from your full reach)
 function crystalBreak(x, y, z) {
   setBlock(x, y, z, 0);
   sndPlay(7);
   let dx = px - x - 0.5, dy = py + 1 - y, dz = pz - z - 0.5;
-  if (dx * dx + dy * dy + dz * dz < 25) { hurt(6, '수호 수정이 터졌습니다'); }
-  msgShow(`수호 수정이 부서졌습니다 (남은 수정 ${nCrystal - 1})`, 3);
+  if (dx * dx + dy * dy + dz * dz < 16) { hurt(6, '수호 수정이 터졌습니다'); }
+  if (nCrystal - 1 > 0) { msgShow(`수호 수정이 부서졌습니다 (남은 수정 ${nCrystal - 1})`, 3); }
+  else { msgShow('마지막 수정이 부서졌습니다 - 공허의 수호자가 깨어납니다!', 4); }
 }

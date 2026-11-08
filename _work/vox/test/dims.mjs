@@ -52,7 +52,13 @@ s.poke('gameMode', 1); s.poke('yaw', 0); s.poke('pitch', 10);
 F(120);
 console.log('crystals', s.peek('nCrystal'));
 await s.png('test/v1.png');
-// the warden falls
+// asleep while a crystal stands (no harm done to it)
+call(() => { const e = s.peek('bossE'); fn.mobHurt(e, 999, 0, 0); });
+F(2);
+console.log('asleep: hp', s.peek('EHP')[s.peek('bossE') - 1]);
+// the crystals broken: it wakes, and falls
+for (let r = 0; r < 20 && s.peek('nCrystal') > 0; r++) { call(() => { for (let k = 0; k < 8; k++) { fn.pillarAt(k); fn.setBlock(s.peek('pilX'), s.peek('pilH') + 1, s.peek('pilZ'), 0); } }); F(60); }
+console.log('crystals', s.peek('nCrystal'), 'awake', s.peek('bossWake'));
 call(() => { const e = s.peek('bossE'); fn.mobHurt(e, 999, 0, 0); });
 F(5);
 console.log('bossDead', s.peek('bossDead'), 'gate at middle', B(0, s.peek('topY'), 0));
