@@ -10,7 +10,7 @@
 // Per cell: W (block id), LT (light: sky * 16 + block). Per window column: HMAP, BIOM.
 let W = [], LT = [], HMAP = [], BIOM = [];
 let CKX = [], CKZ = [], CKST = [], CKSUB = [];          // a chunk slot: which chunk, how far made (0 none .. 5 ready)
-let EDX = [], EDY = [], EDZ = [], EDB = [];  // every change the player made (for chunks made again)
+let EDX = [], EDY = [], EDZ = [], EDB = [], EDD = [];  // every change the player made, and in which world
 let logOn = 0;
 let seed = 1, rs = 1;
 let PERM = [], GRAD = [];
@@ -26,7 +26,7 @@ function rndI(a, b) {
 }
 // the random numbers of one chunk (and one purpose): the same every time it is made
 function chunkSeed(cx, cz, salt) {
-  rs = mod(seed + cx * 73856093 + cz * 19349663 + salt * 83492791, 2147483646) + 1;
+  rs = mod(seed + cx * 73856093 + cz * 19349663 + salt * 83492791 + dim * 1000003, 2147483646) + 1;
   let warm = rnd() + rnd();
 }
 function noiseInit() {
@@ -103,7 +103,7 @@ function blockAt(x, y, z) {
 // a block put by the world (generation) or the player (logOn: written down)
 function wput(x, y, z, b) {
   W[(mod(x, WS) * WS + mod(z, WS)) * WY + y + 1] = b;
-  if (logOn == 1) { EDX.push(x); EDY.push(y); EDZ.push(z); EDB.push(b); }
+  if (logOn == 1) { EDX.push(x); EDY.push(y); EDZ.push(z); EDB.push(b); EDD.push(dim); }
 }
 
 // ---------------------------------------------------------------- terrain of a column
@@ -451,6 +451,19 @@ function decorate(x, z, lx, lz) {
 }
 function genFeatures(cx, cz) {
   gx0 = cx * 16; gx1 = gx0 + 15; gz0 = cz * 16; gz1 = gz0 + 15;
+  if (dim == 0) { featuresO(cx, cz); }
+  if (dim == 1) { featuresU(cx, cz); }
+  if (dim == 2) { featuresV(cx, cz); }
+  // what the player changed here before
+  let k = 1, n = EDX.length;
+  while (k <= n) {
+    if (EDD[k] == dim) { if (EDX[k] >= gx0) { if (EDX[k] <= gx1) { if (EDZ[k] >= gz0) { if (EDZ[k] <= gz1) {
+      W[(mod(EDX[k], WS) * WS + mod(EDZ[k], WS)) * WY + EDY[k] + 1] = EDB[k];
+    } } } } }
+    k = k + 1;
+  }
+}
+function featuresO(cx, cz) {
   chunkSeed(cx, cz, 2);
   veins(12, 20, 6, 14, 5, WY - 10);
   veins(11, 14, 4, 8, 2, 36);
@@ -465,14 +478,6 @@ function genFeatures(cx, cz) {
     lz = 0;
     while (lz < 16) { decorate(gx0 + lx, gz0 + lz, lx, lz); lz = lz + 1; }
     lx = lx + 1;
-  }
-  // what the player changed here before
-  let k = 1, n = EDX.length;
-  while (k <= n) {
-    if (EDX[k] >= gx0) { if (EDX[k] <= gx1) { if (EDZ[k] >= gz0) { if (EDZ[k] <= gz1) {
-      W[(mod(EDX[k], WS) * WS + mod(EDZ[k], WS)) * WY + EDY[k] + 1] = EDB[k];
-    } } } }
-    k = k + 1;
   }
 }
 
@@ -614,12 +619,19 @@ function chunkStage(s) {
     chunkSeed(cx, cz, k);
     climateGrid(cx * 16, cz * 16);
     let a = k * 8, c = 0;
-    while (a < k * 8 + 8) { c = 0; while (c < 16) { genColumn(cx * 16 + a, cz * 16 + c); c = c + 1; } a = a + 1; }
+    while (a < k * 8 + 8) {
+      c = 0;
+      while (c < 16) {
+        if (dim == 0) { genColumn(cx * 16 + a, cz * 16 + c); } else { if (dim == 1) { genColumnU(cx * 16 + a, cz * 16 + c); } else { genColumnV(cx * 16 + a, cz * 16 + c); } }
+        c = c + 1;
+      }
+      a = a + 1;
+    }
     gridOn = 0;
     CKSUB[s] = k + 1;
     if (k == 1) { CKSUB[s] = 0; CKST[s] = 1; }
   } else { if (st == 1) {
-    genCaves(cx, cz);
+    if (dim == 0) { genCaves(cx, cz); }
     CKST[s] = 2;
   } else { if (st == 2) {
     genFeatures(cx, cz);
@@ -703,8 +715,8 @@ function genStart(s) {
   worldInit();
   let i = 1;
   while (i <= NCH * NCH) { if (CKST[i] > 0) { chunkDrop(i); } i = i + 1; }
-  EDX = []; EDY = []; EDZ = []; EDB = [];
-  logOn = 0;
+  EDX = []; EDY = []; EDZ = []; EDB = []; EDD = [];
+  logOn = 0; dim = 0; bossDead = 0;
   cavesInit();
   px = 8.5; pz = 8.5; pcxW = -99999; pczW = -99999;
   genPhase = 1; genN = 0;

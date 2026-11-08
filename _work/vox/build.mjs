@@ -7,10 +7,10 @@ import { compileProgram } from './ejs.mjs';
 import { expandMacros, declareImplicit } from './inline.mjs';
 import { packEnt } from './pack.mjs';
 import { legacyMath, slimBlocks } from './legacy.mjs';
-import { TEX, CRACK, BLOCKS, NBLOCK, ITEMS, TIERS, KINDS, TOOL0, toolId, NITEM, RECIPES, SMELT, MOBS } from './blocks.mjs';
+import { TEX, CRACK, BLOCKS, NBLOCK, ITEMS, TIERS, KINDS, TOOL0, toolId, NITEM, RECIPES, SMELT, MOBS, ARM0, ARMT, ARMP, armorId } from './blocks.mjs';
 import { makeSounds } from './sounds.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '1.1';
+export const VERSION = '1.2';
 export const NAME = '블록 월드';
 
 // the ring window of loaded chunks: NCH x NCH slots of 16 x 16 columns; chunks are made within
@@ -23,7 +23,7 @@ function chunkOffsets(r) {
 }
 export const consts = {
     WS, NCH, CR, WY, SEA: 30, LAVAY: 5, NSX: WS / 8, NSY: WY / 8, NSEC: (WS / 8) * (WS / 8) * (WY / 8), SXS: WS * WY, OFF: 32768,
-    NOFF: chunkOffsets(CR).length, CVN: 24, NSTART: chunkOffsets(2).length,
+    NOFF: chunkOffsets(CR).length, CVN: 24, FORTY: 30, NSTART: chunkOffsets(2).length,
     NEARZ: Math.round(0.05 * 256 * 16384), DEC2: 20, PLANT2: 225, CLOUDY: WY + 8, MK: 160 * 1048576,
     NMOB: 40, NITM: 64, NARR: 24, NFUR: 16, NCHEST: 16, ANIMALS: 36, SMELTT: 8, NTX: 96, TOOL0,
     SPAWNC: 0, BENCH: 0, NOCAVE: 0, AUTOSEED: 0, AUTOMODE: 0, TESTRUN: 0, SIMRUN: 0, LEGACY: 0, SLIM: 1,
@@ -91,6 +91,7 @@ export function makeData() {
     BLOCKS.forEach((b) => { if (b) names.set(b.n, b.id); });
     ITEMS.forEach((it) => names.set(it.n, it.id));
     TIERS.forEach((t, ti) => KINDS.forEach((k, ki) => names.set(k.n + t.n, toolId(ki, ti))));
+    ARMT.forEach((t, ti) => ARMP.forEach((a, ai) => names.set(a.n + t.n, armorId(ti, ai))));
     const idOf = (n) => { if (typeof n === 'number') return n; if (n === '_') return 0; if (!names.has(n)) throw new Error('item ' + n); return names.get(n); };
 
     // blocks
@@ -117,7 +118,7 @@ export function makeData() {
     Object.assign(L, B);
 
     // items
-    const I = { ITNAME: [], ITK: [], ITST: [], ITFOOD: [], ITFUEL: [], ITTK: [], ITTT: [], ITDUR: [], ITDMG: [], ITISO: [], IC0: [], ICN: [], ITC1: [], ITC2: [] };
+    const I = { ITNAME: [], ITK: [], ITST: [], ITFOOD: [], ITFUEL: [], ITTK: [], ITTT: [], ITDUR: [], ITDMG: [], ITISO: [], IC0: [], ICN: [], ITC1: [], ITC2: [], ITDEF: [], ITSLOT: [] };
     const SMELTT = 8;
     const iconOf = (grid, p) => putRects(rectsOf(grid, (ch) => ch !== '.', (ch) => col(p[ch])));
     const iconCol = (grid, p) => { const c = {}; for (const r of grid) for (const ch of r) if (ch !== '.') c[ch] = (c[ch] || 0) + 1; return col(p[Object.entries(c).sort((a, b) => b[1] - a[1])[0][0]]); };
@@ -125,8 +126,9 @@ export function makeData() {
     for (let id = 0; id < NITEM; id++) {
         const b = id < NBLOCK ? BLOCKS[id] : null;
         const it = ITEMS.find(x => x.id === id);
-        const tool = id >= TOOL0 ? { kind: Math.floor((id - TOOL0) / 4), tier: (id - TOOL0) % 4 } : null;
-        let name = '', k = 1, st = 64, food = 0, fuel = 0, tk = -1, tt = -1, dur = 0, dmg = 1, iso = 0, ic = [0, 0], c1 = col('ff00ff'), c2 = c1;
+        const tool = id >= TOOL0 && id < TOOL0 + 16 ? { kind: Math.floor((id - TOOL0) / 4), tier: (id - TOOL0) % 4 } : null;
+        const arm = id >= ARM0 && id < ARM0 + 12 ? { tier: Math.floor((id - ARM0) / 4), piece: (id - ARM0) % 4 } : null;
+        let name = '', k = 1, st = 64, food = 0, fuel = 0, tk = -1, tt = -1, dur = 0, dmg = 1, iso = 0, ic = [0, 0], c1 = col('ff00ff'), c2 = c1, def = 0, slot = 0;
         if (b) {
             name = b.ko; k = 0;
             fuel = { planks: 15, logOak: 15, logBirch: 15, logSpruce: 15, craft: 15, chest: 15, sapling: 5 }[b.n] || 0;
@@ -138,15 +140,20 @@ export function makeData() {
             if (b.n === 'torch') { c1 = col('ffd040'); c2 = col('7a5a30'); }
         } else if (it) {
             name = it.ko; food = it.food || 0; fuel = it.fuel || 0; k = food ? 2 : 1;
+            if (it.n === 'bow' || it.n === 'igniter') { st = 1; dur = it.n === 'bow' ? 384 : 64; }
             ic = iconOf(it.icon, it.p); c1 = c2 = iconCol(it.icon, it.p);
         } else if (tool) {
             const T = TIERS[tool.tier], K = KINDS[tool.kind];
             name = `${T.ko} ${K.ko}`; k = 3; st = 1; tk = tool.kind; tt = tool.tier; dur = T.dur; dmg = K.dmg[tool.tier];
             const p = { h: T.col, d: '7a5a30' };
             ic = iconOf(K.icon, p); c1 = c2 = col(T.col);
+        } else if (arm) {
+            const T = ARMT[arm.tier], P = ARMP[arm.piece];
+            name = `${T.ko} ${P.ko}`; k = 4; st = 1; dur = T.dur; def = T.def[arm.piece]; slot = arm.piece + 1;
+            ic = iconOf(P.icon, { h: T.dark, d: T.col }); c1 = c2 = col(T.col);
         }
         I.ITNAME.push(name || ' '); I.ITK.push(k); I.ITST.push(st); I.ITFOOD.push(food); I.ITFUEL.push(fuel / 10 * SMELTT);
-        I.ITTK.push(tk); I.ITTT.push(tt); I.ITDUR.push(dur); I.ITDMG.push(dmg); I.ITISO.push(iso); I.IC0.push(ic[0]); I.ICN.push(ic[1]); I.ITC1.push(c1); I.ITC2.push(c2);
+        I.ITTK.push(tk); I.ITTT.push(tt); I.ITDUR.push(dur); I.ITDMG.push(dmg); I.ITISO.push(iso); I.IC0.push(ic[0]); I.ICN.push(ic[1]); I.ITC1.push(c1); I.ITC2.push(c2); I.ITDEF.push(def); I.ITSLOT.push(slot);
     }
     Object.assign(L, I);
     L.TSPEED = TIERS.map(t => t.speed);
@@ -175,10 +182,11 @@ export function makeData() {
     L.SMI = SMELT.map(s => idOf(s[0])); L.SMO = SMELT.map(s => idOf(s[1]));
 
     // mobs
-    L.MHP = []; L.MW = []; L.MH = []; L.MSPD = []; L.MHOST = []; L.MBURN = []; L.MDMG = []; L.MNAME = []; L.MB0 = []; L.MBN = []; L.MD0 = []; L.MDN = [];
+    L.MHP = []; L.MW = []; L.MH = []; L.MSPD = []; L.MHOST = []; L.MBURN = []; L.MDMG = []; L.MNAME = []; L.MB0 = []; L.MBN = []; L.MD0 = []; L.MDN = []; L.MFLY = []; L.MFIRE = [];
     L.BX0 = []; L.BY0 = []; L.BZ0 = []; L.BX1 = []; L.BY1 = []; L.BZ1 = []; L.BCOL = []; L.BPART = [];
     L.MDI = []; L.MDLO = []; L.MDHI = [];
     for (const m of MOBS.slice(1)) {
+        L.MFLY.push(m.fly || 0); L.MFIRE.push(m.fireproof || 0);
         L.MHP.push(m.hp); L.MW.push(m.w); L.MH.push(m.h); L.MSPD.push(m.speed); L.MHOST.push(m.hostile || 0); L.MBURN.push(m.burns || 0); L.MDMG.push(m.dmg || 0); L.MNAME.push(m.ko);
         L.MB0.push(L.BX0.length + 1); L.MBN.push(m.boxes.length);
         for (const [x0, y0, z0, x1, y1, z1, c, part] of m.boxes) { const t = (v) => Math.round(v * 10); L.BX0.push(t(x0)); L.BY0.push(t(y0)); L.BZ0.push(t(z0)); L.BX1.push(t(x1)); L.BY1.push(t(y1)); L.BZ1.push(t(z1)); L.BCOL.push(col(c)); L.BPART.push(part); }
@@ -213,7 +221,7 @@ export function makeData() {
     L.PAL.push(6);
     for (let id = 100; id < NITEM; id++) if (I.ITNAME[id] && I.ITNAME[id] !== ' ') L.PAL.push(id);
     L.KIT = [2, 3, 1, 4, 5, 13, 15, 27, 39].map(Number);
-    L.BNAMES = ['바다', '해변', '평원', '숲', '사막', '타이가', '설원', '산', '얼어붙은 바다'];
+    L.BNAMES = ['바다', '해변', '평원', '숲', '사막', '타이가', '설원', '산', '얼어붙은 바다', '잿빛 심연', '공허의 섬'];
     L.TITLEB = [2, 13, 4, 16, 17];
 
     // the colour list last (everything above added to it)
@@ -225,7 +233,7 @@ export function makeData() {
 }
 
 // ------------------------------------------------------------------ sources
-export const FILES = ['world.js', 'mesh.js', 'render.js', 'player.js', 'mobs.js', 'items.js', 'hud.js', 'main.js', 'test.js'];
+export const FILES = ['world.js', 'dims.js', 'mesh.js', 'render.js', 'player.js', 'mobs.js', 'items.js', 'hud.js', 'main.js', 'test.js'];
 export function allConsts(more = {}) {
     const { C } = makeData();
     return { ...consts, ...C, ...more };

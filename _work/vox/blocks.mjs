@@ -60,6 +60,19 @@ export const TEX = {
     flowerYellow: { p: { y: 'f0d020', o: 'd89a10', g: '4b8a2c' }, g: ['........', '...yy...', '..yooy..', '...yy...', '....g...', '..g.g...', '...gg...', '....g...'] },
     sapling: { p: { g: '3f8a2a', h: '2f6b1f', b: '6b5233' }, g: ['...g....', '..ggh...', '.hggg.g.', '..hgggh.', '...hgg..', '....b...', '...bb...', '....b...'] },
     deadBush: { p: { b: '7a5a30' }, g: ['........', '.b....b.', '..b..b..', 'b..bb..b', '.b.bb.b.', '..bbbb..', '...bb...', '...bb...'] },
+    // the gate of fire, the ashen depths, the void
+    fireVeil: { p: { a: 'e8501a', b: 'ff9a30', c: 'b02810', d: 'ffd060' }, g: ['abacabda', 'bacabaab', 'acabdbac', 'cabaabca', 'abdacaba', 'bacbaabd', 'acabacab', 'dabcabac'] },
+    ashstone: { p: { a: '6e4a44', b: '5a3a36', c: '80584f' }, g: ['aabacaba', 'abaaabca', 'caabaaab', 'abacaaba', 'baaabaca', 'aacabaab', 'abaaacba', 'bacabaaa'] },
+    ashSand: { p: { a: '4a3a30', b: '3a2c24', c: '5a4838' }, g: ['abaacaba', 'aacabaab', 'baabaaca', 'acaabcaa', 'abaacaab', 'caabaaba', 'aabacaab', 'baacabaa'] },
+    glowCrystal: { p: { a: 'f0d880', b: 'fff4c0', c: 'c8a040' }, g: ['abacaabc', 'cabbacab', 'abcaabba', 'bacbacab', 'acabbcaa', 'babacabb', 'cabbaacb', 'abacbbac'] },
+    oreFire: { p: { a: '6e4a44', b: '5a3a36', k: 'ff7a1a', y: 'ffd040' }, g: ['aabakaba', 'abkkabaa', 'aakyaaab', 'abaaaaka', 'baaakkaa', 'akaakyab', 'aykaaaba', 'baaabaaa'] },
+    blackBricks: { p: { a: '5a2c2e', b: '341618', c: '6c3a3a' }, g: ['aacabaca', 'bbbbbbbb', 'abacaaca', 'bbbbbbbb', 'aacabaca', 'bbbbbbbb', 'abacaaca', 'bbbbbbbb'] },
+    basaltSide: { p: { a: '4a4a52', b: '38383e', c: '5c5c64' }, g: ['abacabac', 'abacabac', 'abcaabac', 'abacabac', 'acabbbac', 'abacabac', 'abacabca', 'abacabac'] },
+    basaltTop: { p: { a: '4a4a52', b: '38383e', c: '5c5c64' }, g: ['bbbbbbbb', 'baaacaab', 'bacaaaab', 'baaaacab', 'bacaaaab', 'baaacaab', 'baaaaaab', 'bbbbbbbb'] },
+    voidStone: { p: { a: 'c8c0d8', b: 'b0a8c4', c: 'dcd4ea' }, g: ['aabacaba', 'abaaabca', 'caabaaab', 'abacaaba', 'baaabaca', 'aacabaab', 'abaaacba', 'bacabaaa'] },
+    voidBricks: { p: { a: 'b8aed0', b: '8c84a4', c: 'd0c8e4' }, g: ['aaacaaab', 'aaaaaaab', 'aacaaaab', 'bbbbbbbb', 'aaabaaaa', 'acabaaca', 'aaabaaaa', 'bbbbbbbb'] },
+    voidGate: { p: { a: '0c0814', b: '201838', w: 'e8e0ff', p: '8060c0' }, g: ['abaaaaba', 'aaawaaaa', 'abaaapaa', 'aaaaaaba', 'apaabaaa', 'aaaaaawa', 'aabwaaaa', 'baaaabaa'] },
+    wardCrystal: { p: { a: 'c040ff', b: 'f0b0ff', c: '8020c0' }, g: ['..abba..', '.abccba.', 'abccccba', 'bccbbccb', 'bccbbccb', 'abccccba', '.abccba.', '..abba..'] },
 };
 // cracks while a block is being broken: digit = the stage (1..9) it shows from
 export const CRACK = ['....3...', '...3..6.', '.12..5..', '..1.4...', '.2.1..8.', '7.21.9..', '..3.2...', '.4...5..'];
@@ -117,6 +130,18 @@ export const BLOCKS = [
     { id: 44, n: 'blockLapis', ko: '청금석 블록', t: ['blockLapis'], hard: 3, tool: 1, tier: 1 },
     { id: 45, n: 'snowBlock', ko: '눈 블록', t: ['snowTop'], hard: 0.2, tool: 3 },
     { id: 46, n: 'deadBush', ko: '마른 덤불', t: ['deadBush'], hard: 0, shape: 1, hide: 0, solid: 0, lop: 0, drop: 'stick' },
+    // shape 4 + not solid: a see-through cube drawn whole (the veil between worlds)
+    { id: 47, n: 'fireVeil', ko: '불꽃 장막', t: ['fireVeil'], hard: -1, shape: 4, hide: 0, solid: 0, lop: 0, light: 11, drop: 'none' },
+    { id: 48, n: 'ashstone', ko: '잿돌', t: ['ashstone'], hard: 0.4, tool: 1, tier: 0 },
+    { id: 49, n: 'ashSand', ko: '잿모래', t: ['ashSand'], hard: 0.5, tool: 3 },
+    { id: 50, n: 'glowCrystal', ko: '빛수정', t: ['glowCrystal'], hard: 0.3, light: 15 },
+    { id: 51, n: 'oreFire', ko: '화염석 광석', t: ['oreFire'], hard: 3, tool: 1, tier: 1, drop: 'fireStone', dropN: 1 },
+    { id: 52, n: 'blackBricks', ko: '검은 벽돌', t: ['blackBricks'], hard: 2, tool: 1, tier: 0 },
+    { id: 53, n: 'basalt', ko: '현무암', t: ['basaltTop', 'basaltSide', 'basaltTop'], hard: 1.25, tool: 1, tier: 0 },
+    { id: 54, n: 'voidStone', ko: '공허석', t: ['voidStone'], hard: 3, tool: 1, tier: 0 },
+    { id: 55, n: 'voidBricks', ko: '공허 벽돌', t: ['voidBricks'], hard: 3, tool: 1, tier: 0 },
+    { id: 56, n: 'voidGate', ko: '공허 관문', t: ['voidGate'], hard: -1, shape: 4, hide: 0, solid: 0, lop: 0, light: 12, drop: 'none' },
+    { id: 57, n: 'wardCrystal', ko: '수호 수정', t: ['wardCrystal'], hard: 0, shape: 1, hide: 0, solid: 0, lop: 0, light: 15, drop: 'none' },
 ];
 export const NBLOCK = BLOCKS.length;   // ids 1 .. NBLOCK-1
 
@@ -145,6 +170,11 @@ export const ITEMS = [
     { id: 119, n: 'lapis', ko: '청금석', icon: ['........', '...bb...', '..bwbb..', '.bbbbbb.', '.bbbbbd.', '..bbdd..', '...dd...', '........'], p: { b: '2a4cb8', w: '7a9af0', d: '1a2a80' } },
     { id: 120, n: 'clayBall', ko: '점토 덩어리', icon: ['........', '........', '..cccc..', '.cwcccc.', '.cccccc.', '.ccccd..', '..ccd...', '........'], p: { c: 'a0a6b3', w: 'd0d4dc', d: '7a808c' } },
     { id: 121, n: 'brick', ko: '벽돌 조각', icon: ['........', '........', '...rrr..', '..rrrrk.', '.rrrrkk.', '.kkkkkk.', '........', '........'], p: { r: 'b05a46', k: '7a3a2a' } },
+    { id: 122, n: 'igniter', ko: '불붙이개', icon: ['......kk', '.....kgk', '....kgk.', '...kgk..', '.gggk...', 'gwwg....', 'gwg.....', '.g......'], p: { k: '3a3a3a', g: 'a8a8a8', w: 'e6e6e6' } },
+    { id: 123, n: 'fireStone', ko: '화염석', icon: ['........', '...yy...', '..yooy..', '.yorroy.', '.yorroy.', '..yooy..', '...yy...', '........'], p: { y: 'ffd040', o: 'ff8a20', r: 'd83a10' } },
+    { id: 124, n: 'voidKey', ko: '공허의 열쇠', icon: ['........', '..pppp..', '.pwbbwp.', '.pbccbp.', '.pbccbp.', '.pwbbwp.', '..pppp..', '........'], p: { p: '8060c0', w: 'e8e0ff', b: '201838', c: 'c040ff' } },
+    { id: 125, n: 'bow', ko: '활', icon: ['....bbb.', '...b..s.', '..b...s.', '.b....s.', '.b....s.', '..b...s.', '...b..s.', '....bbb.'], p: { b: '7a5a30', s: 'eeeeee' } },
+    { id: 126, n: 'heartCore', ko: '수호자의 심장', icon: ['........', '.pp..pp.', 'pccppccp', 'pcwccccp', '.pccccp.', '..pccp..', '...pp...', '........'], p: { p: '8020c0', c: 'c040ff', w: 'f0d0ff' } },
 ];
 // tools: 130 + kind * 4 + tier; kind 0 pickaxe, 1 axe, 2 shovel, 3 sword
 export const TIERS = [
@@ -161,7 +191,20 @@ export const KINDS = [
 ];
 export const TOOL0 = 130;
 export function toolId(kind, tier) { return TOOL0 + kind * 4 + tier; }
-export const NITEM = TOOL0 + 16;   // ids 0 .. NITEM-1
+export const ARM0 = 150;
+export const ARMT = [
+    { n: 'Leather', ko: '가죽', col: '9a5a2a', dark: '7a4018', dur: 60, def: [1, 3, 2, 1], mat: 'leather' },
+    { n: 'Iron', ko: '철', col: 'e6e6e6', dark: 'a8a8a8', dur: 200, def: [2, 6, 5, 2], mat: 'ingotIron' },
+    { n: 'Diamond', ko: '다이아몬드', col: '5fe3dc', dark: '2fa8a0', dur: 400, def: [3, 8, 6, 3], mat: 'diamond' },
+];
+export const ARMP = [
+    { n: 'Helmet', ko: '투구', icon: ['........', '.hhhhhh.', 'hddddddh', 'hd....dh', 'hd....dh', '........', '........', '........'], r: ['M M M', 'M _ M'] },
+    { n: 'Chest', ko: '흉갑', icon: ['.hh..hh.', 'hddhhddh', 'hddddddh', '.hddddh.', '.hddddh.', '.hddddh.', '.hhhhhh.', '........'], r: ['M _ M', 'M M M', 'M M M'] },
+    { n: 'Legs', ko: '각반', icon: ['.hhhhhh.', '.hddddh.', '.hd..dh.', '.hd..dh.', '.hd..dh.', '.hd..dh.', '.hh..hh.', '........'], r: ['M M M', 'M _ M', 'M _ M'] },
+    { n: 'Boots', ko: '장화', icon: ['........', '........', '.hh..hh.', '.hd..dh.', '.hd..dh.', 'hhd..dhh', 'hhh..hhh', '........'], r: ['M _ M', 'M _ M'] },
+];
+export function armorId(tier, piece) { return ARM0 + tier * 4 + piece; }
+export const NITEM = ARM0 + 12;   // ids 0 .. NITEM-1
 
 // ------------------------------------------------------------------ recipes
 // rows of item names ('_' empty); `m` mirrored too; shapeless one-ingredient ones are 1 x 1
@@ -199,11 +242,18 @@ TIERS.forEach((t, ti) => {
     RECIPES.push({ r: [M, 'stick', 'stick'], out: toolId(2, ti), n: 1 });
     RECIPES.push({ r: [M, M, 'stick'], out: toolId(3, ti), n: 1 });
 });
+ARMT.forEach((t, ti) => ARMP.forEach((p, pi) => RECIPES.push({ r: p.r.map(row => row.replace(/M/g, t.mat)), out: armorId(ti, pi), n: 1 })));
+RECIPES.push({ r: ['ingotIron _', '_ flint'], out: 'igniter', n: 1, m: 1 });
+RECIPES.push({ r: ['_ stick string', 'stick _ string', '_ stick string'], out: 'bow', n: 1, m: 1 });
+RECIPES.push({ r: ['flint', 'stick', 'feather'], out: 'arrow', n: 4 });
+RECIPES.push({ r: ['fireStone fireStone fireStone', 'fireStone diamond fireStone', 'fireStone lapis fireStone'], out: 'voidKey', n: 1 });
+RECIPES.push({ r: ['ashstone ashstone', 'ashstone ashstone'], out: 'blackBricks', n: 4 });
+RECIPES.push({ r: ['voidStone voidStone', 'voidStone voidStone'], out: 'voidBricks', n: 4 });
 // furnace: input -> output
 export const SMELT = [
     ['oreIron', 'ingotIron'], ['oreGold', 'ingotGold'], ['sand', 'glass'], ['cobble', 'stone'], ['clayBall', 'brick'],
     ['porkRaw', 'porkCooked'], ['beefRaw', 'steak'], ['chickenRaw', 'chickenCooked'], ['logOak', 'coal'], ['logBirch', 'coal'], ['logSpruce', 'coal'],
-    ['cactus', 'stick'], ['clay', 'bricks'],
+    ['cactus', 'stick'], ['clay', 'bricks'], ['ashstone', 'blackBricks'], ['ashSand', 'glass'],
 ];
 
 // ------------------------------------------------------------------ mobs
@@ -243,4 +293,15 @@ export const MOBS = [
         [-4, 4, 1, 4, 12, 8, '3a3028', 5], [-3, 8, 8, -1, 10, 8.5, 'd01818', 5], [1, 8, 8, 3, 10, 8.5, 'd01818', 5], [-2, 6, 8, -1, 7, 8.5, 'd01818', 5], [1, 6, 8, 2, 7, 8.5, 'd01818', 5],
         [-16, 7, 0, -3, 9, 2, '2a221c', 1], [3, 7, 0, 16, 9, 2, '2a221c', 2], [-16, 7, -4, -3, 9, -2, '2a221c', 3], [3, 7, -4, 16, 9, -2, '2a221c', 4],
         [-15, 6, -8, -3, 8, -6, '2a221c', 2], [3, 6, -8, 15, 8, -6, '2a221c', 1], [-14, 5, 3, -3, 7, 5, '2a221c', 4], [3, 5, 3, 14, 7, 5, '2a221c', 3]] },
+    // the ashen depths: a hooded ghost that throws fire, a toad that leaps out of the lava
+    { n: 'wraith', ko: '잿빛 망령', hp: 10, w: 0.9, h: 1.6, speed: 2.0, hostile: 1, fly: 1, fireproof: 1, dmg: 3, drop: ['fireStone', 0, 1], boxes: [
+        [-5, 8, -4, 5, 22, 4, '8a8486', 0], [-6, 18, -5, 6, 28, 5, '6c6668', 5], [-3, 21, 5, 3, 25, 5.5, '1a1418', 5], [-2, 22, 5.2, -1, 23, 5.7, 'ff8a20', 5], [1, 22, 5.2, 2, 23, 5.7, 'ff8a20', 5],
+        [-4, 2, -3, -1, 9, 2, '76707a', 3], [1, 0, -3, 4, 9, 2, '76707a', 4], [-8, 12, -2, -5, 20, 6, '8a8486', 1], [5, 12, -2, 8, 20, 6, '8a8486', 2]] },
+    { n: 'toad', ko: '용암 두꺼비', hp: 12, w: 1.0, h: 0.8, speed: 2.4, hostile: 1, fireproof: 1, dmg: 4, drop: ['fireStone', 0, 1, 'ashSand', 0, 2], boxes: [
+        [-7, 2, -6, 7, 11, 7, '8a2a14', 0], [-6, 11, -4, 6, 13, 6, 'b8401c', 0], [-5, 9, 7, -1, 12, 8, 'ffd040', 5], [1, 9, 7, 5, 12, 8, 'ffd040', 5], [-4, 4, 7, 4, 6, 7.5, '3a0a04', 5],
+        [-8, 0, 3, -4, 4, 7, '6a1c0c', 1], [4, 0, 3, 8, 4, 7, '6a1c0c', 2], [-9, 0, -6, -4, 5, -1, '6a1c0c', 3], [4, 0, -6, 9, 5, -1, '6a1c0c', 4]] },
+    // the void's warden: a great eye in a dark husk, four vanes beating round it
+    { n: 'warden', ko: '공허의 수호자', hp: 200, w: 3.0, h: 3.0, speed: 9, hostile: 1, fly: 1, fireproof: 1, dmg: 8, drop: ['heartCore', 1, 1], boxes: [
+        [-20, 6, -20, 20, 42, 20, '2a1c3c', 0], [-14, 12, 20, 14, 36, 22, '1a1028', 5], [-10, 16, 22, 10, 32, 23, 'e8e0ff', 5], [-5, 20, 23, 5, 28, 24, 'c040ff', 5], [-2, 22, 24, -0, 26, 24.5, '100818', 5],
+        [-44, 20, -8, -20, 24, 10, '4a3068', 1], [20, 20, -8, 44, 24, 10, '4a3068', 2], [-8, 42, -8, 8, 52, 8, '3a2850', 3], [-8, -4, -8, 8, 6, 8, '3a2850', 4]] },
 ];

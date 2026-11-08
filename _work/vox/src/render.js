@@ -43,7 +43,7 @@ function ltkBuild() {
   let lt = 0, d = 0, lv = 0, bl = 0;
   while (lt < 256) {
     lv = idiv(lt, 16) - dark; bl = mod(lt, 16);
-    if (bl > lv) { lv = bl; } if (lv < 0) { lv = 0; }
+    if (bl > lv) { lv = bl; } if (lv < dimAmb) { lv = dimAmb; }
     d = 0;
     while (d < 8) { LTK[lt * 8 + d + 1] = BIDX[lv * 8 + d + 1] * 8; d = d + 1; }
     lt = lt + 1;
@@ -495,7 +495,7 @@ function drawSky() {
   let hz = 0 - FOC * sind(camPitch) / cosd(camPitch);
   fillStop();
   M_rect(-245, 140, 245, -140, fogHex);
-  if (underWater == 0) {
+  if (underWater == 0) { if (dim == 1) { M_rect(-245, 140, 245, -140, skyHex); } else {
     let y1 = hz + 40;
     if (y1 < 140) { M_rect(-245, 140, 245, Math.max(y1, -140), skyHex); }
     let y2 = hz + 12;
@@ -504,8 +504,8 @@ function drawSky() {
     let y3 = hz - 140;
     if (y3 > -140) { M_rect(-245, Math.min(140, y3), 245, -140, voidHex); }
     if (starA > 0) { drawStars(); }
-    drawSun();
-  }
+    if (dim == 0) { drawSun(); }
+  } }
 }
 let skyMidHex = '#a0c0f0', starA = 0;
 function M_rect(x0, y0, x1, y1, col) {
@@ -679,7 +679,7 @@ function renderWorld() {
   nFill = 0;
   setCamera();
   drawSky();
-  if (underWater == 0) { drawClouds(); }
+  if (underWater == 0) { if (dim == 0) { drawClouds(); } }
   frustumSetup();
   if (dark != ltkDark) { ltkBuild(); }
   findSections();

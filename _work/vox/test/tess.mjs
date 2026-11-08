@@ -42,6 +42,7 @@ console.log(`generated: ${n} ticks ${(performance.now() - t0).toFixed(0)} ms (lo
 if (kv.X !== undefined) { set('tX', kv.X); set('tY', kv.Y); set('tZ', kv.Z); set('tYaw', kv.YAW || 0); set('tPitch', kv.PITCH || 0); set('testCmd', 1); }
 if (kv.VIEW) { set('viewWant', kv.VIEW); set('autoView', 0); vm.tick(); set('viewR', kv.VIEW); set('viewR2', kv.VIEW * kv.VIEW); set('kMax', Math.floor(kv.VIEW * 1.45) + 66); }
 for (let i = 0; i < 120; i++) vm.tick();
+if (kv.DIM) { set('tStage', kv.DIM); set('tX', 1.5); set('tZ', 1.5); set('testCmd', 4); let k = 0; vm.tick(); while (Vv('gState') != 2 && k < 3000) { vm.tick(); k++; } for (let i = 0; i < 240; i++) vm.tick(); console.log('in world', Vv('dim')); }
 if (kv.STAGES) {
   const tick = () => { const t = performance.now(); vm.tick(); return performance.now() - t; };
   const med = (a) => a.sort((x, y) => x - y)[a.length >> 1];

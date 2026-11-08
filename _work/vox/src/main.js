@@ -173,7 +173,9 @@ function playFrame(dt) {
   chunkWork(cw); remeshSome(6);
   if (BENCH == 0) { tday = tday + dt / dayLen; }
   if (tday >= 1) { tday = tday - 1; }
-  daySky();
+  if (dim == 0) { dimAmb = 0; daySky(); } else { dimSky(); }
+  gateStep(dt);
+  if (dim == 2) { bossStep(dt); }
   // the eye
   let eh = 1.62;
   if (sneaking == 1) { if (flying == 0) { eh = 1.5; } }
@@ -391,7 +393,7 @@ on('start', 'pen', function () {
       sndN = 0;
       pollKeys();
       if (gState == 0) { titleFrame(dt); }
-      else { if (gState == 1) { loadFrame(); } else { playFrame(dt); } }
+      else { if (gState == 1) { loadFrame(); } else { if (gState == 3) { travelFrame(); } else { playFrame(dt); } } }
       if (TESTRUN == 1) { testStep(); }
     }
   }

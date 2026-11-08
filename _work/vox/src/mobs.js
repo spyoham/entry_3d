@@ -23,7 +23,9 @@ function mobAdd(t, x, y, z) {
     ET[e] = t; EX[e] = x; EY[e] = y; EZ[e] = z; EVX[e] = 0; EVY[e] = 0; EVZ[e] = 0; EYAW[e] = rand(0, 359); EWY[e] = EYAW[e];
     EHP[e] = MHP[t]; EST[e] = 0; ETM[e] = rand(1, 40) / 10; EHURT[e] = 0; EWALK[e] = 0; EATK[e] = 0; EBURN[e] = 0; EGND[e] = 0;
   }
+  lastMob = e;
 }
+let lastMob = 0;
 // animals on the grass of a chunk just made (a few chunks in ten)
 function chunkAnimals(cx, cz) {
   if (nPassive < ANIMALS) {
@@ -62,7 +64,8 @@ function spawnStep(dt) {
       }
       i = i + 1;
     }
-    if (BENCH == 0) { if (gameMode == 0 || SPAWNC == 1) {
+    if (BENCH == 0) { if (dim == 1) { spawnDepths(); } }
+    if (BENCH == 0) { if (dim == 0) { if (gameMode == 0 || SPAWNC == 1) {
       if (nHostile < 10) {
         let a = rand(0, 359), r = rand(18, 40);
         let x = Math.floor(px + sind(a) * r), z = Math.floor(pz + cosd(a) * r);
@@ -84,7 +87,21 @@ function spawnStep(dt) {
           }
         }
       }
-    } }
+    } } }
+  }
+}
+// in the depths: on any floor near, in any light (a wraith floats, a toad sits)
+function spawnDepths() {
+  if (nHostile < 8) {
+    let a = rand(0, 359), r = rand(14, 32);
+    let x = Math.floor(px + sind(a) * r), z = Math.floor(pz + cosd(a) * r), y = rand(14, 44);
+    if (cOK(x, z) == 1) {
+      let k = 0;
+      while (k < 12 && BSOL[blockAt(x, y - 1, z) + 1] == 0) { y = y - 1; k = k + 1; }
+      if (blockAt(x, y, z) == 0 && blockAt(x, y + 1, z) == 0 && BSOL[blockAt(x, y - 1, z) + 1] == 1) {
+        if (rand(1, 100) <= 45) { mobAdd(8, x + 0.5, y + 1.5, z + 0.5); } else { mobAdd(9, x + 0.5, y + 0.02, z + 0.5); }
+      }
+    }
   }
 }
 
@@ -95,7 +112,7 @@ function mobsStep(dt) {
     // (far from the player they rest: only the ones near are worth the time)
     if (ET[e] > 0) {
       if (cOK(Math.floor(EX[e]), Math.floor(EZ[e])) == 0) { ET[e] = 0; }
-      else { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 1600) { mobStep(e, dt); } }
+      else { if (ET[e] != 10) { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 1600) { mobStep(e, dt); } } }
     }
     e = e + 1;
   }
@@ -112,6 +129,21 @@ function mobStep(e, dt) {
     if (dist < 16 && gameMode == 0 && dead == 0) {
       wy = atan2d(dxp, dzp);
       want = 1;
+      if (t == 8) {
+        if (dist < 7) { want = 0 - 1; } else { if (dist < 13) { want = 0; } }
+        if (EATK[e] <= 0) { if (dist < 22) {
+          if (sightLine(EX[e], EY[e] + 1.2, EZ[e], px, py + 1.5, pz) == 1) {
+            arrowShoot(EX[e], EY[e] + 1.2, EZ[e], px, py + 1.2, pz, 2);
+            EATK[e] = 2.5 + rand(0, 10) / 10;
+          }
+        } }
+      }
+      if (t == 9) {
+        want = 0;
+        if (EGND[e] == 1) { if (ETM[e] <= 0) { ETM[e] = 0.9 + rand(0, 8) / 10; EVY[e] = 7.5; want = 1.8; EYAW[e] = wy; } }
+        else { want = 1.8; }
+        if (dist < 1.4) { if (Math.abs(dyp) < 1.2) { if (EATK[e] <= 0) { EATK[e] = 1; hurt(MDMG[t], `${MNAME[t]}에게 당했습니다`); pvx = pvx + dxp / (dist + 0.01) * 4; pvz = pvz + dzp / (dist + 0.01) * 4; pvy = 4; } } }
+      }
       if (t == 6) {
         // the archer keeps its distance and shoots
         if (dist < 6) { want = 0 - 1; }
@@ -122,7 +154,7 @@ function mobStep(e, dt) {
             EATK[e] = 2 + rand(0, 10) / 10;
           }
         } }
-      } else {
+      } else { if (t < 8) {
         if (dist < 1.2 + w) { if (Math.abs(dyp) < 1.5) { if (EATK[e] <= 0) {
           EATK[e] = 1;
           hurt(MDMG[t], `${MNAME[t]}에게 당했습니다`);
@@ -131,7 +163,7 @@ function mobStep(e, dt) {
         } } }
         // the spider leaps
         if (t == 7) { if (dist < 4) { if (EGND[e] == 1) { if (rand(1, 30) == 1) { EVY[e] = 6; } } } }
-      }
+      } }
     } else {
       if (ETM[e] <= 0) { ETM[e] = rand(20, 60) / 10; EST[e] = rand(0, 2); EWY[e] = rand(0, 359); }
       if (EST[e] == 1) { want = 0.5; wy = EWY[e]; }
@@ -139,7 +171,7 @@ function mobStep(e, dt) {
     // burning in the sun
     if (MBURN[t] == 1) {
       EBURN[e] = 0;
-      if (dark <= 2) {
+      if (dark <= 2 && dim == 0) {
         let ci = wi(Math.floor(EX[e]), Math.floor(EY[e] + 1.5), Math.floor(EZ[e]));
         if (EY[e] + 1.5 < WY) { if (LT[ci] >= 240) { if (headIn(e) == 0) { EBURN[e] = 1; } } }
       }
@@ -169,10 +201,16 @@ function mobStep(e, dt) {
   if (EGND[e] == 0) { a = Math.min(1, 2 * dt); }
   EVX[e] = EVX[e] + (tx - EVX[e]) * a; EVZ[e] = EVZ[e] + (tz - EVZ[e]) * a;
   bodyIn(EX[e], EY[e], EZ[e], w, h);
-  if (inW == 1 || inL == 1) {
-    EVY[e] = EVY[e] - 6 * dt; if (EVY[e] < 1.5) { EVY[e] = EVY[e] + 14 * dt; }
-    if (inL == 1) { if (rand(1, 20) == 1) { mobHurt(e, 2, 0, 0); } }
-  } else { EVY[e] = EVY[e] - 32 * dt; }
+  if (MFLY[t] == 1) {
+    let ty = py + 2.5 + sind(frameNo * 3 + e * 40) * 0.8;
+    if (dist > 24) { ty = EY[e]; }
+    EVY[e] = EVY[e] + ((ty - EY[e]) * 1.5 - EVY[e]) * Math.min(1, 3 * dt);
+  } else {
+    if (inW == 1 || inL == 1) {
+      EVY[e] = EVY[e] - 6 * dt; if (EVY[e] < 1.5) { EVY[e] = EVY[e] + 14 * dt; }
+      if (inL == 1) { if (MFIRE[t] == 0) { if (rand(1, 20) == 1) { mobHurt(e, 2, 0, 0); } } }
+    } else { EVY[e] = EVY[e] - 32 * dt; }
+  }
   if (EVY[e] < -40) { EVY[e] = -40; }
   bmX = EX[e]; bmY = EY[e]; bmZ = EZ[e]; bmW = w; bmH = h;
   bodyMove(EVX[e] * dt, EVY[e] * dt, EVZ[e] * dt);
@@ -211,6 +249,7 @@ function mobHurt(e, n, fx, fz) {
     let t = ET[e];
     if (MHOST[t] == 0) { EST[e] = 3; ETM[e] = 3; EWY[e] = atan2d(EX[e] - px, EZ[e] - pz); }
     if (EHP[e] <= 0) {
+      if (t == 10) { bossDies(e); }
       // drops
       let k = MD0[t], n2 = 0;
       while (k < MD0[t] + MDN[t]) {
@@ -257,7 +296,7 @@ function mobInCell(x, y, z) {
 function attack() {
   if (mobPick > 0) { if (attackCool <= 0) {
     let id = INVI[hotSel], dmg = 1;
-    if (id >= TOOL0) { dmg = ITDMG[id + 1]; wearHeld(1); }
+    if (ITTK[id + 1] >= 0) { dmg = ITDMG[id + 1]; wearHeld(1); }
     if (gameMode == 1) { dmg = 99; }
     let crit = 0;
     if (onGround == 0) { if (pvy < 0) { crit = 1; dmg = Math.floor(dmg * 1.5); } }
@@ -285,8 +324,14 @@ function arrowShoot(x, y, z, tx, ty, tz, own) {
     let dx = tx - x, dy = ty - y, dz = tz - z, d = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.01;
     let sp = 18;
     AON[a] = 1 + own; AXX[a] = x + dx / d * 0.6; AYY[a] = y; AZZ[a] = z + dz / d * 0.6;
-    // aim a little up for the drop, and miss a little
-    AVX[a] = dx / d * sp + rand(-10, 10) / 20; AVY[a] = dy / d * sp + d * 0.9; AVZ[a] = dz / d * sp + rand(-10, 10) / 20;
+    if (own == 0) {
+      // aim a little up for the drop, and miss a little
+      AVX[a] = dx / d * sp + rand(-10, 10) / 20; AVY[a] = dy / d * sp + d * 0.9; AVZ[a] = dz / d * sp + rand(-10, 10) / 20;
+    } else {
+      if (own == 2) { sp = 11; }
+      if (own == 1) { sp = 32; AYY[a] = y + dy / d * 0.6; }
+      AVX[a] = dx / d * sp; AVY[a] = dy / d * sp; AVZ[a] = dz / d * sp;
+    }
     AAGE[a] = 0; ASTK[a] = 0;
   }
 }
@@ -296,21 +341,38 @@ function arrowsStep(dt) {
     if (AON[a] > 0) {
       AAGE[a] = AAGE[a] + dt;
       if (ASTK[a] == 0) {
-        AVY[a] = AVY[a] - 20 * dt;
+        if (AON[a] != 3) { AVY[a] = AVY[a] - 20 * dt; }
         let nx = AXX[a] + AVX[a] * dt, ny = AYY[a] + AVY[a] * dt, nz = AZZ[a] + AVZ[a] * dt;
-        if (BSOL[blockAt(Math.floor(nx), Math.floor(ny), Math.floor(nz)) + 1] == 1) { ASTK[a] = 1; AAGE[a] = 0; }
+        let hb = blockAt(Math.floor(nx), Math.floor(ny), Math.floor(nz));
+        // the player's arrow breaks a warding crystal
+        if (hb == 57) { if (AON[a] == 2) { crystalBreak(Math.floor(nx), Math.floor(ny), Math.floor(nz)); AON[a] = 0; } }
+        if (BSOL[hb + 1] == 1) { ASTK[a] = 1; AAGE[a] = 0; if (AON[a] == 3) { AON[a] = 0; } }
         else { AXX[a] = nx; AYY[a] = ny; AZZ[a] = nz; }
         // the player
-        if (AON[a] == 1) {
-          if (Math.abs(AXX[a] - px) < 0.4 && Math.abs(AZZ[a] - pz) < 0.4 && AYY[a] > py && AYY[a] < py + 1.8) {
-            hurt(rand(2, 4), '화살에 맞았습니다'); AON[a] = 0;
+        if (AON[a] == 1 || AON[a] == 3) {
+          if (Math.abs(AXX[a] - px) < 0.45 && Math.abs(AZZ[a] - pz) < 0.45 && AYY[a] > py && AYY[a] < py + 1.8) {
+            if (AON[a] == 3) { hurt(5, '불덩이에 맞았습니다'); } else { hurt(rand(2, 4), '화살에 맞았습니다'); }
             pvx = pvx + AVX[a] * 0.2; pvz = pvz + AVZ[a] * 0.2;
+            AON[a] = 0;
+          }
+        }
+        // the player's arrow: the mobs
+        if (AON[a] == 2) {
+          let e = 1;
+          while (e <= NMOB) {
+            if (ET[e] > 0) { if (AON[a] == 2) {
+              let w = MW[ET[e]] / 2 + 0.1;
+              if (Math.abs(AXX[a] - EX[e]) < w && Math.abs(AZZ[a] - EZ[e]) < w && AYY[a] > EY[e] && AYY[a] < EY[e] + MH[ET[e]]) {
+                mobHurt(e, 7, AVX[a], AVZ[a]); AON[a] = 0;
+              }
+            } }
+            e = e + 1;
           }
         }
       } else {
         if (AAGE[a] > 8) { AON[a] = 0; }
         // a stuck arrow can be picked up
-        if (Math.abs(AXX[a] - px) < 1 && Math.abs(AZZ[a] - pz) < 1 && Math.abs(AYY[a] - py - 0.5) < 1.5) { if (AON[a] == 1) { if (rand(1, 2) == 1) { addItem(115, 1, 0); } } AON[a] = 0; }
+        if (Math.abs(AXX[a] - px) < 1 && Math.abs(AZZ[a] - pz) < 1 && Math.abs(AYY[a] - py - 0.5) < 1.5) { if (AON[a] <= 2) { if (gameMode == 0) { if (rand(1, 2) == 1 || AON[a] == 2) { addItem(115, 1, 0); } } } AON[a] = 0; }
       }
       if (AAGE[a] > 20) { AON[a] = 0; }
     }
@@ -399,7 +461,7 @@ function lightAt(x, y, z) {
     let i = wi(Math.floor(x), Math.floor(y), Math.floor(z));
     lv = Math.max(idiv(LT[i], 16) - dark, mod(LT[i], 16));
   } }
-  if (lv < 0) { lv = 0; }
+  if (lv < dimAmb) { lv = dimAmb; }
   return lv;
 }
 
@@ -518,7 +580,9 @@ function drawArrow(a, fog) {
     let w = 0.03 * 16384 * FOC / vz + 0.4;
     let ux = bx - ax, uy = by - ay, ul = Math.sqrt(ux * ux + uy * uy) + 0.001;
     let nx = 0 - uy / ul * w, ny = ux / ul * w;
-    fillStop(); goto(ax + nx, ay + ny); fillColorHex(CT[CARROW + 20 * 8 + fog + 1]); fillStart(); goto(bx + nx, by + ny); goto(bx - nx, by - ny); goto(ax - nx, ay - ny);
+    let col = CARROW, kb = 20;
+    if (AON[a] == 3) { col = CFLAME; kb = 23; nx = nx * 5; ny = ny * 5; }
+    fillStop(); goto(ax + nx, ay + ny); fillColorHex(CT[col + kb * 8 + fog + 1]); fillStart(); goto(bx + nx, by + ny); goto(bx - nx, by - ny); goto(ax - nx, ay - ny);
     nFill = nFill + 1;
   }
 }

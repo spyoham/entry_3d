@@ -186,6 +186,21 @@ function drawHud(dt) {
   box(sx - 12, y0 + 12, sx + 12, y0 + 10, '#ffffff'); box(sx - 12, y0 - 10, sx + 12, y0 - 12, '#ffffff');
   box(sx - 12, y0 + 12, sx - 10, y0 - 12, '#ffffff'); box(sx + 10, y0 + 12, sx + 12, y0 - 12, '#ffffff');
   if (gameMode == 0) {
+    // armour over the hearts (a plate a point pair)
+    let def = armorDef();
+    if (def > 0) {
+      let j = 0;
+      while (j < 10) {
+        let ax = x0 + j * 8 + 4, ay = y0 + 29;
+        if (def >= j * 2 + 1) {
+          box(ax - 3, ay + 3, ax + 3, ay - 3, '#202020');
+          let c = '#d8d8d8';
+          if (def == j * 2 + 1) { c = '#8a8a8a'; }
+          box(ax - 2, ay + 2, ax + 2, ay - 2, c);
+        }
+        j = j + 1;
+      }
+    }
     // hearts (left) and food (right), two halves each
     let i = 0;
     while (i < 10) {
@@ -206,6 +221,16 @@ function drawHud(dt) {
   if (INVI[hotSel] != lastHot) { lastHot = INVI[hotSel]; nameT = 2; }
   nameT = nameT - dt;
   if (nameT > 0) { if (INVI[hotSel] > 0) { tx(10, ITNAME[INVI[hotSel] + 1], 0, y0 + 40, 9, '#ffffff', 0); } else { txOff(10); } } else { txOff(10); }
+  // the warden's life across the top
+  let showB = 0;
+  if (dim == 2) { if (bossDead == 0) { if (bossE > 0) { if (ET[bossE] == 10) { showB = 1; } } } }
+  if (showB == 1) {
+    box(-101, 127, 101, 121, '#000000');
+    box(-100, 126, -100 + 200 * Math.max(0, EHP[bossE]) / MHP[10], 122, '#c040ff');
+    tx(93, `공허의 수호자 · 남은 수호 수정 ${nCrystal}`, 0, 134, 7, '#f0e0ff', 0);
+  } else { txOff(93); }
+  if (winT > 0) { winT = winT - dt; tx(94, '승리!', 0, 70, 22, '#ffe880', 0); tx(95, '공허의 수호자를 쓰러뜨렸습니다 · 수호자의 심장을 주워 가세요', 0, 48, 8, '#ffffff', 0); }
+  else { txOff(94); txOff(95); }
   msgT = msgT - dt;
   if (msgT > 0) { tx(11, msgText, 0, 40, 9, '#ffff80', 0); } else { txOff(11); }
   if (showDbg == 1) {
@@ -254,6 +279,7 @@ let slX = 0, slY = 0;
 function slotXY(s) {
   if (s <= 9) { slX = -72 + (s - 1) * 18; slY = -78; }
   else { if (s <= 36) { slX = -72 + mod(s - 10, 9) * 18; slY = -18 - idiv(s - 10, 9) * 18; }
+  else { if (s <= 40) { slX = -72; slY = 66 - (s - 37) * 18; }
   else { if (s <= 49) {
     let k = s - 41;
     if (cgSize == 2) { slX = 6 + mod(k, 2) * 18; slY = 62 - idiv(k, 2) * 18; }
@@ -261,12 +287,13 @@ function slotXY(s) {
   } else { if (s == 50) { if (cgSize == 2) { slX = 66; slY = 53; } else { slX = 40; slY = 48; } }
   else { if (s == 51) { slX = -24; slY = 66; } else { if (s == 52) { slX = -24; slY = 30; } else { if (s == 53) { slX = 36; slY = 48; }
   else { if (s <= 87) { slX = -72 + mod(s - 61, 9) * 18; slY = 66 - idiv(s - 61, 9) * 18; }
-  else { slX = -72 + mod(s - 101, 9) * 18; slY = 70 - idiv(s - 101, 9) * 18; } } } } } } } }
+  else { slX = -72 + mod(s - 101, 9) * 18; slY = 70 - idiv(s - 101, 9) * 18; } } } } } } } } }
 }
 // is slot s part of the screen now?
 function slotIn(s) {
   let r = 0;
   if (s <= 36) { r = 1; }
+  if (s >= 37 && s <= 40) { if (uiMode == 1) { r = 1; } else { r = 0; } }
   if (s >= 41 && s <= 49) { if (uiMode == 1) { if (s - 40 <= 4) { r = 1; } } if (uiMode == 2) { r = 1; } }
   if (s == 50) { if (uiMode == 1 || uiMode == 2) { r = 1; } }
   if (s >= 51 && s <= 53) { if (uiMode == 3) { r = 1; } }
@@ -279,7 +306,7 @@ let SLOTS = [];
 function slotsInit() {
   SLOTS = [];
   let s = 1;
-  while (s <= 36) { SLOTS.push(s); s = s + 1; }
+  while (s <= 40) { SLOTS.push(s); s = s + 1; }
   s = 41; while (s <= 53) { SLOTS.push(s); s = s + 1; }
   s = 61; while (s <= 87) { SLOTS.push(s); s = s + 1; }
   s = 101; while (s <= 136) { SLOTS.push(s); s = s + 1; }

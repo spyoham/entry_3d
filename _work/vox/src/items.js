@@ -10,7 +10,7 @@ let uiMode = 0, uiPage = 0, curFur = 0, curChest = 0;
 function invInit() {
   INVI = []; INVN = []; INVD = [];
   let i = 0;
-  while (i < 36) { INVI.push(0); INVN.push(0); INVD.push(0); i = i + 1; }
+  while (i < 40) { INVI.push(0); INVN.push(0); INVD.push(0); i = i + 1; }
   i = 1;
   while (i <= 9) { CGI[i] = 0; CGN[i] = 0; i = i + 1; }
   curI = 0; curN = 0; curD = 0; hotSel = 1;
@@ -40,7 +40,7 @@ function takeHeld(n) {
 function wearHeld(n) {
   if (gameMode == 0) {
     let id = INVI[hotSel];
-    if (id >= TOOL0) {
+    if (ITDUR[id + 1] > 0) {
       INVD[hotSel] = INVD[hotSel] + n;
       if (INVD[hotSel] >= ITDUR[id + 1]) { INVI[hotSel] = 0; INVN[hotSel] = 0; INVD[hotSel] = 0; sndPlay(7); msgShow(`${ITNAME[id + 1]}이(가) 부서졌습니다`, 2); }
     }
@@ -112,14 +112,14 @@ let fFound = 0;
 function furnaceFind(x, y, z) {
   fFound = 0;
   let i = 1;
-  while (i <= NFUR) { if (FUON[i] == 1) { if (FUX[i] == x && FUY[i] == y && FUZ[i] == z) { fFound = i; } } i = i + 1; }
+  while (i <= NFUR) { if (FUON[i] == 1) { if (FUX[i] == x && FUY[i] == y + dim * 100 && FUZ[i] == z) { fFound = i; } } i = i + 1; }
 }
 function furnaceAt(x, y, z) {
   furnaceFind(x, y, z);
   if (fFound == 0) {
     let i = 1;
     while (i <= NFUR && fFound == 0) { if (FUON[i] == 0) { fFound = i; } i = i + 1; }
-    if (fFound > 0) { let f = fFound; FUON[f] = 1; FUX[f] = x; FUY[f] = y; FUZ[f] = z; FII[f] = 0; FIN[f] = 0; FFI[f] = 0; FFN[f] = 0; FOI[f] = 0; FON[f] = 0; FUB[f] = 0; FUBM[f] = 0; FUP[f] = 0; }
+    if (fFound > 0) { let f = fFound; FUON[f] = 1; FUX[f] = x; FUY[f] = y + dim * 100; FUZ[f] = z; FII[f] = 0; FIN[f] = 0; FFI[f] = 0; FFN[f] = 0; FOI[f] = 0; FON[f] = 0; FUB[f] = 0; FUBM[f] = 0; FUP[f] = 0; }
   }
 }
 function furnaceOpen(x, y, z) {
@@ -164,7 +164,7 @@ let cFound = 0;
 function chestFind(x, y, z) {
   cFound = 0;
   let i = 1;
-  while (i <= NCHEST) { if (CHON[i] == 1) { if (CHX[i] == x && CHY[i] == y && CHZ[i] == z) { cFound = i; } } i = i + 1; }
+  while (i <= NCHEST) { if (CHON[i] == 1) { if (CHX[i] == x && CHY[i] == y + dim * 100 && CHZ[i] == z) { cFound = i; } } i = i + 1; }
 }
 function chestAt(x, y, z) {
   chestFind(x, y, z);
@@ -172,14 +172,18 @@ function chestAt(x, y, z) {
     let i = 1;
     while (i <= NCHEST && cFound == 0) { if (CHON[i] == 0) { cFound = i; } i = i + 1; }
     if (cFound > 0) {
-      let c = cFound; CHON[c] = 1; CHX[c] = x; CHY[c] = y; CHZ[c] = z;
+      let c = cFound; CHON[c] = 1; CHX[c] = x; CHY[c] = y + dim * 100; CHZ[c] = z; chestNew = 1;
       let k = 1;
       while (k <= 27) { CHI[(c - 1) * 27 + k] = 0; CHN[(c - 1) * 27 + k] = 0; CHD[(c - 1) * 27 + k] = 0; k = k + 1; }
     }
   }
 }
+let chestNew = 0;
 function chestOpen(x, y, z) {
+  chestNew = 0;
   chestAt(x, y, z);
+  // a chest the world made (the depths, the void): its loot the first time it is opened
+  if (chestNew == 1) { if (dim != 0) { chestLoot(cFound); } }
   if (cFound > 0) { curChest = cFound; uiOpen(4); } else { msgShow('상자가 너무 많습니다', 2); }
 }
 // a furnace or chest broken: what was in it falls out
@@ -210,7 +214,7 @@ function chestOrFurnaceGone(x, y, z, b) {
 let gI = 0, gN = 0, gD = 0;
 function slotGet(s) {
   gI = 0; gN = 0; gD = 0;
-  if (s <= 36) { gI = INVI[s]; gN = INVN[s]; gD = INVD[s]; }
+  if (s <= 40) { gI = INVI[s]; gN = INVN[s]; gD = INVD[s]; }
   else { if (s <= 49) { gI = CGI[s - 40]; gN = CGN[s - 40]; }
   else { if (s == 50) { gI = craftOut; gN = craftCnt; }
   else { if (s == 51) { gI = FII[curFur]; gN = FIN[curFur]; }
@@ -222,7 +226,7 @@ function slotGet(s) {
 }
 function slotSet(s, i, n, d) {
   if (n <= 0) { i = 0; n = 0; d = 0; }
-  if (s <= 36) { INVI[s] = i; INVN[s] = n; INVD[s] = d; }
+  if (s <= 40) { INVI[s] = i; INVN[s] = n; INVD[s] = d; }
   else { if (s <= 49) { CGI[s - 40] = i; CGN[s - 40] = n; craftMatch(); }
   else { if (s == 51) { FII[curFur] = i; FIN[curFur] = n; }
   else { if (s == 52) { FFI[curFur] = i; FFN[curFur] = n; }
@@ -264,10 +268,12 @@ function slotClick(s, half) {
         let take = sn;
         if (half == 1) { take = Math.ceil(sn / 2); }
         // Shift on an inventory slot with nothing in hand: to the other part of the inventory
-        if (half == 1 && s <= 36 && uiMode <= 2) {
+        if (half == 1 && s <= 40 && uiMode <= 2) {
           take = sn;
           let a = 10, b = 36;
           if (s >= 10) { a = 1; b = 9; }
+          // armour to its slot (and off again)
+          if (ITK[si + 1] == 4) { if (s <= 36) { if (INVI[36 + ITSLOT[si + 1]] == 0) { a = 36 + ITSLOT[si + 1]; b = a; } } else { a = 1; b = 36; } }
           moveRange(s, a, b);
         } else {
           curI = si; curN = take; curD = sd;
@@ -278,9 +284,10 @@ function slotClick(s, half) {
       if (isOut == 0) {
         let put = curN;
         if (half == 1) { put = 1; }
-        // the fuel slot takes only fuel
+        // the fuel slot takes only fuel, an armour slot only its piece
         let okS = 1;
         if (s == 52) { if (ITFUEL[curI + 1] <= 0) { okS = 0; } }
+        if (s >= 37 && s <= 40) { if (ITSLOT[curI + 1] != s - 36) { okS = 0; } }
         if (okS == 1) {
           if (si == 0) { slotSet(s, curI, put, curD); curN = curN - put; }
           else {
@@ -340,5 +347,33 @@ function startKit() {
   if (gameMode == 1) {
     let k = 1;
     while (k <= 9) { INVI[k] = KIT[k]; INVN[k] = ITST[KIT[k] + 1]; k = k + 1; }
+  }
+}
+
+// what a fort chest (the depths) or a tower chest (the void) holds
+function chestLoot(c) {
+  let n = rand(4, 8), k = 0, j = 0, id = 0, cnt = 0;
+  while (k < n) {
+    j = (c - 1) * 27 + rand(1, 27);
+    let r = rand(1, 100);
+    if (dim == 1) {
+      id = 102; cnt = rand(1, 4);
+      if (r > 30) { id = 103; cnt = rand(1, 3); }
+      if (r > 50) { id = 123; cnt = rand(1, 3); }
+      if (r > 65) { id = 34; cnt = rand(2, 6); }
+      if (r > 78) { id = 115; cnt = rand(4, 12); }
+      if (r > 86) { id = 109; cnt = rand(2, 5); }
+      if (r > 93) { id = 104; cnt = rand(1, 2); }
+      if (r > 97) { id = 125; cnt = 1; }
+    } else {
+      id = 104; cnt = rand(1, 3);
+      if (r > 35) { id = 102; cnt = rand(3, 8); }
+      if (r > 55) { id = 103; cnt = rand(2, 6); }
+      if (r > 70) { id = 154 + rand(0, 3); cnt = 1; }
+      if (r > 85) { id = 158 + rand(0, 3); cnt = 1; }
+      if (r > 93) { id = 133; cnt = 1; }
+    }
+    CHI[j] = id; CHN[j] = cnt; CHD[j] = 0;
+    k = k + 1;
   }
 }

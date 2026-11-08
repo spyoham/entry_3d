@@ -204,6 +204,9 @@ function playerMove2(dt) {
 // ---------------------------------------------------------------- health and hunger
 function hurt(n, why) {
   if (gameMode == 0) { if (dead == 0) { if (hurtT <= 0) {
+    // armour takes 4 % a point (20 at most), and wears
+    let def = armorDef();
+    if (def > 0) { n = Math.max(1, Math.round(n * (1 - Math.min(20, def) * 0.04))); armorWear(); }
     hp = hp - n; hurtT = 0.5; hurtFlash = 0.35; exhaust = exhaust + 0.1;
     sndPlay(3);
     if (hp <= 0) { hp = 0; die(why); }
@@ -234,13 +237,17 @@ function die(why) {
   dead = 1; deathMsg = why; uiClose(); uiMode = 7;
   // everything carried falls where the player died
   let i = 1;
-  while (i <= 36) {
+  while (i <= 40) {
     if (INVI[i] > 0) { dropItem(INVI[i], INVN[i], INVD[i], px, py + 1, pz, 1); INVI[i] = 0; INVN[i] = 0; INVD[i] = 0; }
     i = i + 1;
   }
   mouseFree();
 }
 function respawn() {
+  if (dim != 0) { dead = 0; hp = 20; food = 20; sat = 5; air = 300; exhaust = 0; uiMode = 0; startTravel(0, spawnX, spawnZ, 3); }
+  else { respawn0(); }
+}
+function respawn0() {
   dead = 0; hp = 20; food = 20; sat = 5; air = 300; exhaust = 0;
   px = spawnX; py = spawnY; pz = spawnZ; pvx = 0; pvy = 0; pvz = 0; fallTop = py;
   // the spot may have been built over: up to the first free space
@@ -318,7 +325,7 @@ function pickNeighbour() {
 let harvest = 0;
 function breakTime(b) {
   let h = BHARD[b + 1], id = INVI[hotSel], kind = 0 - 1, tier = 0 - 1, sp = 1;
-  if (id >= TOOL0) { kind = ITTK[id + 1]; tier = ITTT[id + 1]; }
+  if (ITTK[id + 1] >= 0) { kind = ITTK[id + 1]; tier = ITTT[id + 1]; }
   let tool = BTOOL[b + 1];
   // a tool kind 0 pickaxe, 1 axe, 2 shovel == block tool 1, 2, 3
   if (tool > 0) { if (kind + 1 == tool) { sp = TSPEED[tier + 1]; } }
@@ -361,10 +368,11 @@ function breakBlock(x, y, z, byP) {
       exhaust = exhaust + 0.005;
       if (harvest == 1) { blockDrops(b, x, y, z); }
       let id = INVI[hotSel];
-      if (id >= TOOL0) { if (BHARD[b + 1] > 0) { wearHeld(1); } }
+      if (ITTK[id + 1] >= 0) { if (BHARD[b + 1] > 0) { wearHeld(1); } }
     }
   }
   setBlock(x, y, z, 0);
+  if (b == 57) { crystalBreak(x, y, z); }
   // ice leaves water
   if (b == 33) { if (gameMode == 0) { setBlock(x, y, z, 7); } }
   chestOrFurnaceGone(x, y, z, b);
@@ -389,7 +397,10 @@ let lbX0 = 9999, lbX1 = -1, lbZ0 = 9999, lbZ1 = -1, dirtyN = 0;
 let DIRTY = [], SDIRTY = [];
 function setBlock(x, y, z, b) {
   if (y >= 0 && y < WY && cOK(x, z) == 1) {
+    let old = W[wi(x, y, z)];
     logOn = 1; wput(x, y, z, b); logOn = 0;
+    // a gate frame broken: its veil goes
+    if (old == 34) { if (b != 34) { veilN = 0; veilBreak(x + 1, y, z); veilBreak(x - 1, y, z); veilBreak(x, y + 1, z); veilBreak(x, y - 1, z); veilBreak(x, y, z + 1); veilBreak(x, y, z - 1); } }
     markDirty(x, y, z);
     lbX0 = Math.min(lbX0, x - 14); lbX1 = Math.max(lbX1, x + 14); lbZ0 = Math.min(lbZ0, z - 14); lbZ1 = Math.max(lbZ1, z + 14);
     if (b == 0) { blockGone(x, y, z); }
@@ -491,6 +502,12 @@ function useKey() {
     if (used == 0) {
       if (id > 0) {
         if (ITFOOD[id + 1] > 0) { eat(id); used = 1; placeCool = 0.4; }
+        // the igniter lights a frame of obsidian
+        if (id == 122) { used = 1; placeCool = 0.3; if (pickOn == 1) { pickNeighbour(); lightGate(nbX, nbY, nbZ); if (gateOK == 1) { wearHeld(1); sndPlay(2); } else { msgShow('흑요석 틀(안쪽 2 x 3 이상) 안을 불붙이개로 켜세요', 3); } } }
+        if (id == 124) { used = 1; placeCool = 0.5; useVoidKey(); }
+        if (id == 125) { used = 1; shootBow(); }
+        // armour: on
+        if (ITK[id + 1] == 4) { used = 1; placeCool = 0.3; let s = 36 + ITSLOT[id + 1]; let ti = INVI[s], tn = INVN[s], td = INVD[s]; INVI[s] = id; INVN[s] = 1; INVD[s] = INVD[hotSel]; INVI[hotSel] = ti; INVN[hotSel] = tn; INVD[hotSel] = td; sndPlay(6); }
       }
     }
     if (used == 0) { if (id > 0) { if (id < 100) { if (pickOn == 1) { placeBlock(id); } } } }
@@ -567,5 +584,34 @@ function randomTicks(dt) {
       }
       k = k + 1;
     }
+  }
+}
+
+// ---------------------------------------------------------------- bow and armour
+let bowCool = 0;
+function shootBow() {
+  if (bowCool <= 0) {
+    let k = 1, a = 0;
+    while (k <= 36) { if (a == 0) { if (INVI[k] == 115) { a = k; } } k = k + 1; }
+    if (a > 0 || gameMode == 1) {
+      if (gameMode == 0) { INVN[a] = INVN[a] - 1; if (INVN[a] <= 0) { INVI[a] = 0; INVN[a] = 0; } }
+      arrowShoot(camX, camY - 0.1, camZ, camX + lookX * 20, camY - 0.1 + lookY * 20, camZ + lookZ * 20, 1);
+      wearHeld(1); bowCool = 0.6; swingT = 0.3; sndPlay(1);
+    } else { msgShow('화살이 없습니다', 1.5); }
+  }
+}
+function armorDef() {
+  let d = 0, k = 37;
+  while (k <= 40) { if (INVI[k] > 0) { d = d + ITDEF[INVI[k] + 1]; } k = k + 1; }
+  return d;
+}
+function armorWear() {
+  let k = 37;
+  while (k <= 40) {
+    if (INVI[k] > 0) {
+      INVD[k] = INVD[k] + 1;
+      if (INVD[k] >= ITDUR[INVI[k] + 1]) { msgShow(`${ITNAME[INVI[k] + 1]}이(가) 부서졌습니다`, 2); INVI[k] = 0; INVN[k] = 0; INVD[k] = 0; sndPlay(7); }
+    }
+    k = k + 1;
   }
 }
