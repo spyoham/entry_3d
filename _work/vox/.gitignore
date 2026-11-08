@@ -1,0 +1,7 @@
+test/*.ent
+test/prof/
+test/tess_src.js
+test/fnames.json
+test/.nrun/
+.nrun/
+.pack/

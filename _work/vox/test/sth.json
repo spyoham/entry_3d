@@ -1,0 +1,6 @@
+[{"wait": 9000},
+ {"eval": "(()=>{const V=n=>window.__vm.variables.find(v=>v.name===n);V('findTop');return 1})()"},
+ {"eval": "(()=>{const V=n=>window.__vm.variables.find(v=>v.name===n);V('tX').setValue(75.5);V('tY').setValue(45);V('tZ').setValue(45.5);V('tYaw').setValue(238);V('tPitch').setValue(-8);V('testCmd').setValue(1);V('helpT').setValue(0);V('tday').setValue(0.12);V('BENCH');return 1})()"},
+ {"wait": 2500},
+ {"eval": "(()=>{const V=n=>window.__vm.variables.find(v=>v.name===n);V('lockAskT').setValue(0);V('$M_LOCK').setValue(1);V('keysLost').setValue(0);V('hotSel').setValue(1);V('helpT').setValue(0);V('msgT').setValue(0);V('hp').setValue(17);V('food').setValue(15);return 1})()"},
+ {"wait": 600}, {"eval": "(()=>{const V=n=>window.__vm.variables.find(v=>v.name===n);V(\"msgT\").setValue(0);return 1})()"}, {"wait": 900}, {"shot": "../vox/test/thumb.png"}]

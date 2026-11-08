@@ -1,0 +1,3 @@
+[{"wait": 10000},
+ {"eval": "(()=>{const V=n=>window.__vm.variables.find(v=>v.name===n);V('tX').setValue(100);V('tY').setValue(55);V('tZ').setValue(30);V('tYaw').setValue(200);V('tPitch').setValue(-10);V('testCmd').setValue(1);V('autoView').setValue(0);return 1})()"},
+ {"wait": 3000}, {"fps": "heavy"}, {"wait": 5000}, {"fps": "heavy"}, {"shot": "../vox/test/b2.png"}]
