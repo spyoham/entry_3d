@@ -6,7 +6,7 @@ const p = JSON.parse(fs.readFileSync(`${dir}/${f}`));
 const src = fs.existsSync('test/tess_src.js') ? fs.readFileSync('test/tess_src.js', 'utf8').split('\n') : [];
 const FN = JSON.parse(fs.readFileSync('test/fnames.json')); const FNL = Object.values(FN);
 const dt = {}; for (let i = 0; i < p.samples.length; i++) dt[p.samples[i]] = (dt[p.samples[i]] || 0) + (p.timeDeltas[i] || 0);
-const self = {}, parent = {};
+const self = Object.create(null), parent = {};
 for (const n of p.nodes) for (const c of n.children || []) parent[c] = n;
 const nameOf = (n) => {
     const cf = n.callFrame;
@@ -21,4 +21,4 @@ for (const n of p.nodes) {
     self[k] = (self[k] || 0) + (dt[n.id] || 0);
 }
 const tot = Object.values(self).reduce((a, b) => a + b, 0);
-Object.entries(self).sort((a, b) => b[1] - a[1]).slice(0, 25).forEach(([k, v]) => console.log((v / tot * 100).toFixed(1).padStart(5), k));
+Object.entries(self).sort((a, b) => b[1] - a[1]).slice(0, 25).forEach(([k, v]) => console.log((v / tot * 100).toFixed(1).padStart(5), (v / 1000).toFixed(0).padStart(6), k));

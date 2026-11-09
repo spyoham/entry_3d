@@ -89,6 +89,8 @@ function daySky() {
   let dl = (f + 0.18) / 0.4;
   if (dl < 0) { dl = 0; } if (dl > 1) { dl = 1; }
   dark = Math.round((1 - dl) * 11);
+  // clouds of rain darken the day
+  if (wthr > 0) { dl = dl * 0.55; dark = Math.max(dark, 3 + wthr); }
   starA = 0;
   if (dl < 0.5) { starA = 1; }
   // sunrise / sunset glow near the horizon
@@ -112,7 +114,7 @@ function daySky() {
       ctPos = 0;
     }
   }
-  if (ctPos < NCOL * 192) { ctBuild(Math.min(4000, NCOL * 192 - ctPos)); }
+  if (ctPos < NCOL * 192) { ctBuild(Math.min(9000, NCOL * 192 - ctPos)); }
 }
 
 // ---------------------------------------------------------------- one frame of play
@@ -138,21 +140,23 @@ function playFrame(dt) {
   attackCool = attackCool - dt; placeCool = placeCool - dt; swingT = swingT - dt;
   if (dead == 0) {
     if (uiMode == 0) {
-      // the hotbar: number keys, the wheel
+      // the hotbar: number keys, the wheel (the spectator: the speed)
       let k = 1;
       while (k <= 9) { if (keyHit(48 + k) == 1) { hotSel = k; } k = k + 1; }
+      if (gameMode == 3) { while (wheelAcc >= 1) { specSpeed = Math.max(0.2, specSpeed - 0.2); wheelAcc = wheelAcc - 1; } while (wheelAcc <= -1) { specSpeed = Math.min(5, specSpeed + 0.2); wheelAcc = wheelAcc + 1; } }
       // (a notch down: the next slot)
       while (wheelAcc >= 1) { hotSel = hotSel + 1; wheelAcc = wheelAcc - 1; if (hotSel > 9) { hotSel = 1; } }
       while (wheelAcc <= -1) { hotSel = hotSel - 1; wheelAcc = wheelAcc + 1; if (hotSel < 1) { hotSel = 9; } }
       playerMove(dt);
       camX = px; camY = py + eyeH; camZ = pz; camYaw = yaw; camPitch = pitch;
+      if (gameMode == 3) { if (specMob > 0) { if (ET[specMob] == 0 || key(16)) { specMob = 0; } else { px = EX[specMob]; py = EY[specMob] + MH[ET[specMob]] - 1.75; pz = EZ[specMob]; } } }
       pickRay();
       if (clickLatch == 1) { if (lk == 1) { attack(); } }
       breaking(dt);
       if (keyHit(70) == 1) { useKey(); }
       if (key(70)) { if (placeCool <= 0) { if (KW[70] == 1) { useKey(); placeCool = 0.25; } } }
       if (keyHit(81) == 1) { dropHeld(); }
-      if (keyHit(69) == 1) { if (gameMode == 1) { uiOpen(5); } else { uiOpen(1); } }
+      if (keyHit(69) == 1) { if (gameMode == 1) { uiOpen(5); } else { if (gameMode != 3) { uiOpen(1); } } }
       if (keyHit(80) == 1) { uiMode = 6; mouseFree(); txClear(); }
       // a command: T or /
       if (keyHit(84) == 1 || keyHit(191) == 1) { chatOpen(); }
@@ -170,13 +174,15 @@ function playFrame(dt) {
   if (keyHit(114) == 1) { showDbg = 1 - showDbg; }
   if (keyHit(72) == 1) { helpT = 12 - helpT; if (helpT < 0) { helpT = 0; } }
   mobsStep(dt); itemsStep(dt); arrowsStep(dt); furnacesStep(dt); spawnStep(dt); randomTicks(dt);
+  blocksStep(dt); pendingMobs(); weatherStep(dt);
+  gameTicks = gameTicks + dt * 20;
   worldFlush();
   // the world round the player: a few chunk stages and some sections a frame
   let cw = 1;
   if (kStep == 1) { cw = 2; }
   chunkWork(cw); remeshSome(6);
   if (BENCH == 0) { if (grDay == 1) { tday = tday + dt / dayLen; } }
-  if (tday >= 1) { tday = tday - 1; }
+  if (tday >= 1) { tday = tday - 1; dayN = dayN + 1; }
   if (dim == 0) { dimAmb = 0; daySky(); } else { dimSky(); }
   gateStep(dt);
   if (dim == 2) { bossStep(dt); }
@@ -196,12 +202,15 @@ function playFrame(dt) {
   // the picture
   eraseAll();
   renderWorld();
+  drawWeather();
   if (headWater == 1) { penAlpha(55); box(-245, 140, 245, -140, '#1a3a90'); fillStop(); penAlpha(0); }
+  if (flashT > 0) { penAlpha(40); box(-245, 140, 245, -140, '#ffffff'); fillStop(); penAlpha(0); }
   if (hurtFlash > 0) { penAlpha(70); box(-245, 140, 245, -140, '#c00000'); fillStop(); penAlpha(0); }
-  if (uiMode == 0) { if (dead == 0) { drawHand(); } }
+  if (uiMode == 0) { if (dead == 0) { if (gameMode != 3) { drawHand(); } } }
   if (uiMode <= 6) { if (dead == 0) { drawHud(dt); } }
   if (uiMode >= 1) { if (uiMode <= 5 || uiMode == 8) { invScreen(); } }
   if (uiMode == 6) { pauseScreen(); }
+  if (uiMode == 10) { tradeScreen(); }
   if (uiMode == 7) { deathScreen(); }
   if (helpT > 0) { helpT = helpT - dt; helpText(); } else { if (uiMode == 0) { txOff(15); txOff(16); txOff(17); txOff(18); txOff(19); } }
   if (lk == 0) { if (uiMode == 0) { if (dead == 0) { tx(19, '화면을 클릭하면 마우스로 둘러봅니다', 0, -60, 9, '#ffffff', 0); } } }
@@ -212,6 +221,7 @@ function helpText() {
   tx(15, 'WASD 이동 · 스페이스 점프(크리에이티브: 두 번 눌러 날기) · Shift 웅크리기 · W 두 번/R 달리기', 0, 104, 7, '#ffffff', 0);
   tx(16, '클릭(누르고 있기) 부수기·공격 · F 놓기·쓰기(먹기, 작업대·화로·상자 열기) · Q 버리기', 0, 94, 7, '#ffffff', 0);
   tx(17, '1~9·휠 손에 들 것 · E 소지품·제작 · G 시야 거리 · T 또는 / 명령어 · F3 정보 · P 메뉴 · H 도움말', 0, 84, 7, '#ffffff', 0);
+  tx(18, '/gamemode spectator 관전자 · /help 명령어 목록 · 크리에이티브 창 위의 탭과 검색', 0, 74, 7, '#c0ffc0', 0);
 }
 // clicks on the screens
 function uiInput() {
@@ -220,8 +230,9 @@ function uiInput() {
     else {
       if (uiMode == 5) {
         if (keyHit(37) == 1) { if (uiPage > 0) { uiPage = uiPage - 1; } }
-        if (keyHit(39) == 1) { if ((uiPage + 1) * 36 < PAL.length) { uiPage = uiPage + 1; } }
-        if (wheelAcc >= 1) { if ((uiPage + 1) * 36 < PAL.length) { uiPage = uiPage + 1; } }
+        if (keyHit(39) == 1) { if ((uiPage + 1) * 36 < palLen()) { uiPage = uiPage + 1; } }
+        if (wheelAcc >= 1) { if ((uiPage + 1) * 36 < palLen()) { uiPage = uiPage + 1; } }
+        if (clickLatch == 1) { if (tabHot >= 0) { if (tabHot == NCAT) { palSearch(); } else { uiTab = tabHot; uiPage = 0; } clickLatch = 0; } }
         if (wheelAcc <= -1) { if (uiPage > 0) { uiPage = uiPage - 1; } }
       }
       if (clickLatch == 1) {
@@ -247,6 +258,7 @@ function uiInput() {
       }
     }
   }
+  if (uiMode == 10) { tradeInput(); }
   if (uiMode == 6) {
     if (keyHit(80) == 1 || keyHit(27) == 1) { uiMode = 0; txClear(); lockReq(); }
     if (clickLatch == 1) {
@@ -255,7 +267,7 @@ function uiInput() {
       if (menuSel == 1) { uiMode = 0; txClear(); lockReq(); }
       if (menuSel == 2) { if (right == 1) { viewWant = viewWant + 4; if (viewWant > 48) { viewWant = 48; } } else { viewWant = viewWant - 4; if (viewWant < 8) { viewWant = 8; } } setView(viewWant); }
       if (menuSel == 3) { if (right == 1) { sens = Math.min(2, sens + 0.1); } else { sens = Math.max(0.1, sens - 0.1); } }
-      if (menuSel == 4) { gameMode = 1 - gameMode; flying = 0; }
+      if (menuSel == 4) { setMode(mod(gameMode + 1, 4)); }
       if (menuSel == 5) { sndOn = 1 - sndOn; }
       if (menuSel == 6) { uiMode = 0; gState = 0; txClear(); }
     }
@@ -301,10 +313,10 @@ function titleFrame(dt) {
   button(-100, -26, 100, -46, `시드: ${seedText}`, 6, 1); if (btnHot == 1) { menuSel = 3; }
   button(-100, -52, 100, -72, `시야 거리: ${viewWant} 블록`, 7, 1); if (btnHot == 1) { menuSel = 4; }
   tx(8, 'WASD 이동 · 클릭 부수기 · F 놓기 · E 소지품 · H 도움말', 0, -92, 7, '#d0d0d0', 0);
-  tx(9, `끝없는 세계 (높이 ${WY}) · 동굴 · 광석 · 8가지 생물 군계 · 몹 · 제작`, 0, -104, 7, '#a0a0a0', 0);
+  tx(9, `끝없는 세계 (높이 ${WY}) · 블록 ${NKINDS}종 · 생물 군계 26가지 · 구조물 20가지 · 몹 20종 · 명령어`, 0, -104, 7, '#a0a0a0', 0);
   if (clickLatch == 1) {
     if (menuSel == 1 || menuSel == 2) {
-      gameMode = menuSel - 1;
+      gameMode = menuSel - 1; defMode = gameMode;
       txClear();
       let s = titleSeed;
       if (s == 0) { s = rand(1, 99999999); }
@@ -369,6 +381,8 @@ function plainNotice() {
 on('start', 'pen', function () {
   // the text slots come from the text object's own start script
   waitUntil(TXS.length >= NTX);
+  bigInit();
+  gamerulesInit();
   if ($TESSVM == 0) { if (SIMRUN == 0) { plainNotice(); } }
   hide(); penUp();
   isTess = $TESSVM;

@@ -65,7 +65,7 @@ function spawnStep(dt) {
       i = i + 1;
     }
     if (BENCH == 0 && grMobs == 1) { if (dim == 1) { spawnDepths(); } if (dim == 2) { spawnVoid(); } }
-    if (BENCH == 0 && grMobs == 1) { if (dim == 0) { if (gameMode == 0 || SPAWNC == 1) {
+    if (BENCH == 0 && grMobs == 1) { if (dim == 0) { if (mod(gameMode, 2) == 0 || SPAWNC == 1) {
       if (nHostile < 10) {
         let a = rand(0, 359), r = rand(18, 40);
         let x = Math.floor(px + sind(a) * r), z = Math.floor(pz + cosd(a) * r);
@@ -80,8 +80,8 @@ function spawnStep(dt) {
               let lv = Math.max(idiv(LT[i2], 16) - dark, mod(LT[i2], 16));
               if (lv <= 7) {
                 let r2 = rand(1, 100), t = 5;
-                if (r2 > 45) { t = 6; } if (r2 > 80) { t = 7; } if (r2 > 93) { t = 11; }
-                mobAdd(t, x + 0.5, y + 0.02, z + 0.5);
+                if (r2 > 40) { t = 6; } if (r2 > 66) { t = 7; } if (r2 > 80) { t = M_BOMBSHROOM; } if (r2 > 94) { t = 11; }
+                if (difficulty > 0) { mobAdd(t, x + 0.5, y + 0.02, z + 0.5); }
               }
             }
           }
@@ -99,7 +99,16 @@ function spawnDepths() {
       let k = 0;
       while (k < 12 && BSOL[blockAt(x, y - 1, z) + 1] == 0) { y = y - 1; k = k + 1; }
       if (blockAt(x, y, z) == 0 && blockAt(x, y + 1, z) == 0 && BSOL[blockAt(x, y - 1, z) + 1] == 1) {
-        if (rand(1, 100) <= 45) { mobAdd(8, x + 0.5, y + 1.5, z + 0.5); } else { mobAdd(9, x + 0.5, y + 0.02, z + 0.5); }
+        ashBiome(x, z);
+        let r3 = rand(1, 100), t = 9;
+        if (abm == 9) { t = 8; if (r3 > 45) { t = 9; } if (r3 > 80) { t = M_ASHPIG; } }
+        if (abm == 22) { t = M_ASHBOAR; if (r3 > 55) { t = M_ASHPIG; } }
+        if (abm == 23) { t = 11; if (r3 > 70) { t = 8; } }
+        if (abm == 24) { t = 8; if (r3 > 40) { t = 6; } }
+        if (abm == 25) { t = 9; if (r3 > 60) { t = 8; } }
+        if (fortX(z - mod(z - 40, 80) + 40 - 40) == 1 || Math.abs(mod(z, 80) - 40) < 4 || Math.abs(mod(x, 80) - 40) < 4) { if (y > FORTY) { if (r3 > 50) { t = M_BLACKSKEL; } } }
+        if (difficulty == 0) { if (MHOST[t] == 1) { t = 0; } }
+        if (t > 0) { if (MFLY[t] == 1) { mobAdd(t, x + 0.5, y + 1.5, z + 0.5); } else { mobAdd(t, x + 0.5, y + 0.02, z + 0.5); } }
       }
     }
   }
@@ -129,12 +138,18 @@ function mobStep0(e, dt) {
   let dist = Math.sqrt(dxp * dxp + dzp * dzp);
   let want = 0, wy = EYAW[e], spd = MSPD[t];
   ETM[e] = ETM[e] - dt; EHURT[e] = EHURT[e] - dt; EATK[e] = EATK[e] - dt;
-  if (MHOST[t] == 1 || EST[e] == 4) {
+  let ai = MAI[t];
+  // the iron keeper goes for hostile mobs near it; the people of the village run from them
+  if (ai == 8) { if (EST[e] != 4) { golemHunt(e, dt); } }
+  if (ai == 7) { villagerFear(e); }
+  if (ai == 6) { if (EST[e] == 5) { want = 0; ETM[e] = ETM[e] - 0; } }
+  if (golemT > 0) { want = golemWant; wy = golemYaw; golemT = 0; }
+  else { if (MHOST[t] == 1 || EST[e] == 4) {
     // hostile: after the player when near (not in creative)
-    if (dist < 16 && gameMode == 0 && dead == 0) {
+    if (dist < 16 && mod(gameMode, 2) == 0 && dead == 0 && difficulty > 0) {
       wy = atan2d(dxp, dzp);
       want = 1;
-      if (t == 8) {
+      if (ai == 3) {
         if (dist < 7) { want = 0 - 1; } else { if (dist < 13) { want = 0; } }
         if (EATK[e] <= 0) { if (dist < 22) {
           if (sightLine(EX[e], EY[e] + 1.2, EZ[e], px, py + 1.5, pz) == 1) {
@@ -143,13 +158,14 @@ function mobStep0(e, dt) {
           }
         } }
       }
-      if (t == 9) {
+      if (ai == 4) {
         want = 0;
         if (EGND[e] == 1) { if (ETM[e] <= 0) { ETM[e] = 0.9 + rand(0, 8) / 10; EVY[e] = 7.5; want = 1.8; EYAW[e] = wy; } }
         else { want = 1.8; }
         if (dist < 1.4) { if (Math.abs(dyp) < 1.2) { if (EATK[e] <= 0) { EATK[e] = 1; hurt(MDMG[t], `${MNAME[t]}에게 당했습니다`); pvx = pvx + dxp / (dist + 0.01) * 4; pvz = pvz + dzp / (dist + 0.01) * 4; pvy = 4; } } }
       }
-      if (t == 6) {
+      if (ai == 6) { bombStep(e, dist, dt); }
+      if (ai == 2) {
         // the archer keeps its distance and shoots
         if (dist < 6) { want = 0 - 1; }
         if (dist < 10) { if (dist > 3) { want = 0; } }
@@ -159,7 +175,7 @@ function mobStep0(e, dt) {
             EATK[e] = 2 + rand(0, 10) / 10;
           }
         } }
-      } else { if (t < 8 || t == 11) {
+      } else { if (ai == 1 || ai == 5 || ai == 8) {
         if (dist < 1.2 + w) { if (Math.abs(dyp) < 1.5) { if (EATK[e] <= 0) {
           EATK[e] = 1;
           hurt(MDMG[t], `${MNAME[t]}에게 당했습니다`);
@@ -167,11 +183,12 @@ function mobStep0(e, dt) {
           pvx = pvx + dxp / (dist + 0.01) * 5; pvz = pvz + dzp / (dist + 0.01) * 5; pvy = 4;
         } } }
         // the spider leaps
-        if (t == 7) { if (dist < 4) { if (EGND[e] == 1) { if (rand(1, 30) == 1) { EVY[e] = 6; } } } }
+        if (t == 7 || t == M_ASHBOAR) { if (dist < 4) { if (EGND[e] == 1) { if (rand(1, 30) == 1) { EVY[e] = 6; } } } }
       } }
     } else {
-      if (ETM[e] <= 0) { ETM[e] = rand(20, 60) / 10; EST[e] = rand(0, 2); EWY[e] = rand(0, 359); }
+      if (ETM[e] <= 0) { ETM[e] = rand(20, 60) / 10; if (EST[e] != 4) { EST[e] = rand(0, 2); } EWY[e] = rand(0, 359); }
       if (EST[e] == 1) { want = 0.5; wy = EWY[e]; }
+      if (EST[e] == 5) { EST[e] = 0; }
     }
     // burning in the sun
     if (MBURN[t] == 1) {
@@ -188,8 +205,9 @@ function mobStep0(e, dt) {
     else {
       if (ETM[e] <= 0) { ETM[e] = rand(20, 80) / 10; EST[e] = rand(0, 1); EWY[e] = EYAW[e] + rand(-120, 120); }
       if (EST[e] == 1) { want = 0.6; wy = EWY[e]; }
+      if (EST[e] == 9) { if (ETM[e] <= 0) { EST[e] = 0; } }
     }
-  }
+  } }
   // turn toward wy
   let dyaw = wy - EYAW[e];
   while (dyaw > 180) { dyaw = dyaw - 360; } while (dyaw < -180) { dyaw = dyaw + 360; }
@@ -197,7 +215,7 @@ function mobStep0(e, dt) {
   let tx = sind(EYAW[e]) * spd * want, tz = cosd(EYAW[e]) * spd * want;
   if (want < 0) { tx = 0 - sind(wy) * spd; tz = 0 - cosd(wy) * spd; }
   // animals stop at cliffs and water
-  if (MHOST[t] == 0) { if (want != 0) {
+  if (MHOST[t] == 0 && EST[e] != 4) { if (want != 0) {
     let ax = Math.floor(EX[e] + sind(EYAW[e]) * (w + 0.6)), az = Math.floor(EZ[e] + cosd(EYAW[e]) * (w + 0.6)), ay = Math.floor(EY[e]);
     let ab = blockAt(ax, ay - 1, az);
     if (BSOL[ab + 1] == 0) { if (BSOL[blockAt(ax, ay - 2, az) + 1] == 0 || ab == 7) { tx = 0; tz = 0; EWY[e] = EYAW[e] + 180; } }
@@ -217,8 +235,10 @@ function mobStep0(e, dt) {
     } else { EVY[e] = EVY[e] - 32 * dt; }
   }
   if (EVY[e] < -40) { EVY[e] = -40; }
-  bmX = EX[e]; bmY = EY[e]; bmZ = EZ[e]; bmW = w; bmH = h;
+  bmX = EX[e]; bmY = EY[e]; bmZ = EZ[e]; bmW = w; bmH = h; bmStep = 0;
+  if (EGND[e] == 1) { bmStep = 0.6; }
   bodyMove(EVX[e] * dt, EVY[e] * dt, EVZ[e] * dt);
+  bmStep = 0;
   let hit = 0;
   if (bmHitX == 1 || bmHitZ == 1) { hit = 1; }
   if (bmHitY == 1) { EVY[e] = 0; }
@@ -253,17 +273,22 @@ function mobHurt(e, n, fx, fz) {
       EVX[e] = fx / l * 6; EVZ[e] = fz / l * 6; EVY[e] = 5;
     }
     let t = ET[e];
-    if (MHOST[t] == 0) { EST[e] = 3; ETM[e] = 3; EWY[e] = atan2d(EX[e] - px, EZ[e] - pz); }
+    if (MAI[t] == 0 || MAI[t] == 7) { EST[e] = 3; ETM[e] = 3; EWY[e] = atan2d(EX[e] - px, EZ[e] - pz); }
+    if (MAI[t] == 5 || MAI[t] == 8) { if (fx != 0 || fz != 0) { EST[e] = 4; ETM[e] = 30; } }
     if (t == 11) { EST[e] = 4; ETM[e] = 30; if (EHP[e] > 0) { if (rand(1, 10) <= 6) { wanderTeleport(e); } } }
     if (EHP[e] <= 0) {
       if (t == 10) { bossDies(e); }
       // drops
-      let k = MD0[t], n2 = 0;
-      while (k < MD0[t] + MDN[t]) {
-        n2 = rand(MDLO[k], MDHI[k]);
-        if (n2 > 0) { dropItem(MDI[k], n2, 0, EX[e], EY[e] + 0.5, EZ[e], 0); }
-        k = k + 1;
+      let k = MDROP0[t], n2 = 0;
+      if (grLoot == 1) {
+        while (k < MDROP0[t] + MDROPN[t]) {
+          n2 = rand(MDLO[k], MDHI[k]);
+          if (n2 > 0) { dropItem(MDI[k], n2, 0, EX[e], EY[e] + 0.5, EZ[e], 0); }
+          k = k + 1;
+        }
+        if (MHOST[t] == 1) { xpAdd(5); } else { if (MAI[t] == 0) { xpAdd(rand(1, 3)); } }
       }
+      if (specMob == e) { specMob = 0; }
       ET[e] = 0;
     }
   }
@@ -348,14 +373,14 @@ function arrowsStep(dt) {
   while (a <= NARR) {
     if (AON[a] > 0) {
       AAGE[a] = AAGE[a] + dt;
-      if (AON[a] >= 5) { boltStep(a, dt); } else {
+      if (AON[a] >= 7) { thrownStep(a, dt); } else { if (AON[a] >= 5) { boltStep(a, dt); } else {
       if (ASTK[a] == 0) {
         if (AON[a] != 3) { AVY[a] = AVY[a] - 20 * dt; }
         let nx = AXX[a] + AVX[a] * dt, ny = AYY[a] + AVY[a] * dt, nz = AZZ[a] + AVZ[a] * dt;
         let hb = blockAt(Math.floor(nx), Math.floor(ny), Math.floor(nz));
         // the player's arrow breaks a warding crystal
         if (hb == 57) { if (AON[a] == 2) { crystalBreak(Math.floor(nx), Math.floor(ny), Math.floor(nz)); AON[a] = 0; } }
-        if (BSOL[hb + 1] == 1) { ASTK[a] = 1; AAGE[a] = 0; if (AON[a] == 3) { AON[a] = 0; } }
+        if (BSOL[hb + 1] > 0) { ASTK[a] = 1; AAGE[a] = 0; if (AON[a] == 3) { AON[a] = 0; } if (hb == I_target) { pressAdd(Math.floor(nx), Math.floor(ny), Math.floor(nz), 1); } if (hb == I_tnt) { if (AON[a] == 3) { tntPrime(Math.floor(nx), Math.floor(ny), Math.floor(nz)); } } }
         else { AXX[a] = nx; AYY[a] = ny; AZZ[a] = nz; }
         // the player
         if (AON[a] == 1 || AON[a] == 3) {
@@ -381,9 +406,9 @@ function arrowsStep(dt) {
       } else {
         if (AAGE[a] > 8) { AON[a] = 0; }
         // a stuck arrow can be picked up
-        if (Math.abs(AXX[a] - px) < 1 && Math.abs(AZZ[a] - pz) < 1 && Math.abs(AYY[a] - py - 0.5) < 1.5) { if (AON[a] <= 2) { if (gameMode == 0) { if (rand(1, 2) == 1 || AON[a] == 2) { addItem(115, 1, 0); } } } AON[a] = 0; }
+        if (Math.abs(AXX[a] - px) < 1 && Math.abs(AZZ[a] - pz) < 1 && Math.abs(AYY[a] - py - 0.5) < 1.5) { if (AON[a] <= 2) { if (mod(gameMode, 2) == 0) { if (rand(1, 2) == 1 || AON[a] == 2) { addItem(115, 1, 0); } } } AON[a] = 0; }
       }
-      }
+      } }
       if (AAGE[a] > 20) { AON[a] = 0; }
     }
     a = a + 1;
@@ -417,7 +442,7 @@ function itemsStep(dt) {
       solidIn(Math.floor(IXX[i]), Math.floor(IXX[i]), Math.floor(IYY[i] + 0.1), Math.floor(IYY[i] + 0.1), Math.floor(IZZ[i]), Math.floor(IZZ[i]));
       if (solidHit == 1) { IYY[i] = Math.floor(IYY[i] + 0.1) + 1; }
       // picked up when close
-      if (dead == 0) { if (IAGE[i] > 0.5) {
+      if (dead == 0 && gameMode != 3) { if (IAGE[i] > 0.5) {
         let dx = px - IXX[i], dy = py + 0.8 - IYY[i], dz = pz - IZZ[i];
         let d2 = dx * dx + dy * dy + dz * dz;
         if (d2 < 2.6) {
@@ -598,4 +623,59 @@ function drawArrow(a, fog) {
     fillStop(); goto(ax + nx, ay + ny); fillColorHex(CT[col + kb * 8 + fog + 1]); fillStart(); goto(bx + nx, by + ny); goto(bx - nx, by - ny); goto(ax - nx, ay - ny);
     nFill = nFill + 1;
   }
+}
+
+// ---------------------------------------------------------------- v2.0: the kinds that think differently
+// the iron keeper: the nearest hostile mob within 14 blocks (golemWant / golemYaw for its step)
+let golemT = 0, golemWant = 0, golemYaw = 0;
+function golemHunt(e, dt) {
+  let best = 0, bd = 196, f = 1;
+  while (f <= NMOB) {
+    if (ET[f] > 0) { if (MHOST[ET[f]] == 1) { if (ET[f] != 10) {
+      let d = (EX[f] - EX[e]) * (EX[f] - EX[e]) + (EZ[f] - EZ[e]) * (EZ[f] - EZ[e]);
+      if (d < bd) { bd = d; best = f; }
+    } } }
+    f = f + 1;
+  }
+  if (best > 0) {
+    golemT = 1; golemWant = 1; golemYaw = atan2d(EX[best] - EX[e], EZ[best] - EZ[e]);
+    if (bd < 4) { golemWant = 0; if (EATK[e] <= 0) { EATK[e] = 1.2; mobHurt(best, MDMG[ET[e]], EX[best] - EX[e], EZ[best] - EZ[e]); EVY[best] = 9; } }
+  }
+}
+// the people run from a hostile mob near them
+function villagerFear(e) {
+  let f = 1;
+  while (f <= NMOB) {
+    if (ET[f] > 0) { if (MHOST[ET[f]] == 1) {
+      if ((EX[f] - EX[e]) * (EX[f] - EX[e]) + (EZ[f] - EZ[e]) * (EZ[f] - EZ[e]) < 64) { EST[e] = 3; ETM[e] = 2; EWY[e] = atan2d(EX[e] - EX[f], EZ[e] - EZ[f]); }
+    } }
+    f = f + 1;
+  }
+}
+// the bursting mushroom: close to the player it swells for a moment and bursts
+function bombStep(e, dist, dt) {
+  if (EST[e] != 5) { if (dist < 2.6) { EST[e] = 5; ETM[e] = 1.5; sndPlay(4); } }
+  else {
+    ETM[e] = ETM[e] - dt;
+    EHURT[e] = 0.3;
+    if (dist > 6) { EST[e] = 0; }
+    if (ETM[e] <= 0) { let x = EX[e], y = EY[e], z = EZ[e]; ET[e] = 0; explode(x, y + 0.8, z, 3, 1); }
+  }
+}
+// snowballs, eggs and void pearls in flight
+function thrownStep(a, dt) {
+  AVY[a] = AVY[a] - 20 * dt;
+  let nx = AXX[a] + AVX[a] * dt, ny = AYY[a] + AVY[a] * dt, nz = AZZ[a] + AVZ[a] * dt;
+  let hb = blockAt(Math.floor(nx), Math.floor(ny), Math.floor(nz)), hit = 0;
+  if (BSOL[hb + 1] > 0 || hb == 7) { hit = 1; }
+  else { AXX[a] = nx; AYY[a] = ny; AZZ[a] = nz; }
+  let e = 1;
+  while (e <= NMOB && hit == 0) {
+    if (ET[e] > 0) {
+      let w = MW[ET[e]] / 2 + 0.1;
+      if (Math.abs(AXX[a] - EX[e]) < w && Math.abs(AZZ[a] - EZ[e]) < w && AYY[a] > EY[e] && AYY[a] < EY[e] + MH[ET[e]]) { hit = 1; let dmg = 0; if (MFIRE[ET[e]] == 1 && AON[a] == 7) { dmg = 3; } EHURT[e] = 0; mobHurt(e, Math.max(dmg, 0), AVX[a], AVZ[a]); }
+    }
+    e = e + 1;
+  }
+  if (hit == 1) { thrownHit(a); }
 }

@@ -1,4 +1,6 @@
 // Build-time data: blocks, 8x8 textures, items, icons, recipes, smelting, mob models.
+import { makeContent, CATS } from './content.mjs';
+export { CATS };
 // Everything here becomes lists in the project (see build.mjs).
 
 // ------------------------------------------------------------------ textures (8 x 8, '.' = clear)
@@ -163,71 +165,84 @@ export const BLOCKS = [
     { id: 64, n: 'shellBox', ko: '껍질 상자', t: ['shellTop', 'shellSide', 'shellTop'], hard: 2, tool: 1 },
     { id: 65, n: 'violetBricks', ko: '보랏빛 벽돌', t: ['violetBricks'], hard: 1.5, tool: 1, tier: 0 },
 ];
-export const NBLOCK = BLOCKS.length;   // ids 1 .. NBLOCK-1
+export let NBLOCK = BLOCKS.length;   // ids 1 .. NBLOCK-1 (set again once the content is in)
 
 // ------------------------------------------------------------------ items (ids 100 ..)
 // kind 0 block, 1 material, 2 food, 3 tool
 export const ITEMS = [
-    { id: 100, n: 'stick', ko: '막대기', fuel: 5, icon: ['........', '......b.', '.....b..', '....b...', '...b....', '..b.....', '.b......', '........'], p: { b: '7a5a30' } },
-    { id: 101, n: 'coal', ko: '석탄', fuel: 80, icon: ['........', '..kkk...', '.kkgkk..', '.kkkkkk.', '.kgkkkk.', '..kkkkk.', '...kkk..', '........'], p: { k: '262626', g: '4a4a4a' } },
-    { id: 102, n: 'ingotIron', ko: '철 주괴', icon: ['........', '........', '...www..', '..wwwwg.', '.wwwwgg.', '.gggggg.', '........', '........'], p: { w: 'e6e6e6', g: 'a8a8a8' } },
-    { id: 103, n: 'ingotGold', ko: '금 주괴', icon: ['........', '........', '...www..', '..wwwwg.', '.wwwwgg.', '.gggggg.', '........', '........'], p: { w: 'fbe25a', g: 'c99a10' } },
-    { id: 104, n: 'diamond', ko: '다이아몬드', icon: ['........', '..cccc..', '.cwccdc.', 'cwcccddc', '.cccddc.', '..cddc..', '...dc...', '........'], p: { c: '5fe3dc', w: 'd8fffd', d: '2fa8a0' } },
-    { id: 105, n: 'apple', ko: '사과', food: 4, icon: ['....b...', '...bg...', '.rrrrr..', 'rrwrrrr.', 'rrrrrrr.', 'rrrrrrk.', '.rrrrk..', '..rrr...'], p: { r: 'd8282a', k: '9a1214', w: 'ff9a9a', b: '6b4518', g: '4b8a2c' } },
-    { id: 106, n: 'porkRaw', ko: '생 돼지고기', food: 3, icon: ['........', '.pppp...', 'pppwpp..', 'ppppppp.', '.pppppp.', '..ppppw.', '...ppp..', '........'], p: { p: 'f09a9a', w: 'fbd8d8' } },
-    { id: 107, n: 'porkCooked', ko: '익힌 돼지고기', food: 8, icon: ['........', '.cccc...', 'cccwcc..', 'ccccccc.', '.cccccc.', '..ccccw.', '...ccc..', '........'], p: { c: 'c47a4a', w: 'e8c8a0' } },
-    { id: 108, n: 'beefRaw', ko: '생 소고기', food: 3, icon: ['........', '..rrrr..', '.rrwrrr.', 'rrrrrwr.', 'rwrrrrr.', '.rrrrr..', '..rrr...', '........'], p: { r: 'c43a3a', w: 'f0c0c0' } },
-    { id: 109, n: 'steak', ko: '스테이크', food: 8, icon: ['........', '..bbbb..', '.bbwbbb.', 'bbbbbwb.', 'bwbbbbb.', '.bbbbb..', '..bbb...', '........'], p: { b: '7a4a2a', w: 'b88a5a' } },
-    { id: 110, n: 'chickenRaw', ko: '생 닭고기', food: 2, icon: ['........', '..pppp..', '.pppppp.', '.pppppp.', '..ppppw.', '...pw...', '....w...', '........'], p: { p: 'f2c0b0', w: 'ffffff' } },
-    { id: 111, n: 'chickenCooked', ko: '익힌 닭고기', food: 6, icon: ['........', '..cccc..', '.cccccc.', '.cccccc.', '..ccccw.', '...cw...', '....w...', '........'], p: { c: 'c8864a', w: 'f0e0c0' } },
-    { id: 112, n: 'flesh', ko: '썩은 고기', food: 4, icon: ['........', '.gg.....', 'ggbgg...', '.gggbg..', '..gggg..', '...gbgg.', '....gg..', '........'], p: { g: '8a6a3a', b: '5a7a2a' } },
-    { id: 113, n: 'bone', ko: '뼈', icon: ['......ww', '.....www', '....ww..', '...ww...', '..ww....', 'www.....', 'ww......', '........'], p: { w: 'eeeedd' } },
-    { id: 114, n: 'string', ko: '실', icon: ['........', '.w......', '..w.....', '..w.....', '...w....', '....ww..', '......w.', '.......w'], p: { w: 'eeeeee' } },
-    { id: 115, n: 'arrow', ko: '화살', icon: ['......gg', '.....bgg', '....b...', '...b....', '..b.....', 'fb......', 'ff......', '........'], p: { g: '9a9a9a', b: '7a5a30', f: 'eeeeee' } },
-    { id: 116, n: 'feather', ko: '깃털', icon: ['......ww', '....wwww', '...wwww.', '..wwww..', '.wwww...', '.ww.....', 'g.......', '........'], p: { w: 'f4f4f4', g: '9a9a9a' } },
-    { id: 117, n: 'leather', ko: '가죽', icon: ['........', '.bbbbbb.', 'bbcbbbbb', 'bbbbbcb.', '.bbcbbbb', 'bbbbbbb.', '.bb..bb.', '........'], p: { b: '9a5a2a', c: '7a4018' } },
-    { id: 118, n: 'flint', ko: '부싯돌', icon: ['........', '...kk...', '..kkkg..', '.kkkkg..', '.kkkkkg.', '..kkkg..', '...kg...', '........'], p: { k: '3a3a3a', g: '6a6a6a' } },
-    { id: 119, n: 'lapis', ko: '청금석', icon: ['........', '...bb...', '..bwbb..', '.bbbbbb.', '.bbbbbd.', '..bbdd..', '...dd...', '........'], p: { b: '2a4cb8', w: '7a9af0', d: '1a2a80' } },
-    { id: 120, n: 'clayBall', ko: '점토 덩어리', icon: ['........', '........', '..cccc..', '.cwcccc.', '.cccccc.', '.ccccd..', '..ccd...', '........'], p: { c: 'a0a6b3', w: 'd0d4dc', d: '7a808c' } },
-    { id: 121, n: 'brick', ko: '벽돌 조각', icon: ['........', '........', '...rrr..', '..rrrrk.', '.rrrrkk.', '.kkkkkk.', '........', '........'], p: { r: 'b05a46', k: '7a3a2a' } },
-    { id: 122, n: 'igniter', ko: '불붙이개', icon: ['......kk', '.....kgk', '....kgk.', '...kgk..', '.gggk...', 'gwwg....', 'gwg.....', '.g......'], p: { k: '3a3a3a', g: 'a8a8a8', w: 'e6e6e6' } },
-    { id: 123, n: 'fireStone', ko: '화염석', icon: ['........', '...yy...', '..yooy..', '.yorroy.', '.yorroy.', '..yooy..', '...yy...', '........'], p: { y: 'ffd040', o: 'ff8a20', r: 'd83a10' } },
-    { id: 124, n: 'voidKey', ko: '공허의 열쇠', icon: ['........', '..pppp..', '.pwbbwp.', '.pbccbp.', '.pbccbp.', '.pwbbwp.', '..pppp..', '........'], p: { p: '8060c0', w: 'e8e0ff', b: '201838', c: 'c040ff' } },
-    { id: 125, n: 'bow', ko: '활', icon: ['....bbb.', '...b..s.', '..b...s.', '.b....s.', '.b....s.', '..b...s.', '...b..s.', '....bbb.'], p: { b: '7a5a30', s: 'eeeeee' } },
-    { id: 126, n: 'heartCore', ko: '수호자의 심장', icon: ['........', '.pp..pp.', 'pccppccp', 'pcwccccp', '.pccccp.', '..pccp..', '...pp...', '........'], p: { p: '8020c0', c: 'c040ff', w: 'f0d0ff' } },
-    { id: 127, n: 'scrap', ko: '잔해 조각', icon: ['........', '..bbb...', '.bcccb..', '.bcdccb.', '.bccdcb.', '..bccb..', '...bb...', '........'], p: { b: '3e2a22', c: '6e5246', d: '9a7a68' } },
-    { id: 128, n: 'abyssIngot', ko: '심연철 주괴', icon: ['........', '........', '..hhhhh.', '.hddddh.', 'hddddh..', 'hhhhh...', '........', '........'], p: { h: '2e2830', d: '5a5060' } },
-    { id: 129, n: 'blazePowder', ko: '화염 가루', icon: ['........', '...y....', '..yoy.y.', '.yooy...', '..yoooy.', '.y.yoy..', '...y....', '........'], p: { y: 'ffd040', o: 'f08020' } },
-    { id: 170, n: 'voidPearl', ko: '공허 진주', icon: ['........', '..gggg..', '.gddddg.', '.gdkkdg.', '.gdkkdg.', '.gddddg.', '..gggg..', '........'], p: { g: '1e4a40', d: '2e8a74', k: '0a1a16' } },
-    { id: 171, n: 'voidEye', ko: '공허의 눈', icon: ['........', '..gggg..', '.gyyyyg.', '.gykkyg.', '.gykkyg.', '.gyyyyg.', '..gggg..', '........'], p: { g: '1e4a40', y: '8ad070', k: '0a1a16' } },
-    { id: 172, n: 'shell', ko: '껍질', icon: ['........', '..pppp..', '.paaaap.', 'paabbaap', 'pabbbbap', 'pppppppp', '........', '........'], p: { p: '6a3e7a', a: '9a6aa8', b: 'c8a8d0' } },
-    { id: 173, n: 'glider', ko: '활공 날개', slot: 2, dur: 432, icon: ['.g....g.', 'gdg..gdg', 'gddggddg', 'gddddddg', 'gdd..ddg', '.gd..dg.', '..g..g..', '........'], p: { g: '5a4a7a', d: '9a8ac0' } },
-    { id: 174, n: 'boat', ko: '나무 배', icon: ['........', '........', 'b......b', 'bab..bab', 'baabbaab', '.baaaab.', '..bbbb..', '........'], p: { a: 'a7834f', b: '6b5233' } },
+    { id: 100, n: 'stick', key: 'stick', ko: '막대기', fuel: 5, icon: ['........', '......b.', '.....b..', '....b...', '...b....', '..b.....', '.b......', '........'], p: { b: '7a5a30' } },
+    { id: 101, n: 'coal', key: 'coal', ko: '석탄', fuel: 80, icon: ['........', '..kkk...', '.kkgkk..', '.kkkkkk.', '.kgkkkk.', '..kkkkk.', '...kkk..', '........'], p: { k: '262626', g: '4a4a4a' } },
+    { id: 102, n: 'ingotIron', key: 'iron_ingot', ko: '철 주괴', icon: ['........', '........', '...www..', '..wwwwg.', '.wwwwgg.', '.gggggg.', '........', '........'], p: { w: 'e6e6e6', g: 'a8a8a8' } },
+    { id: 103, n: 'ingotGold', key: 'gold_ingot', ko: '금 주괴', icon: ['........', '........', '...www..', '..wwwwg.', '.wwwwgg.', '.gggggg.', '........', '........'], p: { w: 'fbe25a', g: 'c99a10' } },
+    { id: 104, n: 'diamond', key: 'diamond', ko: '다이아몬드', icon: ['........', '..cccc..', '.cwccdc.', 'cwcccddc', '.cccddc.', '..cddc..', '...dc...', '........'], p: { c: '5fe3dc', w: 'd8fffd', d: '2fa8a0' } },
+    { id: 105, n: 'apple', key: 'apple', ko: '사과', food: 4, icon: ['....b...', '...bg...', '.rrrrr..', 'rrwrrrr.', 'rrrrrrr.', 'rrrrrrk.', '.rrrrk..', '..rrr...'], p: { r: 'd8282a', k: '9a1214', w: 'ff9a9a', b: '6b4518', g: '4b8a2c' } },
+    { id: 106, n: 'porkRaw', key: 'raw_pork', ko: '생 돼지고기', food: 3, icon: ['........', '.pppp...', 'pppwpp..', 'ppppppp.', '.pppppp.', '..ppppw.', '...ppp..', '........'], p: { p: 'f09a9a', w: 'fbd8d8' } },
+    { id: 107, n: 'porkCooked', key: 'cooked_pork', ko: '익힌 돼지고기', food: 8, icon: ['........', '.cccc...', 'cccwcc..', 'ccccccc.', '.cccccc.', '..ccccw.', '...ccc..', '........'], p: { c: 'c47a4a', w: 'e8c8a0' } },
+    { id: 108, n: 'beefRaw', key: 'raw_beef', ko: '생 소고기', food: 3, icon: ['........', '..rrrr..', '.rrwrrr.', 'rrrrrwr.', 'rwrrrrr.', '.rrrrr..', '..rrr...', '........'], p: { r: 'c43a3a', w: 'f0c0c0' } },
+    { id: 109, n: 'steak', key: 'steak', ko: '스테이크', food: 8, icon: ['........', '..bbbb..', '.bbwbbb.', 'bbbbbwb.', 'bwbbbbb.', '.bbbbb..', '..bbb...', '........'], p: { b: '7a4a2a', w: 'b88a5a' } },
+    { id: 110, n: 'chickenRaw', key: 'raw_chicken', ko: '생 닭고기', food: 2, icon: ['........', '..pppp..', '.pppppp.', '.pppppp.', '..ppppw.', '...pw...', '....w...', '........'], p: { p: 'f2c0b0', w: 'ffffff' } },
+    { id: 111, n: 'chickenCooked', key: 'cooked_chicken', ko: '익힌 닭고기', food: 6, icon: ['........', '..cccc..', '.cccccc.', '.cccccc.', '..ccccw.', '...cw...', '....w...', '........'], p: { c: 'c8864a', w: 'f0e0c0' } },
+    { id: 112, n: 'flesh', key: 'rotten_flesh', ko: '썩은 고기', food: 4, icon: ['........', '.gg.....', 'ggbgg...', '.gggbg..', '..gggg..', '...gbgg.', '....gg..', '........'], p: { g: '8a6a3a', b: '5a7a2a' } },
+    { id: 113, n: 'bone', key: 'bone', ko: '뼈', icon: ['......ww', '.....www', '....ww..', '...ww...', '..ww....', 'www.....', 'ww......', '........'], p: { w: 'eeeedd' } },
+    { id: 114, n: 'string', key: 'string', ko: '실', icon: ['........', '.w......', '..w.....', '..w.....', '...w....', '....ww..', '......w.', '.......w'], p: { w: 'eeeeee' } },
+    { id: 115, n: 'arrow', key: 'arrow', ko: '화살', icon: ['......gg', '.....bgg', '....b...', '...b....', '..b.....', 'fb......', 'ff......', '........'], p: { g: '9a9a9a', b: '7a5a30', f: 'eeeeee' } },
+    { id: 116, n: 'feather', key: 'feather', ko: '깃털', icon: ['......ww', '....wwww', '...wwww.', '..wwww..', '.wwww...', '.ww.....', 'g.......', '........'], p: { w: 'f4f4f4', g: '9a9a9a' } },
+    { id: 117, n: 'leather', key: 'leather', ko: '가죽', icon: ['........', '.bbbbbb.', 'bbcbbbbb', 'bbbbbcb.', '.bbcbbbb', 'bbbbbbb.', '.bb..bb.', '........'], p: { b: '9a5a2a', c: '7a4018' } },
+    { id: 118, n: 'flint', key: 'flint', ko: '부싯돌', icon: ['........', '...kk...', '..kkkg..', '.kkkkg..', '.kkkkkg.', '..kkkg..', '...kg...', '........'], p: { k: '3a3a3a', g: '6a6a6a' } },
+    { id: 119, n: 'lapis', key: 'lapis', ko: '청금석', icon: ['........', '...bb...', '..bwbb..', '.bbbbbb.', '.bbbbbd.', '..bbdd..', '...dd...', '........'], p: { b: '2a4cb8', w: '7a9af0', d: '1a2a80' } },
+    { id: 120, n: 'clayBall', key: 'clay_ball', ko: '점토 덩어리', icon: ['........', '........', '..cccc..', '.cwcccc.', '.cccccc.', '.ccccd..', '..ccd...', '........'], p: { c: 'a0a6b3', w: 'd0d4dc', d: '7a808c' } },
+    { id: 121, n: 'brick', key: 'brick', ko: '벽돌 조각', icon: ['........', '........', '...rrr..', '..rrrrk.', '.rrrrkk.', '.kkkkkk.', '........', '........'], p: { r: 'b05a46', k: '7a3a2a' } },
+    { id: 122, n: 'igniter', key: 'igniter', ko: '불붙이개', icon: ['......kk', '.....kgk', '....kgk.', '...kgk..', '.gggk...', 'gwwg....', 'gwg.....', '.g......'], p: { k: '3a3a3a', g: 'a8a8a8', w: 'e6e6e6' } },
+    { id: 123, n: 'fireStone', key: 'fire_stone', ko: '화염석', icon: ['........', '...yy...', '..yooy..', '.yorroy.', '.yorroy.', '..yooy..', '...yy...', '........'], p: { y: 'ffd040', o: 'ff8a20', r: 'd83a10' } },
+    { id: 124, n: 'voidKey', key: 'void_key', ko: '공허의 열쇠', icon: ['........', '..pppp..', '.pwbbwp.', '.pbccbp.', '.pbccbp.', '.pwbbwp.', '..pppp..', '........'], p: { p: '8060c0', w: 'e8e0ff', b: '201838', c: 'c040ff' } },
+    { id: 125, n: 'bow', key: 'bow', ko: '활', icon: ['....bbb.', '...b..s.', '..b...s.', '.b....s.', '.b....s.', '..b...s.', '...b..s.', '....bbb.'], p: { b: '7a5a30', s: 'eeeeee' } },
+    { id: 126, n: 'heartCore', key: 'warden_heart', ko: '수호자의 심장', icon: ['........', '.pp..pp.', 'pccppccp', 'pcwccccp', '.pccccp.', '..pccp..', '...pp...', '........'], p: { p: '8020c0', c: 'c040ff', w: 'f0d0ff' } },
+    { id: 127, n: 'scrap', key: 'abyss_scrap', ko: '잔해 조각', icon: ['........', '..bbb...', '.bcccb..', '.bcdccb.', '.bccdcb.', '..bccb..', '...bb...', '........'], p: { b: '3e2a22', c: '6e5246', d: '9a7a68' } },
+    { id: 128, n: 'abyssIngot', key: 'abyss_ingot', ko: '심연철 주괴', icon: ['........', '........', '..hhhhh.', '.hddddh.', 'hddddh..', 'hhhhh...', '........', '........'], p: { h: '2e2830', d: '5a5060' } },
+    { id: 129, n: 'blazePowder', key: 'blaze_powder', ko: '화염 가루', icon: ['........', '...y....', '..yoy.y.', '.yooy...', '..yoooy.', '.y.yoy..', '...y....', '........'], p: { y: 'ffd040', o: 'f08020' } },
+    { id: 170, n: 'voidPearl', key: 'void_pearl', ko: '공허 진주', icon: ['........', '..gggg..', '.gddddg.', '.gdkkdg.', '.gdkkdg.', '.gddddg.', '..gggg..', '........'], p: { g: '1e4a40', d: '2e8a74', k: '0a1a16' } },
+    { id: 171, n: 'voidEye', key: 'void_eye', ko: '공허의 눈', icon: ['........', '..gggg..', '.gyyyyg.', '.gykkyg.', '.gykkyg.', '.gyyyyg.', '..gggg..', '........'], p: { g: '1e4a40', y: '8ad070', k: '0a1a16' } },
+    { id: 172, n: 'shell', key: 'shell', ko: '껍질', icon: ['........', '..pppp..', '.paaaap.', 'paabbaap', 'pabbbbap', 'pppppppp', '........', '........'], p: { p: '6a3e7a', a: '9a6aa8', b: 'c8a8d0' } },
+    { id: 173, n: 'glider', key: 'glider', ko: '활공 날개', slot: 2, dur: 432, icon: ['.g....g.', 'gdg..gdg', 'gddggddg', 'gddddddg', 'gdd..ddg', '.gd..dg.', '..g..g..', '........'], p: { g: '5a4a7a', d: '9a8ac0' } },
+    { id: 174, n: 'boat', key: 'oak_boat', ko: '나무 배', icon: ['........', '........', 'b......b', 'bab..bab', 'baabbaab', '.baaaab.', '..bbbb..', '........'], p: { a: 'a7834f', b: '6b5233' } },
 ];
 // tools: 130 + kind * 4 + tier; kind 0 pickaxe, 1 axe, 2 shovel, 3 sword
 export const TIERS = [
-    { n: 'Wood', ko: '나무', col: 'a7834f', dark: '6b5233', dur: 59, speed: 2, mat: 'planks' },
-    { n: 'Stone', ko: '돌', col: '8f8f8f', dark: '5c5c5c', dur: 131, speed: 4, mat: 'cobble' },
+    { n: 'Wood', ko: '나무', col: 'a7834f', dark: '6b5233', dur: 59, speed: 2, mat: '#planks' },
+    { n: 'Stone', ko: '돌', col: '8f8f8f', dark: '5c5c5c', dur: 131, speed: 4, mat: '#stonecraft' },
     { n: 'Iron', ko: '철', col: 'e6e6e6', dark: 'a8a8a8', dur: 250, speed: 6, mat: 'ingotIron' },
     { n: 'Diamond', ko: '다이아몬드', col: '5fe3dc', dark: '2fa8a0', dur: 1561, speed: 8, mat: 'diamond' },
     // (made at the smithing table from the diamond ones, not crafted)
-    { n: 'Abyss', ko: '심연철', col: '5a5060', dark: '2e2830', dur: 2031, speed: 9, mat: 'abyssIngot', smith: 1 },
+    { n: 'Abyss', ko: '심연철', col: '5a5060', dark: '2e2830', dur: 2031, speed: 9, mat: 'abyssIngot', smith: 1, lv: 4 },
+    { n: 'Gold', ko: '금', col: 'f2d23a', dark: 'c99a10', dur: 32, speed: 12, mat: 'ingotGold', lv: 0 },
 ];
+TIERS.forEach((t, i) => { if (t.lv === undefined) t.lv = i; });
 export const KINDS = [
-    { n: 'pick', ko: '곡괭이', dmg: [2, 3, 4, 5, 6], icon: ['.hhhhh..', 'h.d..hh.', '...d..h.', '....d.h.', '.....d..', '......d.', '.......d', '........'] },
-    { n: 'axe', ko: '도끼', dmg: [3, 4, 5, 6, 7], icon: ['...hh...', '..hhhd..', '..hhd...', '...d....', '..d.....', '.d......', 'd.......', '........'].map(r => r.split('').reverse().join('')) },
-    { n: 'shovel', ko: '삽', dmg: [1, 2, 3, 4, 5], icon: ['......hh', '.....hhh', '.....hh.', '....d...', '...d....', '..d.....', '.d......', 'd.......'] },
-    { n: 'sword', ko: '검', dmg: [4, 5, 6, 7, 8], icon: ['......hh', '.....hhh', '....hhh.', '.d.hhh..', '..ddh...', '..dd....', '.d..d...', 'd.......'] },
+    { n: 'pick', ko: '곡괭이', dmg: [2, 3, 4, 5, 6, 2], icon: ['.hhhhh..', 'h.d..hh.', '...d..h.', '....d.h.', '.....d..', '......d.', '.......d', '........'] },
+    { n: 'axe', ko: '도끼', dmg: [3, 4, 5, 6, 7, 3], icon: ['...hh...', '..hhhd..', '..hhd...', '...d....', '..d.....', '.d......', 'd.......', '........'].map(r => r.split('').reverse().join('')) },
+    { n: 'shovel', ko: '삽', dmg: [1, 2, 3, 4, 5, 1], icon: ['......hh', '.....hhh', '.....hh.', '....d...', '...d....', '..d.....', '.d......', 'd.......'] },
+    { n: 'sword', ko: '검', dmg: [4, 5, 6, 7, 8, 4], icon: ['......hh', '.....hhh', '....hhh.', '.d.hhh..', '..ddh...', '..dd....', '.d..d...', 'd.......'] },
+    { n: 'hoe', ko: '괭이', dmg: [1, 1, 1, 1, 1, 1], icon: ['..hhhh..', '.....hd.', '......d.', '.....d..', '....d...', '...d....', '..d.....', '.d......'] },
 ];
 export const TOOL0 = 130;
 export const TOOL4 = 166;   // (the fifth tier: 166 + kind)
-export function toolId(kind, tier) { return tier === 4 ? TOOL4 + kind : TOOL0 + kind * 4 + tier; }
+// (ids: the first four kinds of the first four tiers 130 .., the hoe 146 .., the abyss tier 166 ..,
+// the rest from XTOOL)
+export const XTOOL = 1900;
+export function toolId(kind, tier) {
+    if (kind < 4 && tier < 4) return TOOL0 + kind * 4 + tier;
+    if (kind === 4 && tier < 4) return 146 + tier;
+    if (tier === 4 && kind < 4) return TOOL4 + kind;
+    return XTOOL + (tier - 4) * 5 + kind;
+}
 export const ARM0 = 150;
 export const ARMT = [
     { n: 'Leather', ko: '가죽', col: '9a5a2a', dark: '7a4018', dur: 60, def: [1, 3, 2, 1], mat: 'leather' },
     { n: 'Iron', ko: '철', col: 'e6e6e6', dark: 'a8a8a8', dur: 200, def: [2, 6, 5, 2], mat: 'ingotIron' },
     { n: 'Diamond', ko: '다이아몬드', col: '5fe3dc', dark: '2fa8a0', dur: 400, def: [3, 8, 6, 3], mat: 'diamond' },
     { n: 'Abyss', ko: '심연철', col: '5a5060', dark: '2e2830', dur: 480, def: [3, 8, 6, 3], mat: 'abyssIngot', smith: 1 },
+    { n: 'Gold', ko: '금', col: 'f2d23a', dark: 'c99a10', dur: 90, def: [2, 5, 3, 1], mat: 'ingotGold' },
+    { n: 'Chain', ko: '사슬', col: 'a0a0a8', dark: '5a5a62', dur: 200, def: [2, 5, 4, 1], mat: 'ironNugget', nocraft: 1 },
 ];
 export const ARMP = [
     { n: 'Helmet', ko: '투구', icon: ['........', '.hhhhhh.', 'hddddddh', 'hd....dh', 'hd....dh', '........', '........', '........'], r: ['M M M', 'M _ M'] },
@@ -235,10 +250,10 @@ export const ARMP = [
     { n: 'Legs', ko: '각반', icon: ['.hhhhhh.', '.hddddh.', '.hd..dh.', '.hd..dh.', '.hd..dh.', '.hd..dh.', '.hh..hh.', '........'], r: ['M M M', 'M _ M', 'M _ M'] },
     { n: 'Boots', ko: '장화', icon: ['........', '........', '.hh..hh.', '.hd..dh.', '.hd..dh.', 'hhd..dhh', 'hhh..hhh', '........'], r: ['M _ M', 'M _ M'] },
 ];
-export function armorId(tier, piece) { return ARM0 + tier * 4 + piece; }
-export const NITEM = 175;   // ids 0 .. NITEM-1
+export function armorId(tier, piece) { return tier < 4 ? ARM0 + tier * 4 + piece : XTOOL + 40 + (tier - 4) * 4 + piece; }
+export let NITEM = 175;   // ids 0 .. NITEM-1 (set again below)
 // the smithing table: a diamond piece and an abyss ingot make the abyss piece
-export const SMITH = [0, 1, 2, 3].map(k => [toolId(k, 3), toolId(k, 4)]).concat([0, 1, 2, 3].map(p => [armorId(2, p), armorId(3, p)]));
+export const SMITH = [0, 1, 2, 3, 4].map(k => [toolId(k, 3), toolId(k, 4)]).concat([0, 1, 2, 3].map(p => [armorId(2, p), armorId(3, p)]));
 
 // ------------------------------------------------------------------ recipes
 // rows of item names ('_' empty); `m` mirrored too; shapeless one-ingredient ones are 1 x 1
@@ -246,10 +261,10 @@ export const RECIPES = [
     { r: ['logOak'], out: 'planks', n: 4 },
     { r: ['logBirch'], out: 'planks', n: 4 },
     { r: ['logSpruce'], out: 'planks', n: 4 },
-    { r: ['planks', 'planks'], out: 'stick', n: 4 },
-    { r: ['planks planks', 'planks planks'], out: 'craft', n: 1 },
-    { r: ['cobble cobble cobble', 'cobble _ cobble', 'cobble cobble cobble'], out: 'furnace', n: 1 },
-    { r: ['planks planks planks', 'planks _ planks', 'planks planks planks'], out: 'chest', n: 1 },
+    { r: ['#planks', '#planks'], out: 'stick', n: 4 },
+    { r: ['#planks #planks', '#planks #planks'], out: 'craft', n: 1 },
+    { r: ['#stonecraft #stonecraft #stonecraft', '#stonecraft _ #stonecraft', '#stonecraft #stonecraft #stonecraft'], out: 'furnace', n: 1 },
+    { r: ['#planks #planks #planks', '#planks _ #planks', '#planks #planks #planks'], out: 'chest', n: 1 },
     { r: ['coal', 'stick'], out: 'torch', n: 4 },
     { r: ['sand sand', 'sand sand'], out: 'sandstone', n: 1 },
     { r: ['stone stone', 'stone stone'], out: 'stoneBricks', n: 4 },
@@ -276,25 +291,27 @@ TIERS.forEach((t, ti) => {
     RECIPES.push({ r: [`${M} ${M}`, `${M} stick`, '_ stick'], out: toolId(1, ti), n: 1, m: 1 });
     RECIPES.push({ r: [M, 'stick', 'stick'], out: toolId(2, ti), n: 1 });
     RECIPES.push({ r: [M, M, 'stick'], out: toolId(3, ti), n: 1 });
+    RECIPES.push({ r: [`${M} ${M}`, '_ stick', '_ stick'], out: toolId(4, ti), n: 1, m: 1 });
 });
-ARMT.forEach((t, ti) => !t.smith && ARMP.forEach((p, pi) => RECIPES.push({ r: p.r.map(row => row.replace(/M/g, t.mat)), out: armorId(ti, pi), n: 1 })));
+ARMT.forEach((t, ti) => !t.smith && !t.nocraft && ARMP.forEach((p, pi) => RECIPES.push({ r: p.r.map(row => row.replace(/M/g, t.mat)), out: armorId(ti, pi), n: 1 })));
 RECIPES.push({ r: ['ingotIron _', '_ flint'], out: 'igniter', n: 1, m: 1 });
 RECIPES.push({ r: ['_ stick string', 'stick _ string', '_ stick string'], out: 'bow', n: 1, m: 1 });
 RECIPES.push({ r: ['flint', 'stick', 'feather'], out: 'arrow', n: 4 });
 // v1.4: the key is gone (the old ruins' gates take its place)
-RECIPES.push({ r: ['ingotIron ingotIron', 'planks planks', 'planks planks'], out: 'smithTable', n: 1 });
+RECIPES.push({ r: ['ingotIron ingotIron', '#planks #planks', '#planks #planks'], out: 'smithTable', n: 1 });
 RECIPES.push({ r: ['scrap ingotGold scrap', 'ingotGold _ ingotGold', 'scrap ingotGold scrap'], out: 'abyssIngot', n: 1 });
 RECIPES.push({ r: ['fireStone'], out: 'blazePowder', n: 2 });
 RECIPES.push({ r: ['blazePowder voidPearl'], out: 'voidEye', n: 1, m: 1 });
 RECIPES.push({ r: ['shell', 'chest', 'shell'], out: 'shellBox', n: 1 });
-RECIPES.push({ r: ['planks _ planks', 'planks planks planks'], out: 'boat', n: 1 });
+RECIPES.push({ r: ['#planks _ #planks', '#planks #planks #planks'], out: 'boat', n: 1 });
 RECIPES.push({ r: ['ashstone ashstone', 'ashstone ashstone'], out: 'blackBricks', n: 4 });
+RECIPES.push({ r: ['ashBrick ashBrick', 'ashBrick ashBrick'], out: 'blackBricks', n: 1 });
 RECIPES.push({ r: ['voidStone voidStone', 'voidStone voidStone'], out: 'voidBricks', n: 4 });
 // furnace: input -> output
 export const SMELT = [
     ['oreIron', 'ingotIron'], ['oreGold', 'ingotGold'], ['sand', 'glass'], ['cobble', 'stone'], ['clayBall', 'brick'],
     ['porkRaw', 'porkCooked'], ['beefRaw', 'steak'], ['chickenRaw', 'chickenCooked'], ['logOak', 'coal'], ['logBirch', 'coal'], ['logSpruce', 'coal'],
-    ['cactus', 'stick'], ['clay', 'bricks'], ['ashstone', 'blackBricks'], ['ashSand', 'glass'], ['debris', 'scrap'],
+    ['clay', 'terracotta'], ['ashstone', 'ashBrick'], ['ashSand', 'glass'], ['debris', 'scrap'],
 ];
 
 // ------------------------------------------------------------------ mobs
@@ -303,59 +320,105 @@ export const SMELT = [
 // 5 the head. Legs swing about their top, the head turns with the mob.
 export const MOBS = [
     null,
-    { n: 'pig', ko: '돼지', hp: 10, w: 0.9, h: 0.9, speed: 1.6, drop: ['porkRaw', 1, 3], boxes: [
+    { n: 'pig', ai: 0, ko: '돼지', hp: 10, w: 0.9, h: 0.9, speed: 1.6, drop: ['porkRaw', 1, 3], boxes: [
         [-5, 6, -8, 5, 14, 8, 'f0a8a8', 0],
         [-4, 8, 8, 4, 16, 15, 'f0a8a8', 5], [-2, 9, 15, 2, 12, 16, 'd88a8a', 5], [-3, 13, 15, -1, 15, 15.5, '202020', 5], [1, 13, 15, 3, 15, 15.5, '202020', 5],
         [-5, 0, 4, -1, 6, 8, 'e09898', 1], [1, 0, 4, 5, 6, 8, 'e09898', 2], [-5, 0, -8, -1, 6, -4, 'e09898', 3], [1, 0, -8, 5, 6, -4, 'e09898', 4]] },
-    { n: 'cow', ko: '소', hp: 10, w: 0.9, h: 1.4, speed: 1.4, drop: ['beefRaw', 1, 3, 'leather', 0, 2], boxes: [
+    { n: 'cow', ai: 0, ko: '소', hp: 10, w: 0.9, h: 1.4, speed: 1.4, drop: ['beefRaw', 1, 3, 'leather', 0, 2], boxes: [
         [-6, 12, -9, 6, 22, 9, '5a3a24', 0], [-6.1, 14, -4, 6.1, 20, 2, 'e8e2d8', 0],
         [-4, 16, 9, 4, 24, 15, '5a3a24', 5], [-3, 16, 15, 3, 19, 16, 'd8b8a0', 5], [-3, 21, 15, -1, 23, 15.5, '202020', 5], [1, 21, 15, 3, 23, 15.5, '202020', 5], [-6, 23, 11, -4, 25, 12, 'e8e2d8', 5], [4, 23, 11, 6, 25, 12, 'e8e2d8', 5],
         [-6, 0, 5, -2, 12, 9, '4a2e1c', 1], [2, 0, 5, 6, 12, 9, '4a2e1c', 2], [-6, 0, -9, -2, 12, -5, '4a2e1c', 3], [2, 0, -9, 6, 12, -5, '4a2e1c', 4]] },
-    { n: 'sheep', ko: '양', hp: 8, w: 0.9, h: 1.3, speed: 1.4, drop: ['wool', 1, 1], boxes: [
+    { n: 'sheep', ai: 0, ko: '양', hp: 8, w: 0.9, h: 1.3, speed: 1.4, drop: ['wool', 1, 1], boxes: [
         [-6, 11, -8, 6, 21, 8, 'eeeeee', 0],
         [-3, 15, 8, 3, 22, 14, 'c8b8a8', 5], [-2, 18, 14, -0.5, 20, 14.5, '202020', 5], [0.5, 18, 14, 2, 20, 14.5, '202020', 5], [-4, 19, 8, 4, 23, 11, 'eeeeee', 5],
         [-5, 0, 4, -1, 11, 8, 'c8b8a8', 1], [1, 0, 4, 5, 11, 8, 'c8b8a8', 2], [-5, 0, -8, -1, 11, -4, 'c8b8a8', 3], [1, 0, -8, 5, 11, -4, 'c8b8a8', 4]] },
-    { n: 'chicken', ko: '닭', hp: 4, w: 0.5, h: 0.7, speed: 1.2, drop: ['chickenRaw', 1, 1, 'feather', 0, 2], boxes: [
+    { n: 'chicken', ai: 0, ko: '닭', hp: 4, w: 0.5, h: 0.7, speed: 1.2, drop: ['chickenRaw', 1, 1, 'feather', 0, 2], boxes: [
         [-3, 4, -4, 3, 10, 4, 'f4f4f4', 0], [-4, 5, -3, -3, 9, 3, 'e4e4e4', 0], [3, 5, -3, 4, 9, 3, 'e4e4e4', 0],
         [-2, 8, 3, 2, 14, 6, 'f4f4f4', 5], [-2, 10, 6, 2, 12, 8, 'f0a020', 5], [-1, 8, 6, 1, 10, 7, 'd82020', 5], [-2, 12, 6, -1, 13, 6.5, '202020', 5], [1, 12, 6, 2, 13, 6.5, '202020', 5],
         [-2, 0, 0, -1, 4, 1, 'f0a020', 1], [1, 0, 0, 2, 4, 1, 'f0a020', 2]] },
-    { n: 'zombie', ko: '좀비', hp: 20, w: 0.6, h: 1.9, speed: 2.3, hostile: 1, burns: 1, dmg: 3, drop: ['flesh', 0, 2], boxes: [
+    { n: 'zombie', ai: 1, ko: '좀비', hp: 20, w: 0.6, h: 1.9, speed: 2.3, hostile: 1, burns: 1, dmg: 3, drop: ['flesh', 0, 2], boxes: [
         [-4, 12, -2, 4, 24, 2, '6b5a3a', 0], [-4, 12, -2.1, 4, 16, 2.1, '4a3a26', 0],
         [-4, 24, -4, 4, 32, 4, '7a9a7a', 5], [-3, 27, 4, -1, 29, 4.5, '3a0a0a', 5], [1, 27, 4, 3, 29, 4.5, '3a0a0a', 5], [-4, 31, -4, 4, 32.5, 4, '3a3a2a', 5],
         [-8, 20, -2, -4, 24, 12, '7a9a7a', 1], [4, 20, -2, 8, 24, 12, '7a9a7a', 2],
         [-4, 0, -2, 0, 12, 2, '3a3a48', 3], [0, 0, -2, 4, 12, 2, '3a3a48', 4]] },
-    { n: 'skeleton', ko: '해골', hp: 20, w: 0.6, h: 1.9, speed: 2.1, hostile: 1, burns: 1, dmg: 3, drop: ['bone', 0, 2, 'arrow', 0, 2], boxes: [
+    { n: 'skeleton', ai: 2, ko: '해골', hp: 20, w: 0.6, h: 1.9, speed: 2.1, hostile: 1, burns: 1, dmg: 3, drop: ['bone', 0, 2, 'arrow', 0, 2], boxes: [
         [-3, 13, -1, 3, 24, 1, 'd8d8cc', 0], [-4, 21, -1.5, 4, 23, -0.5, 'c0c0b4', 0], [-4, 17, -1.5, 4, 19, -0.5, 'c0c0b4', 0],
         [-4, 24, -4, 4, 32, 4, 'e0e0d4', 5], [-3, 27, 4, -1, 29, 4.5, '202020', 5], [1, 27, 4, 3, 29, 4.5, '202020', 5], [-1, 25, 4, 1, 26, 4.5, '505050', 5],
         [-6, 12, -1, -4, 24, 1, 'd8d8cc', 1], [4, 12, -1, 6, 24, 1, 'd8d8cc', 2],
         [-3, 0, -1, -1, 13, 1, 'd8d8cc', 3], [1, 0, -1, 3, 13, 1, 'd8d8cc', 4]] },
-    { n: 'spider', ko: '거미', hp: 16, w: 1.3, h: 0.9, speed: 2.6, hostile: 1, dmg: 2, drop: ['string', 0, 2], boxes: [
+    { n: 'spider', ai: 1, ko: '거미', hp: 16, w: 1.3, h: 0.9, speed: 2.6, hostile: 1, dmg: 2, drop: ['string', 0, 2], boxes: [
         [-5, 4, -12, 5, 12, -2, '2e2620', 0], [-3, 5, -2, 3, 11, 1, '3a3028', 0],
         [-4, 4, 1, 4, 12, 8, '3a3028', 5], [-3, 8, 8, -1, 10, 8.5, 'd01818', 5], [1, 8, 8, 3, 10, 8.5, 'd01818', 5], [-2, 6, 8, -1, 7, 8.5, 'd01818', 5], [1, 6, 8, 2, 7, 8.5, 'd01818', 5],
         [-16, 7, 0, -3, 9, 2, '2a221c', 1], [3, 7, 0, 16, 9, 2, '2a221c', 2], [-16, 7, -4, -3, 9, -2, '2a221c', 3], [3, 7, -4, 16, 9, -2, '2a221c', 4],
         [-15, 6, -8, -3, 8, -6, '2a221c', 2], [3, 6, -8, 15, 8, -6, '2a221c', 1], [-14, 5, 3, -3, 7, 5, '2a221c', 4], [3, 5, 3, 14, 7, 5, '2a221c', 3]] },
     // the ashen depths: a hooded ghost that throws fire, a toad that leaps out of the lava
-    { n: 'wraith', ko: '잿빛 망령', hp: 10, w: 0.9, h: 1.6, speed: 2.0, hostile: 1, fly: 1, fireproof: 1, dmg: 3, drop: ['fireStone', 0, 1], boxes: [
+    { n: 'wraith', ai: 3, ko: '잿빛 망령', hp: 10, w: 0.9, h: 1.6, speed: 2.0, hostile: 1, fly: 1, fireproof: 1, dmg: 3, drop: ['fireStone', 0, 1], boxes: [
         [-5, 8, -4, 5, 22, 4, '8a8486', 0], [-6, 18, -5, 6, 28, 5, '6c6668', 5], [-3, 21, 5, 3, 25, 5.5, '1a1418', 5], [-2, 22, 5.2, -1, 23, 5.7, 'ff8a20', 5], [1, 22, 5.2, 2, 23, 5.7, 'ff8a20', 5],
         [-4, 2, -3, -1, 9, 2, '76707a', 3], [1, 0, -3, 4, 9, 2, '76707a', 4], [-8, 12, -2, -5, 20, 6, '8a8486', 1], [5, 12, -2, 8, 20, 6, '8a8486', 2]] },
-    { n: 'toad', ko: '용암 두꺼비', hp: 12, w: 1.0, h: 0.8, speed: 2.4, hostile: 1, fireproof: 1, dmg: 4, drop: ['fireStone', 0, 1, 'ashSand', 0, 2], boxes: [
+    { n: 'toad', ai: 4, ko: '용암 두꺼비', hp: 12, w: 1.0, h: 0.8, speed: 2.4, hostile: 1, fireproof: 1, dmg: 4, drop: ['fireStone', 0, 1, 'ashSand', 0, 2], boxes: [
         [-7, 2, -6, 7, 11, 7, '8a2a14', 0], [-6, 11, -4, 6, 13, 6, 'b8401c', 0], [-5, 9, 7, -1, 12, 8, 'ffd040', 5], [1, 9, 7, 5, 12, 8, 'ffd040', 5], [-4, 4, 7, 4, 6, 7.5, '3a0a04', 5],
         [-8, 0, 3, -4, 4, 7, '6a1c0c', 1], [4, 0, 3, 8, 4, 7, '6a1c0c', 2], [-9, 0, -6, -4, 5, -1, '6a1c0c', 3], [4, 0, -6, 9, 5, -1, '6a1c0c', 4]] },
     // the void's warden: a great eye in a dark husk, four vanes beating round it
-    { n: 'warden', ko: '공허의 수호자', hp: 200, w: 3.0, h: 3.0, speed: 9, hostile: 1, fly: 1, fireproof: 1, dmg: 5, drop: ['heartCore', 1, 1], boxes: [
+    { n: 'warden', ai: 9, ko: '공허의 수호자', hp: 200, w: 3.0, h: 3.0, speed: 9, hostile: 1, fly: 1, fireproof: 1, dmg: 5, drop: ['heartCore', 1, 1], boxes: [
         [-20, 6, -20, 20, 42, 20, '2a1c3c', 0], [-14, 12, 20, 14, 36, 22, '1a1028', 5], [-10, 16, 22, 10, 32, 23, 'e8e0ff', 5], [-5, 20, 23, 5, 28, 24, 'c040ff', 5], [-2, 22, 24, -0, 26, 24.5, '100818', 5],
         [-44, 20, -8, -20, 24, 10, '4a3068', 1], [20, 20, -8, 44, 24, 10, '4a3068', 2], [-8, 42, -8, 8, 52, 8, '3a2850', 3], [-8, -4, -8, 8, 6, 8, '3a2850', 4]] },
     // v1.4: a tall dark wanderer (leaves you be until you meet its eyes or hit it; it slips away when hurt),
     // a shell-bug that sits on the void city walls and shoots floating bolts, and a boat
-    { n: 'wanderer', ko: '방랑자', hp: 40, w: 0.6, h: 2.9, speed: 3.2, neutral: 1, dmg: 5, drop: ['voidPearl', 0, 1], boxes: [
+    { n: 'wanderer', ai: 5, ko: '방랑자', hp: 40, w: 0.6, h: 2.9, speed: 3.2, neutral: 1, dmg: 5, drop: ['voidPearl', 0, 1], boxes: [
         [-4, 30, -2, 4, 42, 2, '1a1620', 0],
         [-4, 42, -4, 4, 50, 4, '1e1a26', 5], [-3.5, 45, 4, -1, 46, 4.5, 'd070ff', 5], [1, 45, 4, 3.5, 46, 4.5, 'd070ff', 5],
         [-6, 12, -1, -4, 42, 1, '141018', 1], [4, 12, -1, 6, 42, 1, '141018', 2],
         [-3, 0, -1, -1, 30, 1, '141018', 3], [1, 0, -1, 3, 30, 1, '141018', 4]] },
-    { n: 'shellbug', ko: '껍질벌레', hp: 30, w: 1.0, h: 1.0, speed: 0, hostile: 1, still: 1, fireproof: 1, dmg: 0, drop: ['shell', 0, 1], boxes: [
+    { n: 'shellbug', ai: 9, ko: '껍질벌레', hp: 30, w: 1.0, h: 1.0, speed: 0, hostile: 1, still: 1, fireproof: 1, dmg: 0, drop: ['shell', 0, 1], boxes: [
         [-8, 0, -8, 8, 8, 8, '9a6aa8', 0], [-7, 8, -7, 7, 10, 7, 'e8e0b0', 0], [-3, 9, 7, 3, 12, 7.5, '6aa040', 0],
         [-8, 10, -8, 8, 16, 8, '8a5e98', 5]] },
-    { n: 'boat', ko: '나무 배', hp: 4, w: 1.3, h: 0.55, speed: 0, still: 1, boat: 1, drop: ['boat', 1, 1], boxes: [
+    { n: 'boat', ai: 9, ko: '나무 배', hp: 4, w: 1.3, h: 0.55, speed: 0, still: 1, boat: 1, drop: ['boat', 1, 1], boxes: [
         [-10, 0, -14, 10, 2, 14, '6b5233', 0], [-11, 0, -14, -9, 8, 14, '8a6a40', 0], [9, 0, -14, 11, 8, 14, '8a6a40', 0],
         [-9, 0, 13, 9, 8, 15, '8a6a40', 0], [-9, 0, -15, 9, 8, -13, '8a6a40', 0], [-9, 2, -2, 9, 3, 2, '7a5a34', 0]] },
+    // v2.0: the people of the villages and their iron keeper, a mushroom that bursts, the raiders of
+    // the watchtowers; in the depths the ash-folk, their boars and the black skeletons of the forts
+    { n: 'villager', ai: 7, ko: '마을 사람', hp: 20, w: 0.6, h: 1.95, speed: 1.6, drop: [], egg: ['6a4a2a', 'c8a080'], boxes: [
+        [-4, 12, -3, 4, 24, 3, '6a4a2a', 0], [-4.2, 4, -3.2, 4.2, 14, 3.2, '5a3e22', 0], [-6, 17, 2, 6, 21, 6, '6a4a2a', 0], [-2, 18, 5, 2, 20, 6.5, 'c8a080', 0],
+        [-4, 24, -4, 4, 34, 4, 'c8a080', 5], [-1, 26, 4, 1, 30, 6, 'b88a6a', 5], [-3, 29, 4, -1, 30, 4.5, '2a6a2a', 5], [1, 29, 4, 3, 30, 4.5, '2a6a2a', 5], [-4.2, 32, -4.2, 4.2, 34.5, 4.2, '3a2a1a', 5],
+        [-4, 0, -2, 0, 4, 2, '3a2a1a', 3], [0, 0, -2, 4, 4, 2, '3a2a1a', 4]] },
+    { n: 'golem', ai: 8, ko: '철 수호병', hp: 100, w: 1.3, h: 2.7, speed: 1.4, dmg: 10, drop: ['ingotIron', 3, 5], egg: ['d8d0c8', '6a8a4a'], boxes: [
+        [-9, 20, -5, 9, 36, 5, 'd0c8c0', 0], [-5, 14, -3, 5, 22, 3, 'c0b8b0', 0], [-6, 26, 4.5, 6, 30, 5.5, '6a8a4a', 0],
+        [-4, 36, -4, 4, 46, 4, 'd8d0c8', 5], [-1, 37, 4, 1, 42, 6, 'b8b0a8', 5], [-3, 42, 4, -1, 43, 4.5, 'c02020', 5], [1, 42, 4, 3, 43, 4.5, 'c02020', 5],
+        [-13, 6, -3, -9, 36, 3, 'c8c0b8', 1], [9, 6, -3, 13, 36, 3, 'c8c0b8', 2],
+        [-7, 0, -3, -1, 14, 3, 'b8b0a8', 3], [1, 0, -3, 7, 14, 3, 'b8b0a8', 4]] },
+    { n: 'bombshroom', ai: 6, ko: '폭발 버섯', hp: 20, w: 0.6, h: 1.6, speed: 2.4, hostile: 1, dmg: 0, drop: ['gunpowder', 0, 2], egg: ['c42c2c', 'f0f0e8'], boxes: [
+        [-3, 6, -3, 3, 16, 3, 'e8e0cc', 0], [-7, 16, -7, 7, 24, 7, 'c42c2c', 5], [-5, 24, -5, 5, 26, 5, 'c42c2c', 5], [-6, 20, 7, -3, 23, 7.5, 'f0f0e8', 5], [2, 18, 7, 5, 21, 7.5, 'f0f0e8', 5],
+        [-2, 11, 3, -0.5, 13, 3.5, '1a1a1a', 0], [0.5, 11, 3, 2, 13, 3.5, '1a1a1a', 0],
+        [-3, 0, -2, 0, 6, 1, 'd8d0bc', 3], [0, 0, -1, 3, 6, 2, 'd8d0bc', 4]] },
+    { n: 'raider', ai: 2, ko: '약탈자', hp: 24, w: 0.6, h: 1.95, speed: 2.2, hostile: 1, dmg: 3, drop: ['arrow', 0, 2, 'jade', 0, 1], egg: ['4a4a52', '8a8a8a'], boxes: [
+        [-4, 12, -2, 4, 24, 2, '3a3a44', 0], [-4.2, 18, -2.2, 4.2, 24, 2.2, '5a3a2a', 0],
+        [-4, 24, -4, 4, 32, 4, '9a9a96', 5], [-1, 25, 4, 1, 29, 6, '8a8a86', 5], [-3, 28, 4, -1, 29, 4.5, '1a1a1a', 5], [1, 28, 4, 3, 29, 4.5, '1a1a1a', 5], [-4.2, 31, -4.2, 4.2, 32.5, 4.2, '2a2a2a', 5],
+        [-8, 12, -2, -4, 24, 2, '3a3a44', 1], [4, 12, -2, 8, 24, 2, '3a3a44', 2],
+        [-4, 0, -2, 0, 12, 2, '2a2a32', 3], [0, 0, -2, 4, 12, 2, '2a2a32', 4]] },
+    { n: 'ashpig', ai: 5, ko: '잿빛 돼지인', hp: 16, w: 0.6, h: 1.95, speed: 2.4, fireproof: 1, dmg: 5, drop: ['goldNugget', 0, 3], egg: ['c88a7a', 'f2d23a'], boxes: [
+        [-4, 12, -2, 4, 24, 2, '6a4a2a', 0], [-4.2, 20, -2.2, 4.2, 22, 2.2, 'f2d23a', 0],
+        [-5, 24, -4, 5, 32, 4, 'd09888', 5], [-2, 25, 4, 2, 28, 6, 'c08070', 5], [-3, 29, 4, -1, 30, 4.5, '1a1a1a', 5], [1, 29, 4, 3, 30, 4.5, '1a1a1a', 5], [-6, 29, -1, -5, 33, 2, 'd09888', 5], [5, 29, -1, 6, 33, 2, 'd09888', 5],
+        [-8, 12, -2, -4, 24, 2, 'd09888', 1], [4, 12, -2, 8, 24, 2, 'd09888', 2],
+        [-4, 0, -2, 0, 12, 2, '5a3a1a', 3], [0, 0, -2, 4, 12, 2, '5a3a1a', 4]] },
+    { n: 'ashboar', ai: 1, ko: '잿빛 멧돼지', hp: 40, w: 1.3, h: 1.4, speed: 2.6, hostile: 1, fireproof: 1, dmg: 6, drop: ['porkRaw', 2, 4, 'leather', 0, 1], egg: ['8a5a4a', 'e8d8c0'], boxes: [
+        [-7, 8, -11, 7, 22, 9, '8a5a4a', 0], [-3, 21, -8, 3, 25, 6, 'a07060', 0],
+        [-6, 9, 9, 6, 19, 18, '7a4a3a', 5], [-6, 9, 18, -4, 15, 20, 'e8d8c0', 5], [4, 9, 18, 6, 15, 20, 'e8d8c0', 5], [-4, 16, 18, -2, 18, 18.5, '1a1a1a', 5], [2, 16, 18, 4, 18, 18.5, '1a1a1a', 5],
+        [-6, 0, 4, -2, 8, 8, '6a3a2a', 1], [2, 0, 4, 6, 8, 8, '6a3a2a', 2], [-6, 0, -10, -2, 8, -6, '6a3a2a', 3], [2, 0, -10, 6, 8, -6, '6a3a2a', 4]] },
+    { n: 'blackskel', ai: 1, ko: '검은 해골', hp: 20, w: 0.7, h: 2.4, speed: 2.3, hostile: 1, fireproof: 1, dmg: 8, drop: ['coal', 0, 1, 'bone', 0, 2, 'skullBlack', 0, 1], egg: ['1e1e22', '4a4a4e'], boxes: [
+        [-3.5, 16, -1.2, 3.5, 30, 1.2, '2a2a2e', 0], [-4.5, 26, -1.7, 4.5, 28, -0.7, '1e1e22', 0], [-4.5, 21, -1.7, 4.5, 23, -0.7, '1e1e22', 0],
+        [-5, 30, -5, 5, 40, 5, '2e2e32', 5], [-3.5, 34, 5, -1.2, 36, 5.5, '0a0a0a', 5], [1.2, 34, 5, 3.5, 36, 5.5, '0a0a0a', 5],
+        [-7, 15, -1.2, -4.5, 30, 1.2, '2a2a2e', 1], [4.5, 15, -1.2, 7, 30, 1.2, '2a2a2e', 2], [5, 6, 0, 6.5, 22, 1.5, '5a5a5a', 2],
+        [-3.5, 0, -1.2, -1.2, 16, 1.2, '2a2a2e', 3], [1.2, 0, -1.2, 3.5, 16, 1.2, '2a2a2e', 4]] },
 ];
+
+// ------------------------------------------------------------------ v2.0: the families of blocks and items (content.mjs)
+export const CONTENT = makeContent(BLOCKS, ITEMS, RECIPES, SMELT);
+// a spawn egg for each mob (but the warden, the shell-bug and the boat)
+MOBS.forEach((m, i) => {
+    if (!m || m.ai === 9) return;
+    const c = m.egg || [m.boxes[0][6], m.boxes[m.boxes.length - 1][6]];
+    CONTENT.item({ n: 'egg_' + m.n, key: m.n + '_spawn_egg', ko: m.ko + ' 생성 알', cat: 7, icon: CONTENT.ICON.egg2, p: { a: c[0], b: c[1] }, spawn: i });
+});
+NBLOCK = BLOCKS.length;
+NITEM = Math.max(...ITEMS.map(i => i.id)) + 1;
+

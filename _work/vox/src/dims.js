@@ -17,12 +17,19 @@ function genColumnU(x, z) {
   let sand = noise2(x - (0 - 333), z - (0 - 6667), 14);
   let bas = noise2(x - (0 - 4441), z - (0 - 1123), 9);
   let ci = wcol(x, z);
-  HMAP[ci] = f; BIOM[ci] = 9;
+  ashBiome(x, z);
+  HMAP[ci] = f; BIOM[ci] = abm;
+  // the ground of each part of the depths: moss of the two forests, the wailing sand of the
+  // valleys, basalt and black rock of the deltas
+  let top = 48, under = 48;
+  if (abm == 22) { top = I_emberMoss; } if (abm == 23) { top = I_indigoMoss; }
+  if (abm == 24) { top = I_wailSand; under = I_wailSoil; if (sand > 0) { top = I_wailSoil; } }
+  if (abm == 25) { top = 53; under = I_blackrock; if (bas > 0.2) { top = I_blackrock; } if (sand > 0.45) { top = I_magma; } }
   let y = 0, v = 0, i = (ci - 1) * WY + 1;
   while (y < WY) {
     v = 0;
-    if (y <= f) { v = 48; if (y == f) { if (sand > 0.3) { v = 49; } } if (bas > 0.6) { v = 53; } }
-    if (y >= c) { v = 48; if (bas > 0.6) { v = 53; } }
+    if (y <= f) { v = 48; if (y >= f - 3) { v = under; } if (y == f) { v = top; if (abm == 9) { if (sand > 0.3) { v = 49; } } } if (bas > 0.6) { v = 53; } }
+    if (y >= c) { v = 48; if (bas > 0.6) { v = 53; } if (abm == 25) { if (bas > 0) { v = I_blackrock; } } }
     if (v == 0) { if (y <= 12) { v = 35; } }
     if (y == 0 || y >= UH - 1) { v = 6; }
     if (y == 1 || y == UH - 2) { if (rnd() < 0.5) { v = 6; } }
@@ -42,9 +49,55 @@ function fortZ(x) {
   if (mod(x, 80) == 40) { M_inoise(idiv(x, 80) * 37 - (0 - 811), 0, 3); if (nI > 0 - 200) { r = 1; } }
   return r;
 }
+// the part of the depths a column is in: abm (9 wastes, 22 ember forest, 23 indigo forest,
+// 24 wailing valley, 25 basalt deltas)
+let abm = 9;
+function ashBiome(x, z) {
+  let a = noise2(x - (0 - 7001), z - (0 - 3331), 70), b = noise2(x - (0 - 1203), z - (0 - 9907), 64);
+  abm = 9;
+  if (a > 0.25) { abm = 22; if (b > 0.2) { abm = 23; } }
+  if (a < -0.3) { abm = 24; if (b > 0.25) { abm = 25; } }
+}
 function featuresU(cx, cz) {
   chunkSeed(cx, cz, 2);
   veins(51, 6, 3, 7, 14, 50);
+  veins(I_oreQuartz, 8, 4, 10, 10, 54); veins(I_oreAshGold, 5, 4, 10, 10, 54);
+  veins(I_blackrock, 2, 20, 40, 10, 50);
+  // the forests, the valleys and the deltas: what grows and lies on their floor
+  let lx = 0;
+  while (lx < 16) {
+    let lz = 0;
+    while (lz < 16) {
+      let x = gx0 + lx, z = gz0 + lz, ci = wcol(x, z), y = HMAP[ci], bi = BIOM[ci], i = wi(x, y, z), r = rnd();
+      if (y > 13 && y < UH - 6) { if (W[i + 1] == 0) {
+        if (bi == 22 || bi == 23) {
+          let inner = 0;
+          if (lx >= 3 && lx <= 12 && lz >= 3 && lz <= 12) { inner = 1; }
+          if (r < 0.03 && inner == 1) { growTreeKind(x, y, z, 6 + bi - 22); }
+          else {
+            if (r < 0.2) { if (bi == 22) { W[i + 1] = I_emberRoots; } else { W[i + 1] = I_indigoRoots; } }
+            else { if (r < 0.24) { W[i + 1] = I_emberSapling + (bi - 22) * 0; if (bi == 23) { W[i + 1] = I_indigoSapling; } } else { if (r < 0.3) { if (bi == 23) { W[i + 1] = I_ashSprouts; } } } }
+          }
+        }
+        if (bi == 24) {
+          if (r < 0.006) { fossilAsh(x, y + 1, z); }
+          else { if (r < 0.02) { W[i + 1] = I_wailFire; } }
+        }
+        if (bi == 25) { if (r < 0.05) { let h = rndI(1, 4), k = 1; while (k <= h) { W[i + k] = 53; k = k + 1; } } }
+      } }
+      // vines hanging from the ceiling of the forests
+      if (bi == 22 || bi == 23) {
+        if (rnd() < 0.03) {
+          let yy = UH - 3;
+          while (yy > y + 4 && W[wi(x, yy, z)] != 0) { yy = yy - 1; }
+          if (yy > y + 4) { let n = rndI(2, 7), vb = I_emberVines; if (bi == 23) { vb = I_indigoVines; } while (n > 0 && yy > y + 2) { W[wi(x, yy, z)] = vb; yy = yy - 1; n = n - 1; } }
+        }
+      }
+      lz = lz + 1;
+    }
+    lx = lx + 1;
+  }
+  featuresBastion(cx, cz);
   // the ashen debris, deep and rare (whatever is round it)
   veins(59, 1.6, 1, 3, 8, 22);
   veins(49, 3, 10, 20, 12, 30);
@@ -111,7 +164,7 @@ function fortRun(x, z, dx, dz) {
     if (cross == 1) {
       if (s == 3) {
         let cxs = ax + dz * 2 - dx * 0, czs = az + dx * 2;
-        if (cxs >= gx0 && cxs <= gx1 && czs >= gz0 && czs <= gz1) { fortSet(cxs, FORTY + 1, czs, 37); }
+        if (cxs >= gx0 && cxs <= gx1 && czs >= gz0 && czs <= gz1) { fortSet(cxs, FORTY + 1, czs, 37); let spx = ax - dz * 0, spz = az; if (spx >= gx0 && spx <= gx1 && spz >= gz0 && spz <= gz1) { W[wi(spx, FORTY + 1, spz)] = I_spawner_wraith; spawnerNote(spx, FORTY + 1, spz); } }
       }
     }
     t = t + 1;
@@ -338,7 +391,7 @@ function arrive() {
     px = 0.5; pz = 0 - 47.5; py = topY + 1; yaw = 0;
     if (bossDead == 0) { bossSpawn(); }
   }
-  if (travelKind == 3) { findSpawn(); px = spawnX; py = spawnY; pz = spawnZ; }
+  if (travelKind == 3) { if (spawnSet == 0) { findSpawn(); } px = spawnX; py = spawnY; pz = spawnZ; respawn0(); }
   if (travelKind == 4 || travelKind == 5) { farArrive(); }
   fallTop = py; gateCool = 1;
   gState = 2; txClear();
@@ -446,7 +499,7 @@ function useVoidKey() {
       if (ok == 1) {
         a = x - 1;
         while (a <= x + 1) { let c = z - 1; while (c <= z + 1) { setBlock(a, y, c, 56); c = c + 1; } a = a + 1; }
-        if (gameMode == 0) { takeHeld(1); }
+        if (mod(gameMode, 2) == 0) { takeHeld(1); }
         msgShow('공허 관문이 열렸습니다. 올라서면 공허의 섬으로 갑니다', 4);
       } else { msgShow('공허 관문은 3 x 3 평평한 바닥에 놓아야 합니다', 3); }
     }
@@ -481,7 +534,7 @@ function bossStep(dt) {
       if (bossPh == 0) {
         bossAng = bossAng + dt * 16;
         tx = cosd(bossAng) * 40; tz = sind(bossAng) * 40; ty = 52 + sind(bossT * 40) * 3;
-        if (nCrystal == 0) { if (bossT > 6) { if (gameMode == 0 && dead == 0) {
+        if (nCrystal == 0) { if (bossT > 6) { if (mod(gameMode, 2) == 0 && dead == 0) {
           bossT = 0; bossN = bossN + 1;
           if (mod(bossN, 2) == 0) { bossPh = 2; } else { bossPh = 1; }
         } } }
@@ -540,4 +593,13 @@ function crystalBreak(x, y, z) {
   if (dx * dx + dy * dy + dz * dz < 16) { hurt(6, '수호 수정이 터졌습니다'); }
   if (nCrystal - 1 > 0) { msgShow(`수호 수정이 부서졌습니다 (남은 수정 ${nCrystal - 1})`, 3); }
   else { msgShow('마지막 수정이 부서졌습니다 - 공허의 수호자가 깨어납니다!', 4); }
+}
+
+// bones of something great in the wailing valleys
+function fossilAsh(x, y, z) {
+  if (x - 2 >= gx0 && x + 2 <= gx1 && z - 2 >= gz0 && z + 2 <= gz1) {
+    let k = 0;
+    while (k < 5) { W[wi(x, y + k, z)] = I_boneBlock; k = k + 1; }
+    W[wi(x - 1, y + 3, z)] = I_boneBlock; W[wi(x + 1, y + 3, z)] = I_boneBlock; W[wi(x - 2, y + 2, z)] = I_boneBlock; W[wi(x + 2, y + 2, z)] = I_boneBlock;
+  }
 }

@@ -38,7 +38,7 @@ function takeHeld(n) {
 }
 // the tool in hand wears; it breaks when worn through
 function wearHeld(n) {
-  if (gameMode == 0) {
+  if (mod(gameMode, 2) == 0) {
     let id = INVI[hotSel];
     if (ITDUR[id + 1] > 0) {
       INVD[hotSel] = INVD[hotSel] + n;
@@ -69,13 +69,14 @@ function craftMatch() {
     let h = r1 - r0 + 1, w = c1 - c0 + 1, r = 1;
     while (r <= NREC && craftOut == 0) {
       if (RW[r] == w && RH[r] == h) {
-        let ok = 1, okm = RM[r], i = 0, j = 0, g = 0;
+        let ok = 1, okm = RM[r], i = 0, j = 0, g = 0, rc = 0;
         while (i < h) {
           j = 0;
           while (j < w) {
             g = CGI[(r0 + i) * cgSize + c0 + j + 1];
-            if (g != RC[(r - 1) * 9 + i * 3 + j + 1]) { ok = 0; }
-            if (okm == 1) { if (g != RC[(r - 1) * 9 + i * 3 + (w - 1 - j) + 1]) { okm = 0; } }
+            rc = RC[(r - 1) * 9 + i * 3 + j + 1];
+            if (g != rc) { if (rc >= 0 || g == 0) { ok = 0; } else { if (ITTAG[g + 1] != 0 - rc) { ok = 0; } } }
+            if (okm == 1) { rc = RC[(r - 1) * 9 + i * 3 + (w - 1 - j) + 1]; if (g != rc) { if (rc >= 0 || g == 0) { okm = 0; } else { if (ITTAG[g + 1] != 0 - rc) { okm = 0; } } } }
             j = j + 1;
           }
           i = i + 1;
@@ -96,13 +97,13 @@ function craftTake() {
 }
 
 // ---------------------------------------------------------------- furnaces and chests
-let FUX = [], FUY = [], FUZ = [], FUON = [], FII = [], FIN = [], FFI = [], FFN = [], FOI = [], FON = [], FUB = [], FUBM = [], FUP = [];
+let FUX = [], FUY = [], FUZ = [], FUON = [], FII = [], FIN = [], FFI = [], FFN = [], FOI = [], FON = [], FUB = [], FUBM = [], FUP = [], FUF = [];
 let CHX = [], CHY = [], CHZ = [], CHON = [], CHI = [], CHN = [], CHD = [];
 function storesInit() {
-  FUX = []; FUY = []; FUZ = []; FUON = []; FII = []; FIN = []; FFI = []; FFN = []; FOI = []; FON = []; FUB = []; FUBM = []; FUP = [];
+  FUX = []; FUY = []; FUZ = []; FUON = []; FII = []; FIN = []; FFI = []; FFN = []; FOI = []; FON = []; FUB = []; FUBM = []; FUP = []; FUF = [];
   CHX = []; CHY = []; CHZ = []; CHON = []; CHI = []; CHN = []; CHD = [];
   let i = 0;
-  while (i < NFUR) { FUX.push(0); FUY.push(0); FUZ.push(0); FUON.push(0); FII.push(0); FIN.push(0); FFI.push(0); FFN.push(0); FOI.push(0); FON.push(0); FUB.push(0); FUBM.push(0); FUP.push(0); i = i + 1; }
+  while (i < NFUR) { FUX.push(0); FUY.push(0); FUZ.push(0); FUON.push(0); FII.push(0); FIN.push(0); FFI.push(0); FFN.push(0); FOI.push(0); FON.push(0); FUB.push(0); FUBM.push(0); FUP.push(0); FUF.push(1); i = i + 1; }
   i = 0;
   while (i < NCHEST) { CHX.push(0); CHY.push(0); CHZ.push(0); CHON.push(0); i = i + 1; }
   i = 0;
@@ -112,14 +113,14 @@ let fFound = 0;
 function furnaceFind(x, y, z) {
   fFound = 0;
   let i = 1;
-  while (i <= NFUR) { if (FUON[i] == 1) { if (FUX[i] == x && FUY[i] == y + dim * 100 && FUZ[i] == z) { fFound = i; } } i = i + 1; }
+  while (i <= NFUR) { if (FUON[i] == 1) { if (FUX[i] == x && FUY[i] == y + dim * 1000 && FUZ[i] == z) { fFound = i; } } i = i + 1; }
 }
 function furnaceAt(x, y, z) {
   furnaceFind(x, y, z);
   if (fFound == 0) {
     let i = 1;
     while (i <= NFUR && fFound == 0) { if (FUON[i] == 0) { fFound = i; } i = i + 1; }
-    if (fFound > 0) { let f = fFound; FUON[f] = 1; FUX[f] = x; FUY[f] = y + dim * 100; FUZ[f] = z; FII[f] = 0; FIN[f] = 0; FFI[f] = 0; FFN[f] = 0; FOI[f] = 0; FON[f] = 0; FUB[f] = 0; FUBM[f] = 0; FUP[f] = 0; }
+    if (fFound > 0) { let f = fFound; FUON[f] = 1; FUX[f] = x; FUY[f] = y + dim * 1000; FUZ[f] = z; FII[f] = 0; FIN[f] = 0; FFI[f] = 0; FFN[f] = 0; FOI[f] = 0; FON[f] = 0; FUB[f] = 0; FUBM[f] = 0; FUP[f] = 0; FUF[f] = 1; if (blockAt(x, y, z) != 18) { FUF[f] = 2; } }
   }
 }
 function furnaceOpen(x, y, z) {
@@ -148,7 +149,7 @@ function furnacesStep(dt) {
       if (FUB[f] > 0) {
         FUB[f] = FUB[f] - dt;
         if (can == 1) {
-          FUP[f] = FUP[f] + dt;
+          FUP[f] = FUP[f] + dt * FUF[f];
           if (FUP[f] >= SMELTT) {
             FUP[f] = 0;
             FIN[f] = FIN[f] - 1; if (FIN[f] <= 0) { FII[f] = 0; FIN[f] = 0; }
@@ -164,7 +165,7 @@ let cFound = 0;
 function chestFind(x, y, z) {
   cFound = 0;
   let i = 1;
-  while (i <= NCHEST) { if (CHON[i] == 1) { if (CHX[i] == x && CHY[i] == y + dim * 100 && CHZ[i] == z) { cFound = i; } } i = i + 1; }
+  while (i <= NCHEST) { if (CHON[i] == 1) { if (CHX[i] == x && CHY[i] == y + dim * 1000 && CHZ[i] == z) { cFound = i; } } i = i + 1; }
 }
 function chestAt(x, y, z) {
   chestFind(x, y, z);
@@ -172,7 +173,7 @@ function chestAt(x, y, z) {
     let i = 1;
     while (i <= NCHEST && cFound == 0) { if (CHON[i] == 0) { cFound = i; } i = i + 1; }
     if (cFound > 0) {
-      let c = cFound; CHON[c] = 1; CHX[c] = x; CHY[c] = y + dim * 100; CHZ[c] = z; chestNew = 1;
+      let c = cFound; CHON[c] = 1; CHX[c] = x; CHY[c] = y + dim * 1000; CHZ[c] = z; chestNew = 1;
       let k = 1;
       while (k <= 27) { CHI[(c - 1) * 27 + k] = 0; CHN[(c - 1) * 27 + k] = 0; CHD[(c - 1) * 27 + k] = 0; k = k + 1; }
     }
@@ -183,12 +184,16 @@ function chestOpen(x, y, z) {
   chestNew = 0;
   chestAt(x, y, z);
   // a chest the world made (the depths, the void): its loot the first time it is opened
-  if (chestNew == 1) { lootUnder = blockAt(x, y - 1, z); if (dim != 0 || lootUnder == 60) { chestLoot(cFound); } }
+  if (chestNew == 1) {
+    lootUnder = blockAt(x, y - 1, z);
+    let lt = lootAt(x, y, z);
+    if (lt > 0) { lootTable(cFound, lt); } else { if (dim != 0 || lootUnder == 60) { chestLoot(cFound); } }
+  }
   if (cFound > 0) { curChest = cFound; uiOpen(4); } else { msgShow('상자가 너무 많습니다', 2); }
 }
 // a furnace or chest broken: what was in it falls out
 function chestOrFurnaceGone(x, y, z, b) {
-  if (b == 18) {
+  if (BUSE[b + 1] == U_FURNACE) {
     furnaceFind(x, y, z);
     if (fFound > 0) {
       let f = fFound;
@@ -198,7 +203,7 @@ function chestOrFurnaceGone(x, y, z, b) {
       FUON[f] = 0;
     }
   }
-  if (b == 37) {
+  if (BUSE[b + 1] == U_CHEST && b != I_voidChest) {
     chestFind(x, y, z);
     if (cFound > 0) {
       let k = 1, j = 0;
@@ -222,7 +227,7 @@ function slotGet(s) {
   else { if (s == 53) { gI = FOI[curFur]; gN = FON[curFur]; }
   else { if (s == 54) { gI = SMI1; gN = SMN1; gD = SMD1; } else { if (s == 55) { gI = SMI2; gN = SMN2; } else { if (s == 56) { gI = smOut; gN = 1; gD = SMD1; }
   else { if (s <= 87) { let j = (curChest - 1) * 27 + s - 60; gI = CHI[j]; gN = CHN[j]; gD = CHD[j]; }
-  else { let k = uiPage * 36 + s - 100; if (k <= PAL.length) { gI = PAL[k]; gN = ITST[gI + 1]; } } } } } } } } } } }
+  else { let k = uiPage * 36 + s - 100; gI = palAt(k); gN = ITST[gI + 1]; } } } } } } } } } }
   if (gI == 0) { gN = 0; gD = 0; }
 }
 function slotSet(s, i, n, d) {
@@ -398,4 +403,32 @@ function chestLoot(c) {
   }
   // a ship's hold (on its deck of planks): the glider
   if (dim == 2) { if (lootUnder == 5) { CHI[(c - 1) * 27 + 14] = 173; CHN[(c - 1) * 27 + 14] = 1; CHD[(c - 1) * 27 + 14] = 0; } }
+}
+
+// the creative list: the tab uiTab (NCAT: what the search found)
+let uiTab = 0, SRCH = [], srchText = '';
+function palLen() {
+  let r = SRCH.length;
+  if (uiTab < NCAT) { r = PALCN[uiTab + 1]; }
+  return r;
+}
+function palAt(k) {
+  let r = 0;
+  if (k >= 1 && k <= palLen()) { if (uiTab < NCAT) { r = PALC[PALC0[uiTab + 1] + k - 1]; } else { r = SRCH[k]; } }
+  return r;
+}
+function palSearch() {
+  mouseFree();
+  ask('찾을 아이템 이름 (한국어나 영어 일부)');
+  let s = lower(answer());
+  hideAnswer();
+  SRCH = [];
+  if (strlen(s) > 0) {
+    let id = 1;
+    while (id < NITEM) {
+      if (ITCAT[id + 1] >= 0) { if (indexOf(ITNAME[id + 1], s) > 0 || indexOf(ITKEY[id + 1], s) > 0) { SRCH.push(id); } }
+      id = id + 1;
+    }
+  }
+  srchText = s; uiTab = NCAT; uiPage = 0;
 }

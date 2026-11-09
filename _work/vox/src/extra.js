@@ -58,154 +58,6 @@ function effectsHud() {
   while (j <= 101) { txOff(j); j = j + 1; }
 }
 
-// ---------------------------------------------------------------- game rules
-let grKeep = 0, grDay = 1, grMobs = 1, grRegen = 1, grFall = 1;
-function gameruleSet(name, v) {
-  let ok = 1;
-  if (name == 'keepinventory') { grKeep = v; } else { if (name == 'dodaylightcycle') { grDay = v; } else { if (name == 'domobspawning') { grMobs = v; }
-  else { if (name == 'naturalregeneration') { grRegen = v; } else { if (name == 'falldamage') { grFall = v; } else { ok = 0; } } } } }
-  return ok;
-}
-function gameruleGet(name) {
-  let v = 0 - 1;
-  if (name == 'keepinventory') { v = grKeep; } if (name == 'dodaylightcycle') { v = grDay; } if (name == 'domobspawning') { v = grMobs; }
-  if (name == 'naturalregeneration') { v = grRegen; } if (name == 'falldamage') { v = grFall; }
-  return v;
-}
-
-// ---------------------------------------------------------------- commands (T or /)
-let CMW = [];
-function cmdSplit(s) {
-  CMW = [];
-  let i = 1, n = strlen(s), st = 1;
-  while (i <= n + 1) {
-    let sp = 0;
-    // (a space: by indexOf, since ' ' == '0' as numbers)
-    if (i > n) { sp = 1; } else { if (indexOf(' ', charAt(s, i)) == 1) { sp = 1; } }
-    if (sp == 1) { if (i > st) { CMW.push(substr(s, st, i - 1)); } st = i + 1; }
-    i = i + 1;
-  }
-}
-// lower case (A..Z only)
-function lower(w) {
-  let n = strlen(w), r = w;
-  if (n > 0) {
-    let up = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', lo = 'abcdefghijklmnopqrstuvwxyz';
-    let c = charAt(w, 1), k = indexOf(up, c);
-    if (k > 0) { c = charAt(lo, k); }
-    r = c;
-    let i = 2;
-    while (i <= n) { c = charAt(w, i); k = indexOf(up, c); if (k > 0) { c = charAt(lo, k); } r = `${r}${c}`; i = i + 1; }
-  }
-  return r;
-}
-// words a..b joined with spaces
-function wordsFrom(a, b) {
-  let r = cw(a), i = a + 1;
-  while (i <= b) { r = `${r} ${cw(i)}`; i = i + 1; }
-  return r;
-}
-// the k-th word ('' past the end)
-function cw(k) {
-  let r = '';
-  if (k <= CMW.length) { r = CMW[k]; }
-  return r;
-}
-// an item by its English or Korean name, or its number (0: none)
-function itemByName(nm) {
-  let c = indexOf(nm, ':');
-  if (c > 0) { nm = substr(nm, c + 1, strlen(nm)); }
-  let r = 0, id = 1;
-  if (nm * 1 > 0) { if (nm * 1 < ITKEY.length) { r = Math.floor(nm * 1); } }
-  while (id < ITKEY.length && r == 0) {
-    if (ITKEY[id + 1] == nm) { r = id; } else { if (ITNAME[id + 1] == nm) { r = id; } }
-    id = id + 1;
-  }
-  if (r > 0) { if (ITNAME[r + 1] == ' ') { r = 0; } }
-  return r;
-}
-function effectByName(nm) {
-  let c = indexOf(nm, ':');
-  if (c > 0) { nm = substr(nm, c + 1, strlen(nm)); }
-  let r = 0, k = 1;
-  while (k <= 12) { if (EFK[k] == nm || EFKO[k] == nm) { r = k; } k = k + 1; }
-  return r;
-}
-// a coordinate word: a number, or ~ / ~n from where the player is
-function coordOf(w, here) {
-  let r = w * 1;
-  if (charAt(w, 1) == '~') { r = here; if (strlen(w) > 1) { r = here + substr(w, 2, strlen(w)) * 1; } }
-  return r;
-}
-function chatOpen() {
-  mouseFree();
-  ask('명령어를 입력하세요 (예: /give @s diamond 5, /help)');
-  let s = answer();
-  hideAnswer();
-  if (strlen(s) > 0) { runCommand(s); }
-  lockReq();
-}
-function runCommand(s) {
-  if (charAt(s, 1) == '/') { s = substr(s, 2, strlen(s)); }
-  cmdSplit(lower(s));
-  let c = cw(1), out = '';
-  let a = 2;
-  if (c == 'help' || c == '?') {
-    out = '/give [@s] 아이템 [개수] · /kill [@s|@e] · /gamemode survival|creative · /gamerule 규칙 true|false · /effect give @s 효과 [초] [단계] · /effect clear · /time set day|night|noon|midnight · /tp x y z · /seed';
-  } else { if (c == 'give') {
-    if (charAt(cw(a), 1) == '@') { a = a + 1; }
-    // (the name may be more than one word; a number at the end is the count)
-    let last = CMW.length, n = 1;
-    if (last > a) { if (cw(last) * 1 > 0) { n = Math.max(1, Math.min(640, Math.floor(cw(last) * 1))); last = last - 1; } }
-    let nm = wordsFrom(a, last);
-    let id = itemByName(nm);
-    if (id == 0) { out = `그런 아이템이 없습니다: ${nm}`; }
-    else { addItem(id, n, 0); if (addLeft > 0) { dropItem(id, addLeft, 0, px, py + 1, pz, 0); } out = `${ITNAME[id + 1]} ${n}개를 주었습니다`; }
-  } else { if (c == 'kill') {
-    if (cw(2) == '@e') {
-      let e = 1, n = 0;
-      while (e <= NMOB) { if (ET[e] > 0) { if (ET[e] != 10) { ET[e] = 0; n = n + 1; } } e = e + 1; }
-      out = `몹 ${n}마리를 없앴습니다`;
-    } else { hp = 0; die('명령어로 죽었습니다'); out = ''; }
-  } else { if (c == 'gamemode') {
-    let m = cw(2);
-    if (m == 'creative' || m == 'c' || m == '1') { gameMode = 1; out = '게임 모드: 크리에이티브'; }
-    else { if (m == 'survival' || m == 's' || m == '0') { gameMode = 0; flying = 0; out = '게임 모드: 서바이벌'; } else { out = '/gamemode survival 또는 creative'; } }
-  } else { if (c == 'gamerule') {
-    let nm = cw(2), v = cw(3);
-    if (strlen(v) == 0) { let g = gameruleGet(nm); if (g < 0) { out = `규칙 이름: keepInventory, doDaylightCycle, doMobSpawning, naturalRegeneration, fallDamage`; } else { out = `${nm} = ${g == 1}`; } }
-    else { let b = 0; if (v == 'true' || v == '1') { b = 1; } if (gameruleSet(nm, b) == 1) { out = `${nm}을(를) ${b == 1}(으)로 바꿨습니다`; } else { out = `그런 규칙이 없습니다: ${nm}`; } }
-  } else { if (c == 'effect') {
-    if (cw(2) == 'clear') { effectsInit(); out = '효과를 모두 지웠습니다'; }
-    else {
-      if (cw(2) == 'give') { a = 3; }
-      if (charAt(cw(a), 1) == '@') { a = a + 1; }
-      let k = effectByName(cw(a)), sec = 30, lv = 1;
-      // (a Korean name of two words)
-      if (k == 0) { k = effectByName(wordsFrom(a, a + 1)); if (k > 0) { a = a + 1; } }
-      if (strlen(cw(a + 1)) > 0) { sec = Math.max(1, cw(a + 1) * 1); }
-      if (strlen(cw(a + 2)) > 0) { lv = Math.max(1, Math.min(5, Math.floor(cw(a + 2) * 1) + 1)); }
-      if (k == 0) { out = '효과: speed, slowness, haste, jump_boost, regeneration, resistance, fire_resistance, night_vision, saturation, levitation, slow_falling, water_breathing'; }
-      else { effectAdd(k, sec, lv); out = `${EFKO[k]} ${romanOf(lv)} 효과를 ${Math.floor(sec)}초 동안 줍니다`; }
-    }
-  } else { if (c == 'time') {
-    let w = cw(3), t = 0 - 1;
-    if (w == 'day') { t = 1000; } if (w == 'noon') { t = 6000; } if (w == 'night') { t = 13000; } if (w == 'midnight') { t = 18000; }
-    if (t < 0) { if (strlen(w) > 0) { t = mod(w * 1, 24000); } }
-    if (cw(2) == 'add') { t = mod(tday * 24000 + cw(3) * 1, 24000); }
-    if (t >= 0) { tday = t / 24000; out = `시간을 ${Math.floor(t)}(으)로 맞췄습니다`; } else { out = '/time set day|noon|night|midnight|숫자'; }
-  } else { if (c == 'tp' || c == 'teleport') {
-    if (charAt(cw(a), 1) == '@') { a = a + 1; }
-    if (strlen(cw(a + 2)) > 0) {
-      let tx2 = coordOf(cw(a), px), ty2 = coordOf(cw(a + 1), py), tz2 = coordOf(cw(a + 2), pz);
-      px = tx2; py = ty2; pz = tz2; pvx = 0; pvy = 0; pvz = 0; fallTop = py;
-      out = `${Math.floor(px)}, ${Math.floor(py)}, ${Math.floor(pz)}(으)로 옮겼습니다`;
-    } else { out = '/tp x y z (~ 는 지금 자리)'; }
-  } else { if (c == 'seed') { out = `시드: ${seed}`; }
-  else { out = `알 수 없는 명령어입니다: ${c} (/help)`; } } } } } } } } }
-  if (strlen(out) > 0) { msgShow(out, 5); }
-}
-
 // ---------------------------------------------------------------- the smithing table
 // slots 54 the diamond piece, 55 the abyss ingot, 56 what comes out
 let SMI1 = 0, SMN1 = 0, SMD1 = 0, SMI2 = 0, SMN2 = 0, smOut = 0;
@@ -229,11 +81,11 @@ function smithBack() {
 function shellBoxPlaced(x, y, z, du) {
   if (du > 0) { if (du <= NCHEST) { if (CHON[du] == 2) { CHON[du] = 1; CHX[du] = x; CHY[du] = y + dim * 100; CHZ[du] = z; } } }
 }
-function shellBoxBroken(x, y, z) {
+function shellBoxBroken(x, y, z, b) {
   chestFind(x, y, z);
   let c = cFound;
   if (c > 0) { CHON[c] = 2; }
-  if (gameMode == 0) { dropItem(64, 1, c, x + 0.5, y + 0.3, z + 0.5, 0); }
+  if (mod(gameMode, 2) == 0) { dropItem(b, 1, c, x + 0.5, y + 0.3, z + 0.5, 0); }
 }
 function shellBoxOpen(x, y, z) {
   chestAt(x, y, z);
@@ -483,7 +335,7 @@ function glideStep(dt) {
   pvx = vx * 20; pvy = vy * 20; pvz = vz * 20;
   fallTop = py;
   glideWearT = glideWearT + dt;
-  if (glideWearT >= 1) { glideWearT = 0; if (gameMode == 0) { INVD[38] = INVD[38] + 1; } }
+  if (glideWearT >= 1) { glideWearT = 0; if (mod(gameMode, 2) == 0) { INVD[38] = INVD[38] + 1; } }
 }
 
 // ---------------------------------------------------------------- boats
@@ -505,7 +357,7 @@ function boatPlace() {
     let by = y + 0.6;
     if (blockAt(x, y, z) != 7) { by = y; }
     mobAdd(13, x + 0.5, by, z + 0.5);
-    if (gameMode == 0) { takeHeld(1); }
+    if (mod(gameMode, 2) == 0) { takeHeld(1); }
     placeCool = 0.4;
   }
 }
@@ -549,7 +401,7 @@ function boatStep(e, dt) {
 function wanderStep(e, dt) {
   if (EST[e] == 4) { if (ETM[e] <= 0) { EST[e] = 0; } }
   else {
-    if (gameMode == 0 && dead == 0) {
+    if (mod(gameMode, 2) == 0 && dead == 0) {
       let hx = EX[e] - camX, hy = EY[e] + 2.6 - camY, hz = EZ[e] - camZ;
       let d = Math.sqrt(hx * hx + hy * hy + hz * hz);
       if (d < 24) { if (d > 0.5) {
@@ -579,7 +431,7 @@ function shellStep(e, dt) {
   let dx = px - EX[e], dy = py + 1 - EY[e], dz = pz - EZ[e];
   let d = Math.sqrt(dx * dx + dy * dy + dz * dz);
   EYAW[e] = atan2d(dx, dz);
-  if (d < 16 && gameMode == 0 && dead == 0) {
+  if (d < 16 && mod(gameMode, 2) == 0 && dead == 0) {
     if (EATK[e] <= 0) {
       if (sightLine(EX[e], EY[e] + 0.8, EZ[e], px, py + 1.2, pz) == 1) { arrowShoot(EX[e], EY[e] + 1.1, EZ[e], px, py + 1.2, pz, 4); EATK[e] = 2 + rand(0, 20) / 10; }
     }
@@ -643,4 +495,62 @@ function nShell() {
   let n = 0, e = 1;
   while (e <= NMOB) { if (ET[e] == 12) { n = n + 1; } e = e + 1; }
   return n;
+}
+
+// ---------------------------------------------------------------- v2.0: weather
+// wthr 0 clear, 1 rain (snow where it is cold), 2 thunder; wthrT seconds until it changes
+let wthr = 0, wthrT = 600, thunderT = 10;
+function weatherStep(dt) {
+  if (grWeather == 1) {
+    wthrT = wthrT - dt;
+    if (wthrT <= 0) {
+      if (wthr == 0) { wthr = 1; if (rand(1, 10) <= 3) { wthr = 2; } wthrT = rand(120, 480); }
+      else { wthr = 0; wthrT = rand(600, 1500); }
+    }
+  }
+  if (wthr == 2) { if (dim == 0) {
+    thunderT = thunderT - dt;
+    if (thunderT <= 0) { thunderT = rand(6, 22); lightning(px + rand(-40, 40), py, pz + rand(-40, 40)); }
+  } }
+}
+function weatherClear() { wthr = 0; wthrT = rand(600, 1500); }
+// a bolt from the sky onto the top of (x, z): a flash, fire where it lands, hurt near it
+function lightning(x, y, z) {
+  let bx = Math.floor(x), bz = Math.floor(z);
+  flashT = 0.2; sndPlay(7);
+  if (cOK(bx, bz) == 1) {
+    findTop(bx, bz);
+    let ty = topY + 1;
+    if (grFireTick == 1) { if (blockAt(bx, ty, bz) == 0) { if (BSOL[blockAt(bx, ty - 1, bz) + 1] > 0) { setBlock(bx, ty, bz, I_fire); } } }
+    if ((px - x) * (px - x) + (pz - z) * (pz - z) < 9) { hurtT = 0; hurt(5, '번개에 맞았습니다'); }
+    let e = 1;
+    while (e <= NMOB) { if (ET[e] > 0) { if ((EX[e] - x) * (EX[e] - x) + (EZ[e] - z) * (EZ[e] - z) < 9) { EHURT[e] = 0; mobHurt(e, 5, 0, 0); } } e = e + 1; }
+  }
+}
+// rain or snow over the picture (where the sky is over the player)
+function drawWeather() {
+  if (wthr > 0 && dim == 0 && headWater == 0) {
+    let i = wi(Math.floor(px), Math.min(WY - 1, Math.floor(py + 2)), Math.floor(pz));
+    let open = 0;
+    if (py + 2 >= WY) { open = 1; } else { if (cOK(Math.floor(px), Math.floor(pz)) == 1) { if (idiv(LT[i], 16) >= 14) { open = 1; } } }
+    let bi = BIOM[wcol(Math.floor(px), Math.floor(pz))];
+    if (bi == 4 || bi == 14 || bi == 12) { open = 0; }
+    if (open == 1) {
+      let snow = 0;
+      if (bi == 6 || bi == 19 || bi == 8 || py > SEA + 45) { snow = 1; }
+      let k = 0, n = 70, t = frameNo;
+      fillStop();
+      while (k < n) {
+        let sx = mod(k * 97 + Math.floor(yaw * 3), 480) - 240, sy = 135 - mod(k * 61 + t * (9 - snow * 6) + k * 13, 290);
+        if (snow == 1) {
+          sx = sx + sind(t * 4 + k * 40) * 4;
+          M_rect(sx - 1, sy + 1, sx + 1, sy - 1, '#f4f8ff');
+        } else {
+          fillStop(); goto(sx, sy); fillColorHex('#a8c0e8'); fillStart(); goto(sx + 0.7, sy); goto(sx - 1.3, sy - 9); goto(sx - 2, sy - 9);
+        }
+        k = k + 1;
+      }
+      fillStop();
+    }
+  }
 }

@@ -221,9 +221,9 @@ function collectGroup(f, fe, mode, tv, full) {
           if (d2 <= vr2) {
             k = Math.abs(dx) - (0 - Math.abs(dy) - Math.abs(dz) - 1);
             bt = bt - (0 - 1);
-            // (the distance and the direction in one number: d2 * 8 + direction)
-            if (bt > BF.length) { BF.push(f); BN.push(HD[k]); BD2.push(d2 * 8 - (0 - tv)); }
-            else { BF[bt] = f; BN[bt] = HD[k]; BD2[bt] = d2 * 8 - (0 - tv); }
+            // (the distance and the direction in one number: d2 * 16 + direction)
+            if (bt > BF.length) { BF.push(f); BN.push(HD[k]); BD2.push(d2 * 16 - (0 - tv)); }
+            else { BF[bt] = f; BN[bt] = HD[k]; BD2[bt] = d2 * 16 - (0 - tv); }
             HD[k] = bt;
           }
       }
@@ -254,6 +254,7 @@ function collectFaces() {
     if (cz > z0) { if (cz > z0 + 7) { M_grp(5, 1, 5); } else { M_grp(5, 2, 5); } }
     M_grp(6, 1, 6);
     M_grp(7, 1, 7);
+    M_grp(14, 1, 14);
     // faces against water, only with the eye under water
     if (underWater == 1) {
       if (cx < x0 + 7) { M_grp(8, 2, 0); }
@@ -273,8 +274,8 @@ function bucketThing(id, x, y, z) {
     let k = Math.abs(dx) + Math.abs(dy) + Math.abs(dz);
     if (k <= kMax) {
       bTop = bTop + 1;
-      if (bTop > BF.length) { BF.push(id); BN.push(HD[k + 1]); BD2.push(d2 * 8); }
-      else { BF[bTop] = id; BN[bTop] = HD[k + 1]; BD2[bTop] = d2 * 8; }
+      if (bTop > BF.length) { BF.push(id); BN.push(HD[k + 1]); BD2.push(d2 * 16); }
+      else { BF[bTop] = id; BN[bTop] = HD[k + 1]; BD2[bTop] = d2 * 16; }
       HD[k + 1] = bTop;
     }
   }
@@ -299,7 +300,7 @@ function drawBuckets() {
     while (n > 0) {
       f = BF[n];
       if (f > 0) {
-        p = BD2[n]; d2 = idiv(p, 8); d = p - d2 * 8;
+        p = BD2[n]; d2 = idiv(p, 16); d = p - d2 * 16;
         p = FP[f]; x = idiv(p, 16777216); p = p - x * 16777216; y = idiv(p, 65536); z = p - y * 65536 - OFF; x = x - OFF;
         // the cell's corner (x, y, z) in camera space
         ex = x * 256 - hx; ey = y * 256 - hy; ez = z * 256 - hz;
@@ -308,7 +309,7 @@ function drawBuckets() {
         bz = c31 * ex - c32 * ey - c33 * ez;
         // light of the cell the face looks into, and the fog
         ni = FN[f];
-        if (ni > 0) { kb = LTK[LT[ni] * 8 + d + 1] - FA[f]; if (kb < 0) { kb = 0; } } else { kb = LTK[1920 + d + 1]; }
+        if (d < 8) { if (ni > 0) { kb = LTK[LT[ni] * 8 + d + 1] - FA[f]; if (kb < 0) { kb = 0; } } else { kb = LTK[1920 + d + 1]; } }
         nk = 0 - kb - FOGL[d2 + 1] - 1;
         t = FT[f];
         if (d < 6) {
@@ -380,9 +381,9 @@ function drawBuckets() {
             }
           }
         } else {
-          if (d == 6) { drawPlant(t, bx, by, bz, kb, FOGL[d2 + 1], d2); } else { drawTorch(bx, by, bz, FOGL[d2 + 1]); }
+          if (d == 6) { drawPlant(t, bx, by, bz, kb, FOGL[d2 + 1], d2); } else { if (d == 7) { drawTorch(bx, by, bz, FOGL[d2 + 1], BFLAME[t + 1]); } else { drawModel(f, x, y, z, bx, by, bz, ni, FOGL[d2 + 1], d2); } }
         }
-      } else { drawThing(0 - f, idiv(BD2[n], 8)); }
+      } else { drawThing(0 - f, idiv(BD2[n], 16)); }
       n = BN[n];
     }
     key = key - 1;
@@ -470,11 +471,11 @@ function drawPlant(t, bx, by, bz, kb, fog, d2) {
   }
 }
 // a torch: a thin stick and a flame, both as two crossed quads (always fully lit)
-function drawTorch(bx, by, bz, fog) {
+function drawTorch(bx, by, bz, fog, fl) {
   torchQuad(bx, by, bz, 7, 0, 8, 9, 10, 8, CTORCH, fog);
   torchQuad(bx, by, bz, 8, 0, 7, 8, 10, 9, CTORCH, fog);
-  torchQuad(bx, by, bz, 6.5, 9, 8, 9.5, 12.5, 8, CFLAME, fog);
-  torchQuad(bx, by, bz, 8, 9, 6.5, 8, 12.5, 9.5, CFLAME, fog);
+  torchQuad(bx, by, bz, 6.5, 9, 8, 9.5, 12.5, 8, fl, fog);
+  torchQuad(bx, by, bz, 8, 9, 6.5, 8, 12.5, 9.5, fl, fog);
 }
 // an upright quad from (ax, ay, az) to (cx, cy, cz) in 1/16 of the cell
 function torchQuad(bx, by, bz, ax, ay, az, cx, cy, cz, col, fog) {

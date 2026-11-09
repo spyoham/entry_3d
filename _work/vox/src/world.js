@@ -108,6 +108,8 @@ function wput(x, y, z, b) {
 
 // ---------------------------------------------------------------- terrain of a column
 let colH = 0, colB = 0;
+// the coloured bands of the red canyons
+let TBAND = [I_terracotta, I_orangeTerracotta, I_terracotta, I_yellowTerracotta, I_brownTerracotta, I_terracotta, I_redTerracotta, I_terracotta, I_whiteTerracotta, I_lightGrayTerracotta, I_terracotta, I_orangeTerracotta, I_terracotta, I_brownTerracotta, I_redTerracotta, I_terracotta];
 // the slow parts (land, mountains, warmth, wetness) on the corners of a 4 x 4 cell grid,
 // in between straight lines: GC* for the 5 x 5 corners of one chunk
 let GCC = [], GCM = [], GCT = [], GCH = [];
@@ -159,17 +161,37 @@ function columnShape(x, z) {
   colH = Math.floor(h);
   if (colH > WY - 6) { colH = WY - 6; }
   if (colH < 6) { colH = 6; }
-  // biomes: 0 ocean, 1 beach, 2 plains, 3 forest, 4 desert, 5 taiga, 6 snowy, 7 mountains, 8 frozen ocean
+  // biomes: 0 ocean, 1 beach, 2 plains, 3 forest, 4 desert, 5 taiga, 6 snowy, 7 mountains, 8 frozen ocean,
+  // 11 jungle, 12 savanna, 13 swamp, 14 red canyons, 15 ebony forest, 16 mushroom island, 17 birch forest,
+  // 18 flower forest, 19 ice spikes, 20 warm ocean, 21 deep ocean (9, 10: the other worlds)
+  let wv = noise2(x - (0 - 31337), z - (0 - 2718), 38);
   let b = 2;
-  if (hm > 0.12) { b = 3; }
+  if (hm > 0.12) { b = 3; if (wv > 0.38) { b = 15; } if (wv < -0.4) { b = 17; } if (wv > 0.12 && wv < 0.24) { b = 18; } }
   if (t < -0.12) { b = 5; }
-  if (t < -0.32) { b = 6; }
-  if (t > 0.3) { if (hm < 0.05) { b = 4; } }
-  if (colH >= SEA + 20) { b = 7; }
-  if (colH <= SEA + 1) { if (b != 6) { if (b != 4) { b = 1; } } }
+  if (t < -0.32) { b = 6; if (wv > 0.45) { b = 19; } }
+  if (t > 0.3) { if (hm < 0.05) { b = 4; if (wv > 0.3) { b = 14; } } }
+  if (t > 0.18) { if (hm >= 0.05 && hm < 0.2) { if (b == 2) { b = 12; } } }
+  if (t > 0.22) { if (hm > 0.28) { b = 11; } }
+  if (hm > 0.34) { if (t > -0.1 && t <= 0.22) { if (colH <= SEA + 4) { b = 13; } } }
+  if (colH >= SEA + 20) { if (b != 14) { b = 7; } }
+  if (colH <= SEA + 1) { if (b != 6 && b != 4 && b != 13 && b != 14) { b = 1; } }
   if (colH < SEA - 1) { b = 0; }
   colB = b;
-  if (b == 0) { if (t < -0.3) { colB = 8; } }
+  if (b == 0) {
+    if (t < -0.3) { colB = 8; }
+    if (t > 0.3) { colB = 20; }
+    if (colH < SEA - 12) { colB = 21; }
+    // now and then an island of mushrooms far out at sea
+    if (c < -0.25) { if (wv > 0.55) { colB = 16; colH = SEA + 2 + Math.floor((wv - 0.55) * 30); } }
+  }
+  // the swamp sits low and wet
+  if (colB == 13) { if (colH > SEA) { colH = SEA + Math.floor((colH - SEA) * 0.4); } }
+}
+// the biome of a column without making it (for /locatebiome): bmAt
+let bmAt = 0;
+function biomeAt(x, z) {
+  if (dim == 0) { gridOn = 0; columnShape(x, z); bmAt = colB; }
+  else { if (dim == 1) { ashBiome(x, z); bmAt = abm; } else { bmAt = 10; } }
 }
 function genColumn(x, z) {
   columnShape(x, z);
@@ -177,7 +199,11 @@ function genColumn(x, z) {
   HMAP[ci] = h; BIOM[ci] = b;
   let top = 2, fill = 3, fd = 3 + rndI(0, 1);
   if (b == 1 || b == 4) { top = 8; fill = 8; }
-  if (b == 6) { top = 20; }
+  if (b == 6 || b == 19) { top = 20; }
+  if (b == 16) { top = I_mycelium; }
+  if (b == 5) { if (noise2(x, z, 7) > 0.35) { top = I_podzol; } }
+  if (b == 15) { if (noise2(x, z, 6) > 0.5) { top = I_coarseDirt; } }
+  if (b == 14) { top = I_redSand; fill = I_terracotta; fd = 12; }
   if (b == 7) { if (h > SEA + 30) { top = 1; fill = 1; } if (h > SEA + 34) { top = 45; } }
   if (b == 0 || b == 8) {
     top = 8; fill = 8;
@@ -190,7 +216,7 @@ function genColumn(x, z) {
   while (y < WY) {
     v = 0;
     if (y < h - fd) { v = 1; }
-    else { if (y < h) { v = fill; if (fill == 8) { if (y < h - 2) { v = 21; } } } else { if (y == h) { v = top; } } }
+    else { if (y < h) { v = fill; if (fill == 8) { if (y < h - 2) { v = 21; } } if (fill == I_terracotta) { v = TBAND[mod(y, 16) + 1]; } } else { if (y == h) { v = top; } } }
     if (y > h) { if (y < SEA) { v = 7; if (y == SEA - 1) { if (b == 8 || b == 6) { v = 33; } } } }
     if (y == 0) { v = 6; }
     if (y > 0) { if (y < 4) { if (rnd() < 0.7 - y * 0.2) { v = 6; } } }
@@ -335,7 +361,109 @@ function setIfAir(x, y, z, b) {
   if (y >= 0 && y < WY) {
     let i = (mod(x, WS) * WS + mod(z, WS)) * WY + y + 1;
     let o = W[i];
-    if (o == 0 || o == 28 || o == 29 || o == 30) { wput(x, y, z, b); }
+    if (o == 0 || (BSHP[o + 1] == 1 && BTREE[o + 1] < 0 && BWATER[o + 1] == 0)) { wput(x, y, z, b); }
+  }
+}
+// a tree of kind k (0 oak, 1 birch, 2 spruce, 3 mahogany, 4 acacia, 5 ebony, 6 ember, 7 indigo)
+// standing on (x, y, z)
+function growTreeKind(x, y, z, k) {
+  if (k <= 2) { if (k == 0 && rnd() < 0.1) { bigOak(x, y, z); } else { growTree(x, y, z, k); } }
+  if (k == 3) { jungleTree(x, y, z); }
+  if (k == 4) { acaciaTree(x, y, z); }
+  if (k == 5) { ebonyTree(x, y, z); }
+  if (k == 6) { hugeFungus(x, y, z, I_emberLog, I_emberWart); }
+  if (k == 7) { hugeFungus(x, y, z, I_indigoLog, I_indigoWart); }
+}
+function leafBall(x, y, z, r, lv) {
+  let a = 0 - r;
+  while (a <= r) {
+    let c = 0 - r;
+    while (c <= r) {
+      let d = 0 - r;
+      while (d <= r) { if (a * a + c * c + d * d <= r * r + 1) { if (rnd() < 0.92) { setIfAir(x + a, y + d, z + c, lv); } } d = d + 1; }
+      c = c + 1;
+    }
+    a = a + 1;
+  }
+}
+function bigOak(x, y, z) {
+  let h = rndI(7, 10), k = 1;
+  if (y + h + 4 < WY) {
+    while (k <= h) { wput(x, y + k, z, 13); k = k + 1; }
+    leafBall(x, y + h, z, 3, 14);
+    let d = rndI(0, 3);
+    wput(x + dirX(d), y + h - 2, z + dirZ(d), 13); leafBall(x + dirX(d) * 2, y + h - 2, z + dirZ(d) * 2, 2, 14);
+    wput(x, y, z, 3);
+  }
+}
+function jungleTree(x, y, z) {
+  let h = rndI(8, 13), k = 1, lg = I_mahoganyLog, lv = I_mahoganyLeaves;
+  if (y + h + 3 < WY) {
+    while (k <= h) { wput(x, y + k, z, lg); k = k + 1; }
+    leafBall(x, y + h, z, 3, lv); leafBall(x, y + h + 2, z, 2, lv);
+    // vines down the sides of the crown
+    let a = 0 - 3;
+    while (a <= 3) { if (rnd() < 0.35) { let yy = y + h - 1; while (yy > y + h - 5) { setIfAir(x + a, yy, z - 4, I_vines); setIfAir(x + a, yy, z + 4, I_vines); yy = yy - 1; } } a = a + 1; }
+    wput(x, y, z, 3);
+  }
+}
+function acaciaTree(x, y, z) {
+  let h = rndI(4, 6), k = 1, lg = I_acaciaLog, lv = I_acaciaLeaves, d = rndI(0, 3), ax = x, az = z;
+  if (y + h + 4 < WY) {
+    while (k <= h) { if (k > h - 2) { ax = x + dirX(d) * (k - h + 2); az = z + dirZ(d) * (k - h + 2); } wput(ax, y + k, az, lg); k = k + 1; }
+    let a = 0 - 3;
+    while (a <= 3) { let c = 0 - 3; while (c <= 3) { if (Math.abs(a) + Math.abs(c) <= 4) { setIfAir(ax + a, y + h + 1, az + c, lv); } if (Math.abs(a) + Math.abs(c) <= 2) { setIfAir(ax + a, y + h + 2, az + c, lv); } c = c + 1; } a = a + 1; }
+    wput(x, y, z, 3);
+  }
+}
+function ebonyTree(x, y, z) {
+  let h = rndI(6, 8), k = 1, lg = I_ebonyLog, lv = I_ebonyLeaves;
+  if (y + h + 4 < WY) {
+    while (k <= h) { wput(x, y + k, z, lg); wput(x + 1, y + k, z, lg); wput(x, y + k, z + 1, lg); wput(x + 1, y + k, z + 1, lg); k = k + 1; }
+    let a = 0 - 3;
+    while (a <= 4) { let c = 0 - 3; while (c <= 4) { if (Math.abs(a - 0.5) + Math.abs(c - 0.5) <= 5.5) { setIfAir(x + a, y + h, z + c, lv); setIfAir(x + a, y + h - 1, z + c, lv); } if (Math.abs(a - 0.5) + Math.abs(c - 0.5) <= 3.5) { setIfAir(x + a, y + h + 1, z + c, lv); } c = c + 1; } a = a + 1; }
+    wput(x, y, z, 3); wput(x + 1, y, z, 3); wput(x, y, z + 1, 3); wput(x + 1, y, z + 1, 3);
+  }
+}
+// the great fungi of the depths: a stem and a cap with lanterns under it
+function hugeFungus(x, y, z, st, cap) {
+  let h = rndI(5, 9), k = 1;
+  if (y + h + 3 < UH - 2) {
+    while (k <= h) { wput(x, y + k, z, st); k = k + 1; }
+    let r = 2 + rndI(0, 1), a = 0 - r;
+    while (a <= r) {
+      let c = 0 - r;
+      while (c <= r) {
+        if (a * a + c * c <= r * r + 1) {
+          setIfAir(x + a, y + h + 1, z + c, cap);
+          if (Math.abs(a) == r || Math.abs(c) == r) { setIfAir(x + a, y + h, z + c, cap); if (rnd() < 0.5) { setIfAir(x + a, y + h - 1, z + c, cap); } }
+          else { if (rnd() < 0.12) { setIfAir(x + a, y + h, z + c, I_shroomLantern); } }
+        }
+        c = c + 1;
+      }
+      a = a + 1;
+    }
+    setIfAir(x, y + h + 2, z, cap);
+  }
+}
+// a big mushroom (the mushroom islands, the ebony forests)
+function hugeMushroom(x, y, z, red) {
+  let h = rndI(4, 7), k = 1, cap = I_mushBrownBlock, r = 3;
+  if (red == 1) { cap = I_mushRedBlock; r = 2; }
+  if (y + h + 2 < WY) {
+    while (k <= h) { wput(x, y + k, z, I_mushStem); k = k + 1; }
+    let a = 0 - r;
+    while (a <= r) {
+      let c = 0 - r;
+      while (c <= r) {
+        if (Math.abs(a) + Math.abs(c) < r * 2) {
+          setIfAir(x + a, y + h + 1, z + c, cap);
+          if (red == 1) { if (Math.abs(a) == r || Math.abs(c) == r) { setIfAir(x + a, y + h, z + c, cap); setIfAir(x + a, y + h - 1, z + c, cap); } }
+        }
+        c = c + 1;
+      }
+      a = a + 1;
+    }
   }
 }
 // trees: kind 0 oak, 1 birch, 2 spruce. y: the ground block (all of it inside one chunk when
@@ -422,45 +550,120 @@ function decorate(x, z, lx, lz) {
   let b = W[i], bi = BIOM[wcol(x, z)];
   let above = W[i + 1];
   // dirt left open to the sky (a vein on a mountain) grows grass
-  if (b == 3) { if (above == 0) { if (y >= SEA) { b = 2; if (bi == 6 || y > SEA + 34) { b = 20; } W[i] = b; } } }
-  if (y < WY - 12 && above == 0) {
+  if (b == 3) { if (above == 0) { if (y >= SEA) { b = 2; if (bi == 6 || bi == 19 || y > SEA + 34) { b = 20; } W[i] = b; } } }
+  let inner = 0, edge1 = 0;
+  if (lx >= 3 && lx <= 12 && lz >= 3 && lz <= 12) { inner = 1; }
+  if (lx >= 1 && lx <= 14 && lz >= 1 && lz <= 14) { edge1 = 1; }
+  // the sea floor: kelp, sea grass, coral; lily pads on the swamp's water
+  if (b == 7) { if (W[i + 1] == 0) { if (bi == 13) { if (rnd() < 0.05) { W[i + 1] = I_lilyPad; } } } seaFloor(x, y, z, bi, i); }
+  if (y < WY - 14 && above == 0) {
     let r = rnd();
-    let inner = 0;
-    if (lx >= 3 && lx <= 12 && lz >= 3 && lz <= 12) { inner = 1; }
-    if (b == 2 || b == 20) {
+    let soil = 0;
+    if (b == 2 || b == 20 || b == I_podzol || b == I_coarseDirt || b == I_mycelium) { soil = 1; }
+    if (soil == 1) {
       let tc = 0, kind = 0;
-      if (bi == 2) { tc = 0.006; kind = 0; if (rnd() < 0.2) { kind = 1; } }
-      if (bi == 3) { tc = 0.06; kind = 0; if (rnd() < 0.35) { kind = 1; } }
+      if (bi == 2) { tc = 0.006; if (rnd() < 0.2) { kind = 1; } }
+      if (bi == 3) { tc = 0.06; if (rnd() < 0.35) { kind = 1; } }
       if (bi == 5) { tc = 0.05; kind = 2; }
       if (bi == 6) { tc = 0.01; kind = 2; }
       if (bi == 7) { tc = 0.02; kind = 2; if (rnd() < 0.4) { kind = 0; } }
+      if (bi == 11) { tc = 0.1; kind = 3; }
+      if (bi == 12) { tc = 0.008; kind = 4; }
+      if (bi == 13) { tc = 0.02; kind = 0; }
+      if (bi == 15) { tc = 0.11; kind = 5; }
+      if (bi == 17) { tc = 0.06; kind = 1; }
+      if (bi == 18) { tc = 0.04; if (rnd() < 0.4) { kind = 1; } }
       if (r < tc && inner == 1) {
-        // keep trees apart: no log next to this one
         let near = 0, a = x - 2;
         while (a <= x + 2) {
           let c = z - 2;
-          while (c <= z + 2) { let j = (mod(a, WS) * WS + mod(c, WS)) * WY + y + 2; if (W[j] == 13 || W[j] == 23 || W[j] == 25) { near = 1; } c = c + 1; }
+          while (c <= z + 2) { let j = (mod(a, WS) * WS + mod(c, WS)) * WY + y + 2; if (BTREE[W[j] + 1] < 0) { if (BKIND[W[j] + 1] == W[j]) { if (BSTRIP[W[j] + 1] > 0) { near = 1; } } } c = c + 1; }
           a = a + 1;
         }
-        if (near == 0) { growTree(x, y, z, kind); }
+        if (near == 0) {
+          if (kind == 5) { if (lx > 10 || lz > 10) { kind = 0; } }
+          growTreeKind(x, y, z, kind);
+          // swamp oaks carry vines
+          if (bi == 13) { let k = 0; while (k < 6) { let vx = x + rndI(-2, 2), vz = z + rndI(-2, 2), vy = y + 4; if (W[wi(vx, vy, vz)] == 0) { W[wi(vx, vy, vz)] = I_vines; } k = k + 1; } }
+        }
       } else {
-        if (b == 2) {
-          let g = 0.12;
-          if (bi == 3) { g = 0.08; }
-          if (bi == 7) { g = 0.04; }
-          if (r < tc + g) { W[i + 1] = 28; }
-          else { if (r < tc + g + 0.012) { W[i + 1] = 29; if (rnd() < 0.5) { W[i + 1] = 30; } } }
+        // big mushrooms: the mushroom islands and the ebony woods
+        if (bi == 16 || bi == 15) { if (inner == 1) { if (rnd() < 0.012) { hugeMushroom(x, y, z, rndI(0, 1)); r = 9; } } }
+        let g = 0.12, fl = 0.012;
+        if (bi == 3) { g = 0.08; } if (bi == 7) { g = 0.04; } if (bi == 11) { g = 0.3; } if (bi == 12) { g = 0.22; } if (bi == 5) { g = 0.1; }
+        if (bi == 18) { fl = 0.22; } if (bi == 16 || bi == 6 || bi == 19) { g = 0; fl = 0; } if (bi == 13) { fl = 0.02; } if (bi == 15) { g = 0.05; fl = 0; }
+        if (r < tc + g) {
+          W[i + 1] = 28;
+          if (bi == 5 || bi == 11) { if (rnd() < 0.45) { W[i + 1] = I_fern; } }
+        } else {
+          if (r < tc + g + fl) { W[i + 1] = flowerFor(bi); }
+          else {
+            let r2 = rnd();
+            if (bi == 2 || bi == 3 || bi == 5) { if (r2 < 0.0015) { W[i + 1] = I_pumpkin; } }
+            if (bi == 11) { if (r2 < 0.01) { W[i + 1] = I_melon; } else { if (r2 < 0.03) { bambooAt(i); } } }
+            if (bi == 5) { if (r2 < 0.008) { W[i + 1] = I_berryBush; } }
+            if (bi == 15 || bi == 13 || bi == 16) { if (r2 < 0.02) { W[i + 1] = I_mushBrown; if (rnd() < 0.5) { W[i + 1] = I_mushRed; } } }
+          }
         }
       }
     }
-    if (b == 8) {
-      if (bi == 4) {
-        if (r < 0.008 && lx >= 1 && lx <= 14 && lz >= 1 && lz <= 14) {
+    // reeds by the water
+    if (b == 2 || b == 8 || b == 3) { if (edge1 == 1) { if (rnd() < 0.18) { if (W[i + SXS] == 7 || W[i - SXS] == 7 || W[i + WY] == 7 || W[i - WY] == 7) { let h = rndI(1, 3), k = 1; while (k <= h) { W[i + k] = I_reed; k = k + 1; } } } } }
+    // the deserts and the red canyons
+    if (b == 8 || b == I_redSand) {
+      if (bi == 4 || bi == 14) {
+        if (r < 0.008 && edge1 == 1) {
           let h = rndI(1, 3), k = 1;
-          if (W[i + SXS + 1] == 0 && W[i - SXS + 1] == 0 && W[i + WY + 1] == 0 && W[i - WY + 1] == 0) {
-            while (k <= h) { W[i + k] = 19; k = k + 1; }
-          }
-        } else { if (r < 0.014) { W[i + 1] = 46; } }
+          if (W[i + SXS + 1] == 0 && W[i - SXS + 1] == 0 && W[i + WY + 1] == 0 && W[i - WY + 1] == 0) { while (k <= h) { W[i + k] = 19; k = k + 1; } }
+        } else { if (r < 0.016) { W[i + 1] = 46; } }
+      }
+    }
+    // spikes of packed ice
+    if (bi == 19) { if (r < 0.004 && inner == 1) { iceSpike(x, y, z); } }
+  }
+}
+function flowerFor(bi) {
+  let r = rndI(1, 20), f = 30;
+  if (r <= 7) { f = 29; }
+  if (bi == 18) { f = FLW[rndI(1, FLW.length)]; }
+  else {
+    if (r == 8) { f = I_daisy; } if (r == 9) { f = I_cornflower; } if (r == 10) { f = I_bluet; } if (r == 11) { f = I_tulipRed + rndI(0, 3); }
+    if (bi == 13) { f = I_orchid; }
+    if (bi == 3 || bi == 17) { if (r == 12) { f = I_lilyValley; } if (r == 13) { f = I_lilac; } }
+    if (bi == 2) { if (r == 14) { f = I_sunflower; } }
+  }
+  return f;
+}
+let FLW = [29, 30, I_orchid, I_allium, I_bluet, I_tulipRed, I_tulipOrange, I_tulipWhite, I_tulipPink, I_daisy, I_cornflower, I_lilyValley, I_lilac, I_peony, I_roseBush, I_hydrangea, I_cosmos];
+function bambooAt(i) {
+  let h = rndI(4, 10), k = 1;
+  while (k <= h) { if (W[i + k] == 0) { W[i + k] = I_bamboo; } k = k + 1; }
+}
+function iceSpike(x, y, z) {
+  let h = rndI(6, 20), k = 1;
+  while (k <= h && y + k < WY - 2) {
+    let r = 0;
+    if (k < h * 0.4) { r = 1; }
+    let a = 0 - r;
+    while (a <= r) { let c = 0 - r; while (c <= r) { if (Math.abs(a) + Math.abs(c) <= r) { W[wi(x + a, y + k, z + c)] = I_packedIce; } c = c + 1; } a = a + 1; }
+    k = k + 1;
+  }
+}
+// what grows on the sea floor under (x, y, z) the water's top
+function seaFloor(x, y, z, bi, i) {
+  let fy = y, j = i;
+  while (fy > 1 && W[j] == 7) { fy = fy - 1; j = j - 1; }
+  if (fy < y - 1) {
+    let r = rnd();
+    if (bi == 20) {
+      if (r < 0.14) {
+        let ck = rndI(0, 4), kind = I_tubeCoralBlock + ck * 6;
+        if (rnd() < 0.5) { W[j + 1] = kind + 2 + rndI(0, 1) * 2; } else { W[j] = kind; if (W[j + 1] == 7) { W[j + 1] = kind + 2 + rndI(0, 1) * 2; } }
+      } else { if (r < 0.18) { W[j + 1] = I_seaPickle; } else { if (r < 0.3) { W[j + 1] = I_seagrass; } } }
+    } else {
+      if (bi == 0 || bi == 21 || bi == 13 || bi == 1) {
+        if (r < 0.05) { let h = rndI(2, y - fy - 1), k = 1; while (k <= h) { if (W[j + k] == 7) { W[j + k] = I_kelp; } k = k + 1; } }
+        else { if (r < 0.2) { W[j + 1] = I_seagrass; } }
       }
     }
   }
@@ -488,6 +691,11 @@ function featuresO(cx, cz) {
   veins(40, 1.2, 3, 7, 2, 18);
   veins(3, 6, 10, 24, 5, WY - 8);
   veins(9, 5, 10, 24, 5, WY - 8);
+  // v2.0: the rocks, spark ore deep down, jade in the mountains
+  veins(I_granite, 1.5, 20, 34, 5, 80); veins(I_limestone, 1.5, 20, 34, 5, 80); veins(I_slate, 1.5, 20, 34, 5, 80);
+  veins(I_oreSpark, 4, 4, 8, 2, 16);
+  columnShape(cx * 16 + 8, cz * 16 + 8);
+  if (colB == 7) { veins(I_oreJade, 3, 1, 2, 4, 32); }
   chunkSeed(cx, cz, 3);
   let lx = 0, lz = 0;
   while (lx < 16) {
@@ -499,6 +707,8 @@ function featuresO(cx, cz) {
   if (rndI(1, 9) == 1) { ruinFrame(gx0 + rndI(4, 9), gz0 + rndI(5, 10)); }
   // the old ruins with their gates
   featuresRuins();
+  // the villages, temples, mines and the rest
+  featuresStructs(cx, cz);
 }
 function ruinFrame(x0, z0) {
   findTop(x0 + 1, z0);
@@ -762,6 +972,7 @@ function genStart(s) {
   while (i <= NCH * NCH) { if (CKST[i] > 0) { chunkDrop(i); } i = i + 1; }
   EDX = []; EDY = []; EDZ = []; EDB = []; EDD = [];
   logOn = 0; dim = 0; bossDead = 0; bossWake = 0;
+  worldExtraInit();
   cavesInit();
   px = 8.5; pz = 8.5; pcxW = -99999; pczW = -99999;
   genPhase = 1; genN = 0;

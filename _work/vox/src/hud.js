@@ -141,7 +141,8 @@ function drawIcon(id, x, y, s) {
       faceRects(BTS[id + 1], x, y, h, q, 0, 0 - s, 14);
       s8 = keep;
     } else {
-      iconRects(IC0[id + 1], IC0[id + 1] + ICN[id + 1], x - s, y + s, s / 4, 23);
+      if (ITISO[id + 1] == 2) { let keep2 = s8; if (s8 == 1) { s8 = 3; } drawIconModel(id, x, y, s, 23); s8 = keep2; }
+      else { iconRects(IC0[id + 1], IC0[id + 1] + ICN[id + 1], x - s, y + s, s / 4, 23); }
     }
   }
 }
@@ -168,8 +169,20 @@ function msgShow(s, t) { msgText = s; msgT = t; }
 function drawHud(dt) {
   fillStop();
   // the cross in the middle
-  box(-6, 0.7, 6, -0.7, '#e8e8e8');
-  box(-0.7, 6, 0.7, -6, '#e8e8e8');
+  if (gameMode != 3) { box(-6, 0.7, 6, -0.7, '#e8e8e8'); box(-0.7, 6, 0.7, -6, '#e8e8e8'); }
+  chatHud(dt);
+  titlesHud(dt);
+  if (gameMode == 3) { let k2 = 1; while (k2 <= 11) { txOff(k2); k2 = k2 + 1; } specHud(); }
+  else { drawHud2(dt); }
+  effectsHud();
+  msgT = msgT - dt;
+  if (msgT > 0) { tx(11, msgText, 0, 40, 9, '#ffff80', 0); } else { txOff(11); }
+  debugHud();
+}
+function specHud() {
+  if (specMob > 0) { tx(10, `관전 중: ${MNAME[ET[specMob] + 0]} (Shift: 그만)`, 0, -110, 8, '#ffffff', 0); } else { tx(10, `관전자 · 휠: 속도 x${Math.round(specSpeed * 10) / 10} · F: 몹 관전`, 0, -110, 8, '#c0c0c0', 0); }
+}
+function drawHud2(dt) {
   // the hotbar
   let x0 = -91, y0 = -116, k = 1;
   box(x0 - 1, y0 + 12, x0 + 183, y0 - 12, '#000000');
@@ -185,13 +198,18 @@ function drawHud(dt) {
   let sx = x0 + 11 + (hotSel - 1) * 20;
   box(sx - 12, y0 + 12, sx + 12, y0 + 10, '#ffffff'); box(sx - 12, y0 - 10, sx + 12, y0 - 12, '#ffffff');
   box(sx - 12, y0 + 12, sx - 10, y0 - 12, '#ffffff'); box(sx + 10, y0 + 12, sx + 12, y0 - 12, '#ffffff');
-  if (gameMode == 0) {
+  if (mod(gameMode, 2) == 0) {
+    // the experience bar and level
+    box(x0, y0 + 15, x0 + 182, y0 + 12, '#202020');
+    let xf = xpPts / xpNeed(xpLevel);
+    if (xf > 0) { box(x0, y0 + 15, x0 + 182 * xf, y0 + 12, '#80ff20'); }
+    if (xpLevel > 0) { tx(102, `${xpLevel}`, 0, y0 + 22, 8, '#80ff20', 0); } else { txOff(102); }
     // armour over the hearts (a plate a point pair)
     let def = armorDef();
     if (def > 0) {
       let j = 0;
       while (j < 10) {
-        let ax = x0 + j * 8 + 4, ay = y0 + 29;
+        let ax = x0 + j * 8 + 4, ay = y0 + 33;
         if (def >= j * 2 + 1) {
           box(ax - 3, ay + 3, ax + 3, ay - 3, '#202020');
           let c = '#d8d8d8';
@@ -205,6 +223,7 @@ function drawHud(dt) {
     let i = 0;
     while (i < 10) {
       let hx = x0 + i * 8 + 4, fx = x0 + 182 - i * 8 - 4, hy = y0 + 20;
+      hy = y0 + 24;
       iconRects(HI0[1], HI0[1] + HIN[1], hx - 4, hy + 4, 1, 23);
       if (hp >= i * 2 + 2) { iconRects(HI0[2], HI0[2] + HIN[2], hx - 4, hy + 4, 1, 23); }
       else { if (hp == i * 2 + 1) { iconRects(HI0[3], HI0[3] + HIN[3], hx - 4, hy + 4, 1, 23); } }
@@ -231,16 +250,23 @@ function drawHud(dt) {
   } else { txOff(93); }
   if (winT > 0) { winT = winT - dt; tx(94, '승리!', 0, 70, 22, '#ffe880', 0); tx(95, '공허의 수호자를 쓰러뜨렸습니다 · 수호자의 심장을 주워 가세요', 0, 48, 8, '#ffffff', 0); }
   else { txOff(94); txOff(95); }
-  effectsHud();
-  msgT = msgT - dt;
-  if (msgT > 0) { tx(11, msgText, 0, 40, 9, '#ffff80', 0); } else { txOff(11); }
+}
+let FACEKO = ['남(+Z)', '동(+X)', '북(-Z)', '서(-X)'];
+function debugHud() {
   if (showDbg == 1) {
     let bn = BNAMES[BIOM[wcol(Math.floor(px), Math.floor(pz))] + 1];
-    tx(12, `XYZ ${Math.floor(px * 10) / 10} / ${Math.floor(py * 10) / 10} / ${Math.floor(pz * 10) / 10}  ${bn}`, -236, 128, 7, '#ffffff', 1);
+    tx(12, `XYZ ${Math.floor(px * 10) / 10} / ${Math.floor(py * 10) / 10} / ${Math.floor(pz * 10) / 10}  보는 쪽 ${FACEKO[faceOf(yaw) + 1]}  ${bn}`, -236, 128, 7, '#ffffff', 1);
     tx(13, `FPS ${fpsShow} (k${kStep})  청크 ${nChunks}  면 ${nFace}/${nScan}  칠 ${nFill}  구역 ${nVS}  시야 ${viewR}`, -236, 118, 7, '#ffffff', 1);
     let li = lightAt(px, py + 1, pz);
-    tx(14, `빛 ${li}  시각 ${timeText()}  시드 ${seed}  몹 ${nHostile}/${nPassive}`, -236, 108, 7, '#ffffff', 1);
-  } else { txOff(12); txOff(13); txOff(14); }
+    tx(14, `빛 ${li}  시각 ${timeText()}  시드 ${seed}  몹 ${nHostile}/${nPassive}  ${MODEKO[gameMode + 1]} · ${DIFFKO[difficulty + 1]}`, -236, 108, 7, '#ffffff', 1);
+    if (pickOn == 1) { tx(103, `보는 블록: ${ITKEY[pickB + 1]} (${ITNAME[BKIND[pickB + 1] + 1]}) ${pickX} ${pickY} ${pickZ}`, -236, 98, 7, '#c0ffc0', 1); } else { txOff(103); }
+  } else { txOff(12); txOff(13); txOff(14); txOff(103); }
+}
+// /title: big words, a line under them, a line over the hotbar
+function titlesHud(dt) {
+  titleT = titleT - dt; actT = actT - dt;
+  if (titleT > 0) { tx(111, titleS, 0, 50, 22, '#ffffff', 0); if (strlen(subT) > 0) { tx(112, subT, 0, 26, 10, '#e0e0e0', 0); } else { txOff(112); } } else { txOff(111); txOff(112); }
+  if (actT > 0) { tx(110, actS, 0, -84, 8, '#ffffff', 0); } else { txOff(110); }
 }
 function timeText() {
   let m = Math.floor(tday * 1440 + 360);
@@ -269,7 +295,8 @@ function drawHand() {
       faceRects(BTS[id + 1], x - h, y + q, h, 0 - q, 0, 0 - s, Math.max(0, k - 4));
       faceRects(BTS[id + 1], x, y, h, q, 0, 0 - s, Math.max(0, k - 8));
     } else {
-      iconRects(IC0[id + 1], IC0[id + 1] + ICN[id + 1], bx - 40, by + 50, 8, k);
+      if (ITISO[id + 1] == 2) { drawIconModel(id, bx - 10, by + 10, 34, k); }
+      else { iconRects(IC0[id + 1], IC0[id + 1] + ICN[id + 1], bx - 40, by + 50, 8, k); }
     }
   }
 }
@@ -323,7 +350,12 @@ function invScreen() {
   if (uiMode == 3) { title = '화로'; }
   if (uiMode == 4) { title = '상자'; }
   if (uiMode == 8) { title = '대장장이 작업대: 다이아몬드 장비 + 심연철 주괴'; }
-  if (uiMode == 5) { title = `크리에이티브 (${uiPage + 1}/${Math.ceil(PAL.length / 36)})  ← → 쪽 넘기기`; }
+  if (uiMode == 5) {
+    let tn = '검색';
+    if (uiTab < NCAT) { tn = CATNAME[uiTab + 1]; } else { tn = `검색: ${srchText} (${SRCH.length})`; }
+    title = `${tn}  ${uiPage + 1}/${Math.max(1, Math.ceil(palLen() / 36))}  ← → 휠`;
+    creativeTabs();
+  }
   panel(-88, top, 88, -94);
   tx(20, title, -80, top - 6, 8, '#404040', 1);
   if (uiMode <= 4 || uiMode == 8) { tx(21, '소지품', -80, 0, 8, '#404040', 1); } else { txOff(21); }
@@ -383,8 +415,7 @@ function pauseScreen() {
   button(-90, 70, 90, 50, '게임으로 돌아가기', 21, 1); if (btnHot == 1) { menuSel = 1; }
   button(-90, 44, 90, 24, `시야 거리: ${viewR} 블록`, 22, 1); if (btnHot == 1) { menuSel = 2; }
   button(-90, 18, 90, -2, `마우스 감도: ${Math.round(sens * 100)}%`, 23, 1); if (btnHot == 1) { menuSel = 3; }
-  let gm = '서바이벌';
-  if (gameMode == 1) { gm = '크리에이티브'; }
+  let gm = MODEKO[gameMode + 1];
   button(-90, -8, 90, -28, `게임 모드: ${gm}`, 24, 1); if (btnHot == 1) { menuSel = 4; }
   let so = '끔';
   if (sndOn == 1) { so = '켬'; }
@@ -399,4 +430,21 @@ function deathScreen() {
   menuSel = 0;
   button(-90, 0, 90, -20, '다시 태어나기', 22, 1); if (btnHot == 1) { menuSel = 1; }
   button(-90, -28, 90, -48, '타이틀 화면으로', 23, 1); if (btnHot == 1) { menuSel = 2; }
+}
+
+// the creative tabs over the window (the last one: the search)
+let TABKO = ['건축', '장식', '자연', '기능', '장치', '재료', '도구', '알', '검색'];
+let tabHot = 0 - 1;
+function creativeTabs() {
+  let k = 0, mx = mouseX(), my = mouseY();
+  tabHot = 0 - 1;
+  while (k <= NCAT) {
+    let x0 = -88 + k * 19.6, x1 = x0 + 18.5, y0 = 112, y1 = 95;
+    let c = '#8b8b8b';
+    if (k == uiTab) { c = '#c6c6c6'; }
+    if (mx >= x0 && mx <= x1 && my <= y0 && my >= y1) { tabHot = k; c = '#a8b8e8'; }
+    box(x0, y0, x1, y1, '#1e1e1e'); box(x0 + 1, y0 - 1, x1 - 1, y1 + 1, c);
+    tx(113 + k, TABKO[k + 1], (x0 + x1) / 2, (y0 + y1) / 2 + 1, 6, '#202020', 0);
+    k = k + 1;
+  }
 }

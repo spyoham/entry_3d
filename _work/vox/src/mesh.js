@@ -6,10 +6,11 @@
 // direction (SG). A face: FP the cell ((x + OFF) * 256 + y) * 65536 + z + OFF, FT the texture,
 // FN the cell its light is read from (0: above the world, full sky), FA the corner shade.
 // Groups: 0 -x, 1 +x, 2 -y, 3 +y, 4 -z, 5 +z; 6 a cross plant, 7 a torch; 8..13 a face against
-// water (drawn only with the eye under water).
+// water (drawn only with the eye under water); 14 a shaped block (FT its block id, FA the sides
+// its arms join: 1 +z, 2 +x, 4 -z, 8 -x).
 let FP = [], FT = [], FN = [], FA = [];
 let SF0 = [], SFN = [], SFC = [], SVIS = [], SEMP = [], SG = [], SOX = [], SOZ = [], SOK = [], SCL = [];
-let GC = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], GP = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let GC = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], GP = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 let MX = [], MY = [], MZ = [], MD = [], MT = [], MN = [], MA = [];   // scratch of one section
 let VMK = [], VQ = [];
 let RQ = [], RQF = [];
@@ -42,7 +43,7 @@ function M_face(NB, NI, DD) {
     mn = mn + 1;
     MX[mn] = x; MY[mn] = y; MZ[mn] = z; MD[mn] = put; MN[mn] = NI; MA[mn] = 0;
     if (NI > 0) { MA[mn] = aoOf(NI, DD); }
-    if (DD == 3) { MT[mn] = BTT[b + 1]; } else { if (DD == 2) { MT[mn] = BTB[b + 1]; } else { MT[mn] = BTS[b + 1]; } }
+    MT[mn] = BT6[b * 6 + DD + 1];
   }
 }
 // liquids show a face only to what is see-through (air, plants, glass, torches)
@@ -117,9 +118,11 @@ function meshSection(sec) {
             if (az < 7) { n = i + WY; nb = W[n]; } else { if (okzp == 1) { n = i + szp; nb = W[n]; } else { n = 0; nb = 1; c8 = 1; } }
             if (sh == 3) { M_lface(nb, n, 5); } else { M_face(nb, n, 5); }
           } else {
-            // a plant or a torch: one entry, drawn as its own shape
+            // a plant, a torch or a shaped block: one entry, drawn as its own shape
             mn = mn + 1;
             MX[mn] = x; MY[mn] = y; MZ[mn] = z; MD[mn] = 5 + sh; MN[mn] = i; MT[mn] = BTS[b + 1]; MA[mn] = 0;
+            if (sh == 2) { MT[mn] = b; }
+            if (sh == 5) { MD[mn] = 14; MT[mn] = b; if (BCONN[b + 1] > 0) { MA[mn] = connOf(x, y, z, b); } }
           }
         }
         y = y + 1; i = i + 1;
@@ -139,12 +142,12 @@ function meshSection(sec) {
     SF0[sec] = f0; SFC[sec] = room;
   }
   let k = 1, f = f0, g = 0;
-  while (g < 15) { GC[g + 1] = 0; g = g + 1; }
+  while (g < 16) { GC[g + 1] = 0; g = g + 1; }
   while (k <= mn) { g = MD[k] + 1; GC[g] = GC[g] + 1; k = k + 1; }
   let sb = (sec - 1) * 16;
   g = 0; f = f0;
-  while (g < 14) { SG[sb + g + 1] = f; GP[g + 1] = f; f = f + GC[g + 1]; g = g + 1; }
-  SG[sb + 15] = f;
+  while (g < 15) { SG[sb + g + 1] = f; GP[g + 1] = f; f = f + GC[g + 1]; g = g + 1; }
+  SG[sb + 16] = f;
   k = 1;
   while (k <= mn) {
     g = MD[k] + 1; f = GP[g]; GP[g] = f + 1;
@@ -234,4 +237,23 @@ function remeshSome(n) {
     if (SOK[s] == 1) { meshSection(s); }
     n = n - 1;
   }
+}
+
+// the sides a fence, wall or pane joins: the same kind of joining, a gate (fences), or a full block
+function connOf(x, y, z, b) {
+  let c = BCONN[b + 1], r = 0;
+  if (connTo(blockAt(x, y, z + 1), c) == 1) { r = r + 1; }
+  if (connTo(blockAt(x + 1, y, z), c) == 1) { r = r + 2; }
+  if (connTo(blockAt(x, y, z - 1), c) == 1) { r = r + 4; }
+  if (connTo(blockAt(x - 1, y, z), c) == 1) { r = r + 8; }
+  return r;
+}
+function connTo(nb, c) {
+  let r = 0;
+  if (BCONN[nb + 1] == c) { r = 1; }
+  if (BSHP[nb + 1] == 0) { if (BHC[nb + 1] == 1) { if (BLEAF[nb + 1] == 0) { r = 1; } } }
+  if (c == 1) { if (BPLC[nb + 1] == P_GATE) { r = 1; } }
+  if (c == 3) { if (BSHP[nb + 1] == 4) { r = 1; } if (BCONN[nb + 1] == 2) { r = 1; } }
+  if (c == 2) { if (BCONN[nb + 1] == 3) { r = 1; } }
+  return r;
 }
