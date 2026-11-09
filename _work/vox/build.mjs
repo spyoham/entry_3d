@@ -27,7 +27,7 @@ export const consts = {
     NOFF: chunkOffsets(CR).length, CVN: 24, FORTY: 30, NSTART: chunkOffsets(2).length,
     NEARZ: Math.round(0.05 * 256 * 16384), DEC2: 20, PLANT2: 225, CLOUDY: 110, MK: 160 * 1048576,
     NMOB: 48, NITM: 64, NARR: 24, NFUR: 32, NCHEST: 256, ANIMALS: 36, SMELTT: 8, NTX: 122,
-    SPAWNC: 0, BENCH: 0, NOCAVE: 0, AUTOSEED: 0, AUTOMODE: 0, TESTRUN: 0, SIMRUN: 0, LEGACY: 0, SLIM: 1,
+    SPAWNC: 0, BENCH: 0, NOCAVE: 0, AUTOSEED: 0, AUTOMODE: 0, TESTRUN: 0, SIMRUN: 0, LEGACY: 0, SLIM: 1, SPLIT: 0,
 };
 
 // what F does on a block, how it is put down, what it must stand on, how it moves a body
@@ -393,7 +393,8 @@ export function allConsts(more = {}) {
 const PART = 5000;
 export function sources(C) {
     const { L } = makeData();
-    const files = C.TESTRUN || C.SIMRUN ? FILES : FILES.filter(f => f !== 'test.js');
+    let files = C.TESTRUN || C.SIMRUN ? FILES : FILES.filter(f => f !== 'test.js');
+    if (C.SPLIT) files = files.concat(['split.js']);
     const stub = files.includes('test.js') ? '' : '\nfunction testStep() { }\n';
     const lit = (v) => typeof v === 'string' ? JSON.stringify(v) : (Number.isFinite(v) ? String(v) : (() => { throw new Error('bad ' + v); })());
     const parts = [], init = [];
@@ -429,6 +430,8 @@ export function buildProject(out, { name = `${NAME} v${VERSION}`, more = {} } = 
         { ...textBox('txt', 0, 0, 1000, 28, 20, { textAlign: 1, font: '20px Nanum Gothic Coding' }), text: '​', script: prog.objectScripts.txt || [] },
         { id: 'pen', name: 'pen', pictures: [{ id: 'p1', name: 'dot', buf: DOT, w: 1, h: 1 }], script: prog.objectScripts.pen, sounds: makeSounds() },
     ];
+    // SPLIT: the world and the screens drawn by objects of their own (in front of pen: hud, view)
+    if (prog.objectScripts.view) objects.splice(1, 0, { id: 'hud', name: 'hud', pictures: [{ id: 'p2', name: 'dot', buf: DOT, w: 1, h: 1 }], script: prog.objectScripts.hud }, { id: 'view', name: 'view', pictures: [{ id: 'p3', name: 'dot', buf: DOT, w: 1, h: 1 }], script: prog.objectScripts.view });
     for (const k of Object.keys(prog.objectScripts)) if (!objects.some(o => o.id === k)) throw new Error('script for an unknown object: ' + k);
     const project = packEnt(out, { name, tmpDir: path.join(HERE, '.pack'), variables: prog.variables, functions: prog.functions, messages: prog.messages, objects, speed: 60 });
     const big = prog.variables.filter(v => v.variableType === 'list' && v.array.length > 5000).map(v => v.name + ':' + v.array.length);

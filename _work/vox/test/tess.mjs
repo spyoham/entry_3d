@@ -11,7 +11,7 @@ const a = process.argv.slice(2);
 const seed = Number(a[0] || 1234), ticks = Number(a[1] || 300);
 const kv = Object.fromEntries(a.slice(2).filter(x => x.includes('=')).map(x => x.split('=')).map(([k, v]) => [k, Number(v)]));
 const file = path.join(HERE, 'tess.ent');
-const built = buildProject(file, { name: 'tess', more: { AUTOSEED: seed, TESTRUN: 1, BENCH: 1, ANIMALS: kv.MOBS || 0 } });
+const built = buildProject(file, { name: 'tess', more: { AUTOSEED: seed, TESTRUN: 1, BENCH: 1, ANIMALS: kv.MOBS || 0, SPLIT: kv.SPLIT || 0 } });
 const FNAME = {};
 for (const f of built.project.functions) { const m = f.content.match(/function_field_label","params":\["([^"]+)"/); FNAME[f.id] = m ? m[1] : '?'; }
 fs.writeFileSync(path.join(HERE, 'fnames.json'), JSON.stringify(FNAME));

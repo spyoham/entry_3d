@@ -14,7 +14,7 @@ const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 
 export const SS = Number(process.env.SS || 2);                       // picture pixels per stage unit
 export const W = 480 * SS, H = 270 * SS;
-const OBJECTS = ['pen', 'txt'];     // back to front
+const OBJECTS = ['pen', 'view', 'hud', 'txt'];     // back to front (view, hud: the SPLIT build)
 
 export function createSim({ consts = {}, listMax = 1e8 } = {}) {
     const C = allConsts({ SIMRUN: 1, ...consts });

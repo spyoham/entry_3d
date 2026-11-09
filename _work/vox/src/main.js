@@ -199,22 +199,32 @@ function playFrame(dt) {
   if (flying == 1) { if (sprinting == 1) { fw = 175; } }
   FOC = Math.round(FOC + (fw - FOC) * Math.min(1, 8 * dt));
   if (Math.abs(FOC - fw) < 4) { FOC = fw; }
-  // the picture
-  eraseAll();
+  // the picture (SPLIT: the objects `view` and `hud` draw it in their own loops)
+  uiDt = dt; lkNow = lk;
+  if (SPLIT == 1) { eraseAll(); frameSeq = frameSeq + 1; } else { eraseAll(); drawView(); drawUI(dt); }
+  clickLatch = 0;
+  fillStop();
+}
+let frameSeq = 0, uiDt = 0, lkNow = 0;
+// the world, the weather, the flashes, the hand
+function drawView() {
   renderWorld();
   drawWeather();
   if (headWater == 1) { penAlpha(55); box(-245, 140, 245, -140, '#1a3a90'); fillStop(); penAlpha(0); }
   if (flashT > 0) { penAlpha(40); box(-245, 140, 245, -140, '#ffffff'); fillStop(); penAlpha(0); }
   if (hurtFlash > 0) { penAlpha(70); box(-245, 140, 245, -140, '#c00000'); fillStop(); penAlpha(0); }
   if (uiMode == 0) { if (dead == 0) { if (gameMode != 3) { drawHand(); } } }
+  fillStop();
+}
+// the HUD and the screens over it
+function drawUI(dt) {
   if (uiMode <= 6) { if (dead == 0) { drawHud(dt); } }
   if (uiMode >= 1) { if (uiMode <= 5 || uiMode == 8) { invScreen(); } }
   if (uiMode == 6) { pauseScreen(); }
   if (uiMode == 10) { tradeScreen(); }
   if (uiMode == 7) { deathScreen(); }
   if (helpT > 0) { helpT = helpT - dt; helpText(); } else { if (uiMode == 0) { txOff(15); txOff(16); txOff(17); txOff(18); txOff(19); } }
-  if (lk == 0) { if (uiMode == 0) { if (dead == 0) { tx(19, '화면을 클릭하면 마우스로 둘러봅니다', 0, -60, 9, '#ffffff', 0); } } }
-  clickLatch = 0;
+  if (lkNow == 0) { if (uiMode == 0) { if (dead == 0) { tx(19, '화면을 클릭하면 마우스로 둘러봅니다', 0, -60, 9, '#ffffff', 0); } } }
   fillStop();
 }
 function helpText() {
