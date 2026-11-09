@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>엔트리 작품 줄이기</title>
+<style>
+  /* one column: a drop zone, then the result */
+  :root { --bg: #f3f5f2; --panel: #ffffff; --fg: #1d2420; --muted: #5d6a62; --line: #cfd8d1; --accent: #2f7d4f; --bad: #b3261e;
+          --sans: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; --mono: ui-monospace, Consolas, monospace; color-scheme: light; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #151a17; --panel: #1e2521; --fg: #e3ebe5; --muted: #9aa89f; --line: #34403a; --accent: #6cc58f; --bad: #f2867d; color-scheme: dark; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 var(--sans); padding: 32px max(16px, env(safe-area-inset-right, 0px)) 48px max(16px, env(safe-area-inset-left, 0px)); }
+  main { max-width: 640px; margin: 0 auto; display: grid; gap: 20px; }
+  h1 { font-size: 24px; margin: 0; text-wrap: balance; }
+  p { margin: 0; color: var(--muted); }
+  #drop { display: grid; place-items: center; gap: 8px; min-height: 180px; padding: 24px; border: 2px dashed var(--line); border-radius: 10px; background: var(--panel); text-align: center; cursor: pointer; }
+  #drop.over { border-color: var(--accent); }
+  #drop:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  #drop b { font-size: 17px; }
+  #out { display: grid; gap: 12px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  td { padding: 4px 0; border-bottom: 1px solid var(--line); }
+  td:last-child { text-align: right; font-family: var(--mono); }
+  .err { color: var(--bad); }
+  a.save { justify-self: start; padding: 9px 16px; border-radius: 8px; background: var(--accent); color: var(--bg); font-weight: 700; text-decoration: none; }
+  a.save:focus-visible { outline: 3px solid var(--fg); outline-offset: 2px; }
+  code { font-family: var(--mono); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>엔트리 작품 줄이기</h1>
+  <p>엔트리는 작품을 저장할 때 블록마다 기본값(<code>x</code>, <code>y</code>, <code>deletable</code>, <code>copyable</code> 같은 것)을 모두 적어 넣어서 작품이 두 배쯤 커집니다. 이 쪽은 기본값과 같은 것만 빼서 다시 묶습니다. 블록의 내용과 동작은 그대로이고, 파일은 이 컴퓨터 안에서만 처리됩니다.</p>
+  <div id="drop" tabindex="0" role="button" aria-label=".ent 파일 고르기">
+    <b>.ent 파일을 여기에 끌어다 놓거나 눌러서 고르세요</b>
+    <span class="muted">엔트리에서 저장한 작품 파일</span>
+  </div>
+  <input id="pick" type="file" accept=".ent" hidden>
+  <section id="out" hidden></section>
+</main>
+<script id="slim-core">
+// ---- the core (the same as slim-ent.mjs); test/slimweb.mjs runs it in Node ----
+const DEFAULTS = { x: 0, y: 0, movable: null, deletable: 1, emphasized: false, readOnly: null, copyable: true, assemble: true };
+function slimWalk(b, st) {
+  if (!b || typeof b !== 'object') return;
+  if (Array.isArray(b)) { for (const x of b) slimWalk(x, st); return; }
+  if (typeof b.type === 'string') {
+    for (const k in DEFAULTS) if (k in b && b[k] === DEFAULTS[k]) { delete b[k]; st.removed++; }
+    if (Array.isArray(b.extensions) && !b.extensions.length) { delete b.extensions; st.removed++; }
+    if (Array.isArray(b.statements) && !b.statements.length) { delete b.statements; st.removed++; }
+  }
+  if (b.params) for (const p of b.params) slimWalk(p, st);
+  if (b.statements) for (const s of b.statements) slimWalk(s, st);
+}
+function slimScript(s, st) {
+  if (typeof s === 'string') { if (!s) return s; const v = JSON.parse(s); slimWalk(v, st); return JSON.stringify(v); }
+  slimWalk(s, st); return s;
+}
+async function pipeBytes(bytes, stream) {
+  const res = new Response(new Blob([bytes]).stream().pipeThrough(stream));
+  return new Uint8Array(await res.arrayBuffer());
+}
+// tar fields
+const str = (h, o, n) => { let e = o; while (e < o + n && h[e]) e++; return new TextDecoder().decode(h.subarray(o, e)); };
+const oct = (h, o, n) => parseInt(str(h, o, n).trim() || '0', 8);
+function setOct(h, o, n, v) { const s = v.toString(8).padStart(n - 1, '0'); for (let i = 0; i < n - 1; i++) h[o + i] = s.charCodeAt(i); h[o + n - 1] = 0; }
+function setSum(h) {
+  for (let i = 148; i < 156; i++) h[i] = 32;
+  let sum = 0; for (let i = 0; i < 512; i++) sum += h[i];
+  const s = sum.toString(8).padStart(6, '0'); for (let i = 0; i < 6; i++) h[148 + i] = s.charCodeAt(i); h[154] = 0; h[155] = 32;
+}
+function readTar(t) {
+  const ents = []; let o = 0, longName = null, pax = null;
+  while (o + 512 <= t.length) {
+    const h = t.slice(o, o + 512);
+    if (h.every((b) => b === 0)) break;
+    const size = oct(h, 124, 12), type = String.fromCharCode(h[156] || 48);
+    const data = t.slice(o + 512, o + 512 + size);
+    let name = str(h, 0, 100);
+    if (str(h, 257, 5) === 'ustar' && h[345]) name = str(h, 345, 155) + '/' + name;
+    if (longName) { name = longName; longName = null; }
+    if (pax && pax.path) name = pax.path;
+    const e = { h, data, type, name, paxBefore: type === 'x' ? null : pax };
+    if (type === 'L') longName = new TextDecoder().decode(data).replace(/\0+$/, '');
+    else if (type === 'x') { pax = {}; for (const m of new TextDecoder().decode(data).matchAll(/\d+ ([^=]+)=([^\n]*)\n/g)) pax[m[1]] = m[2]; }
+    else pax = null;
+    ents.push(e);
+    o += 512 + Math.ceil(size / 512) * 512;
+  }
+  return ents;
+}
+function writeTar(ents) {
+  let n = 1024; for (const e of ents) n += 512 + Math.ceil(e.data.length / 512) * 512;
+  const out = new Uint8Array(n); let o = 0;
+  for (const e of ents) { out.set(e.h, o); out.set(e.data, o + 512); o += 512 + Math.ceil(e.data.length / 512) * 512; }
+  return out;
+}
+// bytes of an .ent (tar.gz) in, bytes of the slimmed .ent out
+async function slimEnt(bytes) {
+  const tar = await pipeBytes(bytes, new DecompressionStream('gzip'));
+  const ents = readTar(tar);
+  const i = ents.findIndex((e) => e.type !== 'x' && e.type !== 'L' && /(^|\/)project\.json$/.test(e.name));
+  if (i < 0) throw new Error('이 파일 안에 project.json이 없습니다. 엔트리 작품(.ent)이 맞는지 확인하세요.');
+  const e = ents[i], st = { removed: 0 };
+  const project = JSON.parse(new TextDecoder().decode(e.data));
+  for (const f of project.functions || []) if (f.content) f.content = slimScript(f.content, st);
+  for (const ob of project.objects || []) if (ob.script) ob.script = slimScript(ob.script, st);
+  const before = e.data.length;
+  e.data = new TextEncoder().encode(JSON.stringify(project));
+  setOct(e.h, 124, 12, e.data.length); setSum(e.h);
+  // a pax header just before it may give the old size too: take that line out
+  const p = ents[i - 1];
+  if (p && p.type === 'x' && /\d+ size=/.test(new TextDecoder().decode(p.data))) {
+    const recs = new TextDecoder().decode(p.data).match(/\d+ [^\n]*\n/g).filter((r) => !/^\d+ size=/.test(r));
+    p.data = new TextEncoder().encode(recs.join('')); setOct(p.h, 124, 12, p.data.length); setSum(p.h);
+  }
+  const out = await pipeBytes(writeTar(ents), new CompressionStream('gzip'));
+  return { out, before, after: e.data.length, removed: st.removed };
+}
+</script>
+<script>
+const drop = document.getElementById('drop'), pick = document.getElementById('pick'), out = document.getElementById('out');
+const mb = (n) => (n / 1e6).toFixed(2) + ' MB';
+let url = null;
+async function run(file) {
+  out.hidden = false; out.innerHTML = '<p>' + file.name + ' 줄이는 중…</p>';
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const r = await slimEnt(bytes);
+    if (url) URL.revokeObjectURL(url);
+    url = URL.createObjectURL(new Blob([r.out], { type: 'application/octet-stream' }));
+    const name = file.name.replace(/\.ent$/i, '') + '-slim.ent';
+    out.innerHTML = '';
+    const t = document.createElement('table');
+    for (const [k, v] of [['작품 데이터 (project.json)', mb(r.before) + ' → ' + mb(r.after)], ['.ent 파일', mb(bytes.length) + ' → ' + mb(r.out.length)], ['뺀 기본값', r.removed.toLocaleString('ko-KR') + '개']]) {
+      const tr = t.insertRow(); tr.insertCell().textContent = k; tr.insertCell().textContent = v;
+    }
+    const a = document.createElement('a'); a.className = 'save'; a.href = url; a.download = name; a.textContent = name + ' 저장';
+    const note = document.createElement('p');
+    note.textContent = r.removed ? '엔트리에서 다시 저장하면 기본값이 또 채워지므로, 저장할 때마다 다시 줄이면 됩니다.' : '뺄 기본값이 없습니다. 이미 줄어든 파일입니다.';
+    out.append(t, a, note);
+  } catch (err) {
+    out.innerHTML = ''; const p = document.createElement('p'); p.className = 'err';
+    p.textContent = '줄이지 못했습니다: ' + (err && err.message || err); out.append(p);
+  }
+}
+drop.onclick = () => pick.click();
+drop.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick.click(); } };
+pick.onchange = () => { if (pick.files[0]) run(pick.files[0]); pick.value = ''; };
+drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer.files[0]) run(e.dataTransfer.files[0]); };
+</script>
+</body>
+</html>
