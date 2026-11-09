@@ -172,7 +172,7 @@ function drawHud(dt) {
   if (gameMode != 3) { box(-6, 0.7, 6, -0.7, '#e8e8e8'); box(-0.7, 6, 0.7, -6, '#e8e8e8'); }
   chatHud(dt);
   titlesHud(dt);
-  if (gameMode == 3) { let k2 = 1; while (k2 <= 11) { txOff(k2); k2 = k2 + 1; } specHud(); }
+  if (gameMode == 3) { let k2 = 1; while (k2 <= 11) { txOff(k2); k2 = k2 + 1; } txOff(93); txOff(94); txOff(95); txOff(102); winT = 0; specHud(); }
   else { drawHud2(dt); }
   effectsHud();
   msgT = msgT - dt;
@@ -198,6 +198,7 @@ function drawHud2(dt) {
   let sx = x0 + 11 + (hotSel - 1) * 20;
   box(sx - 12, y0 + 12, sx + 12, y0 + 10, '#ffffff'); box(sx - 12, y0 - 10, sx + 12, y0 - 12, '#ffffff');
   box(sx - 12, y0 + 12, sx - 10, y0 - 12, '#ffffff'); box(sx + 10, y0 + 12, sx + 12, y0 - 12, '#ffffff');
+  if (mod(gameMode, 2) == 1) { txOff(102); }
   if (mod(gameMode, 2) == 0) {
     // the experience bar and level
     box(x0, y0 + 15, x0 + 182, y0 + 12, '#202020');

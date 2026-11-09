@@ -357,11 +357,14 @@ function veins(b, n, lo, hi, ylo, yhi) {
   if (rnd() < n - k) { k = k + 1; }
   while (k > 0) { genVein(b, rndI(lo, hi), ylo, yhi); k = k - 1; }
 }
+let treeClip = 0;
 function setIfAir(x, y, z, b) {
   if (y >= 0 && y < WY) {
     let i = (mod(x, WS) * WS + mod(z, WS)) * WY + y + 1;
     let o = W[i];
-    if (o == 0 || (BSHP[o + 1] == 1 && BTREE[o + 1] < 0 && BWATER[o + 1] == 0)) { wput(x, y, z, b); }
+    if (o == 0 || (BSHP[o + 1] == 1 && BTREE[o + 1] < 0 && BWATER[o + 1] == 0)) {
+      if (treeClip == 0 || (x >= gx0 && x <= gx1 && z >= gz0 && z <= gz1)) { wput(x, y, z, b); }
+    }
   }
 }
 // a tree of kind k (0 oak, 1 birch, 2 spruce, 3 mahogany, 4 acacia, 5 ebony, 6 ember, 7 indigo)
@@ -670,9 +673,11 @@ function seaFloor(x, y, z, bi, i) {
 }
 function genFeatures(cx, cz) {
   gx0 = cx * 16; gx1 = gx0 + 15; gz0 = cz * 16; gz1 = gz0 + 15;
+  treeClip = 1;
   if (dim == 0) { featuresO(cx, cz); }
   if (dim == 1) { featuresU(cx, cz); }
   if (dim == 2) { featuresV(cx, cz); }
+  treeClip = 0;
   // what the player changed here before
   let k = 1, n = EDX.length;
   while (k <= n) {

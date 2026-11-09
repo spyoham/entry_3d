@@ -170,7 +170,7 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     };
     const trapdoor = (n, key, ko, t, more) => {
         const L = [{ model: 'trap_b' }, { model: 'trap_t', v: 'top' }];
-        for (let s = 0; s < 4; s++) L.push({ model: `trapo_${s}`, v: `open${s}` });
+        for (const h of [0, 1]) for (let s = 0; s < 4; s++) L.push({ model: `trapo_${s}`, v: h ? `opentop${s}` : `open${s}` });
         const d = variants({ n, key, ko, t: [t], ...more, shape: 5, hide: 0, lop: 0, place: 'trapdoor', use: more.iron ? 'none' : 'trapdoor', cat: 3 }, L);
         for (const v of L.slice(1)) byKey.get(n + '_' + v.v).drop = n;
         return d;
@@ -583,9 +583,9 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     add({ n: 'wailLantern', key: 'wail_lantern', ko: '흐느낌 랜턴', t: [wlanT], hard: 3.5, tool: 1, shape: 5, model: 'lantern', hide: 0, lop: 0, light: 10, cat: 1 });
     R(['ironNugget ironNugget ironNugget', 'ironNugget wailTorch ironNugget', 'ironNugget ironNugget ironNugget'], 'wailLantern', 1);
     const fireTex = 'fireT';
-    add({ n: 'campfire', key: 'campfire', ko: '모닥불', t: ['oakBark'], hard: 2, tool: 2, shape: 5, model: 'campfire', hide: 0, lop: 0, light: 15, hurt: 1, cat: 3, drop: 'coal', dropN: 2, flameTex: fireTex, use: 'campfire' });
+    add({ n: 'campfire', key: 'campfire', ko: '모닥불', t: ['oakBark'], hard: 2, tool: 2, shape: 5, model: 'campfire', hide: 0, lop: 0, light: 15, hurt: 2, cat: 3, drop: 'coal', dropN: 2, flameTex: fireTex, use: 'campfire' });
     R(['_ stick _', 'stick coal stick', '#logs #logs #logs'], 'campfire', 1);
-    add({ n: 'wailCampfire', key: 'wail_campfire', ko: '흐느낌 모닥불', t: ['oakBark'], hard: 2, tool: 2, shape: 5, model: 'campfire', hide: 0, lop: 0, light: 10, hurt: 1, cat: 3, drop: 'wailSoil', flameTex: 'wailFireT', use: 'campfire' });
+    add({ n: 'wailCampfire', key: 'wail_campfire', ko: '흐느낌 모닥불', t: ['oakBark'], hard: 2, tool: 2, shape: 5, model: 'campfire', hide: 0, lop: 0, light: 10, hurt: 2, cat: 3, drop: 'wailSoil', flameTex: 'wailFireT', use: 'campfire' });
     R(['_ stick _', 'stick wailSand stick', '#logs #logs #logs'], 'wailCampfire', 1);
     add({ n: 'wailTorch', key: 'wail_torch', ko: '흐느낌 횃불', t: ['planks'], hard: 0, shape: 2, light: 10, cat: 1, flame: '50e0e0', need: 'torch' });
     R(['coal', 'stick', 'wailSand'], 'wailTorch', 4);
@@ -599,9 +599,9 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     cube('sparkLampOn', 'spark_lamp_on', '불꽃 등', lampOn, { hard: 0.3, light: 15, hidden: 1, item: 'sparkLamp', drop: 'sparkLamp', lamp: 2 });
     R(['_ sparkDust _', 'sparkDust glowCrystal sparkDust', '_ sparkDust _'], 'sparkLamp', 1);
     add({ n: 'sparkWire', key: 'spark_wire', ko: '불꽃가루 선', t: [tc('wireT', ['...kk...', '...kk...', '...kk...', 'kkkkkkkk', 'kkkkkkkk', '...kk...', '...kk...', '...kk...'], { k: 'b01010' })], hard: 0, shape: 5, model: 'dust', hide: 0, lop: 0, solid: 0, cat: 4, hidden: 1, drop: 'sparkDust', wire: 1, need: 'floor' });
-    add({ n: 'repeater', key: 'repeater', ko: '반복기', t: [tc('repeaterT', ['aaaaaaaa', 'aaakkaaa', 'aaakkaaa', 'aaakkaaa', 'aaakkaaa', 'aaakkaaa', 'aaakkaaa', 'aaaaaaaa'], { a: 'a0a0a0', k: '8a2020' }), 'smoothStoneT'], hard: 0, shape: 5, model: 'repeater', hide: 0, lop: 0, cat: 4, need: 'floor' });
+    add({ n: 'repeater', key: 'repeater', ko: '반복기', t: [tc('repeaterT', ['aaaaaaaa', 'aaakkaaa', 'aaakkaaa', 'aaakkaaa', 'aaakkaaa', 'aaakkaaa', 'aaakkaaa', 'aaaaaaaa'], { a: 'a0a0a0', k: '8a2020' }), 'smoothStoneT'], hard: 0, shape: 5, model: 'repeater', hide: 0, lop: 0, cat: 4, need: 'floor', wire: 1 });
     R(['sparkTorch sparkDust sparkTorch', 'stone stone stone'], 'repeater', 1);
-    add({ n: 'comparator', key: 'comparator', ko: '비교기', t: [tc('comparatorT', ['aaaaaaaa', 'akaaaaka', 'aaaaaaaa', 'aaakkaaa', 'aaakkaaa', 'aaaaaaaa', 'aaakkaaa', 'aaaaaaaa'], { a: 'a0a0a0', k: '8a2020' }), 'smoothStoneT'], hard: 0, shape: 5, model: 'repeater', hide: 0, lop: 0, cat: 4, need: 'floor' });
+    add({ n: 'comparator', key: 'comparator', ko: '비교기', t: [tc('comparatorT', ['aaaaaaaa', 'akaaaaka', 'aaaaaaaa', 'aaakkaaa', 'aaakkaaa', 'aaaaaaaa', 'aaakkaaa', 'aaaaaaaa'], { a: 'a0a0a0', k: '8a2020' }), 'smoothStoneT'], hard: 0, shape: 5, model: 'repeater', hide: 0, lop: 0, cat: 4, need: 'floor', wire: 1 });
     R(['_ sparkTorch _', 'sparkTorch quartz sparkTorch', 'stone stone stone'], 'comparator', 1);
     variants({ n: 'lever', key: 'lever', ko: '레버', t: ['cobble'], hard: 0.5, shape: 5, hide: 0, lop: 0, solid: 0, cat: 4, use: 'lever', need: 'floor' }, [{ model: 'lever_off' }, { model: 'lever_on', v: 'on', power: 1, drop: 'lever' }]);
     R(['stick', 'cobble'], 'lever', 1);

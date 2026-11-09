@@ -98,6 +98,7 @@ function featuresU(cx, cz) {
     lx = lx + 1;
   }
   featuresBastion(cx, cz);
+  chunkSeed(cx, cz, 5);
   // the ashen debris, deep and rare (whatever is round it)
   veins(59, 1.6, 1, 3, 8, 22);
   veins(49, 3, 10, 20, 12, 30);

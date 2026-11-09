@@ -108,6 +108,7 @@ function spawnDepths() {
         if (abm == 25) { t = 9; if (r3 > 60) { t = 8; } }
         if (fortX(z - mod(z - 40, 80) + 40 - 40) == 1 || Math.abs(mod(z, 80) - 40) < 4 || Math.abs(mod(x, 80) - 40) < 4) { if (y > FORTY) { if (r3 > 50) { t = M_BLACKSKEL; } } }
         if (difficulty == 0) { if (MHOST[t] == 1) { t = 0; } }
+        if (t == M_ASHPIG) { if (nPassive >= 10) { t = 0; } }
         if (t > 0) { if (MFLY[t] == 1) { mobAdd(t, x + 0.5, y + 1.5, z + 0.5); } else { mobAdd(t, x + 0.5, y + 0.02, z + 0.5); } }
       }
     }
@@ -142,7 +143,6 @@ function mobStep0(e, dt) {
   // the iron keeper goes for hostile mobs near it; the people of the village run from them
   if (ai == 8) { if (EST[e] != 4) { golemHunt(e, dt); } }
   if (ai == 7) { villagerFear(e); }
-  if (ai == 6) { if (EST[e] == 5) { want = 0; ETM[e] = ETM[e] - 0; } }
   if (golemT > 0) { want = golemWant; wy = golemYaw; golemT = 0; }
   else { if (MHOST[t] == 1 || EST[e] == 4) {
     // hostile: after the player when near (not in creative)
@@ -164,7 +164,7 @@ function mobStep0(e, dt) {
         else { want = 1.8; }
         if (dist < 1.4) { if (Math.abs(dyp) < 1.2) { if (EATK[e] <= 0) { EATK[e] = 1; hurt(MDMG[t], `${MNAME[t]}에게 당했습니다`); pvx = pvx + dxp / (dist + 0.01) * 4; pvz = pvz + dzp / (dist + 0.01) * 4; pvy = 4; } } }
       }
-      if (ai == 6) { bombStep(e, dist, dt); }
+      if (ai == 6) { bombStep(e, dist, dt); if (EST[e] == 5) { want = 0; } }
       if (ai == 2) {
         // the archer keeps its distance and shoots
         if (dist < 6) { want = 0 - 1; }
@@ -439,7 +439,8 @@ function itemsStep(dt) {
       if (bmHitX == 1) { IVX[i] = 0; } if (bmHitZ == 1) { IVZ[i] = 0; }
       if (bmGround == 1) { IVX[i] = IVX[i] * (1 - Math.min(1, 6 * dt)); IVZ[i] = IVZ[i] * (1 - Math.min(1, 6 * dt)); }
       // in a block (it was built over): up
-      solidIn(Math.floor(IXX[i]), Math.floor(IXX[i]), Math.floor(IYY[i] + 0.1), Math.floor(IYY[i] + 0.1), Math.floor(IZZ[i]), Math.floor(IZZ[i]));
+      solidHit = 0;
+      if (BSOL[blockAt(Math.floor(IXX[i]), Math.floor(IYY[i] + 0.1), Math.floor(IZZ[i])) + 1] == 1) { solidHit = 1; }
       if (solidHit == 1) { IYY[i] = Math.floor(IYY[i] + 0.1) + 1; }
       // picked up when close
       if (dead == 0 && gameMode != 3) { if (IAGE[i] > 0.5) {
@@ -518,6 +519,7 @@ function drawMob(e, fog) {
   mdLv = lightAt(mdX, mdY + 0.5, mdZ); mdFog = fog;
   mdTint = 0;
   if (EHURT[e] > 0.2) { mdTint = 1; }
+  if (MAI[t] == 6) { if (EST[e] == 5) { if (mod(frameNo, 8) < 4) { mdTint = 1; } } }
   if (EBURN[e] == 1) { if (mod(frameNo, 10) < 2) { mdTint = 2; } }
   // order the boxes by distance of their middles (in the camera's depth)
   let b = MB0[t], be = b + MBN[t], n = 0, cxm = 0, cym = 0, czm = 0, wx = 0, wz = 0, dd = 0, j = 0;
@@ -631,10 +633,10 @@ let golemT = 0, golemWant = 0, golemYaw = 0;
 function golemHunt(e, dt) {
   let best = 0, bd = 196, f = 1;
   while (f <= NMOB) {
-    if (ET[f] > 0) { if (MHOST[ET[f]] == 1) { if (ET[f] != 10) {
+    if (ET[f] > 0) { if (MHOST[ET[f]] == 1) { if (ET[f] != 10) { if (Math.abs(EY[f] - EY[e]) < 3) {
       let d = (EX[f] - EX[e]) * (EX[f] - EX[e]) + (EZ[f] - EZ[e]) * (EZ[f] - EZ[e]);
       if (d < bd) { bd = d; best = f; }
-    } } }
+    } } } }
     f = f + 1;
   }
   if (best > 0) {
@@ -656,8 +658,6 @@ function villagerFear(e) {
 function bombStep(e, dist, dt) {
   if (EST[e] != 5) { if (dist < 2.6) { EST[e] = 5; ETM[e] = 1.5; sndPlay(4); } }
   else {
-    ETM[e] = ETM[e] - dt;
-    EHURT[e] = 0.3;
     if (dist > 6) { EST[e] = 0; }
     if (ETM[e] <= 0) { let x = EX[e], y = EY[e], z = EZ[e]; ET[e] = 0; explode(x, y + 0.8, z, 3, 1); }
   }

@@ -143,7 +143,7 @@ function stateOf(b, st) {
   if (pl == P_BED) { v = f + half * 4; }
   if (pl == P_LADDER) { v = mod(f + 2, 4); }
   if (pl == P_GATE) { v = mod(f, 2) + op * 2; }
-  if (pl == P_TRAPDOOR) { v = half; if (op == 1) { v = 2 + f; } }
+  if (pl == P_TRAPDOOR) { v = half; if (op == 1) { v = 2 + half * 4 + f; } }
   if (pl == P_DOOR) { v = op * 8 + half * 4 + mod(f + 2, 4); }
   if (pl == P_RAIL) { v = mod(f, 2); }
   if (BCROP[b + 1] >= 0) { if (age >= 0) { v = age; } }
@@ -176,8 +176,8 @@ function coords(a) {
       let l = relOf(wx), u = relOf(wy), f = relOf(wz);
       // left, up, forward from where the command looks
       let sy = sind(cmdYaw), cyw = cosd(cmdYaw), sp = sind(cmdPitch), cp = cosd(cmdPitch);
-      let fx2 = sy * cp, fy2 = sp, fz2 = cyw * cp, lx2 = cyw, lz2 = 0 - sy, ux2 = 0 - sy * sp, uy2 = cp, uz2 = 0 - cyw * sp;
-      cX = cmdX + lx2 * l + ux2 * u + fx2 * f; cY = cmdY + 1.62 + uy2 * u + fy2 * f; cZ = cmdZ + lz2 * l + uz2 * u + fz2 * f;
+      let fx2 = sy * cp, fy2 = sp, fz2 = cyw * cp, lx2 = 0 - cyw, lz2 = sy, ux2 = 0 - sy * sp, uy2 = cp, uz2 = 0 - cyw * sp;
+      cX = cmdX + lx2 * l + ux2 * u + fx2 * f; cY = cmdY + uy2 * u + fy2 * f; cZ = cmdZ + lz2 * l + uz2 * u + fz2 * f;
       cOk = 1;
     } else {
       if ((isNum(wx) == 1 || charAt(wx, 1) == '~') && (isNum(wy) == 1 || charAt(wy, 1) == '~') && (isNum(wz) == 1 || charAt(wz, 1) == '~')) {
@@ -205,14 +205,15 @@ function selParse(w) {
     let k = charAt(w, 2), args = '';
     let br = indexOf(w, '[');
     if (br > 0) { args = substr(w, br + 1, strlen(w) - 1); }
-    let ty = 0, neg = 0, dmin = 0 - 1, dmax = 0 - 1, lim = 0, srt = 0;
+    let ty = 0, neg = 0, dmin = 0 - 1, dmax = 0 - 1, lim = 0, srt = 0, hasT = 0;
     let t = indexOf(args, 'type=');
     if (t > 0) {
       let rest = substr(args, t + 5, strlen(args)), cm = indexOf(rest, ',');
       if (cm > 0) { rest = substr(rest, 1, cm - 1); }
       if (charAt(rest, 1) == '!') { neg = 1; rest = substr(rest, 2, strlen(rest)); }
-      ty = mobByName(rest);
+      ty = mobByName(rest); hasT = 1;
       if (bare(rest) == 'player') { ty = 0 - 1; }
+      if (ty == 0) { ty = 0 - 2; }
     }
     let di = indexOf(args, 'distance=');
     if (di > 0) {
@@ -227,13 +228,17 @@ function selParse(w) {
     if (indexOf(args, 'sort=nearest') > 0) { srt = 1; } if (indexOf(args, 'sort=furthest') > 0) { srt = 2; } if (indexOf(args, 'sort=random') > 0) { srt = 3; }
     if (k == 'p' || k == 's' || k == 'a' || k == 'r') { selAdd(0); }
     if (k == 'e') {
-      if (ty <= 0 || neg == 1) { if (ty != 0 - 1 || neg == 1) { if (neg == 0 || ty != 0 - 1) { selAdd(0); } } }
+      // the player: no type, type=player, or type=!<a mob>
+      let pOk = 0;
+      if (hasT == 0) { pOk = 1; } else { if (ty == 0 - 1) { pOk = 1 - neg; } else { if (ty > 0 || ty == 0 - 2) { pOk = neg; } } }
+      if (pOk == 1) { selAdd(0); }
       let e = 1;
       while (e <= NMOB) {
         if (ET[e] > 0) {
           let okT = 1;
           if (ty > 0) { if (ET[e] != ty) { okT = 0; } if (neg == 1) { okT = 1 - okT; } }
           if (ty == 0 - 1) { okT = neg; }
+          if (ty == 0 - 2) { okT = neg; }
           if (okT == 1) { selAdd(e); }
         }
         e = e + 1;
@@ -406,8 +411,9 @@ function cmdGive() {
 }
 function cmdClear() {
   let id = 0, mx = 0 - 1, n = 0, k = 1;
-  if (CMW.length >= 3) { id = itemByName(cw(3)); }
+  if (CMW.length >= 3) { id = itemByName(cw(3)); if (id == 0) { id = 0 - 1; } }
   if (CMW.length >= 4) { mx = Math.floor(cw(4) * 1); }
+  if (id < 0) { k = 99; }
   while (k <= 40) {
     if (INVI[k] > 0) { if (id == 0 || INVI[k] == id) {
       let t = INVN[k];
@@ -416,7 +422,9 @@ function cmdClear() {
     } }
     k = k + 1;
   }
-  return `플레이어에게서 아이템 ${n}개를 없앴습니다`;
+  let out = `플레이어에게서 아이템 ${n}개를 없앴습니다`;
+  if (id < 0) { out = `알 수 없는 아이템입니다: ${cw(3)}`; }
+  return out;
 }
 function cmdKill() {
   let w = cw(2);
@@ -536,7 +544,7 @@ function cmdTp() {
     let k = 1, m = 0;
     while (k <= TPK.length) {
       let e = TPK[k];
-      if (e == 0) { px = tx2; py = ty2; pz = tz2; pvx = 0; pvy = 0; pvz = 0; fallTop = py; if (yw > -999) { yaw = yw; pitch = Math.max(-89.5, Math.min(89.5, pt)); } } else { EX[e] = tx2; EY[e] = ty2; EZ[e] = tz2; }
+      if (e == 0) { riding = 0; px = tx2; py = ty2; pz = tz2; pvx = 0; pvy = 0; pvz = 0; fallTop = py; if (yw > -999) { yaw = yw; pitch = Math.max(-89.5, Math.min(89.5, pt)); } } else { EX[e] = tx2; EY[e] = ty2; EZ[e] = tz2; }
       m = m + 1; k = k + 1;
     }
     out = `${m}개의 개체를 ${Math.floor(tx2 * 10) / 10}, ${Math.floor(ty2 * 10) / 10}, ${Math.floor(tz2 * 10) / 10}(으)로 옮겼습니다`;
@@ -551,8 +559,13 @@ function cmdSummon() {
   else { if (nm == 'tnt') { let bx = Math.floor(x), by = Math.floor(y), bz = Math.floor(z); setBlock(bx, by, bz, I_tnt); tntPrime(bx, by, bz); out = '불붙은 폭약을 소환했습니다'; }
   else {
     let t = mobByName(nm);
+    if (t == 10) {
+      let alive = 0;
+      if (bossE > 0) { if (ET[bossE] == 10) { alive = 1; } }
+      if (dim != 2 || alive == 1) { t = 0 - 1; out = '공허의 수호자는 공허에 하나만 있을 수 있습니다'; }
+    }
     if (t == 0) { out = `알 수 없는 개체입니다: ${cw(2)}`; }
-    else { mobAdd(t, x, y, z); if (lastMob > 0) { EST[lastMob] = 0; out = `${MNAME[t]}을(를) 소환했습니다`; if (t == 10) { bossE = lastMob; } } else { out = '몹이 너무 많습니다'; } }
+    if (t > 0) { mobAdd(t, x, y, z); if (lastMob > 0) { EST[lastMob] = 0; out = `${MNAME[t]}을(를) 소환했습니다`; if (t == 10) { bossE = lastMob; } } else { out = '몹이 너무 많습니다'; } }
   } }
   return out;
 }
@@ -566,6 +579,8 @@ function boxPut(x, y, z, b) {
       markDirty(x, y, z);
       if (BUSE[b + 1] == U_CHEST) { chestAt(x, y, z); } if (BUSE[b + 1] == U_FURNACE) { furnaceAt(x, y, z); }
       if (BSPEC[b + 1] == 6) { spawnerNote(x, y, z); }
+      if (BSPEC[b + 1] == 8 || BSPEC[b + 1] == 4 || BSPEC[o + 1] == 8 || BSPEC[o + 1] == 4) { powerAround(x, y, z); }
+      if (BSPEC[b + 1] == 1 || BSPEC[b + 1] == 2 || BSPEC[b + 1] == 3) { powerCheck(x, y, z); }
       bxN = bxN + 1;
     }
   } }
@@ -600,9 +615,10 @@ function cmdFill() {
   coords(5);
   let bx = Math.floor(cX), by = Math.floor(cY), bz = Math.floor(cZ), ok2 = cOk;
   let b = blockByName(cw(8)), md = cw(9), flt = 0 - 1;
-  if (md == 'replace') { if (CMW.length >= 10) { flt = blockByName(cw(10)); } }
+  let badF = 0;
+  if (md == 'replace') { if (CMW.length >= 10) { flt = blockByName(cw(10)); if (flt < 0) { badF = 1; } } }
   if (ok1 == 0 || ok2 == 0) { out = '/fill <x1 y1 z1> <x2 y2 z2> <블록> [destroy|hollow|keep|outline|replace <블록>]'; }
-  else { if (b < 0) { out = `알 수 없는 블록입니다: ${cw(8)}`; }
+  else { if (b < 0 || badF == 1) { out = `알 수 없는 블록입니다: ${cw(8)} ${cw(10)}`; }
   else {
     let x0 = Math.min(ax, bx), x1 = Math.max(ax, bx), y0 = Math.max(0, Math.min(ay, by)), y1 = Math.min(WY - 1, Math.max(ay, by)), z0 = Math.min(az, bz), z1 = Math.max(az, bz);
     let vol = (x1 - x0 + 1) * (y1 - y0 + 1) * (z1 - z0 + 1);
@@ -725,9 +741,16 @@ function cmdExecute() {
       else { if (w == 'at') { selParse(cw(k + 1)); if (selN > 0) { let e = SEL[1]; if (e > 0) { cmdX = EX[e]; cmdY = EY[e]; cmdZ = EZ[e]; cmdYaw = EYAW[e]; } else { cmdX = px; cmdY = py; cmdZ = pz; } } else { ok = 0; } k = k + 2; }
       else { if (w == 'positioned') { coords(k + 1); if (cOk == 1) { cmdX = cX; cmdY = cY; cmdZ = cZ; } k = k + 4; }
       else { if (w == 'facing') { coords(k + 1); if (cOk == 1) { cmdYaw = atan2d(cX - cmdX, cZ - cmdZ); } k = k + 4; }
-      else { if (w == 'align' || w == 'anchored' || w == 'in' || w == 'rotated') { k = k + 2; }
-      else { if (w == 'if' || w == 'unless') { k = k + 5; }
-      else { ok = 0; out = `execute: 알 수 없는 부분입니다: ${w}`; } } } } } }
+      else { if (w == 'align' || w == 'anchored' || w == 'in') { k = k + 2; }
+      else { if (w == 'rotated') { k = k + 3; }
+      else { if (w == 'if' || w == 'unless') {
+        let want = 1, got = 0;
+        if (w == 'unless') { want = 0; }
+        if (cw(k + 1) == 'entity') { selParse(cw(k + 2)); if (selN > 0) { got = 1; } k = k + 3; }
+        else { if (cw(k + 1) == 'block') { coords(k + 2); let bb = blockByName(cw(k + 5)); if (cOk == 1) { if (BKIND[blockAt(Math.floor(cX), Math.floor(cY), Math.floor(cZ)) + 1] == BKIND[Math.max(0, bb) + 1]) { got = 1; } } k = k + 6; } else { ok = 0; out = `execute: ${w} entity / block 만 됩니다`; } }
+        if (got != want) { ok = 0; }
+      }
+      else { ok = 0; out = `execute: 알 수 없는 부분입니다: ${w}`; } } } } } } }
     }
   }
   cmdX = ox; cmdY = oy; cmdZ = oz; cmdYaw = oyw; cmdPitch = op;

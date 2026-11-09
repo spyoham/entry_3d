@@ -79,7 +79,7 @@ function smithBack() {
 // ---------------------------------------------------------------- the shell box: a chest that keeps what is in it when broken
 // (its chest number rides on the item as its wear; 2 in CHON: carried)
 function shellBoxPlaced(x, y, z, du) {
-  if (du > 0) { if (du <= NCHEST) { if (CHON[du] == 2) { CHON[du] = 1; CHX[du] = x; CHY[du] = y + dim * 100; CHZ[du] = z; } } }
+  if (du > 0) { if (du <= NCHEST) { if (CHON[du] == 2) { CHON[du] = 1; CHX[du] = x; CHY[du] = y + dim * 1000; CHZ[du] = z; } } }
 }
 function shellBoxBroken(x, y, z, b) {
   chestFind(x, y, z);
@@ -522,7 +522,7 @@ function lightning(x, y, z) {
     findTop(bx, bz);
     let ty = topY + 1;
     if (grFireTick == 1) { if (blockAt(bx, ty, bz) == 0) { if (BSOL[blockAt(bx, ty - 1, bz) + 1] > 0) { setBlock(bx, ty, bz, I_fire); } } }
-    if ((px - x) * (px - x) + (pz - z) * (pz - z) < 9) { hurtT = 0; hurt(5, '번개에 맞았습니다'); }
+    if ((px - x) * (px - x) + (pz - z) * (pz - z) < 9) { if (Math.abs(py - ty) < 4) { hurtT = 0; hurt(5, '번개에 맞았습니다'); } }
     let e = 1;
     while (e <= NMOB) { if (ET[e] > 0) { if ((EX[e] - x) * (EX[e] - x) + (EZ[e] - z) * (EZ[e] - z) < 9) { EHURT[e] = 0; mobHurt(e, 5, 0, 0); } } e = e + 1; }
   }

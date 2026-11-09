@@ -178,7 +178,8 @@ function placeBlock(b, id) {
     if (BUSE[b + 1] == U_SHELL) { shellBoxPlaced(x, y, z, du0); }
     if (BSPEC[b + 1] == 8) { powerAround(x, y, z); }
     if (BSPEC[b + 1] == 4) { powerAround(x, y, z); }
-    if (BSPEC[b + 1] == 2 || BSPEC[b + 1] == 1 || BUSE[b + 1] == U_DOOR || BPLC[b + 1] == P_DOOR) { powerCheck(x, y, z); }
+    if (BSPEC[b + 1] == 9) { powerAround(x, y, z); }
+    if (BSPEC[b + 1] == 2 || BSPEC[b + 1] == 1 || BPLC[b + 1] == P_DOOR || BPLC[b + 1] == P_TRAPDOOR || BPLC[b + 1] == P_GATE || b == I_piston || b == I_stickyPiston || b == I_noteBlock || b == I_commandBlock) { powerCheck(x, y, z); }
     if (b == I_sparkTorch) { powerAround(x, y, z); }
   }
 }
@@ -214,7 +215,7 @@ function doorSet(x, y, z, b, open) {
 function toggleSimple(x, y, z, b) {
   let k = BKIND[b + 1], v = BVAR[b + 1], f = faceOf(yaw);
   if (BPLC[k + 1] == P_GATE) { if (v < 2) { v = v + 2; } else { v = v - 2; } }
-  else { if (v < 2) { v = 2 + mod(f + 2, 4); } else { v = 0; } }
+  else { if (v < 2) { v = 2 + v * 4 + mod(f + 2, 4); } else { v = idiv(v - 2, 4); } }
   setBlock(x, y, z, k + v);
   sndPlay(6);
 }
@@ -235,7 +236,7 @@ function pressAdd(x, y, z, t) {
     if (f == 0) { PRX.push(0); PRY.push(0); PRZ.push(0); PRT.push(0); f = PRX.length; }
     PRX[f] = x; PRY[f] = y; PRZ[f] = z; PRT[f] = t;
     powerAround(x, y, z);
-  } else { PRT[f] = Math.max(PRT[f], t); }
+  } else { if (PRT[f] <= 0) { PRT[f] = t; powerAround(x, y, z); } else { PRT[f] = Math.max(PRT[f], t); } }
 }
 function pressedAt(x, y, z) {
   let i = 1, r = 0;
@@ -262,7 +263,7 @@ function pressStep(dt) {
 function sourceOn(x, y, z) {
   let b = blockAt(x, y, z), r = 0, sp = BSPEC[b + 1];
   if (sp == 8) { r = 1; }
-  if (sp == 5 || BUSE[b + 1] == U_BUTTON) { r = pressedAt(x, y, z); }
+  if (sp == 5 || BUSE[b + 1] == U_BUTTON || b == I_target) { r = pressedAt(x, y, z); }
   if (sp == 9) { if (dark <= 3) { if (idiv(LT[wi(x, y, z)], 16) >= 12) { r = 1; } } }
   return r;
 }
@@ -320,11 +321,12 @@ function powerAround(x, y, z) {
   M_pcAdd(x, y, z);
   let k = 0;
   M_pcN(x, y, z);
-  // the nets of the wires next to it
+  // the nets of the wires: in the cell itself, beside it, and a step up or down from it
   let d = 0;
-  while (d < 6) {
+  while (d < 15) {
     let a = x, c = z, yy = y;
-    if (d == 0) { a = x + 1; } if (d == 1) { a = x - 1; } if (d == 2) { yy = y + 1; } if (d == 3) { yy = y - 1; } if (d == 4) { c = z + 1; } if (d == 5) { c = z - 1; }
+    if (d == 1) { a = x + 1; } if (d == 2) { a = x - 1; } if (d == 3) { yy = y + 1; } if (d == 4) { yy = y - 1; } if (d == 5) { c = z + 1; } if (d == 6) { c = z - 1; }
+    if (d >= 7) { yy = y + 1; if (d >= 11) { yy = y - 1; } let q = mod(d - 7, 4); if (q == 0) { a = x + 1; } if (q == 1) { a = x - 1; } if (q == 2) { c = z + 1; } if (q == 3) { c = z - 1; } }
     if (BSPEC[blockAt(a, yy, c) + 1] == 4) {
       wireNet(a, yy, c);
       k = 1;
@@ -337,7 +339,9 @@ function powerAround(x, y, z) {
 }
 function M_pcN(X, Y, Z) { M_pcAdd(X + 1, Y, Z); M_pcAdd(X - 1, Y, Z); M_pcAdd(X, Y + 1, Z); M_pcAdd(X, Y - 1, Z); M_pcAdd(X, Y, Z + 1); M_pcAdd(X, Y, Z - 1); }
 function M_pcAdd(X, Y, Z) {
-  if (PCX.length < 200) {
+  let dup = 0, qq = 1;
+  while (qq <= PCX.length) { if (PCX[qq] == X) { if (PCY[qq] == Y) { if (PCZ[qq] == Z) { dup = 1; } } } qq = qq + 1; }
+  if (PCX.length < 200 && dup == 0) {
     let cb = blockAt(X, Y, Z);
     if (BSPEC[cb + 1] == 1 || BSPEC[cb + 1] == 2 || BSPEC[cb + 1] == 3 || BPLC[cb + 1] == P_DOOR || BPLC[cb + 1] == P_TRAPDOOR || BPLC[cb + 1] == P_GATE || cb == I_piston || cb == I_stickyPiston || cb == I_noteBlock || cb == I_commandBlock) {
       PCX.push(X); PCY.push(Y); PCZ.push(Z);
@@ -345,18 +349,36 @@ function M_pcAdd(X, Y, Z) {
   }
 }
 // what a consumer does with power
+// the power each switched cell had when it was last asked (EG*): the change is what counts
+let EGX = [], EGY = [], EGZ = [], EGD = [], EGS = [];
+let egWas = 0;
+function edgeSet(x, y, z, on) {
+  let i = 1, f = 0;
+  egWas = 0;
+  while (i <= EGX.length) { if (EGX[i] == x && EGY[i] == y && EGZ[i] == z && EGD[i] == dim) { f = i; } i = i + 1; }
+  if (f == 0) { EGX.push(x); EGY.push(y); EGZ.push(z); EGD.push(dim); EGS.push(on); }
+  else { egWas = EGS[f]; EGS[f] = on; }
+}
 function powerCheck(x, y, z) {
   let b = blockAt(x, y, z), on = poweredAt(x, y, z), sp = BSPEC[b + 1], k = BKIND[b + 1];
   if (sp == 2) { if (on == 1) { setBlock(x, y, z, I_sparkLampOn); } }
   if (sp == 3) { if (on == 0) { setBlock(x, y, z, I_sparkLamp); } }
   if (sp == 1) { if (on == 1) { tntPrime(x, y, z); } }
   if (BPLC[b + 1] == P_DOOR) {
+    let h0 = mod(idiv(BVAR[b + 1], 4), 2), ox = poweredAt(x, y + 1 - h0 * 2, z);
+    if (ox == 1) { on = 1; }
+    // (the door's two halves: written down at the lower one)
+    edgeSet(x, y - h0, z, on);
+    if (egWas != on) { doorSet(x, y, z, b, on); }
+  } else { if (sp != 2 && sp != 3 && sp != 1) { edgeSet(x, y, z, on); if (egWas != on) { powerSwitch(x, y, z, b, k, on); } } }
+}
+function powerSwitch(x, y, z, b, k, on) {
+  if (BPLC[b + 1] == P_DOOR) {
     // (the lower half decides: the upper one asks it)
-    let h = mod(idiv(BVAR[b + 1], 4), 2);
-    if (h == 1) { if (poweredAt(x, y - 1, z) == 1) { on = 1; } } else { if (poweredAt(x, y + 1, z) == 1) { on = 1; } }
     doorSet(x, y, z, b, on);
   }
-  if (BPLC[b + 1] == P_TRAPDOOR) { let v = BVAR[b + 1]; if (on == 1 && v < 2) { setBlock(x, y, z, k + 2); } if (on == 0 && v >= 2) { setBlock(x, y, z, k); } }
+  // 9 trapdoors: closed 0 bottom / 1 top, open 2 + half * 4 + side (the half is kept)
+  if (BPLC[b + 1] == P_TRAPDOOR) { let v = BVAR[b + 1]; if (on == 1 && v < 2) { setBlock(x, y, z, k + 2 + v * 4 + mod(faceOf(yaw) + 2, 4)); } if (on == 0 && v >= 2) { setBlock(x, y, z, k + idiv(v - 2, 4)); } }
   if (BPLC[b + 1] == P_GATE) { let v = BVAR[b + 1]; if (on == 1 && v < 2) { setBlock(x, y, z, b + 2); } if (on == 0 && v >= 2) { setBlock(x, y, z, b - 2); } }
   if (on == 1) {
     if (b == I_piston || b == I_stickyPiston) { pistonPush(x, y, z); }
@@ -367,11 +389,13 @@ function powerCheck(x, y, z) {
 // a piston pushes the block over it one up (up to a line of 12)
 function pistonPush(x, y, z) {
   let n = 0, yy = y + 1;
-  while (n < 12 && blockAt(x, yy, z) != 0 && BSHP[blockAt(x, yy, z) + 1] != 3) { if (BHARD[blockAt(x, yy, z) + 1] < 0 || blockAt(x, yy, z) == 34) { n = 99; } yy = yy + 1; n = n + 1; }
+  while (n < 12 && blockAt(x, yy, z) != 0 && BSHP[blockAt(x, yy, z) + 1] != 3) { let pb = blockAt(x, yy, z); if (BHARD[pb + 1] < 0 || pb == 34 || BUSE[pb + 1] == U_CHEST || BUSE[pb + 1] == U_FURNACE || BUSE[pb + 1] == U_SHELL || BPLC[pb + 1] == P_DOOR || BPLC[pb + 1] == P_BED) { n = 99; } yy = yy + 1; n = n + 1; }
   if (n > 0 && n < 12) {
     if (yy < WY) {
-      while (yy > y + 1) { setBlock(x, yy, z, blockAt(x, yy - 1, z)); yy = yy - 1; }
+      let top = yy, moved = 0;
+      while (yy > y + 1) { let mb = blockAt(x, yy - 1, z); if (BSPEC[mb + 1] == 8 || BSPEC[mb + 1] == 4) { moved = 1; } setBlock(x, yy, z, mb); yy = yy - 1; }
       setBlock(x, y + 1, z, 0);
+      if (moved == 1) { yy = y + 1; while (yy <= top) { powerAround(x, yy, z); yy = yy + 1; } }
       sndPlay(1);
     }
   }
@@ -422,6 +446,7 @@ function explode(cx, cy, cz, r, breakIt) {
                 else {
                   if (rand(1, 3) == 1) { if (grTileDrops == 1) { if (BDROP[b + 1] > 0) { dropItem(BDROP[b + 1], 1, 0, x + 0.5, y + 0.5, z + 0.5, 0); } } }
                   if (BUSE[b + 1] == U_CHEST || BUSE[b + 1] == U_FURNACE) { chestOrFurnaceGone(x, y, z, b); }
+                  if (BSPEC[b + 1] == 8 || BSPEC[b + 1] == 4 || BSPEC[b + 1] == 9) { if (XPW.length < 24) { XPW.push(x); XPW.push(y); XPW.push(z); } }
                   wput(x, y, z, 0); markDirty(x, y, z);
                 }
               }
@@ -434,6 +459,9 @@ function explode(cx, cy, cz, r, breakIt) {
       x = x + 1;
     }
     logOn = 0;
+    let q = 1;
+    while (q < XPW.length) { powerAround(XPW[q], XPW[q + 1], XPW[q + 2]); q = q + 3; }
+    XPW = [];
     lbX0 = Math.min(lbX0, x0 - 14); lbX1 = Math.max(lbX1, x1 + 14); lbZ0 = Math.min(lbZ0, z0 - 14); lbZ1 = Math.max(lbZ1, z1 + 14);
   }
   // the player and the mobs
@@ -454,6 +482,7 @@ function explode(cx, cy, cz, r, breakIt) {
   flashT = 0.15;
 }
 let flashT = 0;
+let XPW = [];
 
 // ---------------------------------------------------------------- fire
 function ignite() {
@@ -544,7 +573,7 @@ function treeFrom(x, y, z, b) {
   growTreeKind(x, y - 1, z, kind);
   logOn = 0;
   let a = x - 4;
-  while (a <= x + 4) { let c = z - 4; while (c <= z + 4) { let yy = y - 1; while (yy <= y + 14) { if (yy < WY) { markDirty(a, yy, c); } yy = yy + 4; } c = c + 4; } a = a + 4; }
+  while (a <= x + 4) { let c = z - 4; while (c <= z + 4) { let yy = y - 1; while (yy <= y + 20) { if (yy < WY) { markDirty(a, yy, c); } yy = yy + 4; } c = c + 4; } a = a + 4; }
   lbX0 = Math.min(lbX0, x - 16); lbX1 = Math.max(lbX1, x + 16); lbZ0 = Math.min(lbZ0, z - 16); lbZ1 = Math.max(lbZ1, z + 16);
 }
 // the world near the player lives a little each half second: saplings, grass, crops, cane,
@@ -832,7 +861,7 @@ function worldExtraInit() {
   SPX = []; SPY = []; SPZ = []; SPD = []; SPT = [];
   CBX = []; CBY = []; CBZ = []; CBT = []; CBD = [];
   PMT = []; PMX = []; PMY = []; PMZ = []; SMX = []; SMZ = [];
-  PRX = []; PRY = []; PRZ = []; PRT = []; TNX = []; TNY = []; TNZ = []; TNT_T = [];
+  PRX = []; PRY = []; PRZ = []; PRT = []; TNX = []; TNY = []; TNZ = []; TNT_T = []; EGX = []; EGY = []; EGZ = []; EGD = []; EGS = []; XPW = [];
   CHT = []; CHTT = [];
   xpPts = 0; xpLevel = 0; dayN = 0; spawnDim = 0; spawnSet = 0; lodeOn = 0; anchorCh = 0; specMob = 0; difficulty = 2; gameTicks = 0;
   weatherClear(); gamerulesInit();
@@ -860,7 +889,7 @@ function tradeScreen() {
     if (hot == 1) { c = '#a8b8e8'; }
     box(-100, y0, 100, y1, c);
     slotItem(-80, y0 - 11, TRA[o], TRAN[o], 0, 21 + k * 3);
-    tx(22 + k * 3, `${ITNAME[TRA[o]]} ${TRAN[o]}개 → ${ITNAME[TRB[o]]} ${TRBN[o]}개`, -62, y0 - 8, 7, '#202020', 1);
+    tx(22 + k * 3, `${ITNAME[TRA[o] + 1]} ${TRAN[o]}개 → ${ITNAME[TRB[o] + 1]} ${TRBN[o]}개`, -62, y0 - 8, 7, '#202020', 1);
     slotItem(80, y0 - 11, TRB[o], TRBN[o], 0, 23 + k * 3);
     k = k + 1;
   }
@@ -877,7 +906,7 @@ function tradeInput() {
         while (k <= 36 && n > 0) { if (INVI[k] == TRA[o]) { let t = Math.min(n, INVN[k]); INVN[k] = INVN[k] - t; n = n - t; if (INVN[k] <= 0) { INVI[k] = 0; INVN[k] = 0; INVD[k] = 0; } } k = k + 1; }
         addItem(TRB[o], TRBN[o], 0); if (addLeft > 0) { dropItem(TRB[o], addLeft, 0, px, py + 1, pz, 0); }
         sndPlay(6); xpAdd(rand(1, 3));
-      } else { msgShow(`${ITNAME[TRA[o]]}이(가) ${TRAN[o]}개 필요합니다`, 2); }
+      } else { msgShow(`${ITNAME[TRA[o] + 1]}이(가) ${TRAN[o]}개 필요합니다`, 2); }
     } }
   }
 }

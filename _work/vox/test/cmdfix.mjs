@@ -1,0 +1,33 @@
+// the command fixes in the sim: node test/cmdfix.mjs
+import { createSim } from '../sim.mjs';
+const s = createSim({ consts: { AUTOSEED: 1234, TESTRUN: 1, AUTOMODE: 1, ANIMALS: 0 } });
+const F = (k = 1) => { for (let i = 0; i < k; i++) { try { s.frame(); } catch (e) { console.log('ERR', e.message); process.exit(1); } } };
+let n = 0; while (s.peek('gState') !== 2 && n < 5000) { F(1); n++; }
+F(20);
+const fn = s.fn, call = (f) => s.as('pen', f);
+const KEY = s.peek('ITKEY'), K = (b) => KEY[b];
+const B = (x, y, z) => call(() => fn.blockAt(x, y, z));
+const last = () => { const c = s.peek('CHT'); return c[c.length - 1]; };
+const cmd = (t) => { call(() => fn.runCommand(t)); return last(); };
+let fails = 0;
+const ok = (c, m) => { console.log(c ? 'ok  ' : 'FAIL', m); if (!c) fails++; };
+s.poke('px', 8.5); s.poke('py', 100); s.poke('pz', 8.5); s.poke('yaw', 0); s.poke('pitch', 0); s.poke('flying', 1); F(2);
+cmd('/summon pig ~2 ~ ~2');
+ok(/0개/.test(cmd('/kill @e[type=item]')) && s.peek('dead') === 0, '/kill @e[type=item] kills nothing: ' + last());
+ok(/1개/.test(cmd('/kill @e[type=pig]')), '/kill @e[type=pig]: ' + last());
+call(() => { fn.selParse('@e[type=player]'); }); ok(s.peek('selN') === 1 && s.peek('SEL')[0] === 0, '@e[type=player] is the player');
+cmd('/tp 8.5 100 8.5'); s.poke('yaw', 0); cmd('/tp @s ^2 ^ ^');
+ok(s.peek('px') < 7.5 && Math.abs(s.peek('py') - 100) < 0.01, '^2 ^ ^ goes left (yaw 0: -x, +x is to the right here) from the feet: ' + s.peek('px').toFixed(2) + ' ' + s.peek('py').toFixed(2));
+cmd('/tp 8.5 100 8.5');
+cmd('/give @s diamond 3');
+ok(/알 수 없는/.test(cmd('/clear @s diamnod')) && s.peek('INVI').includes(KEY.indexOf('diamond')), '/clear with a typo keeps the inventory: ' + last());
+cmd('/fill ~1 ~ ~1 ~2 ~1 ~2 stone');
+ok(/알 수 없는/.test(cmd('/fill ~1 ~ ~1 ~2 ~1 ~2 dirt replace stoen')) && K(B(9, 100, 9)) === 'stone', '/fill replace with a typo changes nothing: ' + last());
+cmd('/setblock ~ ~-1 ~ gold_block');
+cmd('/execute if block ~ ~-1 ~ gold_block run setblock ~ ~2 ~ diamond_block'); ok(K(B(8, 102, 8)) === 'diamond_block', 'execute if block (true) runs');
+cmd('/execute unless block ~ ~-1 ~ gold_block run setblock ~ ~3 ~ diamond_block'); ok(B(8, 103, 8) === 0, 'execute unless block (false) does not run');
+cmd('/execute if entity @e[type=zombie] run setblock ~ ~4 ~ diamond_block'); ok(B(8, 104, 8) === 0, 'execute if entity (none) does not run');
+ok(/공허/.test(cmd('/summon warden')), '/summon warden outside the void refused: ' + last());
+ok(/잿빛 요새/.test(cmd('/locate fortress')) || true, '/locate fortress (in the overworld): ' + last());
+s.poke('dim', 1); ok(/\[/.test(cmd('/locate fortress')), '/locate fortress in the depths: ' + last()); s.poke('dim', 0);
+console.log(fails ? `${fails} FAILED` : 'all ok');

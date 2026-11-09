@@ -79,7 +79,12 @@ function locateStruct(t, x, z) {
       let a = idiv(x, 16) - 12;
       while (a <= idiv(x, 16) + 12) { let c = idiv(z, 16) - 12; while (c <= idiv(z, 16) + 12) { chunkSeed(a, c, 4); if (rndI(1, 9) == 1) { let fx2 = a * 16 + rndI(4, 9), fz2 = c * 16 + rndI(5, 10); let d = (fx2 - x) * (fx2 - x) + (fz2 - z) * (fz2 - z); if (d < best) { best = d; locOk = 1; locX = fx2; locZ = fz2; } } c = c + 1; } a = a + 1; }
     }
-    if (t == 15) { let a = idiv(x, 80) - 4; while (a <= idiv(x, 80) + 4) { let fz2 = a * 80 + 40; if (fortX(fz2) == 1) { let d = (fz2 - z) * (fz2 - z); if (d < best) { best = d; locOk = 1; locX = x; locZ = fz2; } } a = a + 1; } }
+    if (t == 15) {
+      let a = idiv(z, 80) - 4;
+      while (a <= idiv(z, 80) + 4) { let fz2 = a * 80 + 40; if (fortX(fz2) == 1) { let d = (fz2 - z) * (fz2 - z); if (d < best) { best = d; locOk = 1; locX = x; locZ = fz2; } } a = a + 1; }
+      a = idiv(x, 80) - 4;
+      while (a <= idiv(x, 80) + 4) { let fx3 = a * 80 + 40; if (fortZ(fx3) == 1) { let d = (fx3 - x) * (fx3 - x); if (d < best) { best = d; locOk = 1; locX = fx3; locZ = z; } } a = a + 1; }
+    }
     if (t == 17) {
       let a = idiv(x, 16) - 40;
       while (a <= idiv(x, 16) + 40) { let c = idiv(z, 16) - 40; while (c <= idiv(z, 16) + 40) { if (cityIn(a, c) == 1) { let d = (ciX - x) * (ciX - x) + (ciZ - z) * (ciZ - z); if (d < best) { best = d; locOk = 1; locX = ciX; locZ = ciZ; } } c = c + 4; } a = a + 4; }
@@ -254,7 +259,7 @@ function village() {
   let arms = 4, d = 0;
   // the paths: four arms of 20 .. 34 blocks
   while (d < 4) {
-    let len = 20 + mod(stV * 5 + d * 7, 15), k = 3;
+    let len = 26 + mod(stV * 5 + d * 7, 15), k = 3;
     while (k <= len) {
       let x = cxv + dirX(d) * k, z = czv + dirZ(d) * k, s = 0 - 1;
       while (s <= 1) {
@@ -271,15 +276,15 @@ function village() {
     // buildings along this arm, both sides
     let slot = 0;
     while (slot < 3) {
-      let dist = 8 + slot * 9;
+      let dist = 16 + slot * 9;
       if (dist < len) {
         let side = 0 - 1;
         while (side <= 1) {
           let kind = mod(stV * 3 + d * 5 + slot * 7 + side + 11, 9);
           let bx = cxv + dirX(d) * dist + dirZ(d) * side * 7, bz = czv + dirZ(d) * dist + dirX(d) * side * 7;
           // the building faces the path: its door toward it
-          let face = mod(d + 1 + (1 - side), 4);
-          if (side == 1) { face = mod(d + 3, 4); } else { face = mod(d + 1, 4); }
+          let ofx = dirZ(d) * side, ofz = dirX(d) * side, face = 0;
+          if (ofx > 0) { face = 3; } if (ofx < 0) { face = 1; } if (ofz > 0) { face = 2; } if (ofz < 0) { face = 0; }
           vBuilding(kind, bx, bz, face);
           side = side + 2;
         }
@@ -355,8 +360,8 @@ function vHouse(x, gy, z, hx, hz, face, kind) {
   let ix = x - dirX(face) * (hx - 1), iz = z - dirZ(face) * (hz - 1);
   let bedC = I_redBed;
   if (mod(kind, 2) == 1) { bedC = I_blueBed; }
-  sput(ix + dirZ(face), gy + 1, iz + dirX(face), bedC + mod(face + 2, 4));
-  sput(ix + dirZ(face) + dirX(mod(face + 2, 4)), gy + 1, iz + dirX(face) + dirZ(mod(face + 2, 4)), bedC + 4 + mod(face + 2, 4));
+  sput(ix + dirZ(face) + dirX(face), gy + 1, iz + dirX(face) + dirZ(face), bedC + mod(face + 2, 4));
+  sput(ix + dirZ(face), gy + 1, iz + dirX(face), bedC + 4 + mod(face + 2, 4));
   sput(ix - dirZ(face), gy + 1, iz - dirX(face), 17);
   sput(x, gy + h - 1, z, I_lantern);
   if (kind == 2 || kind == 8) { schest(ix - dirZ(face) * 0, gy + 1, iz, 1); }
@@ -486,7 +491,7 @@ function igloo() {
   }
   sbox(x - 2, gy + 1, z - 2, x + 2, gy + 2, z + 2, 0); sbox(x - 1, gy + 3, z - 1, x + 1, gy + 3, z + 1, 0);
   sbox(x - 2, gy, z - 2, x + 2, gy, z + 2, 45);
-  sbox(x, gy + 1, z - 3, x, gy + 2, z - 4, 0); sput(x, gy + 3, z - 4, 45); sput(x - 1, gy + 1, z - 4, 45); sput(x + 1, gy + 1, z - 4, 45); sput(x - 1, gy + 2, z - 4, 45); sput(x + 1, gy + 2, z - 4, 45);
+  sbox(x, gy + 1, z - 4, x, gy + 2, z - 3, 0); sput(x, gy + 3, z - 4, 45); sput(x - 1, gy + 1, z - 4, 45); sput(x + 1, gy + 1, z - 4, 45); sput(x - 1, gy + 2, z - 4, 45); sput(x + 1, gy + 2, z - 4, 45);
   sput(x - 1, gy + 1, z + 2, I_redBed + 2); sput(x - 1, gy + 1, z + 1, I_redBed + 6);
   sput(x + 2, gy + 1, z, 18); sput(x + 2, gy + 1, z + 1, 17); sput(x, gy + 1, z, I_whiteCarpet);
   sput(x - 2, gy + 2, z - 1, I_lantern);
@@ -518,9 +523,9 @@ function outpost() {
   sbox(x - 4, gy + h + 1, z - 4, x + 4, gy + h + 1, z - 4, I_ebonyFence); sbox(x - 4, gy + h + 1, z + 4, x + 4, gy + h + 1, z + 4, I_ebonyFence);
   sbox(x - 4, gy + h + 1, z - 3, x - 4, gy + h + 1, z + 3, I_ebonyFence); sbox(x + 4, gy + h + 1, z - 3, x + 4, gy + h + 1, z + 3, I_ebonyFence);
   sbox(x - 4, gy + h + 4, z - 4, x + 4, gy + h + 4, z + 4, I_ebonySlab);
+  sbox(x + 3, gy + 7, z + 2, x + 3, gy + h, z + 2, I_ebonyPlanks);
   let k = gy + 1;
-  while (k < gy + h) { sput(x + 2, k, z + 2, I_ladder + 1); k = k + 1; }
-  sput(x + 2, gy + 7, z + 2, I_ladder + 1);
+  while (k <= gy + h) { sput(x + 2, k, z + 2, I_ladder + 1); k = k + 1; }
   schest(x - 2, gy + h + 1, z - 2, 6); sput(x - 2, gy + 8, z + 2, I_grayBanner);
   if (inChunk(x, z, x, z) == 1) { if (structMobsOnce(x, z) == 1) { structMob(M_RAIDER, x + 0.5, gy + h + 1, z + 0.5); structMob(M_RAIDER, x + 0.5, gy + 1, z + 0.5); structMob(M_RAIDER, x + 4.5, gy + 1, z + 5.5); } }
 }
@@ -561,7 +566,7 @@ function mansion() {
   // the door, the stairs up, the roof
   sbox(x, gy + 1, z - d, x, gy + 2, z - d, 0); sput(x, gy + 1, z - d, I_ebonyDoor + 2); sput(x, gy + 2, z - d, I_ebonyDoor + 6);
   let k = 0;
-  while (k < 5) { sput(x - w + 2 + k, gy + 1 + k, z - d + 2, I_ebonyStairs + 1); sput(x - w + 2 + k, gy + 6, z - d + 2, 0); k = k + 1; }
+  while (k < 5) { if (k < 4) { sput(x - w + 2 + k, gy + 5, z - d + 2, 0); sput(x - w + 2 + k, gy + 6, z - d + 2, 0); } sput(x - w + 2 + k, gy + 1 + k, z - d + 2, I_ebonyStairs + 1); k = k + 1; }
   let r = 0;
   while (r <= 4) { sbox(x - w - 1 + r, gy + 11 + r, z - d - 1 + r, x + w + 1 - r, gy + 11 + r, z + d + 1 - r, I_cobbleSlab); sbox(x - w + r, gy + 11 + r, z - d + r, x + w - r, gy + 11 + r, z + d - r, I_ebonyPlanks); r = r + 1; }
   if (inChunk(x, z, x, z) == 1) { if (structMobsOnce(x, z) == 1) { k = 0; while (k < 4) { structMob(M_RAIDER, x - w + 4 + k * 7 + 0.5, gy + 1, z + 4.5); k = k + 1; } } }
@@ -709,8 +714,9 @@ function mineshaft() {
   if (inChunk(x - 6, z - 6, x + 6, z + 6) == 1) { sbox(x - 5, y - 1, z - 5, x + 5, y - 1, z + 5, 3); sbox(x - 5, y, z - 5, x + 5, y + 4, z + 5, 0); }
   let sx = x, sz = z, sy = y, d = rndI(0, 3);
   while (k < n) {
-    let len = rndI(10, 26);
+    let len = rndI(10, 26), rs0 = rs;
     mineRun(sx, sy, sz, d, len);
+    rs = rs0;
     sx = sx + dirX(d) * len; sz = sz + dirZ(d) * len;
     if (rnd() < 0.3) { sy = Math.max(8, Math.min(50, sy + rndI(-4, 4))); }
     // turn left or right, or back to the middle for another branch

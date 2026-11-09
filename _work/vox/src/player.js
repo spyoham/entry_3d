@@ -506,7 +506,7 @@ function breakBlock(x, y, z, byP) {
   partnerGone(x, y, z, b, byP);
   if (b == 57) { crystalBreak(x, y, z); }
   if (b == 33) { if (mod(gameMode, 2) == 0) { if (blockAt(x, y - 1, z) != 0) { setBlock(x, y, z, 7); } } }
-  if (BSPEC[b + 1] == 8 || BSPEC[b + 1] == 3 || BSPEC[b + 1] == 5) { powerAround(x, y, z); }
+  if (BSPEC[b + 1] == 8 || BSPEC[b + 1] == 4 || BSPEC[b + 1] == 5 || BSPEC[b + 1] == 9 || BUSE[b + 1] == U_BUTTON) { powerAround(x, y, z); }
   chestOrFurnaceGone(x, y, z, b);
 }
 function blockDrops(b, x, y, z) {
@@ -524,7 +524,7 @@ function blockDrops(b, x, y, z) {
   if (b == 40) { n = rand(4, 8); }
   if (BUSE[b + 1] == U_SHELL) { d = 0; }
   if (b == 46) { n = rand(0, 2); }
-  if (b == I_grass || b == I_fern) { if (rand(1, 8) == 1) { d = I_wheatSeeds; n = 1; } }
+  if (b == 28 || b == I_fern) { if (rand(1, 8) == 1) { d = I_wheatSeeds; n = 1; } }
   if (b == I_glowCrystal) { n = rand(2, 4); }
   if (b == I_oreSpark) { n = rand(4, 5); }
   if (b == I_oreAshGold) { n = rand(2, 6); }
@@ -558,7 +558,7 @@ function setBlock(x, y, z, b) {
     if (b == 0 || BSOL[b + 1] == 0) {
       if (y + 1 < WY) {
         if (BSHP[up + 1] == 1 || BSHP[up + 1] == 2 || up == 19 || (BNEED[up + 1] > 0 && BNEED[up + 1] != N_ANY)) {
-          if (BPLC[up + 1] != P_DOOR || BSHP[b + 1] == 0) { if (mod(gameMode, 2) == 0) { blockDrops(up, x, y + 1, z); } setBlock(x, y + 1, z, 0); }
+          if (BPLC[up + 1] != P_DOOR || BSHP[b + 1] == 0) { if (mod(gameMode, 2) == 0) { blockDrops(up, x, y + 1, z); } setBlock(x, y + 1, z, 0); if (BSPEC[up + 1] == 8 || BSPEC[up + 1] == 4 || BSPEC[up + 1] == 5 || BSPEC[up + 1] == 9 || BUSE[up + 1] == U_BUTTON) { powerAround(x, y + 1, z); } }
         }
         if (BFALL[up + 1] == 1) { fallBlock(x, y + 1, z); }
       }

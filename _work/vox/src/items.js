@@ -91,7 +91,7 @@ function craftMatch() {
 function craftTake() {
   if (craftOut > 0) {
     let k = 1;
-    while (k <= cgSize * cgSize) { if (CGI[k] > 0) { CGN[k] = CGN[k] - 1; if (CGN[k] <= 0) { CGI[k] = 0; CGN[k] = 0; } } k = k + 1; }
+    while (k <= cgSize * cgSize) { if (CGI[k] > 0) { if (CGI[k] == I_milkBucket || CGI[k] == I_waterBucket || CGI[k] == I_lavaBucket) { addItem(I_bucket, 1, 0); if (addLeft > 0) { dropItem(I_bucket, 1, 0, px, py + 1, pz, 1); } } CGN[k] = CGN[k] - 1; if (CGN[k] <= 0) { CGI[k] = 0; CGN[k] = 0; } } k = k + 1; }
     sndPlay(6);
   }
 }
