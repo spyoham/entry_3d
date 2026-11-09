@@ -119,7 +119,20 @@ function daySky() {
 
 // ---------------------------------------------------------------- one frame of play
 let underWas = 0;
+// one frame of play, in parts (each small enough to copy in Entry's editor)
 function playFrame(dt) {
+  playLook(dt);
+  playKeys(dt);
+  playWorld(dt);
+  playEye(dt);
+  // the picture (SPLIT: the objects `view` and `hud` draw it in their own loops)
+  uiDt = dt;
+  if (SPLIT == 1) { eraseAll(); frameSeq = frameSeq + 1; } else { eraseAll(); drawView(); drawUI(dt); }
+  clickLatch = 0;
+  fillStop();
+}
+// looking round, the pointer, the click
+function playLook(dt) {
   // looking around
   let dx = mAccX, dy = mAccY;
   mAccX = 0; mAccY = 0;
@@ -132,12 +145,15 @@ function playFrame(dt) {
   if (yaw >= 360) { yaw = yaw - 360; } if (yaw < 0) { yaw = yaw + 360; }
   if (pitch > 89.5) { pitch = 89.5; } if (pitch < -89.5) { pitch = -89.5; }
   // the pointer was let go (Esc): the game menu
-  let lk = locked();
-  if (uiMode == 0) { if (dead == 0) { if (wasLocked == 1) { if (lk == 0) { if (lockAskT == 0) { uiMode = 6; txClear(); } } } } }
-  wasLocked = lk;
+  lkNow = locked();
+  if (uiMode == 0) { if (dead == 0) { if (wasLocked == 1) { if (lkNow == 0) { if (lockAskT == 0) { uiMode = 6; txClear(); } } } } }
+  wasLocked = lkNow;
   clickHeld = 0;
-  if (mouseDown()) { if (lk == 1) { clickHeld = 1; } }
+  if (mouseDown()) { if (lkNow == 1) { clickHeld = 1; } }
   attackCool = attackCool - dt; placeCool = placeCool - dt; swingT = swingT - dt;
+}
+// the keys of play (or of the open screen)
+function playKeys(dt) {
   if (dead == 0) {
     if (uiMode == 0) {
       // the hotbar: number keys, the wheel (the spectator: the speed)
@@ -151,7 +167,7 @@ function playFrame(dt) {
       camX = px; camY = py + eyeH; camZ = pz; camYaw = yaw; camPitch = pitch;
       if (gameMode == 3) { if (specMob > 0) { if (ET[specMob] == 0 || key(16)) { specMob = 0; } else { px = EX[specMob]; py = EY[specMob] + MH[ET[specMob]] - 1.75; pz = EZ[specMob]; } } }
       pickRay();
-      if (clickLatch == 1) { if (lk == 1) { attack(); } }
+      if (clickLatch == 1) { if (lkNow == 1) { attack(); } }
       breaking(dt);
       if (keyHit(70) == 1) { useKey(); }
       if (key(70)) { if (placeCool <= 0) { if (KW[70] == 1) { useKey(); placeCool = 0.25; } } }
@@ -173,6 +189,9 @@ function playFrame(dt) {
   wheelAcc = 0;
   if (keyHit(114) == 1) { showDbg = 1 - showDbg; }
   if (keyHit(72) == 1) { helpT = 12 - helpT; if (helpT < 0) { helpT = 0; } }
+}
+// the world goes on: mobs, items, blocks, chunks, the sky
+function playWorld(dt) {
   mobsStep(dt); itemsStep(dt); arrowsStep(dt); furnacesStep(dt); spawnStep(dt); randomTicks(dt);
   blocksStep(dt); pendingMobs(); weatherStep(dt);
   gameTicks = gameTicks + dt * 20;
@@ -186,6 +205,9 @@ function playFrame(dt) {
   if (dim == 0) { dimAmb = 0; daySky(); } else { dimSky(); }
   gateStep(dt);
   if (dim == 2) { bossStep(dt); }
+}
+// the eye and the field of view
+function playEye(dt) {
   // the eye
   let eh = 1.62;
   if (sneaking == 1) { if (flying == 0) { eh = 1.5; } }
@@ -199,11 +221,6 @@ function playFrame(dt) {
   if (flying == 1) { if (sprinting == 1) { fw = 175; } }
   FOC = Math.round(FOC + (fw - FOC) * Math.min(1, 8 * dt));
   if (Math.abs(FOC - fw) < 4) { FOC = fw; }
-  // the picture (SPLIT: the objects `view` and `hud` draw it in their own loops)
-  uiDt = dt; lkNow = lk;
-  if (SPLIT == 1) { eraseAll(); frameSeq = frameSeq + 1; } else { eraseAll(); drawView(); drawUI(dt); }
-  clickLatch = 0;
-  fillStop();
 }
 let frameSeq = 0, uiDt = 0, lkNow = 0;
 // the world, the weather, the flashes, the hand
