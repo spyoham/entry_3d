@@ -5,6 +5,7 @@
 //    when it loads a work, so nothing changes but the size (about half).
 // 2. The save request (graphql UPDATE_PROJECT / CREATE_PROJECT) gets 3 minutes instead of the site's
 //    20 seconds, so a big work on a slow line is not cut off; its body is slimmed again as a backstop.
+// 3. Putting an object or blocks in the backpack (보관함, POST /rest/backpack) sends them slimmed too.
 (() => {
   if (window.__entrySlim) return;
   window.__entrySlim = true;
@@ -39,7 +40,16 @@
     for (const o of Array.isArray(p.objects) ? p.objects : []) if (o && o.script) o.script = slimScript(o.script, st);
     return st.n;
   }
+  // a backpack item: {objects: [{script}], functions: [{content}], ...} for an object,
+  // {script: '[[...]]', functions, ...} for blocks
+  function slimItem(item) {
+    if (!item || typeof item !== 'object') return 0;
+    let n = slimProject(item);
+    if (item.script) { const st = { n: 0 }; item.script = slimScript(item.script, st); n += st.n; }
+    return n;
+  }
   window.__entrySlimProject = slimProject;   // for checking by hand in the console
+  window.__entrySlimItem = slimItem;
 
   // a small note at the bottom of the page
   let toastEl = null, toastT = 0;
@@ -96,6 +106,37 @@
         toast(`작품 줄이기: 기본값 ${n}개를 빼고 ${mb} MB로 저장합니다`);
       }
     } catch (e) { console.warn(TAG, '저장 요청을 손대지 못했습니다', e); }
+    try {
+      const url = typeof input === 'string' ? input : (input && input.url) || String(input);
+      if (init && typeof init.body === 'string' && isBackpackPost(init.method || 'GET', url)) init = Object.assign({}, init, { body: slimBackpackBody(init.body) });
+    } catch (e) { console.warn(TAG, '보관함 요청을 손대지 못했습니다', e); }
     return origFetch.call(this, input, init);
+  };
+
+  // 3. putting an object or blocks in the backpack (보관함): POST /rest/backpack, sent by axios (XHR)
+  function isBackpackPost(method, url) {
+    if (String(method).toUpperCase() !== 'POST') return false;
+    try { return new URL(url, location.href).pathname.replace(/\/+$/, '') === '/rest/backpack'; } catch (e) { return false; }
+  }
+  function slimBackpackBody(body) {
+    const r = JSON.parse(body);
+    const n = slimItem(r && r.item);
+    if (!n) return body;
+    const out = JSON.stringify(r);
+    const mb = (x) => (new Blob([x]).size / 1e6).toFixed(2);
+    console.info(TAG, `보관함에 넣기 ${mb(body)} MB -> ${mb(out)} MB, 뺀 기본값 ${n.toLocaleString('ko-KR')}개`);
+    toast(`작품 줄이기: 보관함에 기본값 ${n.toLocaleString('ko-KR')}개를 빼고 ${mb(out)} MB로 넣습니다`);
+    return out;
+  }
+  const XHR = XMLHttpRequest.prototype, origOpen = XHR.open, origSend = XHR.send;
+  XHR.open = function (method, url, ...rest) {
+    this.__slimBackpack = isBackpackPost(method, String(url));
+    return origOpen.call(this, method, url, ...rest);
+  };
+  XHR.send = function (body) {
+    if (this.__slimBackpack && typeof body === 'string') {
+      try { body = slimBackpackBody(body); } catch (e) { console.warn(TAG, '보관함 요청을 손대지 못했습니다', e); }
+    }
+    return origSend.call(this, body);
   };
 })();

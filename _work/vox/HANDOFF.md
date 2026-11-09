@@ -31,6 +31,7 @@
 - 기본값 다시 빼기: 엔트리는 작품을 열 때 블록마다 기본값 필드(x, y, movable, deletable, emphasized, readOnly, copyable, assemble, 빈 extensions·statements)를 채우고 저장할 때 모두 쓴다(project.json 12.8 → 27.3 MB). `node slim-ent.mjs 저장한.ent [나올.ent]`가 빌드의 SLIM과 같은 것을 다시 해 준다(27.3 → 12.8 MB, tessvm에서 그대로 돎).
 - 브라우저판: `slim-ent.html`을 더블클릭해 열고 .ent를 끌어다 놓으면 같은 일을 한다(Node 없이, 파일은 컴퓨터 밖으로 안 나감). `node test/slimweb.mjs 작품.ent`가 그 쪽의 코드를 Node에서 돌려, 기본값을 채운 판을 줄인 결과가 원래 project.json과 같은지 본다. gzip 수준은 브라우저 기본이라 .ent는 Node판보다 조금 크다(1.48 vs 1.37 MB).
 - 엔트리 온라인 저장: `slim-ext/`는 크롬 확장이다(설치는 `slim-ext/설치 방법.txt`). 사이트는 `Entry.exportProject()`를 graphql `UPDATE_PROJECT`/`CREATE_PROJECT`로 보내고(timeout 20초, 전역 fetch), 확장은 MAIN world에서 exportProject를 감싸 기본값을 빼고, 저장 요청만 20초 대신 3분을 준다. 실제 만들기 화면에서 가짜 fetch로 시험: 기본값 0개 남음, 다시 불러와 내보낸 것이 같음, 다른 요청은 그대로. 서버에 실제로 저장되는지는 사용자 계정에서 확인해야 한다.
+- 보관함: 사이트의 addStorage가 axios(XHR)로 `POST /rest/backpack`에 {type, item, title}을 보낸다(오브젝트는 item.objects[].script, 블록은 item.script, 둘 다 item.functions). 확장은 XHR.open/send(와 fetch)에서 그 요청만 줄인다(제목 바꾸기 PUT, 삭제는 그대로). 만들기 화면에서 가짜 send로 시험: 기본값 0개 남음, 줄인 것을 addNewObject/addNewBlock으로 되돌리면 원래와 같음.
 - 안 한 것: 신호 세기·반복기 지연·비교기(둘 다 선처럼만 이어 줌), 피스톤 옆으로·당기기, 물 흐름 단계, 잎 시들기, 불 번지기, 마법 종류, 물약, 낚시, 광산 수레, 지도, 갑옷 거치대, 그림 액자, 벽 횃불·벽 표지판, 3인칭 시점, 저장.
 
 ## v1.4 (2026-11-09, 사용자: 공허 도시·겉날개·셜커·셜커 상자, 높이 256, 네더라이트와 대장장이 작업대, 엔더의 눈으로 찾는 유적, 보트, 횃불 버그, 명령어 — 이름·그림은 이 작품 것으로)
