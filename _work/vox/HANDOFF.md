@@ -1,7 +1,7 @@
-# 블록 월드 — 작업 인계 메모 (2026-11-09, v2.0)
+# 블록 월드 — 작업 인계 메모 (2026-11-09, v2.1)
 
-산출물(루트): `블록 월드 v2.0.ent`, `블록 월드 v2.0 설명서.txt`, `블록 월드 썸네일.png` (이전 판은 깃헙 `old/`)
-빌드: `node build.mjs "../../블록 월드 v2.0.ent"` (`K=V`로 상수 바꾸기: `AUTOSEED=n` 타이틀 없이 시드 n으로 시작, `AUTOMODE=1` 크리에이티브, `TESTRUN=1` test.js 포함, `BENCH=1` 시간 멈춤·몹 스폰 끔·k 고정, `ANIMALS=0`, `NOCAVE=1` 동굴 가리기 끔)
+산출물(루트): `블록 월드 v2.1.ent`, `블록 월드 v2.1 설명서.txt`, `블록 월드 썸네일.png` (이전 판은 깃헙 `old/`)
+빌드: `node build.mjs "../../블록 월드 v2.1.ent"` (`K=V`로 상수 바꾸기: `AUTOSEED=n` 타이틀 없이 시드 n으로 시작, `AUTOMODE=1` 크리에이티브, `TESTRUN=1` test.js 포함, `BENCH=1` 시간 멈춤·몹 스폰 끔·k 고정, `ANIMALS=0`, `NOCAVE=1` 동굴 가리기 끔)
 
 ## 요청
 - 2026-11-08 ".ent로 마인크래프트를 최대한 비슷하게 만들어줘.(심층암 추가되기 전 기준, tessvm전용)"
@@ -118,3 +118,20 @@
   - 저장: tessvm(과 엔트리 저장 관리자 확장)의 약속 — 이름이 @로 시작하는 전역은 실행 사이에 남고, 빈 함수 @저장/@비동기저장을 부르면 씀, @확장프로그램 = 1이면 됨(`_work/tessvm/ext/vendor/tessvm/runtime/save.js`). EJS에서 `AT_이름` → `@이름`(ejs.mjs entryName, 함수 이름도). `src/save.js`: 리스트 @블록월드 하나에 차례로(`svWrite`/`loadGame`, 머리표 BW21): 시드·모드·위치·체력·경험치·시간·날씨·되살아날 곳·진행·소지품·게임 규칙·효과·바꾼 블록 기록(ED*)·표지판·명령 블록·보물 위치·비교기·화로·쓰는 상자만. 이어하기는 genStart 뒤 읽고 `startTravel(dim, x, z, 6)` → arrive의 `arriveKept`. 메뉴 "세계 저장하기"·"저장하고 타이틀로", /save-all, 5분마다 비동기 저장, 타이틀 "저장한 세계 이어하기"(svHas). test.js testCmd 9 = 이어하기. 시험 `test/save.mjs`(시뮬레이터), `test/tesssave.mjs`(tessvm, 메모리 저장소로 두 번 실행).
   - 최적화: 바꾼 블록 기록 ED*는 끝없이 늘고 청크를 만들 때마다 전부 훑었다(6만 개에서 청크 만드는 틱 20 → 394 ms). 청크별 사슬 `EDN`(청크 해시 EKK/EKV, `edReplay`가 그 청크 것만, 새 것부터 칸마다 한 번 RPS)로 6만 개에서도 20 ms. 칸마다 마지막 것만 남기는 `edCompact`(저장할 때, 그리고 기록이 edNext(2만, 줄인 뒤 두 배)를 넘을 때). 브라우저 프로파일(test/prof.json)로는 틱 2.3 ms·54 fps, 특정 함수가 튀지 않음.
   - 시험 모두 통과: power(80여 개, 탄성 4개 더), cmdfix, chat, cond, save, v20c, v20, tessrs, tess(오류 없음).
+
+## v2.1 멀티플레이 (2026-11-09, 사용자: "된다면 멀티 서버에서 플러그인을 사람들이 직접 만들고 운영할 수 있도록 멀티플레이 기능을 entry-sync로 만들고,계정은 닉네임으로 판별하도록 해줘. 그리고 이 기능을 만들때 메인화면과 멀티 화면이 마인크래프트와 최대한 비슷하게 만들어줘.")
+- v2.0은 old/로(`git mv --sparse`). 화면 배치와 흐름은 장르(마인크래프트)를 따르되 로고·문구·그림은 이 작품 것.
+- Entry Sync(github good-bad-code/Entry-Sync; tessvm 지원은 우리 PR #5가 2026-09-30 합쳐짐): `?!` 이름 = 실시간 공유 + 방이 빌 때 저장, `?!` 단독 = 연결 표시(1/-1/0). 방 = 작품 ID 하나(서버 여럿은 그 안에 우리가 나눔). 리스트·변수는 통째로, 마지막 도착 우선, 보낸 사람에게는 안 돌아옴, 시작 뒤 방 자료가 오기 전(최대 4 s)에는 안 보냄. 레이싱(F1 Online)의 자리 방식을 따름. EJS `SY_x` → `?!x`.
+- `src/net.js`: 자리 `SY_p1..16`(각자 자기 것만 씀). 고정 폭 머리(58자: B sid seq wall st srv dim x y z yaw pitch held flags hp mode tday) `|닉네임|` 이벤트(`id:종류:필드^…`를 ~로, 최근 12개). 종류 b 블록 c 채팅 w 귓속말 r 모두 실행 t 제목 k 내보내기 h 때림 x 상자 칸 s 표지판 q 관리 요청 u 내 물건(서버 번호^…). 살아 있음 = 바뀐 지 8 s 안(불러오는 중 60 s), 처음 본 값은 벽시계 20 s 넘으면 옛것. 자리 겹침은 sid 작은 쪽이 가짐.
+- 서버 `SY_m1..8`(설정: H^이름^주인^설명^시드^모드^pvp^최대^화이트리스트^rev, O 관리자, W, B 차단^이유, P 플러그인 규칙^이름^켜짐^이벤트^조건^대상^명령, U 닉네임^물건, C 상자, S 표지판)과 `SY_e1..8`(바꾼 블록 5개씩). 쓰는 사람은 호스트(그 서버의 가장 낮은 자리) 하나뿐: 블록은 1 s, 설정은 2 s마다 몰아 씀, 3만 칸 넘으면 칸마다 마지막 것만. 다른 사람의 바꿈은 q 이벤트로 호스트에게(관리자인지 호스트가 확인). rev가 바뀌면 모두 다시 읽음. 호스트가 나가면 자기 물건·밀린 것 쓰고 나감, 다음 자리가 이어받음.
+- 내보내는 블록: 플레이어 자신의 행동만(`netUserAct`: playKeys 동안, 명령 줄·플러그인). 불꽃가루·물 등은 화면마다 돌림. 받은 블록은 `netEditApply`(다른 세계면 기록만 `edPushD`). 들어갈 때 시드로 세계를 만들고 SY_e를 ED 기록에, 상자·표지판, 닉네임의 물건(U)을 넣고 `startTravel(dim,x,z,7)` → `netArrive`. 처음 온 사람은 시작 키트·스폰.
+- 다른 플레이어 = 몹 종류 `netPlayer`(blocks.mjs, AI 없음, mobsStep·수 세기·사라지기 제외), 위치 보간, 이름표(텍스트 124..139, 화면 투영), Tab 목록. 텍스트 클론 124..는 온라인이 될 때 만듦(`txMore`, 싱글플레이 0.2 ms 절약). PvP는 h 이벤트(서버 pvp).
+- `src/netcmd.js`: 일반 사람은 help list tell/msg/w me와 플러그인 명령만. op deop ban pardon kick whitelist server plugin say. 플러그인 `/plugin add 이름 이벤트[:조건] me|all /명령` (join quit chat break place command timer death respawn, {player} {x} {y} {z} {msg} {block} {server} {online}). all은 r 이벤트로 모두가 각자 실행(`netQuiet`: 그때 /say·블록은 다시 안 보냄, 블록은 호스트만 기록). timer는 호스트가 1초마다.
+- 구분자 | ~ ^ 는 `netClean`이 ｜ ∼ ＾로, `netDec`이 되돌림(명령의 ~ ^ 좌표가 살아 있게).
+- `src/menu.js`: scr 0 타이틀(시드 1234 세계를 천천히 돌려 그림 `panoStep`, 노란 문구 SPLASHES, 싱글플레이·멀티플레이·도움말·설정·작품 정보), 1 세계 선택(5개), 2 새 세계, 3 지우기 확인, 4 서버 목록(6줄, 휠), 5 서버 추가·편집, 6 직접 연결, 7 설정, 8 메시지(연결 끊김), 9 도움말. 화면이 바뀌면 글을 지움. 글 입력은 엔트리 답 칸.
+- 저장 칸 5개 `AT_세계1..5`(BW22, 이름, 모드, 날짜, 시드…), 옛 `@블록월드`는 1번으로 옮김(`worldMigrate`). 멀티플레이 중에는 개인 저장 안 함.
+- 엔트리 함정: 함수 지역 변수의 ''는 0으로 읽힘(시뮬레이터도 흉내) → 빈 글에서 쌓는 글은 전역(gS, gS2, ansS)으로. 값 함수를 문장으로 못 씀(srvHead/srvHas, plugRun은 plugHits). 전역 이름 겹침(MBN·PSX·slotGet 등)은 `node -e` 검사로 미리 볼 것.
+- 시뮬레이터: `R.syGet/sySet/syList/syChanged`, `nickname`, `dateYear..` (R.wallNow), `press/release`(키 이벤트). ejs JS 백엔드의 `A = []`는 이제 제자리 비우기(?! 리스트가 다른 사람 값을 계속 받도록).
+- 시험: `test/netsim.mjs`(Entry Sync 모형, 3명: 서버 만들기·목록·접속·서로 보기·블록·채팅·저장·플러그인·권한·나중에 온 사람·닉네임 물건·PvP·차단·호스트 넘김, 27개), `test/nettess.mjs`(진짜 tessvm 두 창 + 진짜 inject-latest.js, Node가 방 서버: 연결 표시·서버 목록·접속·서로 보기·채팅·블록·호스트 기록), 그림 `test/menus.json`(menus.ent: 타이틀·세계·새 세계·서버 목록·서버 추가·게임 안의 이름표·Tab). 시험 명령 testCmd 10 새 세계, 11 서버 만들고 접속, 12 이름으로 접속, 13 채팅, 14 블록 읽기.
+- 크기: project.json 15.0 MB. tessvm 1500틱 11.99 ms(바로 전 판 11.31, 같은 날).
+- 미확인: 실제 playentry 업로드 + 실제 Entry Sync 서버(서로 다른 두 계정 동시), 서버 메시지 한도.

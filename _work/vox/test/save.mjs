@@ -18,19 +18,19 @@ for (let i = 0; i < 300; i++) { cmd(s, `/setblock ${X + 6} ${Y} ${Z} ${i % 2 ? '
 const ed0 = s.peek('EDX').length;
 s.poke('px', X + 0.5); s.poke('pz', Z - 6.5); s.poke('py', Y + 4); s.poke('flying', 1); s.poke('yaw', 77);
 F(s, 5);
-s.poke('AT_확장프로그램', 1);
+s.poke('AT_확장프로그램', 1); s.poke('worldCur', 1); s.poke('worldName', '시험 세계');
 call(s, () => s.fn.saveGame(1));
-const save = s.peek('AT_블록월드').slice();
-ok(save[0] === 'BW21' && save[save.length - 1] === 'END', `written: ${save.length} items`);
+const save = s.peek('AT_세계1').slice();
+ok(save[0] === 'BW22' && save[1] === '시험 세계' && save[save.length - 1] === 'END', `written: ${save.length} items`);
 ok(s.peek('EDX').length < ed0 - 250, `the log made short: ${ed0} -> ${s.peek('EDX').length}`);
 const tday = s.peek('tday'), inv = s.peek('INVI').slice(), invn = s.peek('INVN').slice();
 // a new run: the title, the kept list put back (as tessvm does), then 이어하기
 const t = mk({});
 F(t, 30);
 ok(t.peek('gState') === 0, 'a new run starts at the title');
-t.poke('AT_블록월드', save); t.poke('AT_확장프로그램', 1);
+t.poke('AT_세계1', save); t.poke('AT_확장프로그램', 1);
 ok(call(t, () => t.fn.svHas()) === 1, 'the title sees the kept world');
-call(t, () => t.fn.loadGame());
+call(t, () => t.fn.loadGame(1));
 n = 0; while (t.peek('gState') !== 2 && n < 6000) { F(t); n++; }
 F(t, 10);
 ok(t.peek('gState') === 2 && t.peek('seed') === 4321, `back in the world (seed ${t.peek('seed')}, after ${n} frames)`);

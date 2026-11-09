@@ -60,7 +60,7 @@ function spawnStep(dt) {
           nHostile = nHostile + 1;
           // far away ones go
           if ((EX[i] - px) * (EX[i] - px) + (EZ[i] - pz) * (EZ[i] - pz) > 56 * 56) { ET[i] = 0; }
-        } else { nPassive = nPassive + 1; if (MNEU[ET[i]] == 1 || ET[i] == 12) { if ((EX[i] - px) * (EX[i] - px) + (EZ[i] - pz) * (EZ[i] - pz) > 64 * 64) { ET[i] = 0; } } }
+        } else { if (ET[i] != M_NETPLAYER) { nPassive = nPassive + 1; } if (MNEU[ET[i]] == 1 || ET[i] == 12) { if ((EX[i] - px) * (EX[i] - px) + (EZ[i] - pz) * (EZ[i] - pz) > 64 * 64) { ET[i] = 0; } } }
       }
       i = i + 1;
     }
@@ -122,7 +122,7 @@ function mobsStep(dt) {
     // (far from the player they rest: only the ones near are worth the time)
     if (ET[e] > 0) {
       if (cOK(Math.floor(EX[e]), Math.floor(EZ[e])) == 0) { ET[e] = 0; }
-      else { if (ET[e] != 10) { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 1600) { mobStep(e, dt); } } }
+      else { if (ET[e] != 10 && ET[e] != M_NETPLAYER) { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 1600) { mobStep(e, dt); } } }
     }
     e = e + 1;
   }
@@ -332,7 +332,7 @@ function attack() {
     if (gameMode == 1) { dmg = 99; }
     let crit = 0;
     if (onGround == 0) { if (pvy < 0) { crit = 1; dmg = Math.floor(dmg * 1.5); } }
-    mobHurt(mobPick, dmg, EX[mobPick] - px, EZ[mobPick] - pz);
+    if (ET[mobPick] == M_NETPLAYER) { netHit(mobPick, dmg); } else { mobHurt(mobPick, dmg, EX[mobPick] - px, EZ[mobPick] - pz); }
     exhaust = exhaust + 0.1;
     attackCool = 0.45; swingT = 0.3;
   } }

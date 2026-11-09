@@ -5,23 +5,66 @@
 // names are AT_..., see ejs.mjs.) The world is kept as its seed and what was changed in it (the ED*
 // log, made short first: one entry a cell), with the player, the inventory, the chests, furnaces,
 // signs, command blocks, the time, the weather, the game rules and the progress.
-// Everything goes into one list, @블록월드, in one order (svWrite), and comes back in it (svRead).
+// Five worlds can be kept, @세계1..5, each one list in one order (svWrite into SVB, then copied
+// into its place; loadGame reads it back): BW22, its name, the mode, when it was last played, then
+// the world. (@블록월드 was the one world of before: moved into @세계1 once.)
 let AT_블록월드 = [];
+let AT_세계1 = [], AT_세계2 = [], AT_세계3 = [], AT_세계4 = [], AT_세계5 = [];
 let AT_확장프로그램 = 0;
 function AT_저장() { }
 function AT_비동기저장() { }
+let SVB = [];
 let svP = 0, svDim = 0, svX = 0, svY = 0, svZ = 0, svYaw = 0, svPitch = 0, saveT = 0, saveMsgT = 0;
-let SVTAG = 'BW21';
+let SVTAG = 'BW22', worldCur = 0, worldName = '새 세계';
+const NWORLD = 5;
 
-function svN(v) { AT_블록월드.push(v); }
-function rdN() { svP = svP + 1; return AT_블록월드[svP - 1]; }
+function svN(v) { SVB.push(v); }
+function rdN() { svP = svP + 1; return SVB[svP - 1]; }
 function M_svL(L) { svN(L.length); let q = 1; while (q <= L.length) { svN(L[q]); q = q + 1; } }
 function M_rdL(L) { L = []; let nn = rdN(), q = 0; while (q < nn) { L.push(rdN()); q = q + 1; } }
-
-// is there a world kept
+function M_fromW(L) { SVB = []; let q = 1; while (q <= L.length) { SVB.push(L[q]); q = q + 1; } }
+function M_toW(L) { L = []; let q = 1; while (q <= SVB.length) { L.push(SVB[q]); q = q + 1; } }
+// world k into SVB / SVB into world k / world k emptied
+function worldGet(k) { if (k == 1) { M_fromW(AT_세계1); } if (k == 2) { M_fromW(AT_세계2); } if (k == 3) { M_fromW(AT_세계3); } if (k == 4) { M_fromW(AT_세계4); } if (k == 5) { M_fromW(AT_세계5); } }
+function worldPut(k) { if (k == 1) { M_toW(AT_세계1); } if (k == 2) { M_toW(AT_세계2); } if (k == 3) { M_toW(AT_세계3); } if (k == 4) { M_toW(AT_세계4); } if (k == 5) { M_toW(AT_세계5); } }
+function worldClear(k) { if (k == 1) { AT_세계1 = []; } if (k == 2) { AT_세계2 = []; } if (k == 3) { AT_세계3 = []; } if (k == 4) { AT_세계4 = []; } if (k == 5) { AT_세계5 = []; } }
+// a world's header (wName wMode wDate): is it there
+let wName = '', wMode = 0, wDate = '', wSeed = 0;
+function worldHead(k) {
+  let r = 0, a = '', n = 0;
+  if (k == 1) { n = AT_세계1.length; if (n >= 5) { a = AT_세계1[1]; wName = AT_세계1[2]; wMode = AT_세계1[3]; wDate = AT_세계1[4]; wSeed = AT_세계1[5]; } }
+  if (k == 2) { n = AT_세계2.length; if (n >= 5) { a = AT_세계2[1]; wName = AT_세계2[2]; wMode = AT_세계2[3]; wDate = AT_세계2[4]; wSeed = AT_세계2[5]; } }
+  if (k == 3) { n = AT_세계3.length; if (n >= 5) { a = AT_세계3[1]; wName = AT_세계3[2]; wMode = AT_세계3[3]; wDate = AT_세계3[4]; wSeed = AT_세계3[5]; } }
+  if (k == 4) { n = AT_세계4.length; if (n >= 5) { a = AT_세계4[1]; wName = AT_세계4[2]; wMode = AT_세계4[3]; wDate = AT_세계4[4]; wSeed = AT_세계4[5]; } }
+  if (k == 5) { n = AT_세계5.length; if (n >= 5) { a = AT_세계5[1]; wName = AT_세계5[2]; wMode = AT_세계5[3]; wDate = AT_세계5[4]; wSeed = AT_세계5[5]; } }
+  if (n > 10) { if (a == SVTAG) { r = 1; } }
+  return r;
+}
+function worldFree() {
+  let k = 1, r = 0;
+  while (k <= NWORLD) { if (r == 0) { if (worldHead(k) == 0) { r = k; } } k = k + 1; }
+  return r;
+}
+// the one world of before: into @세계1 (or the first free place)
+function worldMigrate() {
+  if (AT_블록월드.length > 10) { if (AT_블록월드[1] == 'BW21') {
+    let k = worldFree();
+    if (k > 0) {
+      SVB = [];
+      SVB.push(SVTAG); SVB.push('내 세계'); SVB.push(AT_블록월드[4]); SVB.push('');
+      let q = 2;
+      while (q <= AT_블록월드.length) { SVB.push(AT_블록월드[q]); q = q + 1; }
+      worldPut(k);
+      AT_블록월드 = [];
+      if (canSave() == 1) { AT_비동기저장(); }
+    }
+  } }
+}
+function dateText() { return `${dateYear()}.${dateMonth()}.${dateDay()} ${dateHour()}:${padN(dateMin(), 2)}`; }
+// is there a world kept (any)
 function svHas() {
-  let r = 0;
-  if (AT_블록월드.length > 10) { if (AT_블록월드[1] == SVTAG) { r = 1; } }
+  let r = 0, k = 1;
+  while (k <= NWORLD) { if (worldHead(k) == 1) { r = 1; } k = k + 1; }
   return r;
 }
 function canSave() {
@@ -121,8 +164,8 @@ function edCompact() {
 // ---------------------------------------------------------------- writing
 function svWrite() {
   edCompact();
-  AT_블록월드 = [];
-  svN(SVTAG); svN(seed); svN(seedText); svN(gameMode); svN(defMode); svN(difficulty);
+  SVB = [];
+  svN(SVTAG); svN(worldName); svN(gameMode); svN(dateText()); svN(seed); svN(seedText); svN(gameMode); svN(defMode); svN(difficulty);
   svN(dim); svN(px); svN(py); svN(pz); svN(yaw); svN(pitch); svN(flying);
   svN(hp); svN(food); svN(sat); svN(air); svN(xpPts); svN(xpLevel);
   svN(tday); svN(dayN); svN(gameTicks); svN(wthr); svN(wthrT);
@@ -150,28 +193,31 @@ function svWrite() {
     c = c + 1;
   }
   svN('END');
+  worldPut(worldCur);
 }
 // wait 1: until it is written (the menu); 0: it goes on its own (the timer)
 function saveGame(wait) {
-  if (canSave() == 1) {
+  if (canSave() == 1 && netSrv == 0 && worldCur > 0) {
     if (gState == 2 && dead == 0) {
       svWrite();
       if (wait == 1) { AT_저장(); } else { AT_비동기저장(); }
       saveT = 0;
       msgShow(`세계를 저장했습니다 (바꾼 블록 ${EDX.length}개)`, 2);
     }
-  } else { msgShow('저장할 수 없습니다: tessvm(또는 엔트리 저장 관리자 확장)에서 실행해야 합니다', 3); }
+  } else { if (netSrv == 0) { msgShow('저장할 수 없습니다: tessvm(또는 엔트리 저장 관리자 확장)에서 실행해야 합니다', 3); } }
 }
 // every five minutes on its own, and the log made short when it grows long
 function saveStep(dt) {
   saveT = saveT + dt;
-  if (saveT > 300) { saveT = 0; if (canSave() == 1) { saveGame(0); } }
+  if (saveT > 300) { saveT = 0; if (canSave() == 1) { if (netSrv == 0) { saveGame(0); } } }
   if (EDX.length > edNext) { edCompact(); }
 }
 
 // ---------------------------------------------------------------- reading: the kept world again
-function loadGame() {
+function loadGame(k) {
+  worldGet(k); worldCur = k;
   svP = 2;
+  worldName = rdN(); svP = svP + 2;
   let s = rdN();
   seedText = rdN();
   gameMode = rdN(); defMode = rdN();

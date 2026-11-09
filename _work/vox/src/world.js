@@ -103,7 +103,7 @@ function blockAt(x, y, z) {
 // a block put by the world (generation) or the player (logOn: written down)
 function wput(x, y, z, b) {
   W[(mod(x, WS) * WS + mod(z, WS)) * WY + y + 1] = b;
-  if (logOn == 1) { edPush(x, y, z, b); }
+  if (logOn == 1) { edPush(x, y, z, b); if (netSrv > 0) { netEdit(x, y, z, b); } }
 }
 
 // ---------------------------------------------------------------- terrain of a column

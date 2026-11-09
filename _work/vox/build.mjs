@@ -11,7 +11,7 @@ import { TEX, CRACK, BLOCKS, NBLOCK, ITEMS, TIERS, KINDS, SMITH, toolId, NITEM, 
 import { MODELS, ARMS, ARMCOL, pottedModel } from './models.mjs';
 import { makeSounds } from './sounds.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '2.0';
+export const VERSION = '2.1';
 export const NAME = '블록 월드';
 
 // the ring window of loaded chunks: NCH x NCH slots of 16 x 16 columns; chunks are made within
@@ -26,7 +26,7 @@ export const consts = {
     WS, NCH, CR, WY, UH: 64, SEA: 30, LAVAY: 5, NSX: WS / 8, NSY: WY / 8, NSEC: (WS / 8) * (WS / 8) * (WY / 8), SXS: WS * WY, OFF: 32768,
     NOFF: chunkOffsets(CR).length, CVN: 24, FORTY: 30, NSTART: chunkOffsets(2).length,
     NEARZ: Math.round(0.05 * 256 * 16384), DEC2: 20, PLANT2: 225, CLOUDY: 110, MK: 160 * 1048576,
-    NMOB: 48, NITM: 64, NARR: 24, NFUR: 32, NCHEST: 256, ANIMALS: 36, SMELTT: 8, NTX: 123,
+    NMOB: 48, NITM: 64, NARR: 24, NFUR: 32, NCHEST: 256, ANIMALS: 36, SMELTT: 8, NTX: 139, NTX0: 123,
     SPAWNC: 0, BENCH: 0, NOCAVE: 0, AUTOSEED: 0, AUTOMODE: 0, TESTRUN: 0, SIMRUN: 0, LEGACY: 0, SLIM: 1, SPLIT: 0,
 };
 
@@ -387,14 +387,14 @@ export function makeData() {
     for (const [n, i] of Object.entries(RS)) ids['RS_' + n.toUpperCase()] = i;
     MOBS.forEach((m, i) => { if (m) ids['M_' + m.n.toUpperCase()] = i; });
     const kinds0 = BLOCKS.filter(b => b && !b.nokind && !(b.item && !b.plant && !b.spawns)).length;
-    const C = { ...extra, ...ids, NKINDS: kinds0, NCOL: cols.length, NREC: RECIPES.length, TDIRT: texIx('dirt'), NBLOCK, NITEM, NCAT: CATS.length, NMOBT: MOBS.length - 1 };
+    const C = { ...extra, ...ids, VERSION, NKINDS: kinds0, NCOL: cols.length, NREC: RECIPES.length, TDIRT: texIx('dirt'), NBLOCK, NITEM, NCAT: CATS.length, NMOBT: MOBS.length - 1 };
     const kinds = BLOCKS.filter(b => b && !b.nokind && !(b.item && !b.plant && !b.spawns)).length;
     cache = { L, C, kinds };
     return cache;
 }
 
 // ------------------------------------------------------------------ sources
-export const FILES = ['world.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'save.js', 'mobs.js', 'items.js', 'hud.js', 'extra.js', 'cmds.js', 'main.js', 'test.js'];
+export const FILES = ['world.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'save.js', 'net.js', 'netcmd.js', 'menu.js', 'mobs.js', 'items.js', 'hud.js', 'extra.js', 'cmds.js', 'main.js', 'test.js'];
 export function allConsts(more = {}) {
     const { C } = makeData();
     return { ...consts, ...C, ...more };

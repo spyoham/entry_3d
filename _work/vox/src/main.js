@@ -154,6 +154,8 @@ function playLook(dt) {
 }
 // the keys of play (or of the open screen)
 function playKeys(dt) {
+  // (what the player does here goes out to the server: net.js)
+  netUserAct = 1;
   if (dead == 0) {
     if (uiMode == 0) {
       // the hotbar: number keys, the wheel (the spectator: the speed)
@@ -187,6 +189,7 @@ function playKeys(dt) {
     survival(dt);
     effectsStep(dt);
   } else { pickOn = 0; breakStage = 0; uiInput(); }
+  netUserAct = 0;
   wheelAcc = 0;
   if (keyHit(114) == 1) { showDbg = 1 - showDbg; }
   if (keyHit(72) == 1) { helpT = 12 - helpT; if (helpT < 0) { helpT = 0; } }
@@ -241,6 +244,7 @@ function drawUI(dt) {
   if (uiMode == 6) { pauseScreen(); }
   if (uiMode == 10) { tradeScreen(); }
   if (uiMode == 7) { deathScreen(); }
+  if (netOn == 1) { netHud(); }
   if (helpT > 0) { helpT = helpT - dt; helpText(); } else { if (uiMode == 0) { txOff(15); txOff(16); txOff(17); txOff(18); txOff(19); } }
   if (lkNow == 0) { if (uiMode == 0) { if (dead == 0) { tx(19, '화면을 클릭하면 마우스로 둘러봅니다', 0, -60, 9, '#ffffff', 0); } } }
   fillStop();
@@ -298,13 +302,13 @@ function uiInput() {
       if (menuSel == 3) { if (right == 1) { sens = Math.min(2, sens + 0.1); } else { sens = Math.max(0.1, sens - 0.1); } }
       if (menuSel == 4) { setMode(mod(gameMode + 1, 4)); }
       if (menuSel == 5) { sndOn = 1 - sndOn; }
-      if (menuSel == 7) { saveGame(1); }
-      if (menuSel == 6) { if (canSave() == 1) { saveGame(1); } uiMode = 0; gState = 0; txClear(); }
+      if (menuSel == 7) { if (netSrv == 0) { saveGame(1); } }
+      if (menuSel == 6) { if (netSrv > 0) { netLeave(); } else { if (canSave() == 1) { saveGame(1); } } uiMode = 0; gState = 0; txClear(); }
     }
   }
   if (uiMode == 7) {
     if (clickLatch == 1) {
-      if (menuSel == 1) { respawn(); txClear(); lockReq(); }
+      if (menuSel == 1) { respawn(); txClear(); lockReq(); if (netSrv > 0) { plugRun('respawn', ' ', netNick); } }
       if (menuSel == 2) { respawn(); gState = 0; txClear(); }
     }
   }
@@ -322,58 +326,6 @@ function dirtBack(dk) {
   s8 = 0;
 }
 let titleSpin = 0;
-function titleFrame(dt) {
-  eraseAll();
-  dirtBack(16);
-  titleSpin = titleSpin + dt * 30;
-  // a few turning blocks
-  let i = 0;
-  while (i < 5) {
-    let bid = TITLEB[i + 1];
-    let x = -170 + i * 85, y = 40 + sind(titleSpin * 2 + i * 70) * 4;
-    if (i != 2) { drawIcon(bid, x, y, 14); }
-    i = i + 1;
-  }
-  tx(1, '블록 월드', 2, 100, 28, '#202020', 0);
-  tx(2, '블록 월드', 0, 102, 28, '#ffffff', 0);
-  tx(3, '엔트리로 만든 블록 샌드박스 · tessvm 전용', 0, 70, 8, '#ffff80', 0);
-  menuSel = 0;
-  if (svHas() == 1) { button(-100, 56, 100, 36, '저장한 세계 이어하기', 10, 1); if (btnHot == 1) { menuSel = 5; } } else { txOff(10); }
-  button(-100, 26, 100, 6, '서바이벌 새 세계', 4, 1); if (btnHot == 1) { menuSel = 1; }
-  button(-100, 0, 100, -20, '크리에이티브 새 세계', 5, 1); if (btnHot == 1) { menuSel = 2; }
-  button(-100, -26, 100, -46, `시드: ${seedText}`, 6, 1); if (btnHot == 1) { menuSel = 3; }
-  button(-100, -52, 100, -72, `시야 거리: ${viewWant} 블록`, 7, 1); if (btnHot == 1) { menuSel = 4; }
-  tx(8, 'WASD 이동 · 클릭 부수기 · F 놓기 · E 소지품 · H 도움말', 0, -92, 7, '#d0d0d0', 0);
-  tx(9, `끝없는 세계 (높이 ${WY}) · 블록 ${NKINDS}종 · 생물 군계 26가지 · 구조물 20가지 · 몹 20종 · 명령어`, 0, -104, 7, '#a0a0a0', 0);
-  if (clickLatch == 1) {
-    if (menuSel == 1 || menuSel == 2) {
-      gameMode = menuSel - 1; defMode = gameMode;
-      txClear();
-      let s = titleSeed;
-      if (s == 0) { s = rand(1, 99999999); }
-      seed = s;
-      thingsInit();
-      genStart(s);
-      gState = 1;
-    }
-    if (menuSel == 3) {
-      ask('시드(숫자나 글자, 비우면 무작위)');
-      hideAnswer();
-      let a = answer();
-      titleSeed = 0; seedText = '무작위';
-      if (strlen(a) > 0) {
-        // text to a number
-        let h = 7, k = 1;
-        while (k <= strlen(a)) { h = mod(h * 31 + indexOf(ASCII, charAt(a, k)) + 13, 99999989); k = k + 1; }
-        titleSeed = h + 1; seedText = a;
-      }
-    }
-    if (menuSel == 5) { txClear(); loadGame(); }
-    if (menuSel == 4) { if (mouseX() > 0) { viewWant = viewWant + 4; if (viewWant > 48) { viewWant = 48; } } else { viewWant = viewWant - 4; if (viewWant < 8) { viewWant = 8; } } }
-  }
-  clickLatch = 0;
-  fillStop();
-}
 function loadFrame() {
   genStep();
   eraseAll();
@@ -393,6 +345,8 @@ function loadFrame() {
     tday = 0.03; fogR = -99; ctPos = NCOL * 192;
     gState = 2; uiMode = 0; helpT = 12;
     lockReq();
+    // a new world is kept at once (in its place among the five)
+    if (worldCur > 0) { if (canSave() == 1) { saveGame(0); } }
   }
 }
 
@@ -444,6 +398,7 @@ on('start', 'pen', function () {
       pollKeys();
       if (gState == 0) { titleFrame(dt); }
       else { if (gState == 1) { loadFrame(); } else { if (gState == 3) { travelFrame(); } else { playFrame(dt); } } }
+      netStep(dt);
       if (TESTRUN == 1) { testStep(); }
     }
   }

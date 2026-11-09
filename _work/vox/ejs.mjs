@@ -647,6 +647,8 @@ export function compileToJS(sources) {
                 return `${c.name}(${n.arguments.map(E).join(',')})`;
             }
             case 'AssignmentExpression':
+                // (`A = []` empties the list in place, as Entry does: a ?! list stays the one the extension fills)
+                if (n.operator === '=' && n.left.type === 'Identifier' && n.right.type === 'ArrayExpression' && n.right.elements.length === 0 && lists.has(n.left.name)) return syN(n.left.name, `(${n.left.name}.length=0)`);
                 if (n.left.type === 'MemberExpression' && n.left.computed) {
                     const L = n.left.object.name;
                     if (n.operator === '=') return syN(L, `R.set(${L},${E(n.left.property)},${E(n.right)},${JSON.stringify(L)})`);

@@ -6,9 +6,18 @@ let testCmd = 0, tX = 0, tY = 0, tZ = 0, tYaw = 0, tPitch = 0, tStage = 0;
 function testStep() {
   if (testCmd == 6) { testCmd = 0; thumbScene(); }
   // 8: a command (tCmd) as if typed
-  if (testCmd == 8) { testCmd = 0; cmdFromBlock = 0; runCommand(tCmd); }
+  if (testCmd == 8) { testCmd = 0; cmdFromBlock = 0; netUserAct = 1; runCommand(tCmd); netUserAct = 0; }
+  // 12: online, the server named tCmd joined (when the list has it); 13: tCmd said in the chat
+  if (testCmd == 12) { testCmd = 0; netEnter(); if (netMy == 0) { netClaim(); } let k = 1, f = 0; while (k <= NSRV) { if (srvHas(k) == 1) { if (shName == tCmd) { f = k; } } k = k + 1; } if (f > 0) { serverJoin(f); } else { tCmd = '없음'; } }
+  // 14: the block at (tX, tY, tZ) into tStage
+  if (testCmd == 14) { testCmd = 0; tStage = blockAt(tX, tY, tZ); }
+  if (testCmd == 13) { testCmd = 0; netUserAct = 1; chatRun(tCmd); netUserAct = 0; }
   // 9: the kept world again (as 이어하기 on the title)
-  if (testCmd == 9) { testCmd = 0; txClear(); loadGame(); }
+  if (testCmd == 9) { testCmd = 0; txClear(); loadGame(tStage); }
+  // 10: a new world in place tStage, seed tCmd (as 새 세계 만들기)
+  // 11: online (as the multiplayer screen), a server made (name tCmd) and joined
+  if (testCmd == 11) { testCmd = 0; netEnter(); netClaim(); let k = srvCreate(tCmd, '시험 서버입니다', 1234, 1); if (k > 0) { txClear(); netJoin(k); } }
+  if (testCmd == 10) { testCmd = 0; cwSeedText = tCmd; cwName = '시험'; cwMode = 0; worldNew(tStage); }
   // 4: to world tStage at (tX, tZ)
   if (testCmd == 4) { testCmd = 0; startTravel(tStage, tX, tZ, 1 + tStage * 0); if (tStage == 2) { travelKind = 2; } }
   if (testCmd == 5) { testCmd = 0; setBlock(tX, tY, tZ, tStage); }

@@ -41,6 +41,15 @@ export function createSim({ consts = {}, listMax = 1e8 } = {}) {
     const check = (A, i, name) => { if (!(i >= 1 && i <= A.length) || Math.floor(i) !== i) throw new Error(`list ${name || '?'} index ${i} out of range (len ${A.length})`); };
     const R = {
         handlers: [], $i: 0, self: null,
+        // Entry Sync ('?!' names, SY_* in the source): plain values and lists alone; test/netsim.mjs
+        // plugs in a model of the extension and its server (R.syNet), which puts the others' values in
+        // and hears of every change made here
+        syDefaults: {}, syLocal: {}, syLists: {},
+        syDefault: (n, v) => { R.syDefaults[n] = v; R.syLocal[n] = v; },
+        syGet: (n) => R.syLocal[n],
+        sySet: (n, v) => { R.syLocal[n] = v; if (R.syNet && R.syNet.varChanged) R.syNet.varChanged(n, v); },
+        syList: (n, init) => (R.syLists[n] = init.slice()),
+        syChanged: (n, a) => { if (R.syNet) R.syNet.changed(n, a.slice()); },
         get: (A, i, name) => { check(A, i, name); return A[i - 1]; },
         set: (A, i, v, name) => { check(A, i, name); A[i - 1] = v; },
         removeAt: (A, i) => { check(A, i); A.splice(i - 1, 1); },
@@ -75,7 +84,10 @@ export function createSim({ consts = {}, listMax = 1e8 } = {}) {
         str: (...a) => a.join(''),
         key: (c) => keys.has(c), mouseX: () => mouse.x, mouseY: () => mouse.y, mouseDown: () => mouse.down,
         timer: () => simTime, timerStart: () => { }, timerReset: () => { simTime = 0; },
-        dateSec: () => Math.floor(wall) % 60,
+        dateSec: () => (R.wallNow ? new Date(R.wallNow()).getSeconds() : Math.floor(wall) % 60),
+        dateMin: () => new Date(R.wallNow ? R.wallNow() : wall * 1000).getUTCMinutes(), dateHour: () => new Date(R.wallNow ? R.wallNow() : wall * 1000).getUTCHours(), dateDay: () => new Date(R.wallNow ? R.wallNow() : wall * 1000).getUTCDate(),
+        nickname: () => (R.nick !== undefined ? R.nick : ' '),
+        dateYear: () => new Date(R.wallNow ? R.wallNow() : wall * 1000).getUTCFullYear(), dateMonth: () => new Date(R.wallNow ? R.wallNow() : wall * 1000).getUTCMonth() + 1,
         ask: () => { lastAnswer = answers.length ? answers.shift() : ''; }, answer: () => lastAnswer,
         write: (t) => { cur.text = String(t); }, textColorHex: (c) => { cur.colour = String(c); },
         waitUntil: () => { }, show: () => { cur.visible = true; }, hide: () => { cur.visible = false; },

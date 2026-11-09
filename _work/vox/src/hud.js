@@ -44,9 +44,15 @@ on('start', 'txt', function () {
     k = k + 1;
   }
   k = 1;
+  while (k <= NTX0) { txt$slot = k; cloneSelf(); k = k + 1; }
+  txt$slot = 0;
+  // (the names over the heads, 124..NTX: only once the game goes online, a clone costs every tick)
+  waitUntil(txMore == 1);
+  k = NTX0 + 1;
   while (k <= NTX) { txt$slot = k; cloneSelf(); k = k + 1; }
   txt$slot = 0;
 });
+let txMore = 0;
 on('clone', 'txt', function () {
   show();
   for (;;) {
@@ -421,8 +427,9 @@ function pauseScreen() {
   let so = '끔';
   if (sndOn == 1) { so = '켬'; }
   button(-90, -12, 90, -30, `소리: ${so}`, 25, 1); if (btnHot == 1) { menuSel = 5; }
-  button(-90, -34, 90, -52, '세계 저장하기', 28, 1); if (btnHot == 1) { menuSel = 7; }
-  let tt = '타이틀 화면으로'; if (canSave() == 1) { tt = '저장하고 타이틀 화면으로'; }
+  let sv = 1, svl = '세계 저장하기'; if (netSrv > 0) { sv = 0; svl = '서버가 저절로 기억합니다'; }
+  button(-90, -34, 90, -52, svl, 28, sv); if (btnHot == 1) { menuSel = 7; }
+  let tt = '타이틀 화면으로'; if (canSave() == 1) { tt = '저장하고 타이틀 화면으로'; } if (netSrv > 0) { tt = '연결 끊기'; }
   button(-90, -56, 90, -74, tt, 26, 1); if (btnHot == 1) { menuSel = 6; }
   tx(27, '시야·감도는 왼쪽(좌반)·오른쪽(우반)을 눌러 줄이기·늘리기 · 5분마다 저절로 저장', 0, -82, 7, '#c0c0c0', 0);
 }

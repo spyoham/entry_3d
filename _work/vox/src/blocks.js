@@ -169,6 +169,7 @@ function placeBlock(b, id) {
   if (standsOn(sb, under, x, y, z) == 0) { ok = 0; }
   if (b == 27 || BNEED[sb + 1] == N_TORCH) { ok = 1; if (freeAt(x, y, z) == 0) { ok = 0; } if (BSOL[under + 1] == 0) { if (pickF == 2 || BSOL[pickB + 1] == 0) { ok = 0; } } }
   if (ok == 1) {
+    if (netSrv > 0) { plugRun('place', ITKEY[b + 1], netNick); }
     setBlock(x, y, z, put);
     if (y2 >= 0) { setBlock(x2, y2, z2, put2); }
     sndPlay(2);
@@ -507,6 +508,7 @@ function signUse(x, y, z, id) {
     let s = answer();
     askDone();
     if (k == 0) { SGX.push(x); SGY.push(y); SGZ.push(z); SGT.push(s); SGD.push(dim); } else { SGT[k] = s; }
+    netSign(x, y, z, s);
     lockReq();
   } else { msgShow(SGT[k], 4); }
 }

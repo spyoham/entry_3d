@@ -50,10 +50,7 @@ console.log('@ names', names.join(' '));
 await run(async ({ vm, V, set, tick }) => {
   tick(30);
   console.log('flag', V('@확장프로그램').getValue());
-  set('titleSeed', 777); set('seedText', '777');
-  // the first title button (survival): as a click on it
-  set('menuSel', 1); set('clickLatch', 1);
-  set('gState', 0); tick(1);
+  set('tCmd', '777'); set('tStage', 1); set('testCmd', 10); tick(1);
   let k = 0; while (V('gState').getValue() != 2 && k < 6000) { tick(1); k++; }
   tick(60);
   set('tCmd', '/setblock ~ ~3 ~ gold_block'); set('testCmd', 8); tick(3);
@@ -62,13 +59,13 @@ await run(async ({ vm, V, set, tick }) => {
   console.log('run 1: seed', V('seed').getValue(), 'pos', (+V('px').getValue()).toFixed(1), (+V('py').getValue()).toFixed(1), (+V('pz').getValue()).toFixed(1), 'writes', writes, 'errors', JSON.stringify(vm.errors.slice(0, 2)));
   const ch = V('CHT').getArray().map(x => x.data); console.log('  chat', ch.slice(-2).join(' | '));
 });
-const kept = stored['@블록월드'];
+const kept = stored['@세계1'];
 console.log('kept list', kept ? kept.length + ' items, first ' + kept[0].data : 'none');
 // run 2: the title sees it; 이어하기
 await run(async ({ vm, V, set, tick }) => {
   tick(30);
-  console.log('run 2: kept items', V('@블록월드').getArray().length);
-  set('testCmd', 9); tick(1);
+  console.log('run 2: kept items', V('@세계1').getArray().length);
+  set('tStage', 1); set('testCmd', 9); tick(1);
   let k = 0; while (V('gState').getValue() != 2 && k < 6000) { tick(1); k++; }
   tick(30);
   console.log('run 2: seed', V('seed').getValue(), 'pos', (+V('px').getValue()).toFixed(1), (+V('py').getValue()).toFixed(1), (+V('pz').getValue()).toFixed(1), 'gState', V('gState').getValue(), 'errors', JSON.stringify(vm.errors.slice(0, 2)));

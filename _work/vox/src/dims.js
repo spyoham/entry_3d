@@ -372,6 +372,8 @@ function travelFrame() {
   let t = '잿빛 심연으로 가는 중';
   if (dim == 0) { t = '지상으로 돌아가는 중'; }
   if (dim == 2) { t = '공허의 섬으로 가는 중'; }
+  if (travelKind == 6) { t = '세계를 불러오는 중'; }
+  if (travelKind == 7) { t = `${shName}에 접속하는 중`; }
   tx(1, t, 0, 30, 12, '#ffffff', 0);
   box(-101, -13, 101, -23, '#000000');
   box(-100, -14, -100 + 200 * Math.min(1, genN), -22, '#c070ff');
@@ -395,6 +397,7 @@ function arrive() {
   if (travelKind == 3) { if (spawnSet == 0) { findSpawn(); } px = spawnX; py = spawnY; pz = spawnZ; respawn0(); }
   if (travelKind == 4 || travelKind == 5) { farArrive(); }
   if (travelKind == 6) { arriveKept(); }
+  if (travelKind == 7) { netArrive(); }
   fallTop = py; gateCool = 1;
   gState = 2; txClear();
   lockReq();

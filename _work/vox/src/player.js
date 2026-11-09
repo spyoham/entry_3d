@@ -366,6 +366,7 @@ function survival(dt) {
 }
 function die(why) {
   dead = 1; deathMsg = why; uiClose(); uiMode = 7;
+  if (netSrv > 0) { evAdd('c', `${netNick}: ${netClean(why)}`); plugRun('death', ' ', netNick); }
   let i = 1;
   while (i <= 40) {
     if (grKeep == 0) { if (INVI[i] > 0) { dropItem(INVI[i], INVN[i], INVD[i], px, py + 1, pz, 1); INVI[i] = 0; INVN[i] = 0; INVD[i] = 0; } }
@@ -491,6 +492,7 @@ function breaking(dt) {
 // take a block away (by the player when byP 1: drops and wears the tool)
 function breakBlock(x, y, z, byP) {
   let b = blockAt(x, y, z);
+  if (netSrv > 0) { if (byP == 1) { plugRun('break', ITKEY[b + 1], netNick); } }
   if (byP == 1) {
     let bt0 = breakTime(b);
     sndPlay(2);

@@ -443,7 +443,10 @@ function chatRun(s) {
   if (strlen(s) > 0) {
     CHH.push(s); if (CHH.length > 30) { CHH.removeAt(1); }
     if (charAt(s, 1) == '/') { cmdFromBlock = 0; cmdX = px; cmdY = py; cmdZ = pz; cmdYaw = yaw; cmdPitch = pitch; runCommand(s); }
-    else { chatAdd(`<플레이어> ${s}`); }
+    else {
+      if (netSrv > 0) { let t = `<${netNick}> ${netClean(s)}`; chatAdd(t); evAdd('c', t); plugRun('chat', s, netNick); }
+      else { chatAdd(`<플레이어> ${s}`); }
+    }
   }
 }
 // after one of tessvm's answer boxes (signs, command blocks, the search) the keys come back with a click
@@ -464,8 +467,11 @@ function runCommand(s) {
   CMW[1] = c;
   // (the words but the texts in lower case)
   let i = 2;
-  while (i <= CMW.length) { if (c != 'say' && c != 'tell' && c != 'msg' && c != 'w' && c != 'me' && c != 'title') { CMW[i] = lower(CMW[i]); } i = i + 1; }
-  out = runCmd(c);
+  while (i <= CMW.length) { if (c != 'say' && c != 'tell' && c != 'msg' && c != 'w' && c != 'me' && c != 'title' && c != 'plugin' && c != 'pl' && c != 'plugins' && c != 'server' && c != 'kick' && c != 'ban' && c != 'op' && c != 'deop' && c != 'pardon' && c != 'unban' && c != 'whitelist') { CMW[i] = lower(CMW[i]); } i = i + 1; }
+  // on a server: the rights, the server's own commands, the plugins' (netcmd.js)
+  netCmdHit = 0;
+  if (netSrv > 0) { netCmd(c); }
+  if (netCmdHit == 1) { out = netCmdOut; } else { out = runCmd(c); }
   // (a text local starts as 0 in Entry: no message is 0)
   if (strlen(out) > 0) { if (out != 0) { cmdOut(out); } }
 }
