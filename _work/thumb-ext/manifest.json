@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "엔트리 썸네일 APNG",
+  "version": "1.0",
+  "description": "엔트리 온라인 만들기 화면에서 작품을 저장할 때 고른 APNG를 썸네일로 올립니다.",
+  "content_scripts": [
+    {
+      "matches": ["https://playentry.org/*", "https://space.playentry.org/*"],
+      "js": ["thumb.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ]
+}
