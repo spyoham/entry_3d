@@ -1,0 +1,2 @@
+[{"wait":1500},{"eval":"(()=>{const vm=window.__vm; const out=[]; for (const t of vm.targets) { const es=[t.entity||t, ...(t.clones||[])]; for (const e of es) { if (e && e.paint) out.push([t.name||t.id, e.paint.strokes.length, [...new Set(e.paint.strokes.map(s=>s.color))].slice(0,20)]); } } return out; })()"},
+{"eval":"Object.keys(window.__vm.targets[0])"}]

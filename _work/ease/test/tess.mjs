@@ -1,0 +1,31 @@
+// The program in tessvm's own vm (Node, no picture), TEST=1: prints OUT
+import fs from 'node:fs';
+import path from 'node:path';
+import url from 'node:url';
+import cp from 'node:child_process';
+import zlib from 'node:zlib';
+import { build } from '../build.mjs';
+const HERE = path.dirname(url.fileURLToPath(import.meta.url));
+const pre = Number(process.argv[2] || 1);
+const file = path.join(HERE, '..', 'tess.ent');
+build(file, { name: 'tess', more: { TEST: 1, START: pre } });
+const EXT = path.join(HERE, '../../tessvm/ext');
+const imp = (p) => import(url.pathToFileURL(path.join(EXT, p)).href);
+const tmp = path.join(HERE, '..', '.nrun');
+fs.rmSync(tmp, { recursive: true, force: true }); fs.mkdirSync(tmp, { recursive: true });
+cp.execSync('tar -xf -', { cwd: tmp, input: zlib.gunzipSync(fs.readFileSync(file)) });
+const work = JSON.parse(fs.readFileSync(path.join(tmp, 'temp/project.json'), 'utf8'));
+work.id = 'local';
+const { toTessProject } = await imp('page/tess-project.js');
+const { Vm } = await imp('vendor/tessvm/runtime/engine.js');
+const vm = new Vm({ kernel: null, store: null });
+vm.load(toTessProject(work).project);
+vm.start();
+let n = 0;
+for (; n < 600; n++) { vm.tick(); const d = vm.variables.find(v => v.name === 'done'); if (d && d.value == 1) break; }
+const L = vm.variables.find(v => v.name === 'OUT');
+console.log('ticks', n, 'errors', JSON.stringify(vm.errors.slice(0, 3)));
+console.log('OUT', JSON.stringify(L && (L.array || L.value).map(x => (x && typeof x === 'object' ? x.data : x))));
+for (const t of vm.targets) if (t.entity && t.entity.paint) console.log(t.name, t.entity.paint.strokes.map(s => s.color).join(" "), t.entity.paint.color);
+for (const t of vm.targets) if (t.entity && t.entity.paint) console.log(t.name, t.entity.paint.strokes.map(s => s.color).join(" "), t.entity.paint.color);
+fs.rmSync(tmp, { recursive: true, force: true }); fs.rmSync(file, { force: true });

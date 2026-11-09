@@ -1,0 +1,9 @@
+[{"wait":1500,"vars":1,"fps":"p1","shot":"E:/entry_3d/_work/ease/shots/t1.png"},
+{"down":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":100},{"up":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":1500,"vars":1,"fps":"p2","shot":"E:/entry_3d/_work/ease/shots/t2.png"},
+{"down":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":100},{"up":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":1500,"vars":1,"fps":"p3","shot":"E:/entry_3d/_work/ease/shots/t3.png"},
+{"down":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":100},{"up":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":1500,"vars":1,"fps":"p4","shot":"E:/entry_3d/_work/ease/shots/t4.png"},
+{"down":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":100},{"up":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":1500,"vars":1,"fps":"p5","shot":"E:/entry_3d/_work/ease/shots/t5.png"},
+{"down":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":100},{"up":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":1500,"vars":1,"fps":"p6","shot":"E:/entry_3d/_work/ease/shots/t6.png"},
+{"down":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":100},{"up":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":1500,"vars":1,"fps":"p7","shot":"E:/entry_3d/_work/ease/shots/t7.png"},
+{"down":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":100},{"up":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":1500,"vars":1,"fps":"p8","shot":"E:/entry_3d/_work/ease/shots/t8.png"},
+{"down":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":100},{"up":{"code":"ArrowRight","key":"ArrowRight","keyCode":39}},{"wait":1500,"vars":1,"fps":"p9","shot":"E:/entry_3d/_work/ease/shots/t9.png"}]
