@@ -121,6 +121,9 @@ function blockByName(nm) {
     if (ITKEY[id + 1] == nm || ITNAME[id + 1] == nm) { if (BSTATE[id + 1] == 0) { r = id; } }
     id = id + 1;
   }
+  // (a variant by its own key: wheat_3, farmland_moist ...)
+  id = 0;
+  while (id < NBLOCK && r < 0) { if (ITKEY[id + 1] == nm) { r = id; } id = id + 1; }
   if (r > 0) { if (strlen(st) > 0) { r = r + stateOf(r, st); } }
   return r;
 }

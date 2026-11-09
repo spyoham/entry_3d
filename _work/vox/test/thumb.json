@@ -1,0 +1,7 @@
+[{"wait": 12000},
+ {"eval": "(()=>{const V=n=>window.__vm.variables.find(v=>v.name===n);V('tX').setValue(8);V('tZ').setValue(8);V('testCmd').setValue(6);return 1})()"},
+ {"wait": 6000},
+ {"eval": "(()=>{const V=n=>window.__vm.variables.find(v=>v.name===n);V('tX').setValue(-0.5);V('tY').setValue(40);V('tZ').setValue(-5.5);V('tYaw').setValue(30);V('tPitch').setValue(-8);V('testCmd').setValue(1);V('helpT').setValue(0);V('tday').setValue(0.1);V('showDbg').setValue(0);return 1})()"},
+ {"wait": 3000},
+ {"eval": "(()=>{const V=n=>window.__vm.variables.find(v=>v.name===n);V('lockAskT').setValue(0);V('$M_LOCK').setValue(1);V('keysLost').setValue(0);V('helpT').setValue(0);V('msgT').setValue(0);V('nameT').setValue(0);V('flying').setValue(1);return 1})()"},
+ {"wait": 1500}, {"eval": "(()=>{const V=n=>window.__vm.variables.find(v=>v.name===n);V('msgT').setValue(0);V('nameT').setValue(0);return 1})()"}, {"wait": 800}, {"shot": "../vox/test/thumb.png"}]
