@@ -537,7 +537,8 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
         for (let i = f.params.length - 1; i >= 0; i--) {
             chain = { ...B('function_field_string', [B(`stringParam_${f.paramIds[i]}`, []), chain]), copyable: false, assemble: false };
         }
-        const label = { ...B('function_field_label', [f.name, chain]), copyable: false };
+        // (AT_name: the save manager's @name, see the globals below)
+        const label = { ...B('function_field_label', [f.name.startsWith('AT_') ? '@' + f.name.slice(3) : f.name, chain]), copyable: false };
         const header = B(f.value ? 'function_create_value' : 'function_create', f.value ? [label, null, null, retBlock] : [label, null], [blocks]);
         header.x = 50; header.y = 30;
         weigh(header, funcWeights[f.name] || 1);
@@ -574,7 +575,7 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
     // or list whose name starts with '?!' - so SY_x becomes '?!x', and SY_
     // alone the connection flag '?!' (1 connected, -1 not). They are ordinary
     // variables to Entry: never cloud, never Entry's own real-time ones.
-    const entryName = (n) => (n.startsWith('SY_') ? '?!' + n.slice(3) : n);
+    const entryName = (n) => (n.startsWith('SY_') ? '?!' + n.slice(3) : n.startsWith('AT_') ? '@' + n.slice(3) : n);
     for (const [name, g] of globals) variables.push({ name: entryName(name), id: g.id, value: g.init, variableType: 'variable', visible: false, isCloud: false, isRealTime: false, cloudDate: false, object: g.object || null, x: 0, y: 0 });
     for (const [name, l] of lists) variables.push({ name: entryName(name), id: l.id, value: 0, variableType: 'list', visible: false, isCloud: false, isRealTime: false, cloudDate: false, object: null, x: 0, y: 0, width: 100, height: 120,
         array: l.init.map((v, i) => ({ id: `${l.id}_${i}`, data: v })) });

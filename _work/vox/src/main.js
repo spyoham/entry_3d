@@ -175,7 +175,8 @@ function playKeys(dt) {
       if (keyHit(69) == 1) { if (gameMode == 1) { uiOpen(5); } else { if (gameMode != 3) { uiOpen(1); } } }
       if (keyHit(80) == 1) { uiMode = 6; mouseFree(); txClear(); }
       // a command: T or /
-      if (keyHit(84) == 1 || keyHit(191) == 1) { chatOpen(); }
+      if (keyHit(84) == 1) { chatOpen(''); }
+      if (keyHit(191) == 1) { chatOpen('/'); }
       if (keyHit(71) == 1) { viewWant = viewWant + 8; if (viewWant > 48) { viewWant = 8; } setView(viewWant); msgShow(`시야 거리 ${viewWant} 블록`, 1.5); }
     } else {
       playerMove(dt);
@@ -252,6 +253,7 @@ function helpText() {
 }
 // clicks on the screens
 function uiInput() {
+  if (uiMode == 9) { chatType(uiDt); }
   if (uiMode >= 1 && uiMode <= 5 || uiMode == 8) {
     if (keyHit(69) == 1 || keyHit(27) == 1) { uiClose(); lockReq(); }
     else {
@@ -296,7 +298,8 @@ function uiInput() {
       if (menuSel == 3) { if (right == 1) { sens = Math.min(2, sens + 0.1); } else { sens = Math.max(0.1, sens - 0.1); } }
       if (menuSel == 4) { setMode(mod(gameMode + 1, 4)); }
       if (menuSel == 5) { sndOn = 1 - sndOn; }
-      if (menuSel == 6) { uiMode = 0; gState = 0; txClear(); }
+      if (menuSel == 7) { saveGame(1); }
+      if (menuSel == 6) { if (canSave() == 1) { saveGame(1); } uiMode = 0; gState = 0; txClear(); }
     }
   }
   if (uiMode == 7) {
@@ -335,6 +338,7 @@ function titleFrame(dt) {
   tx(2, '블록 월드', 0, 102, 28, '#ffffff', 0);
   tx(3, '엔트리로 만든 블록 샌드박스 · tessvm 전용', 0, 70, 8, '#ffff80', 0);
   menuSel = 0;
+  if (svHas() == 1) { button(-100, 56, 100, 36, '저장한 세계 이어하기', 10, 1); if (btnHot == 1) { menuSel = 5; } } else { txOff(10); }
   button(-100, 26, 100, 6, '서바이벌 새 세계', 4, 1); if (btnHot == 1) { menuSel = 1; }
   button(-100, 0, 100, -20, '크리에이티브 새 세계', 5, 1); if (btnHot == 1) { menuSel = 2; }
   button(-100, -26, 100, -46, `시드: ${seedText}`, 6, 1); if (btnHot == 1) { menuSel = 3; }
@@ -364,6 +368,7 @@ function titleFrame(dt) {
         titleSeed = h + 1; seedText = a;
       }
     }
+    if (menuSel == 5) { txClear(); loadGame(); }
     if (menuSel == 4) { if (mouseX() > 0) { viewWant = viewWant + 4; if (viewWant > 48) { viewWant = 48; } } else { viewWant = viewWant - 4; if (viewWant < 8) { viewWant = 8; } } }
   }
   clickLatch = 0;

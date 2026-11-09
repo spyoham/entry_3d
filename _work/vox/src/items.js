@@ -421,7 +421,7 @@ function palSearch() {
   mouseFree();
   ask('찾을 아이템 이름 (한국어나 영어 일부)');
   let s = lower(answer());
-  hideAnswer();
+  askDone();
   SRCH = [];
   if (strlen(s) > 0) {
     let id = 1;

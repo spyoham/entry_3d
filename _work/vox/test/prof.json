@@ -1,0 +1,6 @@
+[{"wait": 12000},
+ {"eval": "(()=>{const V=n=>window.__vm.variables.find(v=>v.name===n);V('helpT').setValue(0);V('lockAskT').setValue(0);V('$M_LOCK').setValue(1);V('flying').setValue(1);V('yaw').setValue(30);V('pitch').setValue(-10);V('py').setValue(52);return 1})()"},
+ {"wait": 3000}, {"fps": "idle"},
+ {"down": {"code": "KeyW", "key": "w", "keyCode": 87}},
+ {"profStart": 1}, {"wait": 10000}, {"profStop": 30}, {"fps": "flying"},
+ {"up": {"code": "KeyW", "key": "w", "keyCode": 87}}]

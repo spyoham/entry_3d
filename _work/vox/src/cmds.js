@@ -306,18 +306,150 @@ function chatHud(dt) {
   }
 }
 function cmdOut(s) { if (grFeedback == 1 || cmdFromBlock == 0) { if (strlen(s) > 0) { chatAdd(s); } } }
-function chatOpen() {
-  mouseFree();
-  uiMode = 9;
-  ask('채팅·명령어 (예: /give @s diamond 5, /fill ~-2 ~ ~-2 ~2 ~ ~2 stone, /help)');
+// The line typed after T or / is read from the keys by the game itself: tessvm's answer box hands
+// the keyboard's focus to the page when it closes, and W A S D did nothing until a click.
+// Every key press (the held ones' repeats too) comes in as an event (KQ, with Shift in KQS).
+let typing = 0, tline = '', tBlink = 0, KQ = [], KQS = [], CHH = [], chH = 0;
+function kq(c) {
+  if (typing == 1) { KQ.push(c); if (key(16)) { KQS.push(1); } else { KQS.push(0); } }
+}
+on('key:65', 'pen', function () { kq(65); });
+on('key:66', 'pen', function () { kq(66); });
+on('key:67', 'pen', function () { kq(67); });
+on('key:68', 'pen', function () { kq(68); });
+on('key:69', 'pen', function () { kq(69); });
+on('key:70', 'pen', function () { kq(70); });
+on('key:71', 'pen', function () { kq(71); });
+on('key:72', 'pen', function () { kq(72); });
+on('key:73', 'pen', function () { kq(73); });
+on('key:74', 'pen', function () { kq(74); });
+on('key:75', 'pen', function () { kq(75); });
+on('key:76', 'pen', function () { kq(76); });
+on('key:77', 'pen', function () { kq(77); });
+on('key:78', 'pen', function () { kq(78); });
+on('key:79', 'pen', function () { kq(79); });
+on('key:80', 'pen', function () { kq(80); });
+on('key:81', 'pen', function () { kq(81); });
+on('key:82', 'pen', function () { kq(82); });
+on('key:83', 'pen', function () { kq(83); });
+on('key:84', 'pen', function () { kq(84); });
+on('key:85', 'pen', function () { kq(85); });
+on('key:86', 'pen', function () { kq(86); });
+on('key:87', 'pen', function () { kq(87); });
+on('key:88', 'pen', function () { kq(88); });
+on('key:89', 'pen', function () { kq(89); });
+on('key:90', 'pen', function () { kq(90); });
+on('key:48', 'pen', function () { kq(48); });
+on('key:49', 'pen', function () { kq(49); });
+on('key:50', 'pen', function () { kq(50); });
+on('key:51', 'pen', function () { kq(51); });
+on('key:52', 'pen', function () { kq(52); });
+on('key:53', 'pen', function () { kq(53); });
+on('key:54', 'pen', function () { kq(54); });
+on('key:55', 'pen', function () { kq(55); });
+on('key:56', 'pen', function () { kq(56); });
+on('key:57', 'pen', function () { kq(57); });
+on('key:96', 'pen', function () { kq(96); });
+on('key:97', 'pen', function () { kq(97); });
+on('key:98', 'pen', function () { kq(98); });
+on('key:99', 'pen', function () { kq(99); });
+on('key:100', 'pen', function () { kq(100); });
+on('key:101', 'pen', function () { kq(101); });
+on('key:102', 'pen', function () { kq(102); });
+on('key:103', 'pen', function () { kq(103); });
+on('key:104', 'pen', function () { kq(104); });
+on('key:105', 'pen', function () { kq(105); });
+on('key:106', 'pen', function () { kq(106); });
+on('key:107', 'pen', function () { kq(107); });
+on('key:109', 'pen', function () { kq(109); });
+on('key:110', 'pen', function () { kq(110); });
+on('key:111', 'pen', function () { kq(111); });
+on('key:189', 'pen', function () { kq(189); });
+on('key:187', 'pen', function () { kq(187); });
+on('key:219', 'pen', function () { kq(219); });
+on('key:221', 'pen', function () { kq(221); });
+on('key:186', 'pen', function () { kq(186); });
+on('key:222', 'pen', function () { kq(222); });
+on('key:188', 'pen', function () { kq(188); });
+on('key:190', 'pen', function () { kq(190); });
+on('key:191', 'pen', function () { kq(191); });
+on('key:192', 'pen', function () { kq(192); });
+on('key:220', 'pen', function () { kq(220); });
+on('key:32', 'pen', function () { kq(32); });
+on('key:8', 'pen', function () { kq(8); });
+on('key:13', 'pen', function () { kq(13); });
+on('key:9', 'pen', function () { kq(9); });
+on('key:27', 'pen', function () { kq(27); });
+on('key:38', 'pen', function () { kq(38); });
+on('key:40', 'pen', function () { kq(40); });
+function chatOpen(pre) {
+  // (2: the key that opened it is not typed; from the next frame 1)
+  uiMode = 9; typing = 2; tline = pre; KQ = []; KQS = []; chH = CHH.length + 1; tBlink = 0;
+}
+function chatClose() {
+  typing = 0; uiMode = 0; txOff(123); KQ = []; KQS = [];
+}
+// the keys typed since the last frame, and the line on the screen
+function chatType(dt) {
+  let i = 1;
+  while (i <= KQ.length) {
+    if (typing == 1) {
+      let c = KQ[i], sh = KQS[i];
+      if (c == 13) { chatSend(); }
+      else { if (c == 9) { chatBox(); }
+      else { if (c == 27) { chatClose(); }
+      else { if (c == 8) { if (strlen(tline) <= 1) { tline = ''; } else { tline = substr(tline, 1, strlen(tline) - 1); } }
+      else { if (c == 38) { if (chH > 1) { chH = chH - 1; tline = CHH[chH]; } }
+      else { if (c == 40) { if (chH < CHH.length) { chH = chH + 1; tline = CHH[chH]; } else { chH = CHH.length + 1; tline = ''; } }
+      else { if (strlen(tline) < 240) { typeKey(c, sh); } } } } } } }
+    }
+    i = i + 1;
+  }
+  KQ = []; KQS = [];
+  if (typing == 2) { typing = 1; }
+  if (typing == 1) {
+    tBlink = tBlink + dt;
+    let cur = ''; if (mod(Math.floor(tBlink * 2), 2) == 0) { cur = '_'; }
+    tx(123, `> ${tline}${cur}   (Tab: 한글 입력 칸)`, -236, -42, 8, '#ffff80', 1);
+  }
+}
+function typeKey(c, sh) {
+  if (c >= 65 && c <= 90) { if (sh == 1) { tline = tline + charAt('ABCDEFGHIJKLMNOPQRSTUVWXYZ', c - 64); } else { tline = tline + charAt('abcdefghijklmnopqrstuvwxyz', c - 64); } }
+  if (c >= 48 && c <= 57) { if (sh == 1) { tline = tline + charAt(')!@#$%^&*(', c - 47); } else { tline = tline + charAt('0123456789', c - 47); } }
+  if (c >= 96 && c <= 105) { tline = tline + charAt('0123456789', c - 95); }
+  if (c == 106) { tline = tline + '*'; } if (c == 107) { tline = tline + '+'; } if (c == 109) { tline = tline + '-'; } if (c == 110) { tline = tline + '.'; } if (c == 111) { tline = tline + '/'; }
+  if (c == 32) { tline = tline + ' '; }
+  let k = 1;
+  while (k <= 11) {
+    if (c == SYK[k]) { if (sh == 1) { tline = tline + charAt('_+{}:"<>?~|', k); } else { tline = tline + charAt("-=[];',./`\\", k); } }
+    k = k + 1;
+  }
+}
+let SYK = [189, 187, 219, 221, 186, 222, 188, 190, 191, 192, 220];
+function chatSend() {
+  let s = tline;
+  chatClose();
+  chatRun(s);
+}
+// Tab: Entry's own box (Korean can be written there; then a click gives the keys back)
+function chatBox() {
+  chatClose(); uiMode = 9; mouseFree();
+  ask('채팅·명령어 (한글로 쓸 수 있는 칸)');
   let s = answer();
-  hideAnswer();
-  uiMode = 0;
+  askDone(); uiMode = 0;
+  chatRun(s);
+}
+function chatRun(s) {
   if (strlen(s) > 0) {
+    CHH.push(s); if (CHH.length > 30) { CHH.removeAt(1); }
     if (charAt(s, 1) == '/') { cmdFromBlock = 0; cmdX = px; cmdY = py; cmdZ = pz; cmdYaw = yaw; cmdPitch = pitch; runCommand(s); }
     else { chatAdd(`<플레이어> ${s}`); }
   }
-  lockReq();
+}
+// after one of tessvm's answer boxes (signs, command blocks, the search) the keys come back with a click
+function askDone() {
+  hideAnswer();
+  if (isTess == 1) { keysLost = 1; msgShow('화면을 한 번 클릭하면 키보드가 다시 듣습니다', 999); }
 }
 // big words in the middle of the screen
 let titleT = 0, titleS = '', subT = '', actT = 0, actS = '';
@@ -357,6 +489,7 @@ function runCmd(c) {
   else { if (c == 'difficulty') { out = cmdDifficulty(); }
   else { if (c == 'spawnpoint' || c == 'setworldspawn') { out = cmdSpawnpoint(c); }
   else { if (c == 'seed') { out = `시드: [${seed}]`; }
+  else { if (c == 'save-all') { if (canSave() == 1) { saveGame(1); out = '세계를 저장했습니다'; } else { out = '저장할 수 없습니다: tessvm(또는 엔트리 저장 관리자 확장)에서 실행해야 합니다'; } }
   else { if (c == 'say') { out = `[플레이어] ${plainText(wordsFrom(2, CMW.length))}`; }
   else { if (c == 'me') { out = `* 플레이어 ${wordsFrom(2, CMW.length)}`; }
   else { if (c == 'tell' || c == 'msg' || c == 'w') { out = `플레이어이(가) 속삭입니다: ${wordsFrom(3, CMW.length)}`; }
@@ -371,8 +504,8 @@ function runCmd(c) {
   else { if (c == 'playsound') { sndPlay(6); out = `소리를 냈습니다: ${cw(2)}`; }
   else { if (c == 'enchant') { out = cmdEnchant(); }
   else { if (c == 'kick' || c == 'ban' || c == 'op' || c == 'deop' || c == 'whitelist' || c == 'pardon' || c == 'publish') { out = '혼자 하는 세계라 쓸 수 없습니다'; }
-  else { if (c == 'particle' || c == 'stopsound' || c == 'recipe' || c == 'advancement' || c == 'scoreboard' || c == 'data' || c == 'function' || c == 'tag' || c == 'team' || c == 'bossbar' || c == 'forceload' || c == 'datapack' || c == 'reload' || c == 'debug' || c == 'trigger' || c == 'worldborder' || c == 'attribute' || c == 'loot' || c == 'schedule' || c == 'teammsg' || c == 'save-all' || c == 'stop') { out = `이 세계에는 없는 기능의 명령어입니다: /${c}`; }
-  else { out = `알 수 없는 명령어입니다: /${c} (/help)`; } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }
+  else { if (c == 'particle' || c == 'stopsound' || c == 'recipe' || c == 'advancement' || c == 'scoreboard' || c == 'data' || c == 'function' || c == 'tag' || c == 'team' || c == 'bossbar' || c == 'forceload' || c == 'datapack' || c == 'reload' || c == 'debug' || c == 'trigger' || c == 'worldborder' || c == 'attribute' || c == 'loot' || c == 'schedule' || c == 'teammsg' || c == 'stop') { out = `이 세계에는 없는 기능의 명령어입니다: /${c}`; }
+  else { out = `알 수 없는 명령어입니다: /${c} (/help)`; } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }
   return out;
 }
 function cmdHelp(w) {

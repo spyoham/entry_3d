@@ -1,0 +1,30 @@
+// the command line read from the keys: node test/chat.mjs
+import { createSim } from '../sim.mjs';
+const s = createSim({ consts: { AUTOSEED: 1234, TESTRUN: 1, AUTOMODE: 1, ANIMALS: 0 } });
+const F = (k = 1) => { for (let i = 0; i < k; i++) s.frame(); };
+let n = 0; while (s.peek('gState') !== 2 && n < 5000) { F(1); n++; }
+F(30);
+let fails = 0; const ok = (c, m) => { console.log(c ? 'ok  ' : 'FAIL', m); if (!c) fails++; };
+const tap = (c, shift) => { if (shift) s.press(16); s.press(c); F(1); s.release(c); if (shift) s.release(16); F(1); };
+const CODE = { ' ': 32, '/': 191, '~': [192, 1], '-': 189, '_': [189, 1], '[': 219, ']': 221, '=': 187, ',': 188, '.': 190, '@': [50, 1] };
+const typeText = (t) => { for (const ch of t) { if (/[a-z]/.test(ch)) tap(ch.toUpperCase().charCodeAt(0)); else if (/[A-Z]/.test(ch)) tap(ch.charCodeAt(0), 1); else if (/[0-9]/.test(ch)) tap(ch.charCodeAt(0)); else { const c = CODE[ch]; Array.isArray(c) ? tap(c[0], 1) : tap(c); } } };
+s.poke('flying', 0);
+tap(191); F(2);
+ok(s.peek('uiMode') === 9 && s.peek('tline') === '/', 'slash opens the line with / in it');
+typeText('setblock ~ ~3 ~ gold_block'); tap(8); typeText('k');
+ok(s.peek('tline') === '/setblock ~ ~3 ~ gold_block', 'typed: ' + s.peek('tline'));
+tap(13); F(3);
+const KEY = s.peek('ITKEY'); const px = Math.floor(s.peek('px')), py = Math.floor(s.peek('py')), pz = Math.floor(s.peek('pz'));
+ok(s.peek('uiMode') === 0 && KEY[s.as('pen', () => s.fn.blockAt(px, py + 3, pz))] === 'gold_block', 'Enter ran it: ' + KEY[s.as('pen', () => s.fn.blockAt(px, py + 3, pz))]);
+const x0 = s.peek('px'), z0 = s.peek('pz');
+s.press(87); F(30); s.release(87); F(2);
+ok(Math.hypot(s.peek('px') - x0, s.peek('pz') - z0) > 1, 'W moves right after: ' + Math.hypot(s.peek('px') - x0, s.peek('pz') - z0).toFixed(2));
+tap(84); F(2); typeText('Hello @a'); tap(13); F(2);
+const ch = s.peek('CHT'); ok(ch[ch.length - 1].includes('Hello @a'), 'T: chat with Shift letters and @: ' + ch[ch.length - 1]);
+tap(191); F(2); tap(38); tap(38); ok(s.peek('tline') === '/setblock ~ ~3 ~ gold_block', 'up arrow twice: the line before last again');
+tap(27); F(2); ok(s.peek('uiMode') === 0, 'Esc closes it');
+const y0 = s.peek('py'); tap(191); F(2); s.press(32); F(20); s.release(32); ok(s.peek('py') - y0 < 0.1, 'space while typing does not jump'); tap(27);
+s.answers.push('/give @s 다이아몬드 3'); tap(191); F(2); tap(9); F(3);
+const inv = s.peek('INVI'), D = s.peek('ITKEY').indexOf('diamond');
+console.log('dbg', s.peek('uiMode'), inv.includes(D), s.peek('keysLost'), s.peek('isTess'), s.peek('CHT').slice(-1)); ok(s.peek('uiMode') === 0 && inv.includes(D), 'Tab: the text box, a Korean name works, then a click is asked for');
+console.log(fails ? fails + ' FAILED' : 'all ok');

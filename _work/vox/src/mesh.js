@@ -54,7 +54,7 @@ function M_lface(NB, NI, DD) {
   }
 }
 // shade in corners: the opaque cells round the cell n the face looks into, in the face's plane
-// (two brightness steps each, x8 as the colour index counts them)
+// (one brightness step each, x8 as the colour index counts them)
 function aoOf(n, d) {
   let y = mod(n - 1, WY), col = idiv(n - 1, WY), lz = mod(col, WS), lx = idiv(col, WS), c = 0, t = 0;
   if (d >= 2) {
@@ -69,8 +69,9 @@ function aoOf(n, d) {
     t = lz - 1; if (t < 0) { t = WS - 1; } if (BHC[W[(lx * WS + t) * WY + y + 1] + 1] == 1) { c = c + 1; }
     t = lz + 1; if (t >= WS) { t = 0; } if (BHC[W[(lx * WS + t) * WY + y + 1] + 1] == 1) { c = c + 1; }
   }
+  // (one step each, three at most: a hole one block deep was all but black at two steps each)
   if (c > 3) { c = 3; }
-  return c * 16;
+  return c * 8;
 }
 
 function meshSectionAt(x0, y0, z0) {

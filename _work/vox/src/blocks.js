@@ -505,7 +505,7 @@ function signUse(x, y, z, id) {
     mouseFree();
     ask('표지판에 쓸 글을 입력하세요');
     let s = answer();
-    hideAnswer();
+    askDone();
     if (k == 0) { SGX.push(x); SGY.push(y); SGZ.push(z); SGT.push(s); SGD.push(dim); } else { SGT[k] = s; }
     lockReq();
   } else { msgShow(SGT[k], 4); }
@@ -595,7 +595,7 @@ function commandBlockEdit(x, y, z) {
     mouseFree();
     ask('명령 블록에 넣을 명령어 (전원이 들어오면 실행)');
     let s = answer();
-    hideAnswer();
+    askDone();
     let k = cbFind(x, y, z);
     if (k == 0) { CBX.push(x); CBY.push(y); CBZ.push(z); CBT.push(s); CBD.push(dim); } else { CBT[k] = s; }
     lockReq();
@@ -692,7 +692,7 @@ function nearMobs(x, y, z) {
 }
 // once a frame
 function blocksStep(dt) {
-  pressStep(dt); tntStep(dt); spawnersStep(dt); rsStep(dt);
+  pressStep(dt); tntStep(dt); spawnersStep(dt); rsStep(dt); saveStep(dt);
   if (flashT > 0) { flashT = flashT - dt; }
   // what the eye rests on: a sign's words
   if (pickOn == 1) { if (BUSE[pickB + 1] == U_SIGN) { if (pickB != I_lectern) { let k = signFind(pickX, pickY, pickZ); if (k > 0) { if (msgT < 0.5) { msgShow(SGT[k], 0.6); } } } } }

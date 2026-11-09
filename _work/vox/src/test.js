@@ -7,6 +7,8 @@ function testStep() {
   if (testCmd == 6) { testCmd = 0; thumbScene(); }
   // 8: a command (tCmd) as if typed
   if (testCmd == 8) { testCmd = 0; cmdFromBlock = 0; runCommand(tCmd); }
+  // 9: the kept world again (as 이어하기 on the title)
+  if (testCmd == 9) { testCmd = 0; txClear(); loadGame(); }
   // 4: to world tStage at (tX, tZ)
   if (testCmd == 4) { testCmd = 0; startTravel(tStage, tX, tZ, 1 + tStage * 0); if (tStage == 2) { travelKind = 2; } }
   if (testCmd == 5) { testCmd = 0; setBlock(tX, tY, tZ, tStage); }

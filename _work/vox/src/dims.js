@@ -394,6 +394,7 @@ function arrive() {
   }
   if (travelKind == 3) { if (spawnSet == 0) { findSpawn(); } px = spawnX; py = spawnY; pz = spawnZ; respawn0(); }
   if (travelKind == 4 || travelKind == 5) { farArrive(); }
+  if (travelKind == 6) { arriveKept(); }
   fallTop = py; gateCool = 1;
   gState = 2; txClear();
   lockReq();

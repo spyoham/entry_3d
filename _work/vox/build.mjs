@@ -26,7 +26,7 @@ export const consts = {
     WS, NCH, CR, WY, UH: 64, SEA: 30, LAVAY: 5, NSX: WS / 8, NSY: WY / 8, NSEC: (WS / 8) * (WS / 8) * (WY / 8), SXS: WS * WY, OFF: 32768,
     NOFF: chunkOffsets(CR).length, CVN: 24, FORTY: 30, NSTART: chunkOffsets(2).length,
     NEARZ: Math.round(0.05 * 256 * 16384), DEC2: 20, PLANT2: 225, CLOUDY: 110, MK: 160 * 1048576,
-    NMOB: 48, NITM: 64, NARR: 24, NFUR: 32, NCHEST: 256, ANIMALS: 36, SMELTT: 8, NTX: 122,
+    NMOB: 48, NITM: 64, NARR: 24, NFUR: 32, NCHEST: 256, ANIMALS: 36, SMELTT: 8, NTX: 123,
     SPAWNC: 0, BENCH: 0, NOCAVE: 0, AUTOSEED: 0, AUTOMODE: 0, TESTRUN: 0, SIMRUN: 0, LEGACY: 0, SLIM: 1, SPLIT: 0,
 };
 
@@ -207,7 +207,7 @@ export function makeData() {
         if (!rs && b.plate) rs = RS.plate;
         if (!rs && (b.place === 'door' || b.place === 'trapdoor' || b.place === 'gate')) rs = RS.door;
         B.BRS.push(rs); B.BFAC.push(b.fac ?? -1); B.BON.push(b.on || 0); B.BAUX.push(b.aux || 0); B.BATT.push(b.att ?? -1);
-        B.BCOND.push(shape === 0 && sol === 1 && (b.hide ?? 1) === 1 && !b.leaf && (!rs || rs === RS.lamp || rs === RS.tnt || rs === RS.note || rs === RS.command) && id > 0 ? 1 : 0);
+        B.BCOND.push(shape === 0 && sol === 1 && (b.hide ?? 1) === 1 && !b.leaf && (!rs || rs === RS.lamp || rs === RS.tnt || rs === RS.note || rs === RS.command || rs === RS.target) && id > 0 ? 1 : 0);
     }
     Object.assign(L, B, MB, CB);
 
@@ -394,7 +394,7 @@ export function makeData() {
 }
 
 // ------------------------------------------------------------------ sources
-export const FILES = ['world.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'mobs.js', 'items.js', 'hud.js', 'extra.js', 'cmds.js', 'main.js', 'test.js'];
+export const FILES = ['world.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'save.js', 'mobs.js', 'items.js', 'hud.js', 'extra.js', 'cmds.js', 'main.js', 'test.js'];
 export function allConsts(more = {}) {
     const { C } = makeData();
     return { ...consts, ...C, ...more };

@@ -103,7 +103,7 @@ function blockAt(x, y, z) {
 // a block put by the world (generation) or the player (logOn: written down)
 function wput(x, y, z, b) {
   W[(mod(x, WS) * WS + mod(z, WS)) * WY + y + 1] = b;
-  if (logOn == 1) { EDX.push(x); EDY.push(y); EDZ.push(z); EDB.push(b); EDD.push(dim); }
+  if (logOn == 1) { edPush(x, y, z, b); }
 }
 
 // ---------------------------------------------------------------- terrain of a column
@@ -678,14 +678,8 @@ function genFeatures(cx, cz) {
   if (dim == 1) { featuresU(cx, cz); }
   if (dim == 2) { featuresV(cx, cz); }
   treeClip = 0;
-  // what the player changed here before
-  let k = 1, n = EDX.length;
-  while (k <= n) {
-    if (EDD[k] == dim) { if (EDX[k] >= gx0) { if (EDX[k] <= gx1) { if (EDZ[k] >= gz0) { if (EDZ[k] <= gz1) {
-      W[(mod(EDX[k], WS) * WS + mod(EDZ[k], WS)) * WY + EDY[k] + 1] = EDB[k];
-    } } } } }
-    k = k + 1;
-  }
+  // what the player changed here before (only this chunk's entries: save.js)
+  edReplay(cx, cz);
 }
 function featuresO(cx, cz) {
   chunkSeed(cx, cz, 2);
@@ -975,7 +969,7 @@ function genStart(s) {
   worldInit();
   let i = 1;
   while (i <= NCH * NCH) { if (CKST[i] > 0) { chunkDrop(i); } i = i + 1; }
-  EDX = []; EDY = []; EDZ = []; EDB = []; EDD = [];
+  EDX = []; EDY = []; EDZ = []; EDB = []; EDD = []; edIndex();
   logOn = 0; dim = 0; bossDead = 0; bossWake = 0;
   worldExtraInit();
   cavesInit();

@@ -1,0 +1,6 @@
+[{"wait": 12000},
+ {"eval": "(()=>{const V=n=>window.__vm.variables.find(v=>v.name===n);V('tX').setValue(9.5);V('tY').setValue(37);V('tZ').setValue(7.5);V('tYaw').setValue(0);V('tPitch').setValue(-55);V('testCmd').setValue(1);V('helpT').setValue(0);V('tday').setValue(0.25);V('showDbg').setValue(0);V('lockAskT').setValue(0);V('$M_LOCK').setValue(1);V('keysLost').setValue(0);return 1})()"},
+ {"wait": 3000}, {"shot": "../vox/test/dig_t0.png"},
+ {"eval": "(()=>{const V=n=>window.__vm.variables.find(v=>v.name===n);V('tX').setValue(9);V('tY').setValue(36);V('tZ').setValue(10);V('tStage').setValue(0);V('testCmd').setValue(5);return 1})()"},
+ {"wait": 300}, {"shot": "../vox/test/dig_t1.png"},
+ {"wait": 2000}, {"shot": "../vox/test/dig_t2.png"}]

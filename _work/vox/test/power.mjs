@@ -196,4 +196,20 @@ placeAs(X - 1, Y, Z - 16, 'spark_dust'); settle(); F(10); ok(B(X - 2, Y, Z - 16)
 put(X - 14, Y, Z - 16, 'stone'); placeAs(X - 14, Y, Z - 15, 'stone_button', 5); placeAs(X - 14, Y, Z - 17, 'spark_lamp');
 useAt(X - 14, Y, Z - 15); settle(); ok(lit(X - 14, Y, Z - 17), 'a button on a block: the lamp past it on');
 wait(1.3); ok(!lit(X - 14, Y, Z - 17), 'a second later off');
+// 12 jelly (slime) and honey: blocks stuck to them move along
+const J = (x, y, z) => K(B(x, y, z));
+cmd(`/fill ${X - 22} ${Y + 2} ${Z + 8} ${X - 10} ${Y + 8} ${Z + 22} air`);
+put(X - 20, Y + 2, Z + 10, 'piston[facing=east]'); put(X - 19, Y + 2, Z + 10, 'jelly_block'); put(X - 19, Y + 3, Z + 10, 'oak_planks'); put(X - 19, Y + 2, Z + 11, 'stone'); put(X - 19, Y + 2, Z + 9, 'obsidian');
+put(X - 21, Y + 2, Z + 10, 'lever[face=wall,facing=west,powered=true]'); settle(); wait(0.2);
+ok(J(X - 18, Y + 2, Z + 10) === 'jelly_block' && J(X - 18, Y + 3, Z + 10) === 'oak_planks' && J(X - 18, Y + 2, Z + 11) === 'stone' && J(X - 19, Y + 2, Z + 9) === 'obsidian', 'jelly pushed: the planks on it and the stone by it go along, the obsidian stays');
+put(X - 20, Y + 2, Z + 14, 'sticky_piston[facing=east]'); put(X - 19, Y + 2, Z + 14, 'jelly_block'); put(X - 19, Y + 3, Z + 14, 'jelly_block'); put(X - 19, Y + 4, Z + 14, 'oak_planks'); put(X - 18, Y + 3, Z + 14, 'stone');
+put(X - 21, Y + 2, Z + 14, 'lever[face=wall,facing=west,powered=true]'); settle(); wait(0.2);
+const outOk = J(X - 18, Y + 2, Z + 14) === 'jelly_block' && J(X - 18, Y + 3, Z + 14) === 'jelly_block' && J(X - 18, Y + 4, Z + 14) === 'oak_planks' && J(X - 17, Y + 3, Z + 14) === 'stone';
+put(X - 21, Y + 2, Z + 14, 'lever[face=wall,facing=west]'); settle(); wait(0.2);
+ok(outOk && J(X - 19, Y + 2, Z + 14) === 'jelly_block' && J(X - 19, Y + 3, Z + 14) === 'jelly_block' && J(X - 19, Y + 4, Z + 14) === 'oak_planks' && J(X - 18, Y + 3, Z + 14) === 'stone', 'a sticky piston pushes a jelly stack out (4 blocks) and pulls it all back');
+put(X - 20, Y + 2, Z + 18, 'piston[facing=east]'); put(X - 19, Y + 2, Z + 18, 'jelly_block'); put(X - 19, Y + 2, Z + 19, 'honey_block'); put(X - 21, Y + 2, Z + 18, 'lever[face=wall,facing=west,powered=true]'); settle(); wait(0.2);
+ok(J(X - 18, Y + 2, Z + 18) === 'jelly_block' && J(X - 19, Y + 2, Z + 19) === 'honey_block', 'jelly and honey do not stick to each other');
+cmd(`/fill ${X - 19} ${Y + 2} ${Z + 20} ${X - 19} ${Y + 6} ${Z + 22} jelly_block`);
+put(X - 20, Y + 2, Z + 21, 'piston[facing=east]'); put(X - 21, Y + 2, Z + 21, 'lever[face=wall,facing=west,powered=true]'); settle(); wait(0.2);
+ok(J(X - 19, Y + 2, Z + 21) === 'jelly_block' && on(X - 20, Y + 2, Z + 21) === 0, '15 jelly stuck together: too many, nothing moves');
 console.log(fails ? `${fails} FAILED` : 'all ok');

@@ -411,18 +411,20 @@ let uiHover = 0;
 let menuSel = 0;
 function pauseScreen() {
   penAlpha(40); box(-245, 140, 245, -140, '#000000'); fillStop(); penAlpha(0);
-  tx(20, '게임 메뉴', 0, 92, 14, '#ffffff', 0);
+  tx(20, '게임 메뉴', 0, 96, 14, '#ffffff', 0);
   menuSel = 0;
-  button(-90, 70, 90, 50, '게임으로 돌아가기', 21, 1); if (btnHot == 1) { menuSel = 1; }
-  button(-90, 44, 90, 24, `시야 거리: ${viewR} 블록`, 22, 1); if (btnHot == 1) { menuSel = 2; }
-  button(-90, 18, 90, -2, `마우스 감도: ${Math.round(sens * 100)}%`, 23, 1); if (btnHot == 1) { menuSel = 3; }
+  button(-90, 76, 90, 58, '게임으로 돌아가기', 21, 1); if (btnHot == 1) { menuSel = 1; }
+  button(-90, 54, 90, 36, `시야 거리: ${viewR} 블록`, 22, 1); if (btnHot == 1) { menuSel = 2; }
+  button(-90, 32, 90, 14, `마우스 감도: ${Math.round(sens * 100)}%`, 23, 1); if (btnHot == 1) { menuSel = 3; }
   let gm = MODEKO[gameMode + 1];
-  button(-90, -8, 90, -28, `게임 모드: ${gm}`, 24, 1); if (btnHot == 1) { menuSel = 4; }
+  button(-90, 10, 90, -8, `게임 모드: ${gm}`, 24, 1); if (btnHot == 1) { menuSel = 4; }
   let so = '끔';
   if (sndOn == 1) { so = '켬'; }
-  button(-90, -34, 90, -54, `소리: ${so}`, 25, 1); if (btnHot == 1) { menuSel = 5; }
-  button(-90, -66, 90, -86, '타이틀 화면으로', 26, 1); if (btnHot == 1) { menuSel = 6; }
-  tx(27, '시야·감도는 왼쪽(좌반)·오른쪽(우반)을 눌러 줄이기·늘리기', 0, -100, 7, '#c0c0c0', 0);
+  button(-90, -12, 90, -30, `소리: ${so}`, 25, 1); if (btnHot == 1) { menuSel = 5; }
+  button(-90, -34, 90, -52, '세계 저장하기', 28, 1); if (btnHot == 1) { menuSel = 7; }
+  let tt = '타이틀 화면으로'; if (canSave() == 1) { tt = '저장하고 타이틀 화면으로'; }
+  button(-90, -56, 90, -74, tt, 26, 1); if (btnHot == 1) { menuSel = 6; }
+  tx(27, '시야·감도는 왼쪽(좌반)·오른쪽(우반)을 눌러 줄이기·늘리기 · 5분마다 저절로 저장', 0, -82, 7, '#c0c0c0', 0);
 }
 function deathScreen() {
   penAlpha(30); box(-245, 140, 245, -140, '#a00000'); fillStop(); penAlpha(0);

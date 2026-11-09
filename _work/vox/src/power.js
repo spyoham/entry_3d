@@ -119,7 +119,7 @@ function powerIn(x, y, z, skip) {
     if (d != skip) {
       let nx = x + DX6[d + 1], ny = y + DY6[d + 1], nz = z + DZ6[d + 1], b = blockAt(nx, ny, nz), rl = BRS[b + 1], v = 0;
       if (rl == RS_WIRE) { if (d == 3) { v = BAUX[b + 1]; } else { if (d != 2) { if (wirePoints(nx, ny, nz, OP6[d + 1]) == 1) { v = BAUX[b + 1]; } } } }
-      else { if (BCOND[b + 1] == 1) { v = blockPower(nx, ny, nz); } else { if (rl > 0) { v = emitTo(nx, ny, nz, OP6[d + 1]); } } }
+      else { if (BCOND[b + 1] == 1) { v = blockPower(nx, ny, nz); } if (rl > 0) { v = Math.max(v, emitTo(nx, ny, nz, OP6[d + 1])); } }
       if (v > r) { r = v; }
     }
     d = d + 1;
@@ -130,7 +130,7 @@ function powerIn(x, y, z, skip) {
 function backIn(x, y, z, d) {
   let nx = x + DX6[d + 1], ny = y + DY6[d + 1], nz = z + DZ6[d + 1], b = blockAt(nx, ny, nz), rl = BRS[b + 1], v = 0;
   if (rl == RS_WIRE) { v = BAUX[b + 1]; }
-  else { if (BCOND[b + 1] == 1) { v = blockPower(nx, ny, nz); } else { if (rl > 0) { v = emitTo(nx, ny, nz, OP6[d + 1]); } } }
+  else { if (BCOND[b + 1] == 1) { v = blockPower(nx, ny, nz); } if (rl > 0) { v = Math.max(v, emitTo(nx, ny, nz, OP6[d + 1])); } }
   return v;
 }
 // the power into a side of a repeater or comparator (wire, a repeater or comparator pointing in, a spark block)
@@ -145,7 +145,7 @@ function wireExt(x, y, z) {
   let r = 0, d = 0;
   while (d < 6) {
     let nx = x + DX6[d + 1], ny = y + DY6[d + 1], nz = z + DZ6[d + 1], b = blockAt(nx, ny, nz), rl = BRS[b + 1], v = 0;
-    if (rl != RS_WIRE) { if (BCOND[b + 1] == 1) { v = strongIn(nx, ny, nz); } else { if (rl > 0) { v = emitTo(nx, ny, nz, OP6[d + 1]); } } }
+    if (rl != RS_WIRE) { if (BCOND[b + 1] == 1) { v = strongIn(nx, ny, nz); } if (rl > 0) { v = Math.max(v, emitTo(nx, ny, nz, OP6[d + 1])); } }
     if (v > r) { r = v; }
     d = d + 1;
   }
@@ -514,28 +514,94 @@ function pushHow(c) {
   }
   return r;
 }
-let PSH = [];
-function pistonOut(x, y, z, b, f) {
-  let dx = DX6[f + 1], dy = DY6[f + 1], dz = DZ6[f + 1], n = 0, ok = 1, brk = 0, cx = x, cy = y, cz = z, go = 1;
-  PSH = [];
-  while (go == 1) {
-    cx = cx + dx; cy = cy + dy; cz = cz + dz;
-    if (cy < 0 || cy >= WY || cOK(cx, cz) == 0) { ok = 0; go = 0; }
+// What a piston moves: from the first block on, every block ahead of it up to air; a jelly or
+// honey block takes with it the movable blocks on its other sides (and what is ahead of those),
+// jelly and honey not each other. 12 blocks at most; a block that cannot move stops it when it is
+// in the way, and is left where it is when it only sticks on at a side. Blocks that break go.
+// PVX.. the blocks that move, PDX.. the ones that break; psMove the way (D6).
+let PVX = [], PVY = [], PVZ = [], PVB = [], PDX = [], PDY = [], PDZ = [], PQX = [], PQY = [], PQZ = [], PQT = [];
+let psOk = 1, psMove = 0, psPX = 0, psPY = 0, psPZ = 0;
+function psSticky(b) { let r = 0; if (b == I_jellyBlock || b == I_honeyBlock) { r = 1; } return r; }
+function psSticks(a, c) {
+  let r = 1;
+  if (a == I_jellyBlock && c == I_honeyBlock) { r = 0; }
+  if (a == I_honeyBlock && c == I_jellyBlock) { r = 0; }
+  return r;
+}
+function psHas(x, y, z) {
+  let i = 1, r = 0;
+  while (i <= PVX.length) { if (PVX[i] == x && PVY[i] == y && PVZ[i] == z) { r = 1; } i = i + 1; }
+  return r;
+}
+// t 1: in the way (a stop fails it, a break goes); 0: stuck on at a side (only what moves comes)
+function psQueue(x, y, z, t) { PQX.push(x); PQY.push(y); PQZ.push(z); PQT.push(t); }
+function psBuild(sx, sy, sz, d) {
+  PVX = []; PVY = []; PVZ = []; PVB = []; PDX = []; PDY = []; PDZ = []; PQX = []; PQY = []; PQZ = []; PQT = [];
+  psOk = 1; psMove = d;
+  psQueue(sx, sy, sz, 1);
+  let q = 1;
+  while (q <= PQX.length && psOk == 1) {
+    let x = PQX[q], y = PQY[q], z = PQZ[q], t = PQT[q];
+    q = q + 1;
+    if (y < 0 || y >= WY || cOK(x, z) == 0) { if (t == 1) { psOk = 0; } }
     else {
-      let c = blockAt(cx, cy, cz), how = pushHow(c);
-      if (how == 0) { go = 0; }
-      if (how == 2) { brk = 1; go = 0; }
-      if (how == 3) { ok = 0; go = 0; }
-      if (how == 1) { n = n + 1; if (n > 12) { ok = 0; go = 0; } else { PSH.push(cx); PSH.push(cy); PSH.push(cz); PSH.push(c); } }
+      if (x == psPX && y == psPY && z == psPZ) { if (t == 1) { psOk = 0; } }
+      else { if (psHas(x, y, z) == 0) {
+        let c = blockAt(x, y, z), how = pushHow(c);
+        if (how == 3) { if (t == 1) { psOk = 0; } }
+        if (how == 2) { if (t == 1) { PDX.push(x); PDY.push(y); PDZ.push(z); } }
+        if (how == 1) {
+          if (PVX.length >= 12) { psOk = 0; }
+          else {
+            PVX.push(x); PVY.push(y); PVZ.push(z); PVB.push(c);
+            psQueue(x + DX6[d + 1], y + DY6[d + 1], z + DZ6[d + 1], 1);
+            if (psSticky(c) == 1) {
+              let e = 0;
+              while (e < 6) {
+                if (e != d) {
+                  let nx = x + DX6[e + 1], ny = y + DY6[e + 1], nz = z + DZ6[e + 1], nb = blockAt(nx, ny, nz);
+                  if (pushHow(nb) == 1) { if (psSticks(c, nb) == 1) { psQueue(nx, ny, nz, 0); } }
+                }
+                e = e + 1;
+              }
+            }
+          }
+        }
+      } }
     }
   }
-  if (ok == 1) {
-    if (brk == 1) { let c = blockAt(cx, cy, cz); rsDrop(cx, cy, cz, c); partnerGone(cx, cy, cz, c, 0); }
-    let k = PSH.length - 3;
-    while (k >= 1) { setBlock(PSH[k] + dx, PSH[k + 1] + dy, PSH[k + 2] + dz, PSH[k + 3]); k = k - 4; }
-    setBlock(x + dx, y + dy, z + dz, I_pistonHead + mod(f + 3, 6) * 2 + BAUX[b + 1]);
+  return psOk;
+}
+// one cell written as a piston moves it (no falling or dropping on the way: that comes after)
+function psPut(x, y, z, b) {
+  logOn = 1; wput(x, y, z, b); logOn = 0;
+  markDirty(x, y, z);
+  lbX0 = Math.min(lbX0, x - 14); lbX1 = Math.max(lbX1, x + 14); lbZ0 = Math.min(lbZ0, z - 14); lbZ1 = Math.max(lbZ1, z + 14);
+  rsNotify(x, y, z, 3);
+}
+// the blocks found move one cell the way psMove; the cells left behind (not the head's) get their after-effects
+function psDo(hx, hy, hz, head) {
+  let d = psMove, dx = DX6[d + 1], dy = DY6[d + 1], dz = DZ6[d + 1], i = 1;
+  while (i <= PDX.length) { let c = blockAt(PDX[i], PDY[i], PDZ[i]); rsDrop(PDX[i], PDY[i], PDZ[i], c); partnerGone(PDX[i], PDY[i], PDZ[i], c, 0); i = i + 1; }
+  i = 1;
+  while (i <= PVX.length) { psPut(PVX[i], PVY[i], PVZ[i], 0); i = i + 1; }
+  i = 1;
+  while (i <= PVX.length) { psPut(PVX[i] + dx, PVY[i] + dy, PVZ[i] + dz, PVB[i]); i = i + 1; }
+  if (head > 0) { setBlock(hx, hy, hz, head); }
+  i = 1;
+  while (i <= PVX.length) {
+    let x = PVX[i], y = PVY[i], z = PVZ[i];
+    if (psHas(x - dx, y - dy, z - dz) == 0) { if (head == 0 || x != hx || y != hy || z != hz) { setBlock(x, y, z, 0); } }
+    i = i + 1;
+  }
+  pushBodies(dx, dy, dz, hx, hy, hz, head);
+}
+function pistonOut(x, y, z, b, f) {
+  let dx = DX6[f + 1], dy = DY6[f + 1], dz = DZ6[f + 1];
+  psPX = x; psPY = y; psPZ = z;
+  if (psBuild(x + dx, y + dy, z + dz, f) == 1) {
     setBlock(x, y, z, b + 1);
-    pushBodies(x, y, z, f, n + 1);
+    psDo(x + dx, y + dy, z + dz, I_pistonHead + mod(f + 3, 6) * 2 + BAUX[b + 1]);
     sndPlay(1);
   }
 }
@@ -544,33 +610,35 @@ function pistonIn(x, y, z, b, f) {
   setBlock(x, y, z, b - 1);
   if (BRS[blockAt(hx, hy, hz) + 1] == RS_HEAD) { setBlock(hx, hy, hz, 0); }
   if (BAUX[b + 1] == 1) {
+    // a sticky one pulls the block before its arm (and what sticks to it) back
     let tx = hx + DX6[f + 1], ty = hy + DY6[f + 1], tz = hz + DZ6[f + 1];
-    if (ty >= 0 && ty < WY) {
-      let tb = blockAt(tx, ty, tz);
-      if (pushHow(tb) == 1) { setBlock(tx, ty, tz, 0); setBlock(hx, hy, hz, tb); }
-    }
+    psPX = x; psPY = y; psPZ = z;
+    if (ty >= 0 && ty < WY) { if (pushHow(blockAt(tx, ty, tz)) == 1) { if (psBuild(tx, ty, tz, OP6[f + 1]) == 1) { psDo(0, 0 - 1, 0, 0); } } }
   }
   sndPlay(1);
 }
-// the player and the mobs in the cells pushed into go along
-function pushBodies(x, y, z, f, n) {
-  let dx = DX6[f + 1], dy = DY6[f + 1], dz = DZ6[f + 1], k = 1, moved = 0;
-  while (k <= n) {
-    let cx = x + dx * k, cy = y + dy * k, cz = z + dz * k;
-    if (moved == 0) {
-      if (cx + 1 > px - 0.3 && cx < px + 0.3 && cz + 1 > pz - 0.3 && cz < pz + 0.3 && cy + 1 > py && cy < py + 1.8) {
-        px = px + dx; py = py + dy; pz = pz + dz; if (dy > 0) { pvy = Math.max(pvy, 0); } moved = 1;
+// the player and the mobs in the cells moved into (and the arm's) go along, once each
+function pushBodies(dx, dy, dz, hx, hy, hz, head) {
+  let moved = 0, i = 0;
+  while (i <= PVX.length) {
+    let cx = hx, cy = hy, cz = hz, go = 1;
+    if (i == 0) { if (head == 0) { go = 0; } } else { cx = PVX[i] + dx; cy = PVY[i] + dy; cz = PVZ[i] + dz; }
+    if (go == 1) {
+      if (moved == 0) {
+        if (cx + 1 > px - 0.3 && cx < px + 0.3 && cz + 1 > pz - 0.3 && cz < pz + 0.3 && cy + 1 > py && cy < py + 1.8) {
+          px = px + dx; py = py + dy; pz = pz + dz; if (dy > 0) { pvy = Math.max(pvy, 0); } moved = 1;
+        }
+      }
+      let e = 1;
+      while (e <= NMOB) {
+        if (ET[e] > 0) {
+          let w = MW[ET[e]] / 2;
+          if (cx + 1 > EX[e] - w && cx < EX[e] + w && cz + 1 > EZ[e] - w && cz < EZ[e] + w && cy + 1 > EY[e] && cy < EY[e] + MH[ET[e]]) { EX[e] = EX[e] + dx; EY[e] = EY[e] + dy; EZ[e] = EZ[e] + dz; }
+        }
+        e = e + 1;
       }
     }
-    let e = 1;
-    while (e <= NMOB) {
-      if (ET[e] > 0) {
-        let w = MW[ET[e]] / 2;
-        if (cx + 1 > EX[e] - w && cx < EX[e] + w && cz + 1 > EZ[e] - w && cz < EZ[e] + w && cy + 1 > EY[e] && cy < EY[e] + MH[ET[e]]) { EX[e] = EX[e] + dx; EY[e] = EY[e] + dy; EZ[e] = EZ[e] + dz; }
-      }
-      e = e + 1;
-    }
-    k = k + 1;
+    i = i + 1;
   }
 }
 

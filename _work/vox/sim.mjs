@@ -157,6 +157,9 @@ export function createSim({ consts = {}, listMax = 1e8 } = {}) {
         fn: R.fn,
         get time() { return simTime; },
         click() { for (const h of R.handlers) if (h.ev === 'click') threads.push({ ent: base[h.obj], g: h.gen() }); },
+        // a key going down (and up again unless held): its 'when key pressed' scripts start, as entry's do
+        press(c) { keys.add(c); for (const h of R.handlers) if (h.ev === 'key:' + c) threads.push({ ent: base[h.obj], g: h.gen() }); },
+        release(c) { keys.delete(c); },
         frame(dt = 1 / 60) {
             simTime += dt; wall += dt;
             for (let i = 0; i < threads.length; i++) {
