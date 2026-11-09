@@ -25,12 +25,14 @@ export const ARMS = {
     1: [[[7, 6, 10, 9, 9, 16], [7, 12, 10, 9, 15, 16]], [[10, 6, 7, 16, 9, 9], [10, 12, 7, 16, 15, 9]], [[7, 6, 0, 9, 9, 6], [7, 12, 0, 9, 15, 6]], [[0, 6, 7, 6, 9, 9], [0, 12, 7, 6, 15, 9]]],
     2: [[[5, 0, 12, 11, 13, 16]], [[12, 0, 5, 16, 13, 11]], [[5, 0, 0, 11, 13, 4]], [[0, 0, 5, 4, 13, 11]]],
     3: [[[7, 0, 9, 9, 16, 16]], [[9, 0, 7, 16, 16, 9]], [[7, 0, 0, 9, 16, 7]], [[0, 0, 7, 7, 16, 9]]],
+    4: [[[6, 0, 11, 10, 1, 16]], [[11, 0, 6, 16, 1, 10]], [[6, 0, 0, 10, 1, 5]], [[0, 0, 6, 5, 1, 10]]],
 };
 // what a body hits of an arm (fences and walls are a jump and a half high)
 export const ARMCOL = {
     1: [[6, 0, 10, 10, 24, 16], [10, 0, 6, 16, 24, 10], [6, 0, 0, 10, 24, 6], [0, 0, 6, 6, 24, 10]],
     2: [[5, 0, 12, 11, 24, 16], [12, 0, 5, 16, 24, 11], [5, 0, 0, 11, 24, 4], [0, 0, 5, 4, 24, 11]],
     3: [[7, 0, 9, 9, 16, 16], [9, 0, 7, 16, 16, 9], [7, 0, 0, 9, 16, 7], [0, 0, 7, 7, 16, 9]],
+    4: [[6, 0, 11, 10, 1, 16], [11, 0, 6, 16, 1, 10], [6, 0, 0, 10, 1, 5], [0, 0, 6, 5, 1, 10]],
 };
 // gates: closed across x (0) or z (1); open: the posts only
 M('gate_0', [[0, 5, 7, 2, 16, 9], [14, 5, 7, 16, 16, 9], [2, 6, 7, 14, 9, 9], [2, 12, 7, 14, 15, 9], [6, 9, 7, 10, 12, 9]], [[0, 0, 6, 16, 24, 10]]);
@@ -70,11 +72,35 @@ M('cake', [[1, 0, 1, 15, 8, 15]]);
 M('pot', [[5, 0, 5, 11, 6, 11]]);
 M('head', [[4, 0, 4, 12, 8, 12]]);
 M('rod', [[6, 0, 6, 10, 1, 10], [7, 1, 7, 9, 16, 9]]);
-M('lever_off', [[5, 0, 4, 11, 3, 12, 'cobble'], [7, 2, 4, 9, 10, 6, 'planks']], 'none');
-M('lever_on', [[5, 0, 4, 11, 3, 12, 'cobble'], [7, 2, 10, 9, 10, 12, 'planks']], 'none');
 M('rail', [[0, 0, 0, 16, 1, 16]], 'none');
-M('dust', [[0, 0, 0, 16, 1, 16]], 'none');
-M('repeater', [[0, 0, 0, 16, 2, 16], [7, 2, 3, 9, 7, 5, 'sparkTorchT'], [7, 2, 10, 9, 7, 12, 'sparkTorchT']]);
+// spark power. The wire: a dot, its arms (ARMS[4]) toward what it joins
+M('dust', [[5, 0, 5, 11, 1, 11]], 'none');
+// a box of the canonical model turned by g(x, y, z) -> [x, y, z] (the corners, then sorted)
+const turnBox = (box, g) => {
+    const [x0, y0, z0, x1, y1, z1, ...rest] = box;
+    const p = g(x0, y0, z0), q = g(x1, y1, z1);
+    return [Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.min(p[2], q[2]), Math.max(p[0], q[0]), Math.max(p[1], q[1]), Math.max(p[2], q[2]), ...rest];
+};
+// a floor model hung on the side a (the way from it to the block it is fixed to, D6:
+// 0 -x, 1 +x, 2 -y floor, 3 +y ceiling, 4 -z, 5 +z): its floor goes onto that side, its z goes up
+const ATTACH = [(x, y, z) => [y, z, 16 - x], (x, y, z) => [16 - y, z, x], (x, y, z) => [x, y, z], (x, y, z) => [x, 16 - y, z], (x, y, z) => [16 - x, z, y], (x, y, z) => [x, z, 16 - y]];
+// a model made facing up (+y) turned to face d
+const FACE6 = [(x, y, z) => [16 - y, x, z], (x, y, z) => [y, x, z], (x, y, z) => [x, 16 - y, z], (x, y, z) => [x, y, z], (x, y, z) => [x, z, 16 - y], (x, y, z) => [x, z, y]];
+for (let a = 0; a < 6; a++) {
+    M(`button_${a}`, [turnBox([5, 0, 6, 11, 2, 10], ATTACH[a])], 'none');
+    M(`lever_${a}_0`, [turnBox([5, 0, 4, 11, 3, 12, 'cobble'], ATTACH[a]), turnBox([7, 2, 4, 9, 10, 6, 'planks'], ATTACH[a])], 'none');
+    M(`lever_${a}_1`, [turnBox([5, 0, 4, 11, 3, 12, 'cobble'], ATTACH[a]), turnBox([7, 2, 10, 9, 10, 12, 'planks'], ATTACH[a])], 'none');
+    M(`pbase_${a}`, [turnBox([0, 0, 0, 16, 12, 16], FACE6[a]), turnBox([6, 12, 6, 10, 16, 10, 'pistonRodT'], FACE6[a])]);
+    M(`phead_${a}`, [turnBox([0, 12, 0, 16, 16, 16], FACE6[a]), turnBox([6, 0, 6, 10, 12, 10, 'pistonRodT'], FACE6[a])]);
+}
+// repeaters and comparators facing f (0 +z, 1 +x, 2 -z, 3 -x): along a (0 the back, 16 the front),
+// across c; a torch 2 x 2 at (a, c), lit or not
+const ALONG = [(a, c) => [c, a], (a, c) => [a, 16 - c], (a, c) => [16 - c, 16 - a], (a, c) => [16 - a, c]];
+const rsTorch = (f, a, c, on) => { const p = ALONG[f](a, c), q = ALONG[f](a + 2, c + 2); return [Math.min(p[0], q[0]), 2, Math.min(p[1], q[1]), Math.max(p[0], q[0]), 7, Math.max(p[1], q[1]), on ? 'sparkTorchT' : 'sparkTorchOffT']; };
+for (let f = 0; f < 4; f++) for (const on of [0, 1]) {
+    for (let d = 1; d <= 4; d++) M(`rep_${f}_${d}_${on}`, [[0, 0, 0, 16, 2, 16], rsTorch(f, 2 + (d - 1) * 2, 7, on), rsTorch(f, 11, 7, on)], [[0, 0, 0, 16, 2, 16]]);
+    for (const m of [0, 1]) M(`cmp_${f}_${m}_${on}`, [[0, 0, 0, 16, 2, 16], rsTorch(f, 2, 3, on), rsTorch(f, 2, 11, on), rsTorch(f, 12, 7, m)], [[0, 0, 0, 16, 2, 16]]);
+}
 M('pickle', [[6, 0, 6, 10, 6, 10], [9, 0, 3, 12, 4, 6]], 'none');
 M('scaffold', [[0, 0, 0, 2, 16, 2], [14, 0, 0, 16, 16, 2], [0, 0, 14, 2, 16, 16], [14, 0, 14, 16, 16, 16], [0, 14, 0, 16, 16, 16]], 'none');
 M('bamboo', [[6, 0, 6, 10, 16, 10]]);

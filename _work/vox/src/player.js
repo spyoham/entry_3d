@@ -506,7 +506,6 @@ function breakBlock(x, y, z, byP) {
   partnerGone(x, y, z, b, byP);
   if (b == 57) { crystalBreak(x, y, z); }
   if (b == 33) { if (mod(gameMode, 2) == 0) { if (blockAt(x, y - 1, z) != 0) { setBlock(x, y, z, 7); } } }
-  if (BSPEC[b + 1] == 8 || BSPEC[b + 1] == 4 || BSPEC[b + 1] == 5 || BSPEC[b + 1] == 9 || BUSE[b + 1] == U_BUTTON) { powerAround(x, y, z); }
   chestOrFurnaceGone(x, y, z, b);
 }
 function blockDrops(b, x, y, z) {
@@ -557,9 +556,11 @@ function setBlock(x, y, z, b) {
     let up = blockAt(x, y + 1, z);
     if (b == 0 || BSOL[b + 1] == 0) {
       if (y + 1 < WY) {
-        if (BSHP[up + 1] == 1 || BSHP[up + 1] == 2 || up == 19 || (BNEED[up + 1] > 0 && BNEED[up + 1] != N_ANY)) {
-          if (BPLC[up + 1] != P_DOOR || BSHP[b + 1] == 0) { if (mod(gameMode, 2) == 0) { blockDrops(up, x, y + 1, z); } setBlock(x, y + 1, z, 0); if (BSPEC[up + 1] == 8 || BSPEC[up + 1] == 4 || BSPEC[up + 1] == 5 || BSPEC[up + 1] == 9 || BUSE[up + 1] == U_BUTTON) { powerAround(x, y + 1, z); } }
-        }
+        // (a spark part hung on a wall is not stood on)
+        let hangs = 1; if (BATT[up + 1] >= 0) { if (BATT[up + 1] != 2) { hangs = 0; } }
+        if (hangs == 1) { if (BSHP[up + 1] == 1 || BSHP[up + 1] == 2 || up == 19 || (BNEED[up + 1] > 0 && BNEED[up + 1] != N_ANY)) {
+          if (BPLC[up + 1] != P_DOOR || BSHP[b + 1] == 0) { if (mod(gameMode, 2) == 0) { blockDrops(up, x, y + 1, z); } setBlock(x, y + 1, z, 0); }
+        } }
         if (BFALL[up + 1] == 1) { fallBlock(x, y + 1, z); }
       }
     }
@@ -567,6 +568,8 @@ function setBlock(x, y, z, b) {
     // concrete powder by water sets
     if (BWET[b + 1] > 0) { if (BFALL[b + 1] == 1) { if (waterNear(x, y, z) == 1) { logOn = 1; wput(x, y, z, BWET[b + 1]); logOn = 0; } } }
     if (b == 7) { wetAround(x, y, z); }
+    // spark power: the cells round look again (two steps out when a part came or went)
+    if (BRS[old + 1] > 0 || BRS[b + 1] > 0) { rsNotify(x, y, z, 3); } else { rsNotify(x, y, z, 2); }
   }
 }
 function waterNear(x, y, z) {

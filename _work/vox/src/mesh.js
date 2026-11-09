@@ -240,12 +240,16 @@ function remeshSome(n) {
 }
 
 // the sides a fence, wall or pane joins: the same kind of joining, a gate (fences), or a full block
+// (a spark wire: the sides it points to, power.js)
 function connOf(x, y, z, b) {
   let c = BCONN[b + 1], r = 0;
-  if (connTo(blockAt(x, y, z + 1), c) == 1) { r = r + 1; }
-  if (connTo(blockAt(x + 1, y, z), c) == 1) { r = r + 2; }
-  if (connTo(blockAt(x, y, z - 1), c) == 1) { r = r + 4; }
-  if (connTo(blockAt(x - 1, y, z), c) == 1) { r = r + 8; }
+  if (c == 4) { r = wireArms(x, y, z); }
+  else {
+    if (connTo(blockAt(x, y, z + 1), c) == 1) { r = r + 1; }
+    if (connTo(blockAt(x + 1, y, z), c) == 1) { r = r + 2; }
+    if (connTo(blockAt(x, y, z - 1), c) == 1) { r = r + 4; }
+    if (connTo(blockAt(x - 1, y, z), c) == 1) { r = r + 8; }
+  }
   return r;
 }
 function connTo(nb, c) {

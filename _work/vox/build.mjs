@@ -31,8 +31,9 @@ export const consts = {
 };
 
 // what F does on a block, how it is put down, what it must stand on, how it moves a body
-const USE = { none: 0, craft: 1, furnace: 2, chest: 3, smith: 4, shell: 5, door: 6, trapdoor: 7, gate: 8, lever: 9, button: 10, bed: 11, sign: 12, note: 13, cake: 14, compost: 15, repair: 16, bell: 17, pot: 18, command: 19, campfire: 20, enchant: 21, lodestone: 22, anchor: 23, voidchest: 24 };
+const USE = { rs: 25, none: 0, craft: 1, furnace: 2, chest: 3, smith: 4, shell: 5, door: 6, trapdoor: 7, gate: 8, lever: 9, button: 10, bed: 11, sign: 12, note: 13, cake: 14, compost: 15, repair: 16, bell: 17, pot: 18, command: 19, campfire: 20, enchant: 21, lodestone: 22, anchor: 23, voidchest: 24 };
 const PLACE = { none: 0, axis: 1, stairs: 2, slab: 3, door: 4, trapdoor: 5, gate: 6, bed: 7, ladder: 8, rail: 9 };
+const RS = { none: 0, wire: 1, repeater: 2, comparator: 3, torch: 4, lever: 5, button: 6, plate: 7, block: 8, sensor: 9, observer: 10, piston: 11, head: 12, lamp: 13, tnt: 14, door: 15, note: 16, command: 17, target: 18, dispenser: 19 };
 const NEED = { none: 0, soil: 1, floor: 2, below: 3, torch: 4, ashen: 5, farm: 6, reed: 7, water: 8, any: 9, dark: 10 };
 const TAGS = { planks: 1, logs: 2, wool: 3, stonecraft: 4 };
 
@@ -128,12 +129,12 @@ export function makeData() {
     for (const [n, m] of Object.entries(MODELS)) modelIx.set(n, putModel(m));
     // the arms: model index ARMM[conn * 4 + side]
     L.ARMM = []; L.ARMC = [];
-    for (let c = 1; c <= 3; c++) for (let s = 0; s < 4; s++) { L.ARMM.push(putModel({ boxes: ARMS[c][s] })); L.ARMC.push(putCol([ARMCOL[c][s]])[0]); }
+    for (let c = 1; c <= 4; c++) for (let s = 0; s < 4; s++) { L.ARMM.push(putModel({ boxes: ARMS[c][s] })); L.ARMC.push(putCol([ARMCOL[c][s]])[0]); }
 
     // blocks
     const B = {};
     const BL = ['BSOL', 'BHC', 'BLOP', 'BSHP', 'BHARD', 'BTOOL', 'BTIER', 'BDROP', 'BDROPN', 'BLIT', 'BTT', 'BTS', 'BTB', 'BLEAF', 'BMDL', 'BCONN', 'BCB0', 'BCBN', 'BTALL',
-        'BKIND', 'BVAR', 'BUSE', 'BPLC', 'BNEED', 'BMOVE', 'BHURT', 'BFALL', 'BFLAME', 'BCROP', 'BSPEC', 'BWET', 'BSTRIP', 'BTREE', 'BSAP', 'BXP', 'BHALF', 'BSIDE', 'BFACE', 'BSPAWN', 'BPOT', 'BWATER', 'BSTATE', 'BXT'];
+        'BKIND', 'BVAR', 'BUSE', 'BPLC', 'BNEED', 'BMOVE', 'BHURT', 'BFALL', 'BFLAME', 'BCROP', 'BSPEC', 'BWET', 'BSTRIP', 'BTREE', 'BSAP', 'BXP', 'BHALF', 'BSIDE', 'BFACE', 'BSPAWN', 'BPOT', 'BWATER', 'BSTATE', 'BXT', 'BRS', 'BFAC', 'BON', 'BAUX', 'BATT', 'BCOND'];
     for (const k of BL) B[k] = [];
     B.BT6 = [];
     const spawnOf = { zombie: 5, skeleton: 6, spider: 7, wraith: 8 };
@@ -143,7 +144,7 @@ export function makeData() {
         const b = BLOCKS[id];
         if (!b) {
             for (const k of BL) B[k].push(k === 'BTIER' ? -1 : (k === 'BTT' || k === 'BTS' || k === 'BTB' ? 1 : 0));
-            B.BKIND[id] = id; B.BCROP[id] = -1; B.BTREE[id] = -1;
+            B.BKIND[id] = id; B.BCROP[id] = -1; B.BTREE[id] = -1; B.BFAC[id] = -1; B.BATT[id] = -1;
             for (let d = 0; d < 6; d++) B.BT6.push(1);
             continue;
         }
@@ -198,6 +199,15 @@ export function makeData() {
         B.BPOT.push(potOf.get(id) || 0);
         B.BWATER.push(b.water || 0);
         B.BXT.push(b.flameTex ? texIx(b.flameTex) : t6[0]);
+        // spark power: the role (RS), the facing / the side it hangs on (D6, -1 none), on, a value
+        // (wire power, repeater delay, comparator subtract, button time, sticky, dropper), and
+        // whether the block carries power (a full opaque cube that is not itself a part)
+        let rs = RS[b.rs || 'none'];
+        if (rs === undefined) throw new Error('rs ' + b.rs);
+        if (!rs && b.plate) rs = RS.plate;
+        if (!rs && (b.place === 'door' || b.place === 'trapdoor' || b.place === 'gate')) rs = RS.door;
+        B.BRS.push(rs); B.BFAC.push(b.fac ?? -1); B.BON.push(b.on || 0); B.BAUX.push(b.aux || 0); B.BATT.push(b.att ?? -1);
+        B.BCOND.push(shape === 0 && sol === 1 && (b.hide ?? 1) === 1 && !b.leaf && (!rs || rs === RS.lamp || rs === RS.tnt || rs === RS.note || rs === RS.command) && id > 0 ? 1 : 0);
     }
     Object.assign(L, B, MB, CB);
 
@@ -374,16 +384,17 @@ export function makeData() {
     for (const [n, i] of Object.entries(USE)) ids['U_' + n.toUpperCase()] = i;
     for (const [n, i] of Object.entries(PLACE)) ids['P_' + n.toUpperCase()] = i;
     for (const [n, i] of Object.entries(NEED)) ids['N_' + n.toUpperCase()] = i;
+    for (const [n, i] of Object.entries(RS)) ids['RS_' + n.toUpperCase()] = i;
     MOBS.forEach((m, i) => { if (m) ids['M_' + m.n.toUpperCase()] = i; });
-    const kinds0 = BLOCKS.filter(b => b && !(b.item && !b.plant && !b.spawns)).length;
+    const kinds0 = BLOCKS.filter(b => b && !b.nokind && !(b.item && !b.plant && !b.spawns)).length;
     const C = { ...extra, ...ids, NKINDS: kinds0, NCOL: cols.length, NREC: RECIPES.length, TDIRT: texIx('dirt'), NBLOCK, NITEM, NCAT: CATS.length, NMOBT: MOBS.length - 1 };
-    const kinds = BLOCKS.filter(b => b && !(b.item && !b.plant && !b.spawns)).length;
+    const kinds = BLOCKS.filter(b => b && !b.nokind && !(b.item && !b.plant && !b.spawns)).length;
     cache = { L, C, kinds };
     return cache;
 }
 
 // ------------------------------------------------------------------ sources
-export const FILES = ['world.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'mobs.js', 'items.js', 'hud.js', 'extra.js', 'cmds.js', 'main.js', 'test.js'];
+export const FILES = ['world.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'mobs.js', 'items.js', 'hud.js', 'extra.js', 'cmds.js', 'main.js', 'test.js'];
 export function allConsts(more = {}) {
     const { C } = makeData();
     return { ...consts, ...C, ...more };

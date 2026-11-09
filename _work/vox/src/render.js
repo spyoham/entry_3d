@@ -381,7 +381,7 @@ function drawBuckets() {
             }
           }
         } else {
-          if (d == 6) { drawPlant(t, bx, by, bz, kb, FOGL[d2 + 1], d2); } else { if (d == 7) { drawTorch(bx, by, bz, FOGL[d2 + 1], BFLAME[t + 1]); } else { drawModel(f, x, y, z, bx, by, bz, ni, FOGL[d2 + 1], d2); } }
+          if (d == 6) { drawPlant(t, bx, by, bz, kb, FOGL[d2 + 1], d2); } else { if (d == 7) { drawTorch(bx, by, bz, FOGL[d2 + 1], BFLAME[t + 1], t); } else { drawModel(f, x, y, z, bx, by, bz, ni, FOGL[d2 + 1], d2); } }
         }
       } else { drawThing(0 - f, idiv(BD2[n], 16)); }
       n = BN[n];
@@ -471,11 +471,14 @@ function drawPlant(t, bx, by, bz, kb, fog, d2) {
   }
 }
 // a torch: a thin stick and a flame, both as two crossed quads (always fully lit)
-function drawTorch(bx, by, bz, fog, fl) {
-  torchQuad(bx, by, bz, 7, 0, 8, 9, 10, 8, CTORCH, fog);
-  torchQuad(bx, by, bz, 8, 0, 7, 8, 10, 9, CTORCH, fog);
-  torchQuad(bx, by, bz, 6.5, 9, 8, 9.5, 12.5, 8, fl, fog);
-  torchQuad(bx, by, bz, 8, 9, 6.5, 8, 12.5, 9.5, fl, fog);
+function drawTorch(bx, by, bz, fog, fl, t) {
+  // (a spark torch on a wall: against it, a little higher)
+  let a = BATT[t + 1], ox = 0, oy = 0, oz = 0;
+  if (a >= 0) { if (a != 2) { ox = DX6[a + 1] * 5; oz = DZ6[a + 1] * 5; oy = 3; } }
+  torchQuad(bx, by, bz, 7 + ox, oy, 8 + oz, 9 + ox, 10 + oy, 8 + oz, CTORCH, fog);
+  torchQuad(bx, by, bz, 8 + ox, oy, 7 + oz, 8 + ox, 10 + oy, 9 + oz, CTORCH, fog);
+  torchQuad(bx, by, bz, 6.5 + ox, 9 + oy, 8 + oz, 9.5 + ox, 12.5 + oy, 8 + oz, fl, fog);
+  torchQuad(bx, by, bz, 8 + ox, 9 + oy, 6.5 + oz, 8 + ox, 12.5 + oy, 9.5 + oz, fl, fog);
 }
 // an upright quad from (ax, ay, az) to (cx, cy, cz) in 1/16 of the cell
 function torchQuad(bx, by, bz, ax, ay, az, cx, cy, cz, col, fog) {

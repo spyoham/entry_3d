@@ -457,7 +457,8 @@ function jungleTemple() {
   sbox(x - 1, gy + 4, z - 1, x + 1, gy + 4, z + 1, 0);
   // the chest rooms, the lever, the trap's dispenser
   schest(x + 4, gy + 1, z + 5, 4); schest(x - 4, gy + 5, z + 5, 4);
-  sput(x + 4, gy + 2, z - 5, I_lever); sput(x - 5, gy + 2, z, I_dispenser);
+  // (the lever on the +x wall, the dispenser in the -x wall looking into the room: power.js variants)
+  sput(x + 4, gy + 2, z - 5, I_lever + 4); sput(x - 5, gy + 2, z, I_dispenser + 4);
   sbox(x, gy + 5, z, x, gy + 7, z, 0);
   let k = 0;
   while (k < 10) { sput(x - 6 + rndI(0, 12), gy + rndI(2, 10), z - 7, I_vines); k = k + 1; }

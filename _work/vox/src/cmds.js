@@ -148,7 +148,7 @@ function stateOf(b, st) {
   if (pl == P_RAIL) { v = mod(f, 2); }
   if (BCROP[b + 1] >= 0) { if (age >= 0) { v = age; } }
   if (BSPEC[b + 1] == 2) { v = 0; if (lit == 1) { v = I_sparkLampOn - b; } }
-  if (b == I_lever) { v = lit; }
+  if (BRS[b + 1] == RS_WIRE || BRS[b + 1] == RS_REPEATER || BRS[b + 1] == RS_COMPARATOR || BRS[b + 1] == RS_TORCH || BRS[b + 1] == RS_LEVER || BRS[b + 1] == RS_BUTTON || BRS[b + 1] == RS_OBSERVER || BRS[b + 1] == RS_PISTON || BRS[b + 1] == RS_DISPENSER) { v = rsState(b, st); }
   return v;
 }
 function effectByName(nm) {
@@ -579,8 +579,7 @@ function boxPut(x, y, z, b) {
       markDirty(x, y, z);
       if (BUSE[b + 1] == U_CHEST) { chestAt(x, y, z); } if (BUSE[b + 1] == U_FURNACE) { furnaceAt(x, y, z); }
       if (BSPEC[b + 1] == 6) { spawnerNote(x, y, z); }
-      if (BSPEC[b + 1] == 8 || BSPEC[b + 1] == 4 || BSPEC[o + 1] == 8 || BSPEC[o + 1] == 4) { powerAround(x, y, z); }
-      if (BSPEC[b + 1] == 1 || BSPEC[b + 1] == 2 || BSPEC[b + 1] == 3) { powerCheck(x, y, z); }
+      if (BRS[b + 1] > 0 || BRS[o + 1] > 0) { rsNotify(x, y, z, 3); }
       bxN = bxN + 1;
     }
   } }

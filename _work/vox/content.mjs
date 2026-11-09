@@ -120,7 +120,7 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     const tex = (name, t) => { if (TEX[name]) throw new Error('texture twice ' + name); if (t.g.length !== 8 || t.g.some(r => r.length !== 8)) throw new Error('texture size ' + name); TEX[name] = t; return name; };
     const byKey = new Map();
     for (const b of BLOCKS) if (b) byKey.set(b.n, b);
-    const add = (b) => { b.id = nextId++; BLOCKS[b.id] = b; if (byKey.has(b.n)) throw new Error('block twice ' + b.n); byKey.set(b.n, b); if (nextId >= ITEM0) throw new Error('block ids run into items'); return b; };
+    const add = (b) => { b.id = nextId++; BLOCKS[b.id] = b; if (byKey.has(b.n)) throw new Error('block twice ' + b.n); byKey.set(b.n, b); if (nextId >= ITEM0) throw new Error('block ids run into items'); if (nextId >= 1900) throw new Error('block ids run into the new tools (XTOOL 1900)'); return b; };
     const item = (it) => { it.id = nextItem++; ITEMS.push(it); return it; };
     const R = (r, out, n = 1, m = 0) => RECIPES.push({ r, out, n, m });
     const S = (a, b) => SMELT.push([a, b]);
@@ -175,6 +175,17 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
         for (const v of L.slice(1)) byKey.get(n + '_' + v.v).drop = n;
         return d;
     };
+    // what hangs on a side (levers, buttons): one variant for each side it can be fixed to, the
+    // way from it to that block (D6: 0 -x, 1 +x, 2 -y the floor, 3 +y the ceiling, 4 -z, 5 +z)
+    const ATT = [2, 5, 1, 4, 0, 3];
+    const hung = (base, more = (a) => ({})) => {
+        const L = [];
+        ATT.forEach((a, i) => L.push({ v: i ? `a${a}` : undefined, att: a, need: a === 2 ? 'floor' : 'none', ...more(a) }));
+        const r = variants(base, L);
+        for (const v of L.slice(1)) byKey.get(r.n + '_' + v.v).drop = r.n;
+        return r;
+    };
+    const button = (b) => hung({ ...b, shape: 5, hide: 0, lop: 0, solid: 0, cat: 4, use: 'button', rs: 'button' }, (a) => ({ model: `button_${a}` }));
     const kinds = {};
 
     // ================================================================ 1. the woods
@@ -224,7 +235,7 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
         trapdoor(K + 'Trapdoor', `${K}_trapdoor`, `${ko} 다락문`, tTD, wood); R([`${P0} ${P0} ${P0}`, `${P0} ${P0} ${P0}`], K + 'Trapdoor', 2);
         const pp = add({ n: K + 'Plate', key: `${K}_pressure_plate`, ko: `${ko} 압력판`, t: pt, hard: 0.5, tool: 2, shape: 5, hide: 0, lop: 0, solid: 0, model: 'plate', cat: 4, need: 'floor', plate: 1 });
         R([`${P0} ${P0}`], pp.n, 1);
-        const bt = add({ n: K + 'Button', key: `${K}_button`, ko: `${ko} 버튼`, t: pt, hard: 0.5, shape: 5, hide: 0, lop: 0, solid: 0, model: 'button', cat: 4, use: 'button', need: 'floor' });
+        const bt = button({ n: K + 'Button', key: `${K}_button`, ko: `${ko} 버튼`, t: pt, hard: 0.5, aux: 15 });
         R([P0], bt.n, 1);
         const sg = add({ n: K + 'Sign', key: `${K}_sign`, ko: `${ko} 표지판`, t: pt, hard: 1, tool: 2, shape: 5, hide: 0, lop: 0, solid: 0, model: 'sign', cat: 1, use: 'sign', st: 16, fuel });
         R([`${P0} ${P0} ${P0}`, `${P0} ${P0} ${P0}`, '_ stick _'], sg.n, 3);
@@ -373,12 +384,12 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     stone('crackedBlackrockBricks', 'cracked_polished_blackrock_bricks', '금 간 흑암 벽돌', tex('crBlackrockT', pat(P.cracked, { a: '362e34', b: '141012', c: '463c42' }))); S(pbb.n, 'crackedBlackrockBricks');
     stone('chiseledBlackrock', 'chiseled_polished_blackrock', '조각된 흑암', tex('chBlackrockT', pat(P.chiseled, { a: '362e34', b: '1e181c', c: '564c52' }))); R(['polishedBlackrockSlab', 'polishedBlackrockSlab'], 'chiseledBlackrock', 1);
     stone('gildedBlackrock', 'gilded_blackrock', '금박 흑암', tex('gildedT', oreOn('blackrockT', 'e8b830')), { drop: 'goldNugget', dropN: 3 });
-    add({ n: 'blackrockButton', key: 'polished_blackrock_button', ko: '흑암 버튼', t: [pbr.t[0]], hard: 0.5, shape: 5, hide: 0, lop: 0, solid: 0, model: 'button', cat: 4, use: 'button', need: 'floor' }); R(['polishedBlackrock'], 'blackrockButton', 1);
+    button({ n: 'blackrockButton', key: 'polished_blackrock_button', ko: '흑암 버튼', t: [pbr.t[0]], hard: 0.5, aux: 10 }); R(['polishedBlackrock'], 'blackrockButton', 1);
     add({ n: 'blackrockPlate', key: 'polished_blackrock_pressure_plate', ko: '흑암 압력판', t: [pbr.t[0]], hard: 0.5, tool: 1, shape: 5, hide: 0, lop: 0, solid: 0, model: 'plate', cat: 4, need: 'floor', plate: 1 }); R(['polishedBlackrock polishedBlackrock'], 'blackrockPlate', 1);
     old(53, 'basalt', null, 2, { place: 'axis' });
     stone('polishedBasalt', 'polished_basalt', '윤 나는 현무암', [tex('pBasaltTop', pat(P.pillarTop, { a: '5c5c64', b: '38383e', c: '6e6e76' })), tex('pBasaltSide', pat(P.pillarSide, { a: '5c5c64', b: '38383e', c: '6e6e76' })), 'pBasaltTop'], { hard: 1.25 });
     R(['basalt basalt', 'basalt basalt'], 'polishedBasalt', 4);
-    add({ n: 'stoneButton', key: 'stone_button', ko: '돌 버튼', t: ['stone'], hard: 0.5, shape: 5, hide: 0, lop: 0, solid: 0, model: 'button', cat: 4, use: 'button', need: 'floor' }); R(['stone'], 'stoneButton', 1);
+    button({ n: 'stoneButton', key: 'stone_button', ko: '돌 버튼', t: ['stone'], hard: 0.5, aux: 10 }); R(['stone'], 'stoneButton', 1);
     add({ n: 'stonePlate', key: 'stone_pressure_plate', ko: '돌 압력판', t: ['stone'], hard: 0.5, tool: 1, shape: 5, hide: 0, lop: 0, solid: 0, model: 'plate', cat: 4, need: 'floor', plate: 1 }); R(['stone stone'], 'stonePlate', 1);
     add({ n: 'ironPlate', key: 'heavy_weighted_pressure_plate', ko: '무거운 압력판', t: ['blockIron'], hard: 0.5, tool: 1, shape: 5, hide: 0, lop: 0, solid: 0, model: 'plate', cat: 4, need: 'floor', plate: 1 }); R(['ingotIron ingotIron'], 'ironPlate', 1);
     add({ n: 'goldPlate', key: 'light_weighted_pressure_plate', ko: '가벼운 압력판', t: ['blockGold'], hard: 0.5, tool: 1, shape: 5, hide: 0, lop: 0, solid: 0, model: 'plate', cat: 4, need: 'floor', plate: 1 }); R(['ingotGold ingotGold'], 'goldPlate', 1);
@@ -388,7 +399,7 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     stone('blockJade', 'jade_block', '비취 블록', tex('blockJadeT', pat(P.block, { a: '3ac06a', b: '208a48', c: '7ae0a0' })), { hard: 5, tier: 2, cat: 0 });
     R(['jade jade jade', 'jade jade jade', 'jade jade jade'], 'blockJade', 1); R(['blockJade'], 'jade', 9);
     stone('oreSpark', 'spark_ore', '불꽃가루 광석', tex('oreSparkT', oreOn('stone', 'e02020')), { hard: 3, tier: 2, drop: 'sparkDust', dropN: 4, xp: 3 });
-    stone('blockSpark', 'spark_block', '불꽃가루 블록', tex('blockSparkT', pat(P.block, { a: 'c81414', b: '8a0a0a', c: 'f04040' })), { hard: 5, cat: 4, power: 1 });
+    stone('blockSpark', 'spark_block', '불꽃가루 블록', tex('blockSparkT', pat(P.block, { a: 'c81414', b: '8a0a0a', c: 'f04040' })), { hard: 5, cat: 4, rs: 'block' });
     R(['sparkDust sparkDust sparkDust', 'sparkDust sparkDust sparkDust', 'sparkDust sparkDust sparkDust'], 'blockSpark', 1); R(['blockSpark'], 'sparkDust', 9);
     stone('blockCoal', 'coal_block', '석탄 블록', tex('blockCoalT', pat(P.block, { a: '1e1e1e', b: '0e0e0e', c: '3a3a3a' })), { hard: 5, fuel: 800 });
     R(['coal coal coal', 'coal coal coal', 'coal coal coal'], 'blockCoal', 1); R(['blockCoal'], 'coal', 9);
@@ -589,27 +600,48 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     R(['_ stick _', 'stick wailSand stick', '#logs #logs #logs'], 'wailCampfire', 1);
     add({ n: 'wailTorch', key: 'wail_torch', ko: '흐느낌 횃불', t: ['planks'], hard: 0, shape: 2, light: 10, cat: 1, flame: '50e0e0', need: 'torch' });
     R(['coal', 'stick', 'wailSand'], 'wailTorch', 4);
-    add({ n: 'sparkTorch', key: 'spark_torch', ko: '불꽃가루 횃불', t: ['planks'], hard: 0, shape: 2, light: 7, cat: 4, flame: 'f02020', need: 'torch', power: 1 });
-    R(['sparkDust', 'stick'], 'sparkTorch', 1);
+    // spark power: the torch (floor or a wall; lit or out), the lamp, the wire (power 0..15),
+    // the repeater (facing, delay 1..4, on), the comparator (facing, subtract, on), the lever
+    const F2D = [5, 1, 4, 0];   // the facing of the look (0 +z, 1 +x, 2 -z, 3 -x) as a D6 direction
     tc('sparkTorchT', P.flat, { a: 'd02020', b: 'a01010' });
+    tc('sparkTorchOffT', P.flat, { a: '5a2020', b: '4a1818' });
+    const ST = [];
+    for (const a of [2, 5, 1, 4, 0]) for (const off of [0, 1]) ST.push({ v: ((a === 2 ? '' : `a${a}`) + (off ? 'off' : '')) || undefined, att: a, on: 1 - off, light: off ? 0 : 7, flame: off ? '5a1414' : 'f02020', need: a === 2 ? 'torch' : 'none' });
+    variants({ n: 'sparkTorch', key: 'spark_torch', ko: '불꽃가루 횃불', t: ['planks'], hard: 0, shape: 2, cat: 4, rs: 'torch' }, ST);
+    for (const v of ST.slice(1)) byKey.get('sparkTorch_' + v.v).drop = 'sparkTorch';
+    R(['sparkDust', 'stick'], 'sparkTorch', 1);
     BLOCKS[27].flame = 'ffc830'; BLOCKS[27].need = 'torch';
     const lampOff = tc('lampOffT', ['bbbbbbbb', 'baacaacb', 'bacccacb', 'bccaccab', 'baccacab', 'bcacccab', 'baacacab', 'bbbbbbbb'], { a: '5a3a1a', b: '3a2410', c: '7a5a2a' });
     const lampOn = tc('lampOnT', ['bbbbbbbb', 'baacaacb', 'bacccacb', 'bccaccab', 'baccacab', 'bcacccab', 'baacacab', 'bbbbbbbb'], { a: 'e8a040', b: '8a4a18', c: 'ffe0a0' });
-    cube('sparkLamp', 'spark_lamp', '불꽃 등', lampOff, { hard: 0.3, cat: 4, lamp: 1 });
-    cube('sparkLampOn', 'spark_lamp_on', '불꽃 등', lampOn, { hard: 0.3, light: 15, hidden: 1, item: 'sparkLamp', drop: 'sparkLamp', lamp: 2 });
+    cube('sparkLamp', 'spark_lamp', '불꽃 등', lampOff, { hard: 0.3, cat: 4, lamp: 1, rs: 'lamp' });
+    cube('sparkLampOn', 'spark_lamp_on', '불꽃 등', lampOn, { hard: 0.3, light: 15, hidden: 1, item: 'sparkLamp', drop: 'sparkLamp', lamp: 2, rs: 'lamp', on: 1 });
     R(['_ sparkDust _', 'sparkDust glowCrystal sparkDust', '_ sparkDust _'], 'sparkLamp', 1);
-    add({ n: 'sparkWire', key: 'spark_wire', ko: '불꽃가루 선', t: [tc('wireT', ['...kk...', '...kk...', '...kk...', 'kkkkkkkk', 'kkkkkkkk', '...kk...', '...kk...', '...kk...'], { k: 'b01010' })], hard: 0, shape: 5, model: 'dust', hide: 0, lop: 0, solid: 0, cat: 4, hidden: 1, drop: 'sparkDust', wire: 1, need: 'floor' });
-    add({ n: 'repeater', key: 'repeater', ko: '반복기', t: [tc('repeaterT', ['aaaaaaaa', 'aaakkaaa', 'aaakkaaa', 'aaakkaaa', 'aaakkaaa', 'aaakkaaa', 'aaakkaaa', 'aaaaaaaa'], { a: 'a0a0a0', k: '8a2020' }), 'smoothStoneT'], hard: 0, shape: 5, model: 'repeater', hide: 0, lop: 0, cat: 4, need: 'floor', wire: 1 });
+    const W16 = [];
+    for (let l = 0; l < 16; l++) {
+        const k = l / 15, mix = (a, b) => Math.round(a + (b - a) * k).toString(16).padStart(2, '0');
+        const c = mix(0x50, 0xff) + mix(0x0c, 0x34) + mix(0x0c, 0x20);
+        W16.push({ v: l ? `${l}` : undefined, aux: l, t: [tc('wire' + l + 'T', ['abaaaaba', 'aaaabaaa', 'baaaaaab', 'aaabaaaa', 'aabaaaba', 'aaaaabaa', 'abaaaaaa', 'aaaabaab'], { a: c, b: shade(c, 0.8) })] });
+    }
+    variants({ n: 'sparkWire', key: 'spark_wire', ko: '불꽃가루 선', hard: 0, shape: 5, model: 'dust', conn: 4, hide: 0, lop: 0, solid: 0, cat: 4, hidden: 1, drop: 'sparkDust', rs: 'wire', need: 'floor' }, W16);
+    const repG = ['aaaaaaaa', 'aaakkaaa', 'aaakkaaa', 'aaakkaaa', 'aaakkaaa', 'aaakkaaa', 'aaakkaaa', 'aaaaaaaa'], cmpG = ['aaaaaaaa', 'akaaaaka', 'aaaaaaaa', 'aaakkaaa', 'aaakkaaa', 'aaaaaaaa', 'aaakkaaa', 'aaaaaaaa'];
+    const rpal = { a: 'a0a0a0', k: '8a2020' };
+    tc('repeaterT', repG, rpal); tc('repeaterTx', tr(repG), rpal); tc('comparatorT', cmpG, rpal); tc('comparatorTx', tr(cmpG), rpal);
+    const RP = [], CP = [];
+    for (let f = 0; f < 4; f++) for (let d = 1; d <= 4; d++) for (const on of [0, 1]) RP.push({ v: f || d > 1 || on ? `${f}${d}${on}` : undefined, model: `rep_${f}_${d}_${on}`, fac: F2D[f], aux: d, on, t: [f % 2 ? 'repeaterTx' : 'repeaterT', 'smoothStoneT'] });
+    for (let f = 0; f < 4; f++) for (const m of [0, 1]) for (const on of [0, 1]) CP.push({ v: f || m || on ? `${f}${m}${on}` : undefined, model: `cmp_${f}_${m}_${on}`, fac: F2D[f], aux: m, on, t: [f % 2 ? 'comparatorTx' : 'comparatorT', 'smoothStoneT'] });
+    variants({ n: 'repeater', key: 'repeater', ko: '반복기', hard: 0, shape: 5, hide: 0, lop: 0, cat: 4, need: 'floor', rs: 'repeater', use: 'rs' }, RP);
     R(['sparkTorch sparkDust sparkTorch', 'stone stone stone'], 'repeater', 1);
-    add({ n: 'comparator', key: 'comparator', ko: '비교기', t: [tc('comparatorT', ['aaaaaaaa', 'akaaaaka', 'aaaaaaaa', 'aaakkaaa', 'aaakkaaa', 'aaaaaaaa', 'aaakkaaa', 'aaaaaaaa'], { a: 'a0a0a0', k: '8a2020' }), 'smoothStoneT'], hard: 0, shape: 5, model: 'repeater', hide: 0, lop: 0, cat: 4, need: 'floor', wire: 1 });
+    variants({ n: 'comparator', key: 'comparator', ko: '비교기', hard: 0, shape: 5, hide: 0, lop: 0, cat: 4, need: 'floor', rs: 'comparator', use: 'rs' }, CP);
     R(['_ sparkTorch _', 'sparkTorch quartz sparkTorch', 'stone stone stone'], 'comparator', 1);
-    variants({ n: 'lever', key: 'lever', ko: '레버', t: ['cobble'], hard: 0.5, shape: 5, hide: 0, lop: 0, solid: 0, cat: 4, use: 'lever', need: 'floor' }, [{ model: 'lever_off' }, { model: 'lever_on', v: 'on', power: 1, drop: 'lever' }]);
+    const LV = [];
+    ATT.forEach((a, i) => { for (const on of [0, 1]) LV.push({ v: i || on ? `a${a}${on ? 'on' : ''}` : undefined, model: `lever_${a}_${on}`, att: a, on, need: a === 2 ? 'floor' : 'none' }); });
+    variants({ n: 'lever', key: 'lever', ko: '레버', t: ['cobble'], hard: 0.5, shape: 5, hide: 0, lop: 0, solid: 0, cat: 4, use: 'lever', rs: 'lever' }, LV);
     R(['stick', 'cobble'], 'lever', 1);
-    cube('noteBlock', 'note_block', '소리 블록', tc('noteT', ['bbbbbbbb', 'baaaaaab', 'baakkaab', 'baakaaab', 'bakkaaab', 'bakkaaab', 'baaaaaab', 'bbbbbbbb'], { a: '6a4a2a', b: '4a3218', k: '1a1a1a' }), { hard: 0.8, tool: 2, cat: 4, use: 'note', fuel: 15 });
+    cube('noteBlock', 'note_block', '소리 블록', tc('noteT', ['bbbbbbbb', 'baaaaaab', 'baakkaab', 'baakaaab', 'bakkaaab', 'bakkaaab', 'baaaaaab', 'bbbbbbbb'], { a: '6a4a2a', b: '4a3218', k: '1a1a1a' }), { hard: 0.8, tool: 2, cat: 4, use: 'note', fuel: 15, rs: 'note' });
     R(['#planks #planks #planks', '#planks sparkDust #planks', '#planks #planks #planks'], 'noteBlock', 1);
     cube('jukebox', 'jukebox', '전축', [tc('jukeTop', ['bbbbbbbb', 'baaaaaab', 'bakkkkab', 'bakaakab', 'bakaakab', 'bakkkkab', 'baaaaaab', 'bbbbbbbb'], { a: '6a4a2a', b: '4a3218', k: '1a1a1a' }), 'noteT', 'noteT'], { hard: 2, tool: 2, cat: 4, use: 'note', fuel: 15 });
     R(['#planks #planks #planks', '#planks diamond #planks', '#planks #planks #planks'], 'jukebox', 1);
-    cube('tnt', 'tnt', '폭약', [tc('tntTop', ['bbbbbbbb', 'bkaakaab', 'baaaaaab', 'bkaakaab', 'baaaaaab', 'bkaakaab', 'baaaaaab', 'bbbbbbbb'], { a: 'd8d8d0', b: 'a02020', k: '2a2a2a' }), tc('tntSide', ['rrrrrrrr', 'rwrwrwrr', 'wwwwwwww', 'wkwkkwkw', 'wkwkwwkw', 'wwwwwwww', 'rrwrwrwr', 'rrrrrrrr'], { r: 'c02020', w: 'e8e8e0', k: '2a2a2a' }), 'tntTop'], { hard: 0, cat: 4, tnt: 1 });
+    cube('tnt', 'tnt', '폭약', [tc('tntTop', ['bbbbbbbb', 'bkaakaab', 'baaaaaab', 'bkaakaab', 'baaaaaab', 'bkaakaab', 'baaaaaab', 'bbbbbbbb'], { a: 'd8d8d0', b: 'a02020', k: '2a2a2a' }), tc('tntSide', ['rrrrrrrr', 'rwrwrwrr', 'wwwwwwww', 'wkwkkwkw', 'wkwkwwkw', 'wwwwwwww', 'rrwrwrwr', 'rrrrrrrr'], { r: 'c02020', w: 'e8e8e0', k: '2a2a2a' }), 'tntTop'], { hard: 0, cat: 4, tnt: 1, rs: 'tnt' });
     R(['gunpowder sand gunpowder', 'sand gunpowder sand', 'gunpowder sand gunpowder'], 'tnt', 1);
     const L4 = [];
     for (let s = 0; s < 4; s++) L4.push({ model: `ladder_${s}`, v: s ? `${s}` : undefined, side: s });
@@ -639,22 +671,61 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     for (const [m, ko] of [['zombie', '좀비'], ['skeleton', '해골'], ['spider', '거미'], ['wraith', '잿빛 망령']]) add({ n: 'spawner_' + m, key: 'spawner_' + m, ko: `${ko} 생성기`, t: ['spawnerT'], hard: 5, tool: 1, tier: 0, shape: 4, hide: 0, lop: 0, drop: 'none', hidden: 1, item: 'spawner', spawns: m, xp: 20 });
     add({ n: 'voidRod', key: 'void_rod', ko: '공허 막대', t: [tc('voidRodT', P.flat, { a: 'f0e8ff', b: 'd8c8f0' })], hard: 0, shape: 5, model: 'rod', hide: 0, lop: 0, light: 14, cat: 1 });
     R(['blazePowder', 'voidPearl'], 'voidRod', 4);
-    cube('target', 'target', '과녁', [tc('targetTop', ['ffffffff', 'frrrrrrf', 'frwwwwrf', 'frwrrwrf', 'frwrrwrf', 'frwwwwrf', 'frrrrrrf', 'ffffffff'], { f: 'e8dcc0', r: 'c02020', w: 'f0f0f0' })], { hard: 0.5, cat: 4 });
+    cube('target', 'target', '과녁', [tc('targetTop', ['ffffffff', 'frrrrrrf', 'frwwwwrf', 'frwrrwrf', 'frwrrwrf', 'frwwwwrf', 'frrrrrrf', 'ffffffff'], { f: 'e8dcc0', r: 'c02020', w: 'f0f0f0' })], { hard: 0.5, cat: 4, rs: 'target' });
     R(['_ sparkDust _', 'sparkDust hayBale sparkDust', '_ sparkDust _'], 'target', 1);
-    add({ n: 'daylight', key: 'daylight_detector', ko: '햇빛 감지기', t: [tc('daylightT', ['bbbbbbbb', 'bgggggab', 'bgaagaab', 'bgggggab', 'bgaagaab', 'bgggggab', 'baaaaaab', 'bbbbbbbb'], { a: 'c0c8d0', b: '8a6a3a', g: '2a4a6a' }), 'planks', 'planks'], hard: 0.2, tool: 2, shape: 5, model: 'slab6', hide: 0, lop: 0, cat: 4, sensor: 1 });
+    add({ n: 'daylight', key: 'daylight_detector', ko: '햇빛 감지기', t: [tc('daylightT', ['bbbbbbbb', 'bgggggab', 'bgaagaab', 'bgggggab', 'bgaagaab', 'bgggggab', 'baaaaaab', 'bbbbbbbb'], { a: 'c0c8d0', b: '8a6a3a', g: '2a4a6a' }), 'planks', 'planks'], hard: 0.2, tool: 2, shape: 5, model: 'slab6', hide: 0, lop: 0, cat: 4, sensor: 1, rs: 'sensor' });
     R(['glass glass glass', 'quartz quartz quartz', 'oakSlab oakSlab oakSlab'], 'daylight', 1);
     const cobS = 'cobble';
-    stone('observer', 'observer', '관찰기', [tc('obsTop', ['aaaaaaaa', 'abbbbbba', 'aaaaaaaa', 'abbbbbba', 'aaaaaaaa', 'abbbbbba', 'aaaaaaaa', 'aaaaaaaa'], { a: '5a5a5a', b: '3a3a3a' }), tc('obsSide', P.polished, { a: '6a6a6a', b: '3a3a3a', c: '8a8a8a' }), 'obsTop'], { hard: 3, cat: 4, t6: ['obsSide', 'obsSide', 'obsTop', 'obsTop', tc('obsFace', ['aaaaaaaa', 'abbbbbba', 'abkkkkba', 'abkrrkba', 'abkrrkba', 'abkkkkba', 'abbbbbba', 'aaaaaaaa'], { a: '6a6a6a', b: '4a4a4a', k: '1a1a1a', r: '8a2020' }), 'obsSide'] });
+    // blocks that face one of six ways (D6; the variant (d + 3) % 6 first, so the kind faces up):
+    // t6 of the faces with `front` on d, `back` on the other side, `side(e)` on the rest, where
+    // e says which edge of that face lies toward the front (T top, B bottom, L left, R right)
+    const OP6 = [1, 0, 3, 2, 5, 4], DV6 = [[-1, 0, 0], [1, 0, 0], [0, -1, 0], [0, 1, 0], [0, 0, -1], [0, 0, 1]];
+    const edgeTo = (face, d) => {
+        const [fx, fy, fz] = DV6[d];
+        const du = [fz, -fz, fx, fx, -fx, fx][face], dv = [-fy, -fy, -fz, fz, -fy, -fy][face];
+        return dv < 0 ? 'T' : dv > 0 ? 'B' : du < 0 ? 'L' : 'R';
+    };
+    const faced = (d, front, back, side) => [0, 1, 2, 3, 4, 5].map(f => f === d ? front : f === OP6[d] ? back : side(edgeTo(f, d)));
+    const turned = (n, g, p) => { tc(n + 'T', g, p); tc(n + 'B', g.slice().reverse(), p); tc(n + 'L', tr(g), p); tc(n + 'R', tr(g).map(r => r.split('').reverse().join('')), p); };
+    const D6S = [3, 4, 5, 0, 1, 2];   // the variant order of the directions
+    const obsFace = tc('obsFace', ['aaaaaaaa', 'abbbbbba', 'abkkkkba', 'abkrrkba', 'abkrrkba', 'abkkkkba', 'abbbbbba', 'aaaaaaaa'], { a: '6a6a6a', b: '4a4a4a', k: '1a1a1a', r: '8a2020' });
+    tc('obsSide', P.polished, { a: '6a6a6a', b: '3a3a3a', c: '8a8a8a' });
+    turned('obsTop', ['aaaaaaaa', 'abbbbbba', 'aaaaaaaa', 'abbbbbba', 'aaaaaaaa', 'abbbbbba', 'aaaaaaaa', 'aaaaaaaa'], { a: '5a5a5a', b: '3a3a3a' });
+    const obsBack = (on) => tc(on ? 'obsBackOn' : 'obsBack', ['aaaaaaaa', 'abbbbbba', 'abaaaaba', 'abarraba', 'abarraba', 'abaaaaba', 'abbbbbba', 'aaaaaaaa'], { a: '6a6a6a', b: '4a4a4a', r: on ? 'ff3020' : '4a1010' });
+    obsBack(0); obsBack(1);
+    const OB = [];
+    for (const dd of D6S) for (const on of [0, 1]) OB.push({ v: dd !== 3 || on ? `f${dd}${on ? 'on' : ''}` : undefined, fac: dd, on, t6: faced(dd, obsFace, on ? 'obsBackOn' : 'obsBack', (e) => e === 'T' || e === 'B' ? 'obsTop' + e : 'obsSide') });
+    const obs = variants({ n: 'observer', key: 'observer', ko: '관찰기', t: ['obsSide'], hard: 3, tool: 1, tier: 0, cat: 4, rs: 'observer' }, OB);
+    for (const v of OB.slice(1)) byKey.get('observer_' + v.v).drop = obs.n;
     R(['cobble cobble cobble', 'sparkDust sparkDust quartz', 'cobble cobble cobble'], 'observer', 1);
-    stone('dispenser', 'dispenser', '발사기', [cobS, cobS, cobS], { hard: 3.5, cat: 4, use: 'chest', t6: [cobS, cobS, cobS, cobS, tc('dispFace', ['aaaaaaaa', 'aaaaaaaa', 'aakkkkaa', 'akbbbbka', 'akbbbbka', 'aakkkkaa', 'aaaaaaaa', 'aaaaaaaa'], { a: '7a7a7a', b: '3a3a3a', k: '1a1a1a' }), cobS] });
+    const dispFace = tc('dispFace', ['aaaaaaaa', 'aaaaaaaa', 'aakkkkaa', 'akbbbbka', 'akbbbbka', 'aakkkkaa', 'aaaaaaaa', 'aaaaaaaa'], { a: '7a7a7a', b: '3a3a3a', k: '1a1a1a' });
+    const dropFace = tc('dropFace', ['aaaaaaaa', 'aaaaaaaa', 'aaakkaaa', 'aakbbkaa', 'aakbbkaa', 'aaakkaaa', 'aaaaaaaa', 'aaaaaaaa'], { a: '7a7a7a', b: '3a3a3a', k: '1a1a1a' });
+    for (const [n, key, ko, face, aux] of [['dispenser', 'dispenser', '발사기', dispFace, 0], ['dropper', 'dropper', '공급기', dropFace, 1]]) {
+        const L = D6S.map(dd => ({ v: dd !== 3 ? `f${dd}` : undefined, fac: dd, t6: faced(dd, face, cobS, () => cobS) }));
+        const k = variants({ n, key, ko, t: [cobS], hard: 3.5, tool: 1, tier: 0, cat: 4, use: 'chest', rs: 'dispenser', aux }, L);
+        for (const v of L.slice(1)) byKey.get(n + '_' + v.v).drop = k.n;
+    }
     R(['cobble cobble cobble', 'cobble bow cobble', 'cobble sparkDust cobble'], 'dispenser', 1);
-    stone('dropper', 'dropper', '공급기', [cobS, cobS, cobS], { hard: 3.5, cat: 4, use: 'chest', t6: [cobS, cobS, cobS, cobS, tc('dropFace', ['aaaaaaaa', 'aaaaaaaa', 'aaakkaaa', 'aakbbkaa', 'aakbbkaa', 'aaakkaaa', 'aaaaaaaa', 'aaaaaaaa'], { a: '7a7a7a', b: '3a3a3a', k: '1a1a1a' }), cobS] });
     R(['cobble cobble cobble', 'cobble _ cobble', 'cobble sparkDust cobble'], 'dropper', 1);
     add({ n: 'hopper', key: 'hopper', ko: '깔때기', t: [tc('hopperT', P.polished, { a: '4a4a4a', b: '2a2a2a', c: '5a5a5a' })], hard: 3, tool: 1, shape: 5, model: 'hopper', hide: 0, lop: 0, cat: 4, use: 'chest' });
     R(['ingotIron _ ingotIron', 'ingotIron chest ingotIron', '_ ingotIron _'], 'hopper', 1);
-    const pistonSide = tc('pistonSide', ['aaaaaaaa', 'bbbbbbbb', 'cccccccc', 'cckkkkcc', 'cckkkkcc', 'cccccccc', 'cccccccc', 'cccccccc'], { a: 'a7834f', b: '8c6b3c', c: '7a7a7a', k: '5a5a5a' });
-    stone('piston', 'piston', '피스톤', ['planks', pistonSide, cobS], { hard: 1.5, cat: 4, push: 1 });
-    stone('stickyPiston', 'sticky_piston', '끈끈이 피스톤', [tc('stickyTop', P.block, { a: '7ad060', b: '4a9a38', c: 'a8f090' }), pistonSide, cobS], { hard: 1.5, cat: 4, push: 2 });
+    // pistons: 6 ways x pushed out or not (out: the base; its arm in the next cell is a pistonHead)
+    turned('pistonSide', ['aaaaaaaa', 'bbbbbbbb', 'cccccccc', 'cckkkkcc', 'cckkkkcc', 'cccccccc', 'cccccccc', 'cccccccc'], { a: 'a7834f', b: '8c6b3c', c: '7a7a7a', k: '5a5a5a' });
+    const stickyTop = tc('stickyTop', P.block, { a: '7ad060', b: '4a9a38', c: 'a8f090' });
+    tc('pistonInnerT', ['cccccccc', 'cbbbbbbc', 'cbaaaabc', 'cbakkabc', 'cbakkabc', 'cbaaaabc', 'cbbbbbbc', 'cccccccc'], { a: '6a6a6a', b: '5a5a5a', c: '7a7a7a', k: '8a6a3a' });
+    tc('pistonRodT', P.flat, { a: '9a7a4a', b: '8a6a3a' });
+    for (const [n, key, ko, top, sticky] of [['piston', 'piston', '피스톤', 'planks', 0], ['stickyPiston', 'sticky_piston', '끈끈이 피스톤', stickyTop, 1]]) {
+        const L = [];
+        for (const dd of D6S) for (const ext of [0, 1]) {
+            const t6 = faced(dd, ext ? 'pistonInnerT' : top, cobS, (e) => 'pistonSide' + e);
+            L.push(ext ? { v: `f${dd}out`, fac: dd, on: 1, t6, shape: 5, model: `pbase_${dd}`, hide: 0, lop: 0 } : { v: dd !== 3 ? `f${dd}` : undefined, fac: dd, on: 0, t6 });
+        }
+        const k = variants({ n, key, ko, t: [top, 'pistonSideT', cobS], hard: 1.5, cat: 4, rs: 'piston', aux: sticky }, L);
+        for (const v of L.slice(1)) byKey.get(n + '_' + v.v).drop = k.n;
+    }
+    const HD = [];
+    for (const dd of D6S) for (const sticky of [0, 1]) HD.push({ v: dd !== 3 || sticky ? `f${dd}${sticky ? 's' : ''}` : undefined, fac: dd, aux: sticky, model: `phead_${dd}`, t6: faced(dd, sticky ? stickyTop : 'planks', 'planks', () => 'planks') });
+    variants({ n: 'pistonHead', key: 'piston_head', ko: '피스톤 팔', t: ['planks'], hard: 1.5, shape: 5, hide: 0, lop: 0, cat: 4, hidden: 1, drop: 'none', rs: 'head', nokind: 1 }, HD);
     R(['#planks #planks #planks', 'cobble ingotIron cobble', 'cobble sparkDust cobble'], 'piston', 1); R(['jellyBall', 'piston'], 'stickyPiston', 1);
     const railT = tc('railT', ['b.b..b.b', 'kkkkkkkk', 'b.b..b.b', 'b.b..b.b', 'b.b..b.b', 'kkkkkkkk', 'b.b..b.b', 'b.b..b.b'].map(r => r), { b: 'a0a0a0', k: '6a4a2a' });
     for (const [n, key, ko, col] of [['rail', 'rail', '레일', 'a0a0a0'], ['poweredRail', 'powered_rail', '전동 레일', 'e8c030'], ['detectorRail', 'detector_rail', '감지 레일', 'a02020'], ['activatorRail', 'activator_rail', '작동 레일', 'c04040']]) {
@@ -671,7 +742,7 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     R(['ingotIron', 'stick', '#planks'], 'tripwireHook', 2);
     cube('trappedChest', 'trapped_chest', '덫 상자', ['chestTop', tc('trappedSide', ['bbbbbbbb', 'baaaaaab', 'baaaaaab', 'kkkrrkkk', 'baarraab', 'baaaaaab', 'baaaaaab', 'bbbbbbbb'], { a: '9c6a2c', b: '6b4518', k: '3a2810', r: 'c02020' }), 'chestTop'], { hard: 2.5, tool: 2, cat: 4, use: 'chest', shape: 5, model: 'chestm', hide: 0, lop: 0 });
     R(['chest tripwireHook'], 'trappedChest', 1, 1);
-    cube('commandBlock', 'command_block', '명령 블록', tc('cmdT', ['kkkkkkkk', 'kaaaaaak', 'kaccccak', 'kacbbcak', 'kacbbcak', 'kaccccak', 'kaaaaaak', 'kkkkkkkk'], { a: 'c88a4a', b: 'e8c890', c: 'a86a2a', k: '6a4a2a' }), { hard: -1, cat: 4, use: 'command', drop: 'none' });
+    cube('commandBlock', 'command_block', '명령 블록', tc('cmdT', ['kkkkkkkk', 'kaaaaaak', 'kaccccak', 'kacbbcak', 'kacbbcak', 'kaccccak', 'kaaaaaak', 'kkkkkkkk'], { a: 'c88a4a', b: 'e8c890', c: 'a86a2a', k: '6a4a2a' }), { hard: -1, cat: 4, use: 'command', drop: 'none', rs: 'command' });
     cube('beacon', 'beacon', '신호기', tc('beaconT', ['wwwwwwww', 'w.cccc.w', 'w.cbbc.w', 'w.cbbc.w', 'w.cccc.w', 'wkkkkkkw', 'wkkkkkkw', 'wwwwwwww'], { w: 'c8f0f8', c: '80f0f0', b: 'f0ffff', k: '2a2a3a' }), { hard: 3, shape: 4, hide: 0, lop: 0, light: 15, cat: 3 });
     R(['glass glass glass', 'glass heartCore glass', 'obsidian obsidian obsidian'], 'beacon', 1);
     add({ n: 'enchantTable', key: 'enchanting_table', ko: '마법 탁자', t: [tc('enchTop', ['kkkkkkkk', 'krrrrrrk', 'krwwwwrk', 'krwwwwrk', 'krrrrrrk', 'kkkkkkkk', 'kkkkkkkk', 'kkkkkkkk'], { k: '2a1a2a', r: 'a02020', w: 'e8e0c8' }), tc('enchSide', ['rrrrrrrr', 'kkkkkkkk', 'kcckkcck', 'kkkkkkkk', 'kkckkkck', 'kkkkkkkk', 'kkkkkkkk', 'kkkkkkkk'], { k: '1a1420', r: 'a02020', c: '3ae0d0' }), 'obsidian'], hard: 5, tool: 1, tier: 0, shape: 5, model: 'table12', hide: 0, lop: 0, light: 7, cat: 3, use: 'enchant' });
