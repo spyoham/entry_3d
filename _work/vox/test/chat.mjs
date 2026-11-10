@@ -24,7 +24,8 @@ const ch = s.peek('CHT'); ok(ch[ch.length - 1].includes('Hello @a'), 'T: chat wi
 tap(191); F(2); tap(38); tap(38); ok(s.peek('tline') === '/setblock ~ ~3 ~ gold_block', 'up arrow twice: the line before last again');
 tap(27); F(2); ok(s.peek('uiMode') === 0, 'Esc closes it');
 const y0 = s.peek('py'); tap(191); F(2); s.press(32); F(20); s.release(32); ok(s.peek('py') - y0 < 0.1, 'space while typing does not jump'); tap(27);
-s.answers.push('/give @s 다이아몬드 3'); tap(191); F(2); tap(9); F(3);
+// (Korean is typed in the line itself now, Tab completes: test/hangul.mjs)
+tap(191); F(2); typeText('give @s '); tap(21); typeText('ekdldkahsem'); tap(21); typeText(' 3'); tap(13); F(3);
 const inv = s.peek('INVI'), D = s.peek('ITKEY').indexOf('diamond');
-console.log('dbg', s.peek('uiMode'), inv.includes(D), s.peek('keysLost'), s.peek('isTess'), s.peek('CHT').slice(-1)); ok(s.peek('uiMode') === 0 && inv.includes(D), 'Tab: the text box, a Korean name works, then a click is asked for');
+ok(s.peek('uiMode') === 0 && inv.includes(D), 'a Korean item name typed in the line: ' + s.peek('CHT').slice(-1));
 console.log(fails ? fails + ' FAILED' : 'all ok');

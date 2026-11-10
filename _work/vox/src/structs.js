@@ -18,7 +18,8 @@ let STRAD = [44, 12, 9, 6, 5, 8, 26, 30, 12, 7, 2, 0, 0, 56, 0, 22, 0];
 let STDIM = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2];
 function structByName(nm) {
   let r = 0, k = 1;
-  while (k <= STKEY.length) { if (STKEY[k] == nm || STNAME[k] == nm) { r = k; } k = k + 1; }
+  let nk = replace(nm, '_', ' ');
+  while (k <= STKEY.length) { if (STKEY[k] == nm || STNAME[k] == nm || STNAME[k] == nk) { r = k; } k = k + 1; }
   if (nm == 'temple' || nm == 'desert_temple') { r = 2; } if (nm == 'witch_hut') { r = 4; } if (nm == 'woodland_mansion') { r = 7; } if (nm == 'ocean_monument') { r = 8; }
   if (nm == 'buried_chest' || nm == 'treasure') { r = 11; } if (nm == 'nether_fortress') { r = 15; } if (nm == 'bastion') { r = 16; } if (nm == 'end_city' || nm == 'city') { r = 17; }
   return r;

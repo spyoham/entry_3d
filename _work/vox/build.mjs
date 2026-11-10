@@ -11,7 +11,7 @@ import { TEX, CRACK, BLOCKS, NBLOCK, ITEMS, TIERS, KINDS, SMITH, toolId, NITEM, 
 import { MODELS, ARMS, ARMCOL, pottedModel } from './models.mjs';
 import { makeSounds } from './sounds.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '2.1';
+export const VERSION = '2.2';
 export const NAME = '블록 월드';
 
 // the ring window of loaded chunks: NCH x NCH slots of 16 x 16 columns; chunks are made within
@@ -394,7 +394,7 @@ export function makeData() {
 }
 
 // ------------------------------------------------------------------ sources
-export const FILES = ['world.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'save.js', 'net.js', 'netcmd.js', 'menu.js', 'mobs.js', 'items.js', 'hud.js', 'extra.js', 'cmds.js', 'main.js', 'test.js'];
+export const FILES = ['world.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'save.js', 'net.js', 'netcmd.js', 'menu.js', 'mobs.js', 'items.js', 'hud.js', 'extra.js', 'cmds.js', 'keyin.js', 'main.js', 'test.js'];
 export function allConsts(more = {}) {
     const { C } = makeData();
     return { ...consts, ...C, ...more };
@@ -417,6 +417,9 @@ export function sources(C) {
             init.push(`  i = 1; while (i <= ${k}__${p}.length) { ${k}.push(${k}__${p}[i]); i = i + 1; }`);
         }
     }
+    // every Korean syllable in order (the typed line puts them together: src/keyin.js)
+    let hsy = ''; for (let i = 0; i < 11172; i++) hsy += String.fromCharCode(0xAC00 + i);
+    parts.push(`let HSY = ${JSON.stringify(hsy)};`);
     parts.push(`function bigInit() {\n  let i = 0;\n${init.join('\n')}\n}`);
     const raw = parts.join('\n') + '\n' + files.map(f => fs.readFileSync(path.join(HERE, 'src', f), 'utf8')).join('\n') + stub;
     const { src, count } = expandMacros(raw);

@@ -100,10 +100,10 @@ function itemByName(nm) {
   nm = bare(nm);
   let br = indexOf(nm, '['); if (br > 0) { nm = substr(nm, 1, br - 1); }
   let br2 = indexOf(nm, '{'); if (br2 > 0) { nm = substr(nm, 1, br2 - 1); }
-  let r = 0, id = 1;
+  let r = 0, id = 1, nk = replace(nm, '_', ' ');
   if (isNum(nm) == 1) { if (nm * 1 > 0) { if (nm * 1 < NITEM) { r = Math.floor(nm * 1); } } }
   while (id < NITEM && r == 0) {
-    if (ITKEY[id + 1] == nm) { r = id; } else { if (ITNAME[id + 1] == nm) { r = id; } }
+    if (ITKEY[id + 1] == nm) { r = id; } else { if (ITNAME[id + 1] == nm || ITNAME[id + 1] == nk) { r = id; } }
     id = id + 1;
   }
   if (r > 0) { if (ITNAME[r + 1] == ' ') { r = 0; } }
@@ -114,11 +114,11 @@ function blockByName(nm) {
   nm = bare(nm);
   let st = '', br = indexOf(nm, '[');
   if (br > 0) { st = substr(nm, br + 1, strlen(nm) - 1); nm = substr(nm, 1, br - 1); }
-  let r = 0 - 1, id = 0;
+  let r = 0 - 1, id = 0, nk = replace(nm, '_', ' ');
   if (nm == 'air' || nm == 'cave_air' || nm == '공기') { r = 0; }
   if (nm == 'water') { r = 7; } if (nm == 'lava') { r = 35; }
   while (id < NBLOCK && r < 0) {
-    if (ITKEY[id + 1] == nm || ITNAME[id + 1] == nm) { if (BSTATE[id + 1] == 0) { r = id; } }
+    if (ITKEY[id + 1] == nm || ITNAME[id + 1] == nm || ITNAME[id + 1] == nk) { if (BSTATE[id + 1] == 0) { r = id; } }
     id = id + 1;
   }
   // (a variant by its own key: wheat_3, farmland_moist ...)
@@ -154,13 +154,15 @@ function stateOf(b, st) {
 function effectByName(nm) {
   nm = bare(nm);
   let r = 0, k = 1;
-  while (k <= 12) { if (EFK[k] == nm || EFKO[k] == nm) { r = k; } k = k + 1; }
+  let nk = replace(nm, '_', ' ');
+  while (k <= 12) { if (EFK[k] == nm || EFKO[k] == nm || EFKO[k] == nk) { r = k; } k = k + 1; }
   return r;
 }
 function mobByName(nm) {
   nm = bare(nm);
   let r = 0, k = 1;
-  while (k <= NMOBT) { if (MKEY[k] == nm || MNAME[k] == nm) { r = k; } k = k + 1; }
+  let nk = replace(nm, '_', ' ');
+  while (k <= NMOBT) { if (MKEY[k] == nm || MNAME[k] == nm || MNAME[k] == nk) { r = k; } k = k + 1; }
   return r;
 }
 
@@ -382,12 +384,16 @@ on('key:9', 'pen', function () { kq(9); });
 on('key:27', 'pen', function () { kq(27); });
 on('key:38', 'pen', function () { kq(38); });
 on('key:40', 'pen', function () { kq(40); });
+// 한/영 (Lang1: 21; on some keyboards it is the right Alt: 18) switches Korean and Latin
+on('key:21', 'pen', function () { kq(21); });
+on('key:18', 'pen', function () { kq(18); });
 function chatOpen(pre) {
   // (2: the key that opened it is not typed; from the next frame 1)
   uiMode = 9; typing = 2; tline = pre; KQ = []; KQS = []; chH = CHH.length + 1; tBlink = 0;
+  hanClear(); acCyc = 0; acDirty = 1;
 }
 function chatClose() {
-  typing = 0; uiMode = 0; txOff(123); KQ = []; KQS = [];
+  typing = 0; uiMode = 0; txOff(123); txOff(122); KQ = []; KQS = []; hanClear(); ACL = []; acCyc = 0;
 }
 // the keys typed since the last frame, and the line on the screen
 function chatType(dt) {
@@ -395,13 +401,15 @@ function chatType(dt) {
   while (i <= KQ.length) {
     if (typing == 1) {
       let c = KQ[i], sh = KQS[i];
-      if (c == 13) { chatSend(); }
-      else { if (c == 9) { chatBox(); }
+      if (c != 9) { acCyc = 0; acDirty = 1; }
+      if (c == 13) { hanCommit(); chatSend(); }
+      else { if (c == 9) { hanCommit(); acTab(sh); }
       else { if (c == 27) { chatClose(); }
-      else { if (c == 8) { if (strlen(tline) <= 1) { tline = ''; } else { tline = substr(tline, 1, strlen(tline) - 1); } }
-      else { if (c == 38) { if (chH > 1) { chH = chH - 1; tline = CHH[chH]; } }
-      else { if (c == 40) { if (chH < CHH.length) { chH = chH + 1; tline = CHH[chH]; } else { chH = CHH.length + 1; tline = ''; } }
-      else { if (strlen(tline) < 240) { typeKey(c, sh); } } } } } } }
+      else { if (c == 21 || c == 18) { hanCommit(); hanMode = 1 - hanMode; }
+      else { if (c == 8) { if (hanBack() == 0) { if (strlen(tline) <= 1) { tline = ''; } else { tline = substr(tline, 1, strlen(tline) - 1); } } }
+      else { if (c == 38) { hanClear(); if (chH > 1) { chH = chH - 1; tline = CHH[chH]; } }
+      else { if (c == 40) { hanClear(); if (chH < CHH.length) { chH = chH + 1; tline = CHH[chH]; } else { chH = CHH.length + 1; tline = ''; } }
+      else { if (strlen(tline) < 240) { if (hanMode == 1 && c >= 65 && c <= 90) { hanKey(c, sh); } else { hanCommit(); typeKey(c, sh); } } } } } } } } }
     }
     i = i + 1;
   }
@@ -409,8 +417,13 @@ function chatType(dt) {
   if (typing == 2) { typing = 1; }
   if (typing == 1) {
     tBlink = tBlink + dt;
-    let cur = ''; if (mod(Math.floor(tBlink * 2), 2) == 0) { cur = '_'; }
-    tx(123, `> ${tline}${cur}   (Tab: 한글 입력 칸)`, -236, -42, 8, '#ffff80', 1);
+    hanStr();
+    let line = `${tline}${hcS}`;
+    if (acDirty == 1) { acDirty = 0; acBuild(line); }
+    acShow();
+    let cur = ' '; if (mod(Math.floor(tBlink * 2), 2) == 0) { cur = '_'; }
+    let md = 'A'; if (hanMode == 1) { md = '한'; }
+    tx(123, `> ${line}${cur}   [${md}] 한/영: 한글·영어  Tab: 자동완성`, -236, -42, 8, '#ffff80', 1);
   }
 }
 function typeKey(c, sh) {
@@ -429,14 +442,6 @@ let SYK = [189, 187, 219, 221, 186, 222, 188, 190, 191, 192, 220];
 function chatSend() {
   let s = tline;
   chatClose();
-  chatRun(s);
-}
-// Tab: Entry's own box (Korean can be written there; then a click gives the keys back)
-function chatBox() {
-  chatClose(); uiMode = 9; mouseFree();
-  ask('채팅·명령어 (한글로 쓸 수 있는 칸)');
-  let s = answer();
-  askDone(); uiMode = 0;
   chatRun(s);
 }
 function chatRun(s) {
@@ -938,7 +943,8 @@ function cmdLocate(nm) {
 }
 function cmdLocateBiome(nm) {
   let k = 0, bi = 0 - 1, out = '';
-  while (k < BKEYS.length) { if (BKEYS[k + 1] == nm || BNAMES[k + 1] == nm) { bi = k; } k = k + 1; }
+  let nk = replace(nm, '_', ' ');
+  while (k < BKEYS.length) { if (BKEYS[k + 1] == nm || BNAMES[k + 1] == nm || BNAMES[k + 1] == nk) { bi = k; } k = k + 1; }
   if (bi < 0) { out = `알 수 없는 생물 군계입니다: ${nm}`; }
   else {
     let r = 0, found = 0, fx2 = 0, fz2 = 0;

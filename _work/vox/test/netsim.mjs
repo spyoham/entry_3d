@@ -107,6 +107,12 @@ ok(String(B.g('CHT').slice(-1)[0]).includes('관리자만'), 'bob may not /give:
 B.call((fn) => fn.runCommand('/home'));
 run(0.5);
 ok(Math.abs(B.g('px') - 0.5) < 0.3 && Math.abs(B.g('pz') - 0.5) < 0.3, `bob's /home (a plugin's command) works for him: ${B.g('px').toFixed(1)} ${B.g('py').toFixed(1)}`);
+// Tab: the players online, the plugins' commands, the server's commands for an op
+A.call((fn) => fn.acBuild('/tell b')); ok(A.g('ACL').includes('bob'), 'Tab: /tell b → ' + A.g('ACL').join(' '));
+B.call((fn) => fn.acBuild('/ho')); ok(B.g('ACL').includes('home'), "Tab: a plugin's command: " + B.g('ACL').join(' '));
+A.call((fn) => fn.acBuild('/op ')); ok(A.g('ACL').includes('alice') && A.g('ACL').includes('bob'), 'Tab: /op <players>: ' + A.g('ACL').join(' '));
+A.call((fn) => fn.acBuild('/plugin on ')); ok(A.g('ACL').includes('선물'), 'Tab: /plugin on <plugins>: ' + A.g('ACL').join(' '));
+A.call((fn) => fn.acBuild('안녕 b')); ok(A.g('ACL').join() === 'bob', 'Tab in chat: names only: ' + A.g('ACL').join(' '));
 // carol comes later: the block is there, the plugin gives her a diamond
 const C = new Client(srv, 'carol'); cs.push(C);
 run(1);
@@ -138,6 +144,7 @@ run(2);
 ok(C.g('gState') === 0 && C.g('scr') === 8 && String(C.g('msgBody')).includes('차단'), `carol thrown out: ${C.g('msgTitle')} / ${C.g('msgBody')}`);
 run(3);
 ok(C.call((fn) => fn.netJoinCheck(K)).includes('차단'), 'carol cannot come back: ' + C.call((fn) => fn.netJoinCheck(K)));
+A.call((fn) => fn.acBuild('/pardon ')); ok(A.g('ACL').includes('carol'), 'Tab: /pardon <banned>: ' + A.g('ACL').join(' '));
 // the host leaves: bob carries on as the host
 A.call((fn) => { fn.netLeave(); A.sim.poke('gState', 0); });
 run(3);

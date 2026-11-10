@@ -1,7 +1,7 @@
-# 블록 월드 — 작업 인계 메모 (2026-11-09, v2.1)
+# 블록 월드 — 작업 인계 메모 (2026-11-10, v2.2)
 
-산출물(루트): `블록 월드 v2.1.ent`, `블록 월드 v2.1 설명서.txt`, `블록 월드 썸네일.png` (이전 판은 깃헙 `old/`)
-빌드: `node build.mjs "../../블록 월드 v2.1.ent"` (`K=V`로 상수 바꾸기: `AUTOSEED=n` 타이틀 없이 시드 n으로 시작, `AUTOMODE=1` 크리에이티브, `TESTRUN=1` test.js 포함, `BENCH=1` 시간 멈춤·몹 스폰 끔·k 고정, `ANIMALS=0`, `NOCAVE=1` 동굴 가리기 끔)
+산출물(루트): `블록 월드 v2.2.ent`, `블록 월드 v2.2 설명서.txt`, `블록 월드 썸네일.png` (이전 판은 깃헙 `old/`)
+빌드: `node build.mjs "../../블록 월드 v2.2.ent"` (`K=V`로 상수 바꾸기: `AUTOSEED=n` 타이틀 없이 시드 n으로 시작, `AUTOMODE=1` 크리에이티브, `TESTRUN=1` test.js 포함, `BENCH=1` 시간 멈춤·몹 스폰 끔·k 고정, `ANIMALS=0`, `NOCAVE=1` 동굴 가리기 끔)
 
 ## 요청
 - 2026-11-08 ".ent로 마인크래프트를 최대한 비슷하게 만들어줘.(심층암 추가되기 전 기준, tessvm전용)"
@@ -135,3 +135,11 @@
 - 시험: `test/netsim.mjs`(Entry Sync 모형, 3명: 서버 만들기·목록·접속·서로 보기·블록·채팅·저장·플러그인·권한·나중에 온 사람·닉네임 물건·PvP·차단·호스트 넘김, 27개), `test/nettess.mjs`(진짜 tessvm 두 창 + 진짜 inject-latest.js, Node가 방 서버: 연결 표시·서버 목록·접속·서로 보기·채팅·블록·호스트 기록), 그림 `test/menus.json`(menus.ent: 타이틀·세계·새 세계·서버 목록·서버 추가·게임 안의 이름표·Tab). 시험 명령 testCmd 10 새 세계, 11 서버 만들고 접속, 12 이름으로 접속, 13 채팅, 14 블록 읽기.
 - 크기: project.json 15.0 MB. tessvm 1500틱 11.99 ms(바로 전 판 11.31, 같은 날).
 - 미확인: 실제 playentry 업로드 + 실제 Entry Sync 서버(서로 다른 두 계정 동시), 서버 메시지 한도.
+
+## v2.2 한글 자판과 Tab 자동완성 (2026-11-10, 사용자: "(오프라인+온라인)마크에서 한국어 자판기도 추가해서 명령어에 플레이어 이름 넣을때 한국어 입력가능하게 해줘. 그리고 tab키로 자동완성 만들어줘.")
+- v2.1은 old/로. 새 파일 `src/keyin.js`(build FILES, cmds.js 뒤). 예전 Tab = 엔트리 답 칸(`chatBox`)은 지움.
+- 한글: tessvm은 키를 `event.code`로 읽으므로(boot.js keyCodeOf) 윈도우 입력기가 한글이어도(keydown이 229 'Process') 게임에는 KeyA → 65가 온다. 그래서 두벌식 조합을 게임 안에서 함: 조합 중인 글자 hcC(초성 0..18) hcV(중성 0..20) hcJ(종성 1..27), 키 → 자모 `HKN`/`HKS`(Shift: ㅃㅉㄸㄲㅆㅒㅖ), 초성 → 종성 `HCJ`, 겹받침 `HJA`/`HJB`(나눌 때 남는 종성, 넘어가는 초성), 겹모음 `HVA`/`HVB`. 음절은 빌드가 넣는 문자열 `HSY`(가..힣 11172자, build.mjs sources)의 (초*21+중)*28+종+1번째(엔트리에 코드 → 글자 블록이 없어서). 한/영 = 키 21(Lang1: 코드 표에 없어서 keyCode 그대로) 또는 18(Alt: 자판에 따라 오른쪽 Alt로 오는 한/영), `hanMode`는 줄을 닫아도 남음. Backspace는 자모 하나씩(`hanBack`), 다른 키·Enter·Tab·↑↓ 전에 `hanCommit`. 화면 줄은 `tline + hcS`.
+- Tab(`acBuild`/`acTab`/`acShow`): 줄의 마지막 낱말을 그 자리에 맞는 것으로. 명령어마다 낱말 자리 목록 `ACN`/`ACS`(서버용 `ACNET`/`ACSNET`): #p 대상(@s @p @a @r @e + 온라인은 같은 서버에 살아 있는 NNICK과 netNick, 혼자면 닉네임과 '플레이어'), #i 아이템, #b 블록(변형 BSTATE>0 뺌), #m 몹, #e 효과, #g 게임 규칙, #s 구조물, #v 생물 군계, #c 명령어(+ 켜진 플러그인의 command 이름), #n 차단, #o 관리자, #W 화이트리스트, #l 플러그인, #X execute; 그 밖은 a|b|c 고르기. /execute … run 뒤와 /plugin add 이름 이벤트 대상 뒤는 거기서 새 명령어로. 채팅 글은 플레이어 이름만. 여럿이면 첫 것을 넣고 다음 Tab마다 다음 것(Shift+Tab 앞), 하나면 넣고 빈칸. 후보는 글 칸 122(y -31, 연두), 입력 줄이 바뀔 때마다(acDirty) 다시 셈. 최대 200개.
+- 빈칸 있는 한국어 이름은 _로 넣고, itemByName·blockByName·mobByName·effectByName·structByName·/locatebiome가 _를 빈칸으로도 읽음(`nk`).
+- 함정: 지역 변수를 `''`로 시작해 글을 이어 붙이면 앞에 0이 붙음(입력 줄 커서도 그래서 ' '로). 시뮬레이터는 빈 글의 charAt·범위 밖 substr를 오류로 멈춤(`ch1`). 글 칸 폭은 이 크기(7)에서 반각 약 94자 — 넘으면 줄이 꺾여 입력 줄을 덮음. 셸 heredoc에 한글을 넣으면 파이썬이 못 읽음(스크립트는 파일로).
+- 시험: `test/hangul.mjs`(조합 18가지, Backspace 분해, Alt, 한글 채팅, 한글 이름 /give, Tab: 명령어·순환·Shift+Tab·게임 규칙·대상·아이템·한국어 이름·execute run·구조물·몹·효과·고르기, 무작위 키 2400개), `test/netsim.mjs`(온라인 Tab: /tell 이름, 플러그인 명령, /op, /plugin on, 채팅의 이름, /pardon 차단된 이름), `test/chat.mjs`(줄에서 친 한국어 아이템 이름). 브라우저: `node ../tessvm/trun.mjs test/hangul.ent --script test/hangul.json --gpu --vars tline,hcS`(빌드 AUTOSEED=1234 AUTOMODE=1 TESTRUN=1, tsrv.mjs 3100; 키는 Lang1과 입력기가 켜진 229 'Process'로 보냄). cmdfix·cond·save·v20·v20c·tess(오류 없음, 14.7 ms/틱)도 통과.
