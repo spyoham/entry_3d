@@ -314,7 +314,7 @@ let slX = 0, slY = 0;
 function slotXY(s) {
   if (s <= 9) { slX = -72 + (s - 1) * 18; slY = -78; }
   else { if (s <= 36) { slX = -72 + mod(s - 10, 9) * 18; slY = -18 - idiv(s - 10, 9) * 18; }
-  else { if (s <= 40) { slX = -72; slY = 66 - (s - 37) * 18; }
+  else { if (s <= 40) { if (uiMode == 5) { slX = -100; slY = -18 - (s - 37) * 18; if (s == 40) { slY = -78; } } else { slX = -72; slY = 66 - (s - 37) * 18; } }
   else { if (s <= 49) {
     let k = s - 41;
     if (cgSize == 2) { slX = 6 + mod(k, 2) * 18; slY = 62 - idiv(k, 2) * 18; }
@@ -329,14 +329,13 @@ function slotXY(s) {
 function slotIn(s) {
   let r = 0;
   if (s <= 36) { r = 1; }
-  if (s >= 37 && s <= 40) { if (uiMode == 1) { r = 1; } else { r = 0; } }
+  if (s >= 37 && s <= 40) { if (uiMode == 1 || uiMode == 5) { r = 1; } else { r = 0; } }
   if (s >= 41 && s <= 49) { if (uiMode == 1) { if (s - 40 <= 4) { r = 1; } } if (uiMode == 2) { r = 1; } }
   if (s == 50) { if (uiMode == 1 || uiMode == 2) { r = 1; } }
   if (s >= 51 && s <= 53) { if (uiMode == 3) { r = 1; } }
   if (s >= 54 && s <= 56) { if (uiMode == 8) { r = 1; } }
   if (s >= 61 && s <= 87) { if (uiMode == 4) { r = 1; } }
   if (s >= 101 && s <= 136) { if (uiMode == 5) { r = 1; } }
-  if (uiMode == 5) { if (s >= 10 && s <= 36) { r = 0; } }
   return r;
 }
 let SLOTS = [];
@@ -363,9 +362,9 @@ function invScreen() {
     title = `${tn}  ${uiPage + 1}/${Math.max(1, Math.ceil(palLen() / 36))}  ← → 휠`;
     creativeTabs();
   }
-  panel(-88, top, 88, -94);
+  if (uiMode == 5) { panel(-112, top, 88, -94); } else { panel(-88, top, 88, -94); }
   tx(20, title, -80, top - 6, 8, '#404040', 1);
-  if (uiMode <= 4 || uiMode == 8) { tx(21, '소지품', -80, 0, 8, '#404040', 1); } else { txOff(21); }
+  tx(21, '소지품', -80, 0, 8, '#404040', 1);
   let i = 1, s = 0, ti = 22, hov = 0;
   let mx = mouseX(), my = mouseY();
   while (i <= SLOTS.length) {
@@ -378,8 +377,7 @@ function invScreen() {
         box(slX - 8, slY + 8, slX + 8, slY - 8, '#a8a8a8');
       }
       slotGet(s);
-      slotItem(slX, slY, gI, gN, gD, ti);
-      ti = ti + 1;
+      if (s >= 101) { slotItem(slX, slY, gI, 1, gD, 0); } else { slotItem(slX, slY, gI, gN, gD, ti); ti = ti + 1; }
     }
     i = i + 1;
   }

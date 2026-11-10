@@ -5,12 +5,12 @@
 // scr: 0 title, 1 worlds, 2 new world, 3 delete a world?, 4 servers, 5 a server's settings,
 // 6 a server by name, 7 settings, 8 a message, 9 help.
 let scr = 0, menuTick = 0 - 9, panoReady = 0, panoGen = 0, panoYaw = 30, panoY = 50, splash = '', splashT = 0;
-let selW = 0, selS = 0, listTop = 0, cwName = '새 세계', cwMode = 0, cwSeedText = '', cwSeed = 0;
-let esName = '', esMotd = '', esSeedText = '', esSeed = 0, esMode = 0, esEdit = 0, dcName = '';
+let selW = 0, selS = 0, listTop = 0, cwName = '새 세계', cwMode = 0, cwSeedText = '', cwSeed = 0, cwFlat = 0, cwFlatSpec = 'bedrock,2*dirt,grass_block';
+let esName = '', esMotd = '', esSeedText = '', esSeed = 0, esMode = 0, esEdit = 0, dcName = '', esFlat = 0, esFlatSpec = 'bedrock,2*dirt,grass_block';
 let msgTitle = '', msgBody = '', msgBody2 = '', msgBack = 0, menuKeep = 0;
 const PANOSEED = 1234;
 let SPLASHES = ['엔트리로 만들었습니다!', '블록이 1784가지!', '이제 함께 놉니다!', '플러그인을 만들어 보세요!', '세 개의 세계!', '불꽃가루로 움직여요!', '저장도 됩니다!', 'tessvm 덕분에!', '닉네임이 곧 계정!', '탄성 블록 비행기!', '구조물이 20가지!', '심연과 공허!', '마을 사람과 거래!', '피스톤이 여섯 방향!', '네모난 세상!', '오늘도 캐러 갑니다!'];
-let HELPL = ['W A S D 걷기 · 스페이스 점프 · Shift 웅크리기 · R 달리기', '클릭 부수기·공격 · F 놓기·쓰기 · Q 버리기 · E 소지품', '1~9·휠 손에 들 칸 · G 시야 거리 · F3 정보 · P 메뉴', 'T 채팅 · / 명령어 (한/영 한글 · Tab 자동완성 · ↑↓ 지난 줄)', '멀티플레이: Tab을 누르고 있으면 접속한 사람들', '서버 관리자는 /op /ban /kick /whitelist /server /plugin', '플러그인: /plugin add 이름 이벤트 조건 대상 명령', '자세한 것은 설명서를 보세요'];
+let HELPL = ['W A S D 걷기 · 스페이스 점프 · Shift 웅크리기 · R 달리기', '클릭 부수기·공격 · F 놓기·쓰기 · Q 버리기 · E 소지품', '1~9·휠 손에 들 칸 · G 시야 · F3 정보 · P 메뉴 · C 블록 복사(크리에이티브)', 'T 채팅 · / 명령어 (한/영 한글 · Tab 자동완성 · ↑↓ 지난 줄)', '멀티플레이: Tab을 누르고 있으면 접속한 사람들', '서버 관리자는 /op /ban /kick /whitelist /server /plugin /perm', '플러그인: /plugin add 이름 이벤트 조건 대상 명령', '자세한 것은 설명서를 보세요'];
 
 function titleFrame(dt) {
   if (tickN - menuTick > 3) { menuEnter(); }
@@ -38,7 +38,7 @@ function menuMsg(t, b) {
 function panoStep(dt) {
   if (panoGen == 0) {
     panoGen = 1;
-    thingsInit(); genStart(PANOSEED); genPhase = 0; gameMode = 1;
+    thingsInit(); flatOn = 0; genStart(PANOSEED); genPhase = 0; gameMode = 1;
     px = 8.5; pz = 8.5; py = 60; dead = 0; headWater = 0; inLava = 0;
     setView(viewWant); fogR = 0 - 99; ctPos = NCOL * 192;
   }
@@ -73,6 +73,7 @@ function menuFrame(dt) {
   if (scr == 7) { scrOptions(); }
   if (scr == 8) { scrMessage(); }
   if (scr == 9) { scrHelp(); }
+  if (scr == 10) { scrDelServer(); }
   clickLatch = 0;
   fillStop();
 }
@@ -120,7 +121,8 @@ function scrWorlds() {
       let md = '서바이벌';
       if (wMode == 1) { md = '크리에이티브'; } if (wMode == 2) { md = '모험'; } if (wMode == 3) { md = '관전자'; }
       tx(ti, `${wName}`, -112, y0 - 8, 9, '#ffffff', 1);
-      tx(ti + 1, `${wDate} · ${md} 모드 · 시드 ${wSeed}`, -112, y0 - 21, 7, '#a0a0a0', 1);
+      let wk = `시드 ${wSeed}`; if (wFlat != '-') { wk = `평지 (${flatPresetName(wFlat)})`; }
+      tx(ti + 1, `${wDate} · ${md} 모드 · ${wk}`, -112, y0 - 21, 7, '#a0a0a0', 1);
       ti = ti + 2;
       if (hot == 1) { if (clickLatch == 1) { if (selW == k) { worldPlay(); } else { selW = k; } } }
       row = row + 1;
@@ -131,10 +133,10 @@ function scrWorlds() {
   if (row == 0) { tx(29, '저장한 세계가 없습니다. 새 세계를 만들어 보세요', 0, 40, 9, '#c0c0c0', 0); } else { txOff(29); }
   let has = 0; if (selW > 0) { has = worldHead(selW); }
   button(-154, -76, -4, -96, '선택한 세계 플레이', 2, has); if (btnHot == 1) { if (clickLatch == 1) { worldPlay(); } }
-  button(4, -76, 154, -96, '새 세계 만들기', 3, 1); if (btnHot == 1) { if (clickLatch == 1) { cwName = '새 세계'; cwMode = 0; cwSeedText = ''; cwSeed = 0; menuGo(2); } }
+  button(4, -76, 154, -96, '새 세계 만들기', 3, 1); if (btnHot == 1) { if (clickLatch == 1) { cwName = '새 세계'; cwMode = 0; cwSeedText = ''; cwSeed = 0; cwFlat = 0; cwFlatSpec = FLPS[1]; cwCheats = 1; menuGo(2); } }
   button(-154, -102, -80, -122, '이름 바꾸기', 4, has); if (btnHot == 1) { if (clickLatch == 1) { worldRename(selW); } }
   button(-76, -102, -2, -122, '삭제', 5, has); if (btnHot == 1) { if (clickLatch == 1) { menuGo(3); } }
-  button(2, -102, 76, -122, '다시 만들기', 6, has); if (btnHot == 1) { if (clickLatch == 1) { let wq = worldHead(selW); cwName = `${wName} 다시`; cwMode = wMode; cwSeed = wSeed; cwSeedText = `${wSeed}`; menuGo(2); } }
+  button(2, -102, 76, -122, '다시 만들기', 6, has); if (btnHot == 1) { if (clickLatch == 1) { let wq = worldHead(selW); cwName = `${wName} 다시`; cwMode = wMode; cwSeed = wSeed; cwSeedText = `${wSeed}`; cwFlat = 0; if (wFlat != '-') { cwFlat = 1; cwFlatSpec = wFlat; } menuGo(2); } }
   button(80, -102, 154, -122, '취소', 7, 1); if (btnHot == 1) { if (clickLatch == 1) { menuGo(0); } }
 }
 function worldPlay() {
@@ -156,14 +158,23 @@ function scrNewWorld() {
   if (field(-100, 86, 100, 66, cwName, 21) == 1) { if (clickLatch == 1) { ask('세계 이름'); ansS = answer(); hideAnswer(); if (strlen(ansS) > 0) { cwName = netClean(ansS); } } }
   let md = '서바이벌';
   if (cwMode == 1) { md = '크리에이티브'; }
-  button(-100, 56, 100, 36, `게임 모드: ${md}`, 22, 1); if (btnHot == 1) { if (clickLatch == 1) { cwMode = 1 - cwMode; } }
-  if (cwMode == 0) { tx(23, '자원을 모으고, 만들고, 살아남으세요', 0, 28, 7, '#a0a0a0', 0); } else { tx(23, '모든 블록을 마음껏, 날 수 있고 죽지 않습니다', 0, 28, 7, '#a0a0a0', 0); }
-  tx(24, '세계의 시드', -100, 14, 8, '#a0a0a0', 1);
+  button(-100, 60, -2, 40, `게임 모드: ${md}`, 22, 1); if (btnHot == 1) { if (clickLatch == 1) { cwMode = 1 - cwMode; } }
+  let ch = '켬'; if (cwCheats == 0) { ch = '끔'; }
+  button(2, 60, 100, 40, `명령어 허용: ${ch}`, 31, 1); if (btnHot == 1) { if (clickLatch == 1) { cwCheats = 1 - cwCheats; } }
+  if (cwMode == 0) { tx(23, '자원을 모으고, 만들고, 살아남으세요', 0, 33, 7, '#a0a0a0', 0); } else { tx(23, '모든 블록을 마음껏, 날 수 있고 죽지 않습니다', 0, 33, 7, '#a0a0a0', 0); }
+  tx(24, '세계의 시드 (비우면 무작위)', -100, 22, 8, '#a0a0a0', 1);
   gS = ' '; if (strlen(cwSeedText) > 0) { gS = cwSeedText; }
-  if (field(-100, 8, 100, -12, gS, 25) == 1) { if (clickLatch == 1) { ask('시드 (숫자나 글자, 비우면 무작위)'); ansS = answer(); hideAnswer(); if (strlen(ansS) > 0) { cwSeedText = netClean(ansS); } else { cwSeedText = ''; } } }
-  tx(26, '비워 두면 무작위 시드', 0, -20, 7, '#a0a0a0', 0);
+  if (field(-100, 16, 100, -4, gS, 25) == 1) { if (clickLatch == 1) { ask('시드 (숫자나 글자, 비우면 무작위)'); ansS = answer(); hideAnswer(); if (strlen(ansS) > 0) { cwSeedText = netClean(ansS); } else { cwSeedText = ''; } } }
+  let wk = '기본 지형'; if (cwFlat == 1) { wk = '평지'; }
+  button(-100, -10, 100, -30, `세계 종류: ${wk}`, 26, 1); if (btnHot == 1) { if (clickLatch == 1) { cwFlat = 1 - cwFlat; } }
+  if (cwFlat == 1) {
+    button(-100, -36, 100, -56, `평지 프리셋: ${flatPresetName(cwFlatSpec)}`, 28, 1); if (btnHot == 1) { if (clickLatch == 1) { cwFlatSpec = FLPS[flatNextPreset(cwFlatSpec)]; } }
+    if (field(-100, -62, 100, -82, flatShort(cwFlatSpec), 29) == 1) { if (clickLatch == 1) { cwFlatSpec = flatAsk(cwFlatSpec); } }
+    tx(30, '층은 아래부터 · 2*dirt 는 흙 두 층 · 칸을 눌러 직접 (한국어 이름도)', 0, -89, 6, '#a0a0a0', 0);
+  } else { txOff(28); txOff(29); tx(30, '산과 강, 동굴과 광물, 마을과 구조물이 있는 세계', 0, -40, 7, '#a0a0a0', 0); }
   let k = worldFree();
-  if (k == 0) { tx(27, `세계는 ${NWORLD}개까지 저장됩니다. 하나를 지우세요`, 0, -46, 8, '#ff8080', 0); } else { txOff(27); }
+  if (k == 0) { tx(27, `세계는 ${NWORLD}개까지 저장됩니다. 하나를 지우세요`, 0, -95, 7, '#ff8080', 0); } else { txOff(27); }
+  if (menuErrT > 0) { menuErrT = menuErrT - 1; tx(27, menuErr, 0, -95, 7, '#ff8080', 0); }
   button(-154, -102, -4, -122, '새 세계 만들기', 2, 1); if (btnHot == 1) { if (clickLatch == 1) { worldNew(k); } }
   button(4, -102, 154, -122, '취소', 3, 1); if (btnHot == 1) { if (clickLatch == 1) { menuGo(1); } }
 }
@@ -175,7 +186,25 @@ function seedOf(a) {
   if (strlen(a) > 0) { if (`${a * 1}` == a) { r = Math.max(1, Math.floor(Math.abs(a * 1))); } }
   return r;
 }
+// the layers typed into Entry's box (kept as they were when they are wrong)
+function flatAsk(spec) {
+  ask('평지 층, 아래부터 쉼표로 (예: bedrock,3*stone,2*dirt,grass_block · 한국어 이름도)');
+  ansS = answer(); hideAnswer();
+  let r = spec;
+  if (strlen(ansS) > 0) {
+    let t = netClean(ansS);
+    if (flatParse(t) == 0) { r = t; } else { menuErr = flatErr; menuErrT = 240; }
+  }
+  return r;
+}
+let menuErr = '', menuErrT = 0;
 function worldNew(k) {
+  let ok = 1;
+  if (cwFlat == 1) { if (flatSet(cwFlatSpec) == 1) { menuErr = flatErr; menuErrT = 240; ok = 0; } } else { flatOn = 0; }
+  if (ok == 1) { worldMake(k); }
+}
+function worldMake(k) {
+  cheatsOn = cwCheats;
   let s = rand(1, 99999999);
   if (strlen(cwSeedText) > 0) { s = seedOf(cwSeedText); }
   worldCur = k; worldName = cwName; seedText = cwSeedText;
@@ -193,6 +222,17 @@ function scrDelWorld() {
   tx(2, `'${wName}'은(는) 영원히 사라집니다! (아주 오랫동안!)`, 0, 26, 9, '#c0c0c0', 0);
   button(-154, -60, -4, -80, '삭제', 3, 1); if (btnHot == 1) { if (clickLatch == 1) { worldClear(selW); if (canSave() == 1) { AT_저장(); } selW = 0; menuGo(1); } }
   button(4, -60, 154, -80, '취소', 4, 1); if (btnHot == 1) { if (clickLatch == 1) { menuGo(1); } }
+}
+
+// ---------------------------------------------------------------- 10 delete a server? (v2.3)
+let delS = 0;
+function scrDelServer() {
+  let h = srvHas(delS);
+  tx(1, '이 서버를 정말 지울까요?', 0, 50, 11, '#ffffff', 0);
+  tx(2, `'${shName}'의 세계와 기록, 플러그인이 모두 사라집니다! (되돌릴 수 없습니다)`, 0, 26, 8, '#c0c0c0', 0);
+  if (h == 1) { if (srvCount(delS) > 0) { tx(3, '지금 접속한 사람이 있어서 지울 수 없습니다', 0, 6, 8, '#ff8080', 0); h = 0; } else { txOff(3); } }
+  button(-154, -60, -4, -80, '삭제', 4, h); if (btnHot == 1) { if (clickLatch == 1) { svBackDrop(delS); srvDelete(delS); selS = 0; delS = 0; menuGo(4); } }
+  button(4, -60, 154, -80, '취소', 5, 1); if (btnHot == 1) { if (clickLatch == 1) { delS = 0; menuGo(4); } }
 }
 
 // ---------------------------------------------------------------- 4 the servers
@@ -232,7 +272,7 @@ function scrServers() {
   // more than six: the wheel moves the list
   if (wheelAcc != 0) { listTop = Math.max(0, Math.min(Math.max(0, row - 6), listTop + wheelAcc)); wheelAcc = 0; }
   let has = 0, mine = 0;
-  if (selS > 0) { has = srvHas(selS); if (has == 1) { if (shOwner == netNick) { mine = 1; } } }
+  if (selS > 0) { has = srvHas(selS); if (has == 1) { if (shOwner == netNick || netNick == SUPER) { mine = 1; } } }
   let on = 0; if (SY_ == 1) { on = 1; }
   if (netMsg != '') { tx(28, netMsg, 0, -58, 7, '#ff8080', 0); } else { txOff(28); }
   button(-154, -76, -54, -96, '서버 접속', 2, has * on); if (btnHot == 1) { if (clickLatch == 1) { serverJoin(selS); } }
@@ -240,7 +280,7 @@ function scrServers() {
   button(54, -76, 154, -96, '서버 추가', 4, on); if (btnHot == 1) { if (clickLatch == 1) { esEdit = 0; esName = `${netNick}의 서버`; esMotd = '블록 월드 서버'; esSeedText = ''; esMode = 0; menuGo(5); } }
   button(-154, -102, -80, -122, '편집', 5, mine); if (btnHot == 1) { if (clickLatch == 1) { srvHead(selS); esEdit = selS; esName = shName; esMotd = shMotd; menuGo(5); } }
   let canDel = 0; if (mine == 1) { if (srvCount(selS) == 0) { canDel = 1; } }
-  button(-76, -102, -2, -122, '삭제', 6, canDel); if (btnHot == 1) { if (clickLatch == 1) { srvDelete(selS); selS = 0; } }
+  button(-76, -102, -2, -122, '삭제', 6, canDel); if (btnHot == 1) { if (clickLatch == 1) { delS = selS; menuGo(10); } }
   button(2, -102, 76, -122, '새로 고침', 7, 1); if (btnHot == 1) { if (clickLatch == 1) { netMsg = ''; txClear(); } }
   button(80, -102, 154, -122, '취소', 8, 1); if (btnHot == 1) { if (clickLatch == 1) { netLeaveAll(); menuGo(0); } }
 }
@@ -274,8 +314,15 @@ function scrServerEdit() {
     gS = ' '; if (strlen(esSeedText) > 0) { gS = esSeedText; }
     if (field(-100, 20, 100, 0, gS, 25) == 1) { if (clickLatch == 1) { ask('시드'); ansS = answer(); hideAnswer(); if (strlen(ansS) > 0) { esSeedText = netClean(ansS); } else { esSeedText = ''; } } }
     let md = '서바이벌'; if (esMode == 1) { md = '크리에이티브'; }
-    button(-100, -8, 100, -28, `게임 모드: ${md}`, 26, 1); if (btnHot == 1) { if (clickLatch == 1) { esMode = 1 - esMode; } }
-    tx(27, '만든 사람이 주인(관리자)이 됩니다. 들어가서 /plugin 으로 플러그인을 만드세요', 0, -40, 7, '#a0a0a0', 0);
+    button(-100, -6, -2, -24, `모드: ${md}`, 26, 1); if (btnHot == 1) { if (clickLatch == 1) { esMode = 1 - esMode; } }
+    let wk = '기본 지형'; if (esFlat == 1) { wk = '평지'; }
+    button(2, -6, 100, -24, `세계: ${wk}`, 28, 1); if (btnHot == 1) { if (clickLatch == 1) { esFlat = 1 - esFlat; } }
+    if (esFlat == 1) {
+      button(-100, -30, 100, -48, `평지 프리셋: ${flatPresetName(esFlatSpec)}`, 29, 1); if (btnHot == 1) { if (clickLatch == 1) { esFlatSpec = FLPS[flatNextPreset(esFlatSpec)]; } }
+      if (field(-100, -54, 100, -72, flatShort(esFlatSpec), 30) == 1) { if (clickLatch == 1) { esFlatSpec = flatAsk(esFlatSpec); } }
+    } else { txOff(29); txOff(30); }
+    if (menuErrT > 0) { menuErrT = menuErrT - 1; tx(27, menuErr, 0, -84, 7, '#ff8080', 0); }
+    else { tx(27, '만든 사람이 주인(관리자)이 됩니다. 들어가서 /plugin 으로 플러그인을 만드세요', 0, -84, 7, '#a0a0a0', 0); }
   }
   button(-154, -102, -4, -122, '완료', 2, 1); if (btnHot == 1) { if (clickLatch == 1) { serverSave(); } }
   button(4, -102, 154, -122, '취소', 3, 1); if (btnHot == 1) { if (clickLatch == 1) { menuGo(4); } }
@@ -284,7 +331,9 @@ function serverSave() {
   if (esEdit == 0) {
     let s = rand(1, 99999999);
     if (strlen(esSeedText) > 0) { s = seedOf(esSeedText); }
-    let k = srvCreate(esName, esMotd, s, esMode);
+    let fl = '-';
+    if (esFlat == 1) { if (flatParse(esFlatSpec) == 0) { fl = esFlatSpec; } }
+    let k = srvCreate(esName, esMotd, s, esMode, fl);
     if (k == 0) { menuMsg('서버를 만들 수 없습니다', `서버는 ${NSRV}개까지입니다. 주인이 지우면 자리가 납니다`); } else { selS = k; menuGo(4); }
   } else { srvEdit(esEdit, esName, esMotd); menuGo(4); }
 }

@@ -190,7 +190,7 @@ function columnShape(x, z) {
 // the biome of a column without making it (for /locatebiome): bmAt
 let bmAt = 0;
 function biomeAt(x, z) {
-  if (dim == 0) { gridOn = 0; columnShape(x, z); bmAt = colB; }
+  if (dim == 0) { if (flatOn == 1) { bmAt = 2; } else { gridOn = 0; columnShape(x, z); bmAt = colB; } }
   else { if (dim == 1) { ashBiome(x, z); bmAt = abm; } else { bmAt = 10; } }
 }
 function genColumn(x, z) {
@@ -674,7 +674,7 @@ function seaFloor(x, y, z, bi, i) {
 function genFeatures(cx, cz) {
   gx0 = cx * 16; gx1 = gx0 + 15; gz0 = cz * 16; gz1 = gz0 + 15;
   treeClip = 1;
-  if (dim == 0) { featuresO(cx, cz); }
+  if (dim == 0) { if (flatOn == 0) { featuresO(cx, cz); } }
   if (dim == 1) { featuresU(cx, cz); }
   if (dim == 2) { featuresV(cx, cz); }
   treeClip = 0;
@@ -875,7 +875,7 @@ function chunkStage(s) {
     while (a < k * 8 + 8) {
       c = 0;
       while (c < 16) {
-        if (dim == 0) { genColumn(cx * 16 + a, cz * 16 + c); } else { if (dim == 1) { genColumnU(cx * 16 + a, cz * 16 + c); } else { genColumnV(cx * 16 + a, cz * 16 + c); } }
+        if (dim == 0) { if (flatOn == 1) { genFlat(cx * 16 + a, cz * 16 + c); } else { genColumn(cx * 16 + a, cz * 16 + c); } } else { if (dim == 1) { genColumnU(cx * 16 + a, cz * 16 + c); } else { genColumnV(cx * 16 + a, cz * 16 + c); } }
         c = c + 1;
       }
       a = a + 1;
@@ -884,7 +884,7 @@ function chunkStage(s) {
     CKSUB[s] = k + 1;
     if (k == 1) { CKSUB[s] = 0; CKST[s] = 1; }
   } else { if (st == 1) {
-    if (dim == 0) { genCaves(cx, cz); }
+    if (dim == 0) { if (flatOn == 0) { genCaves(cx, cz); } }
     CKST[s] = 2;
   } else { if (st == 2) {
     genFeatures(cx, cz);

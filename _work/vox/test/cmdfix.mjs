@@ -13,7 +13,7 @@ let fails = 0;
 const ok = (c, m) => { console.log(c ? 'ok  ' : 'FAIL', m); if (!c) fails++; };
 s.poke('px', 8.5); s.poke('py', 100); s.poke('pz', 8.5); s.poke('yaw', 0); s.poke('pitch', 0); s.poke('flying', 1); F(2);
 cmd('/summon pig ~2 ~ ~2');
-ok(/0개/.test(cmd('/kill @e[type=item]')) && s.peek('dead') === 0, '/kill @e[type=item] kills nothing: ' + last());
+ok(/0개|찾지 못했/.test(cmd('/kill @e[type=item]')) && s.peek('dead') === 0, '/kill @e[type=item] kills nothing: ' + last());
 ok(/1개/.test(cmd('/kill @e[type=pig]')), '/kill @e[type=pig]: ' + last());
 call(() => { fn.selParse('@e[type=player]'); }); ok(s.peek('selN') === 1 && s.peek('SEL')[0] === 0, '@e[type=player] is the player');
 cmd('/tp 8.5 100 8.5'); s.poke('yaw', 0); cmd('/tp @s ^2 ^ ^');

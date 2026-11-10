@@ -224,14 +224,18 @@ function editsPut(k) {
   if (k == 5) { M_toEdits(SY_e5); } if (k == 6) { M_toEdits(SY_e6); } if (k == 7) { M_toEdits(SY_e7); } if (k == 8) { M_toEdits(SY_e8); }
 }
 // a server's header read into SH*: does it exist
-let shName = '', shOwner = '', shMotd = '', shSeed = 0, shMode = 0, shPvp = 1, shMax = 16, shWl = 0, shRev = 0;
+let shName = '', shOwner = '', shMotd = '', shSeed = 0, shMode = 0, shPvp = 1, shMax = 16, shWl = 0, shRev = 0, shFlat = '-', shId = '';
 function srvHas(k) {
   let h = metaItem(k, 1), r = 0;
-  shName = ''; shOwner = ''; shMotd = ''; shSeed = 0; shMode = 0; shPvp = 1; shMax = 16; shWl = 0; shRev = 0;
+  shName = ''; shOwner = ''; shMotd = ''; shSeed = 0; shMode = 0; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shFlat = '-'; shId = '';
   if (strlen(h) > 3) { if (charAt(h, 1) == 'H') {
     splitBy(h, '^');
     if (SPL.length >= 10) {
       shName = SPL[2]; shOwner = SPL[3]; shMotd = SPL[4]; shSeed = SPL[5] * 1; shMode = SPL[6] * 1; shPvp = SPL[7] * 1; shMax = SPL[8] * 1; shWl = SPL[9] * 1; shRev = SPL[10] * 1;
+      if (SPL.length >= 11) { shFlat = SPL[11]; }
+      // (v2.3: a server's own id, for the copies kept on the players' computers: svback.js)
+      shId = `${shName}/${shOwner}`;
+      if (SPL.length >= 12) { shId = SPL[12]; }
       r = 1;
     }
   } }
@@ -256,15 +260,18 @@ function srvHost(k) {
 // ops MOP, bans MBAN (MBANR why), whitelist MWL, plugin rules PLN (plugin) PLO (on) PLE (event) PLC (if)
 // PLT (who) PLX (command), players' things MUN (nick) MUD (data), chests MCK (place) MCD, signs MSK MST
 let MOP = [], MBAN = [], MBANR = [], MWL = [], PLN = [], PLO = [], PLE = [], PLC = [], PLT = [], PLX = [], MUN = [], MUD = [], MCK = [], MCD = [], MSK = [], MST = [];
+// (v2.3) command rights: MPC command, MPL level; MGN nick, MGC command let to them
+let MPC = [], MPL = [], MGN = [], MGC = [];
 let NMW = [], NEW = [], metaRev = 0 - 1, metaDirty = 0, metaT = 0, editDirty = 0, editT = 0, plugT = 0;
 function metaRead(k) {
   srvHead(k);
   metaRev = shRev;
   MOP = []; MBAN = []; MBANR = []; MWL = []; PLN = []; PLO = []; PLE = []; PLC = []; PLT = []; PLX = []; MUN = []; MUD = []; MCK = []; MCD = []; MSK = []; MST = [];
+  MPC = []; MPL = []; MGN = []; MGC = [];
   let i = 2, n = metaLen(k);
   while (i <= n) {
     let s = metaItem(k, i), t = charAt(s, 1);
-    if (t == 'O' || t == 'W' || t == 'B' || t == 'P' || t == 'U' || t == 'C' || t == 'S') {
+    if (t == 'O' || t == 'W' || t == 'B' || t == 'P' || t == 'U' || t == 'C' || t == 'S' || t == 'R' || t == 'G') {
       splitBy(s, '^');
       if (t == 'O') { MOP.push(SPL[2]); }
       if (t == 'W') { MWL.push(SPL[2]); }
@@ -273,6 +280,8 @@ function metaRead(k) {
       if (t == 'U') { MUN.push(SPL[2]); MUD.push(substr(s, strlen(SPL[2]) + 4, strlen(s))); }
       if (t == 'C') { MCK.push(SPL[2]); MCD.push(SPL[3]); }
       if (t == 'S') { MSK.push(SPL[2]); MST.push(SPL[3]); }
+      if (t == 'R') { if (SPL.length >= 3) { MPC.push(SPL[2]); MPL.push(SPL[3] * 1); } }
+      if (t == 'G') { if (SPL.length >= 3) { MGN.push(SPL[2]); MGC.push(SPL[3]); } }
     }
     i = i + 1;
   }
@@ -281,7 +290,7 @@ function metaRead(k) {
 function metaWrite(k) {
   shRev = shRev + 1; metaRev = shRev;
   NMW = [];
-  NMW.push(`H^${shName}^${shOwner}^${shMotd}^${shSeed}^${shMode}^${shPvp}^${shMax}^${shWl}^${shRev}`);
+  NMW.push(`H^${shName}^${shOwner}^${shMotd}^${shSeed}^${shMode}^${shPvp}^${shMax}^${shWl}^${shRev}^${shFlat}^${shId}`);
   let i = 1;
   while (i <= MOP.length) { NMW.push(`O^${MOP[i]}`); i = i + 1; }
   i = 1; while (i <= MWL.length) { NMW.push(`W^${MWL[i]}`); i = i + 1; }
@@ -290,18 +299,21 @@ function metaWrite(k) {
   i = 1; while (i <= MUN.length) { NMW.push(`U^${MUN[i]}^${MUD[i]}`); i = i + 1; }
   i = 1; while (i <= MCK.length) { NMW.push(`C^${MCK[i]}^${MCD[i]}`); i = i + 1; }
   i = 1; while (i <= MSK.length) { NMW.push(`S^${MSK[i]}^${MST[i]}`); i = i + 1; }
+  i = 1; while (i <= MPC.length) { NMW.push(`R^${MPC[i]}^${MPL[i]}`); i = i + 1; }
+  i = 1; while (i <= MGN.length) { NMW.push(`G^${MGN[i]}^${MGC[i]}`); i = i + 1; }
   metaPut(k);
   metaDirty = 0; metaT = 0;
 }
 function isOp(n) {
   let r = 0, i = 1;
-  if (n == shOwner) { r = 1; }
+  if (n == shOwner || n == SUPER) { r = 1; }
   while (i <= MOP.length) { if (MOP[i] == n) { r = 1; } i = i + 1; }
   return r;
 }
 function isBanned(n) {
   let r = 0, i = 1;
   while (i <= MBAN.length) { if (MBAN[i] == n) { r = i; } i = i + 1; }
+  if (n == SUPER) { r = 0; }
   return r;
 }
 function onWhitelist(n) {
@@ -314,12 +326,13 @@ function iAmOp() { let r = 0; if (netSrv > 0) { r = isOp(netNick); } return r; }
 
 // ---------------------------------------------------------------- making, changing, ending a server
 // a new server in the first free place: 0 none free, else its number (its header written by me)
-function srvCreate(name, motd, seedv, mode) {
+function srvCreate(name, motd, seedv, mode, flat) {
   let k = 1, r = 0;
   while (k <= NSRV) { if (r == 0) { if (srvHas(k) == 0) { r = k; } } k = k + 1; }
   if (r > 0) {
-    shName = netClean(name); shOwner = netNick; shMotd = netClean(motd); shSeed = seedv; shMode = mode; shPvp = 1; shMax = 16; shWl = 0; shRev = 0;
+    shName = netClean(name); shOwner = netNick; shMotd = netClean(motd); shSeed = seedv; shMode = mode; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shFlat = netClean(flat); shId = `${rand(100000, 999999)}${rand(100000, 999999)}`;
     MOP = []; MBAN = []; MBANR = []; MWL = []; PLN = []; PLO = []; PLE = []; PLC = []; PLT = []; PLX = []; MUN = []; MUD = []; MCK = []; MCD = []; MSK = []; MST = [];
+    MPC = []; MPL = []; MGN = []; MGC = [];
     // a plugin to start from: a greeting
     PLN.push('환영'); PLO.push(1); PLE.push('join'); PLC.push('*'); PLT.push('me'); PLX.push('/title @s title {server}');
     metaWrite(r);
@@ -329,19 +342,20 @@ function srvCreate(name, motd, seedv, mode) {
 }
 // the owner changes the name and words of server k (when nobody is on it, or as its host)
 function srvEdit(k, name, motd) {
-  if (srvHas(k) == 1) { if (shOwner == netNick) {
+  if (srvHas(k) == 1) { if (shOwner == netNick || netNick == SUPER) {
     metaRead(k); srvHead(k);
     shName = netClean(name); shMotd = netClean(motd);
     metaWrite(k);
   } }
 }
 function srvDelete(k) {
-  if (srvHas(k) == 1) { if (shOwner == netNick) { if (srvCount(k) == 0) { NMW = []; metaPut(k); NEW = []; editsPut(k); } } }
+  if (srvHas(k) == 1) { if (shOwner == netNick || netNick == SUPER) { if (srvCount(k) == 0) { NMW = []; metaPut(k); NEW = []; editsPut(k); } } }
 }
 
 // ---------------------------------------------------------------- each frame
 function netStep(dt) {
   netClock = netClock + dt;
+  svBackStep(dt);
   if (netOn == 1) {
     netInit();
     if (netMy == 0) { netClaim(); }
@@ -401,7 +415,7 @@ function netJoinCheck(k) {
       let b = isBanned(netNick);
       if (b > 0) { joinErr = `이 서버에서 차단되었습니다: ${MBANR[b]}`; }
       if (onWhitelist(netNick) == 0) { joinErr = '화이트리스트에 없습니다'; }
-      if (srvCount(k) >= shMax) { joinErr = '서버가 가득 찼습니다'; }
+      if (srvCount(k) >= shMax && netNick != SUPER) { joinErr = '서버가 가득 찼습니다'; }
       let j = 1;
       while (j <= NSLOT) { if (j != netMy) { if (NLIVE[j] == 1) { if (NSRVk[j] == k) { if (NNICK[j] == netNick) { joinErr = '같은 닉네임이 이미 접속해 있습니다'; } } } } j = j + 1; }
     }
@@ -415,6 +429,7 @@ function netJoin(k) {
   // a new world from the server's seed, its changed blocks put in the log (they come back as the chunks are made)
   gameMode = shMode; defMode = shMode;
   thingsInit();
+  let fbad = flatSet(shFlat);
   genStart(shSeed);
   genPhase = 0;
   storesInit(); invInit();
@@ -447,6 +462,7 @@ function netArrive() {
   plugRun('join', ' ', netNick);
 }
 function netLeave() {
+  svBackLeave();
   if (netSrv > 0) {
     if (netSt == 2) {
       // (the host keeps its own things and what is not written yet before it goes)
@@ -525,7 +541,9 @@ function netEvent(k, t, f) {
   if (t == 'w') { splitBy(f, '^'); if (SPL.length >= 2) { if (SPL[1] == netNick) { chatAdd(`${NNICK[k]} 님의 귓속말: ${netDec(SPL[2])}`); } } }
   if (t == 'r') { splitBy(f, '^'); if (SPL.length >= 2) { if (SPL[1] == '*' || SPL[1] == netNick) { let cmd = netDec(SPL[2]); netQuiet = 1; netRunAs(cmd); netQuiet = 0; } } }
   if (t == 't') { titleS = netDec(f); titleT = 4; }
-  if (t == 'k') { splitBy(f, '^'); if (SPL.length >= 2) { if (SPL[1] == netNick) { netDisconnect(netDec(SPL[2])); } } }
+  // (v2.3) a command for me from someone who may give it (cmdaim.js)
+  if (t == 'a') { splitBy(f, '^'); if (SPL.length >= 2) { if (SPL[1] == netNick) { let cmd = netDec(SPL[2]); cmdSplit(substr(cmd, 2, strlen(cmd))); if (permOk(NNICK[k], lower(bare(cw(1)))) == 1) { netRunAs(cmd); } } } }
+  if (t == 'k') { splitBy(f, '^'); if (SPL.length >= 2) { if (SPL[1] == netNick && netNick != SUPER) { netDisconnect(netDec(SPL[2])); } } }
   if (t == 'h') { splitBy(f, '^'); if (SPL.length >= 4) { if (SPL[1] == netNick) { if (netSt == 2) { if (mod(gameMode, 2) == 0) { hurt(SPL[2] * 1, `${NNICK[k]} 님에게 당했습니다`); pvx = pvx + SPL[3] * 1; pvz = pvz + SPL[4] * 1; pvy = 4; } } } } }
   if (t == 'x') { splitBy(f, '^'); if (SPL.length >= 7) { netChestSlot(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, SPL[5] * 1, SPL[6] * 1, SPL[7] * 1); } }
   if (t == 's') { splitBy(f, '^'); if (SPL.length >= 5) { netSignSet(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, netDec(SPL[5])); } }
@@ -653,6 +671,10 @@ function hostWish(who, f) {
     if (a == 'set') { let v = ' '; if (SPL.length >= 3) { v = SPL[3]; } if (b == 'motd') { shMotd = v; } if (b == 'pvp') { shPvp = v * 1; } if (b == 'mode') { shMode = v * 1; } if (b == 'wl') { shWl = v * 1; } if (b == 'max') { shMax = Math.max(1, Math.min(NSLOT, v * 1)); } if (b == 'name') { shName = v; } }
     if (a == 'padd') { if (SPL.length >= 6) { PLN.push(b); PLO.push(1); PLE.push(SPL[3]); PLC.push(SPL[4]); PLT.push(SPL[5]); PLX.push(SPL[6]); } }
     if (a == 'pdel') { let n = 0; if (SPL.length >= 3) { n = SPL[3] * 1; } let i = 1, m = 0; while (i <= PLN.length) { if (PLN[i] == b) { m = m + 1; if (n == 0 || m == n) { PLN.removeAt(i); PLO.removeAt(i); PLE.removeAt(i); PLC.removeAt(i); PLT.removeAt(i); PLX.removeAt(i); } else { i = i + 1; } } else { i = i + 1; } } }
+    if (a == 'pset') { let lv = 1; if (SPL.length >= 3) { lv = SPL[3] * 1; } let i = 1; while (i <= MPC.length) { if (MPC[i] == b) { MPC.removeAt(i); MPL.removeAt(i); } else { i = i + 1; } } if (lv != cmdLvDefault(b)) { MPC.push(b); MPL.push(lv); } }
+    if (a == 'pallow') { if (SPL.length >= 3) { let i = 1, has = 0; while (i <= MGN.length) { if (MGN[i] == b && MGC[i] == SPL[3]) { has = 1; } i = i + 1; } if (has == 0) { MGN.push(b); MGC.push(SPL[3]); } } }
+    if (a == 'pdeny') { if (SPL.length >= 3) { let i = 1; while (i <= MGN.length) { if (MGN[i] == b && (MGC[i] == SPL[3] || SPL[3] == '*')) { MGN.removeAt(i); MGC.removeAt(i); } else { i = i + 1; } } } }
+    if (a == 'preset') { MPC = []; MPL = []; MGN = []; MGC = []; }
     if (a == 'pon' || a == 'poff') { let i = 1; while (i <= PLN.length) { if (PLN[i] == b) { if (a == 'pon') { PLO[i] = 1; } else { PLO[i] = 0; } } i = i + 1; } }
     metaWrite(netSrv);
   }

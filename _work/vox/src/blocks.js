@@ -121,6 +121,39 @@ function toolOnBlock(x, y, z, b, id) {
   return used;
 }
 
+// ---------------------------------------------------------------- C: copy the block looked at (creative)
+// The genre's pick block: the item of the block looked at goes into the hand. A hotbar slot that
+// has it already is chosen; else the slot in hand if it is empty, else the first empty one, else
+// the one in hand is replaced (a full stack). Only in creative.
+function pickCopy() {
+  if (gameMode != 1) { msgShow('블록 복사(C)는 크리에이티브 모드에서만 됩니다', 1.5); }
+  else { if (pickOn == 1) {
+    let id = pickItem(pickB);
+    if (id > 0) {
+      let k = 1, at = 0;
+      while (k <= 9) { if (at == 0) { if (INVI[k] == id) { at = k; } } k = k + 1; }
+      if (at == 0) {
+        if (INVI[hotSel] == 0) { at = hotSel; }
+        else { k = 1; while (k <= 9) { if (at == 0) { if (INVI[k] == 0) { at = k; } } k = k + 1; } }
+        if (at == 0) { at = hotSel; }
+        INVI[at] = id; INVN[at] = ITST[id + 1]; INVD[at] = 0;
+      }
+      hotSel = at;
+      msgShow(`${ITNAME[id + 1]}`, 1);
+    }
+  } }
+}
+// the item a block is (its kind; a part with no item of its own: what it drops), 0 none
+function pickItem(b) {
+  let id = 0;
+  if (b > 0 && b != 7 && b != 35) {
+    id = BKIND[b + 1];
+    if (ITNAME[id + 1] == ' ' || ITPLB[id + 1] == 0) { id = BDROP[b + 1]; }
+    if (id > 0) { if (ITNAME[id + 1] == ' ') { id = 0; } }
+  }
+  return id;
+}
+
 // ---------------------------------------------------------------- putting blocks down
 // b: the block of the item (its kind), id: the item (taken from the hand)
 function placeBlock(b, id) {
@@ -145,7 +178,7 @@ function placeBlock(b, id) {
   if (put == b + 2 && pl == P_SLAB) { if (blockAt(x, y, z) == b + 2) { ok = 0; } }
   else { if (freeAt(x, y, z) == 0) { ok = 0; } }
   if (y < 0 || y >= WY || cOK(x, z) == 0) { ok = 0; }
-  if (pl == P_AXIS) { if (pickF < 2) { put = b + 1; } if (pickF >= 4) { put = b + 2; } }
+  if (pl == P_AXIS) { if (pickF < 2) { put = BAXX[b + 1]; } if (pickF >= 4) { put = BAXZ[b + 1]; } }
   if (pl == P_STAIRS) { put = b + f; if (pickF == 2 || (pickF != 3 && pickHY > 0.5)) { put = b + f + 4; } }
   if (pl == P_DOOR) { let s = mod(f + 2, 4); put = b + s; x2 = x; y2 = y + 1; z2 = z; put2 = b + 4 + s; if (freeAt(x, y + 1, z) == 0) { ok = 0; } if (BSOL[blockAt(x, y - 1, z) + 1] == 0) { ok = 0; } }
   if (pl == P_TRAPDOOR) { if (pickF == 2 || (pickF != 3 && pickHY > 0.5)) { put = b + 1; } }

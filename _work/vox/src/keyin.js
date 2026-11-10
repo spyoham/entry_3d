@@ -80,8 +80,8 @@ let ACS = ['#p #i', '#p #i', '#p', 'survival|creative|adventure|spectator #p', '
   '#p #p', '#p #p', '#m ~ ~ ~', '~ ~ ~ #b destroy|keep|replace', '~ ~ ~ ~ ~ ~ #b destroy|hollow|keep|outline|replace #b', '~ ~ ~ ~ ~ ~ ~ ~ ~ replace|masked', 'peaceful|easy|normal|hard', '#p ~ ~ ~', '~ ~ ~', '-',
   '-', '-', '-', '#p', '#p', '#p', '-', '#s', '#v', '#p title|subtitle|actionbar|clear|reset|times',
   'add|set|query #p', 'add|set|query #p', '#X', '#p #p', 'entity #p weapon.mainhand|hotbar.0|hotbar.1|hotbar.2|hotbar.3|hotbar.4|hotbar.5|hotbar.6|hotbar.7|hotbar.8|armor.head|armor.chest|armor.legs|armor.feet #i', 'replace entity #p weapon.mainhand|hotbar.0|armor.head|armor.chest|armor.legs|armor.feet with #i', '-', '#p', '#c'];
-let ACNET = ['op', 'deop', 'ban', 'pardon', 'unban', 'kick', 'whitelist', 'server', 'plugin'];
-let ACSNET = ['#p', '#o', '#p', '#n', '#n', '#p', 'add|remove|on|off|list #W', 'motd|name|pvp|mode|max on|off|survival|creative|adventure', '-'];
+let ACNET = ['op', 'deop', 'ban', 'pardon', 'unban', 'kick', 'whitelist', 'server', 'plugin', 'perm'];
+let ACSNET = ['#p', '#o', '#p', '#n', '#n', '#p', 'add|remove|on|off|list #W', 'motd|name|pvp|mode|max on|off|survival|creative|adventure', '-', '#Q'];
 let ACL = [], ACW = [];
 let acI = 0, acCyc = 0, acDirty = 1, acBase = '', acPart = '', acLow = '', acT = '', acCmd = '';
 
@@ -238,6 +238,15 @@ function acBuild(line) {
             if (ap == 4) { if (sub == 'add') { acChoices('me|all'); } }
           }
         } else {
+          if (spec == '#Q') {
+            // /perm set <command> all|op|owner, /perm allow|deny <nick> <command>
+            let sub = '';
+            if (ap >= 2) { sub = lower(ACW[s0 + 1]); }
+            if (ap == 1) { acChoices('set|allow|deny|check|reset|help'); }
+            if (ap == 2) { if (sub == 'set') { acCommands(); } else { if (sub == 'allow' || sub == 'deny' || sub == 'check') { acPlayers(); } } }
+            if (ap == 3) { if (sub == 'set') { acChoices('all|op|owner'); } else { if (sub == 'allow' || sub == 'deny') { acTry('*'); acCommands(); } } }
+            spec = '-';
+          }
           acTok(spec, ap);
           let t = acT;
           if (t == '#W') { if (prev == 'remove') { let q = 1; while (q <= MWL.length) { acTry(MWL[q]); q = q + 1; } } else { acPlayers(); } }

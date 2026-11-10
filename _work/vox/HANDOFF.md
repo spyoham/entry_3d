@@ -1,7 +1,7 @@
-# 블록 월드 — 작업 인계 메모 (2026-11-10, v2.2)
+# 블록 월드 — 작업 인계 메모 (2026-11-10, v2.3)
 
-산출물(루트): `블록 월드 v2.2.ent`, `블록 월드 v2.2 설명서.txt`, `블록 월드 썸네일.png` (이전 판은 깃헙 `old/`)
-빌드: `node build.mjs "../../블록 월드 v2.2.ent"` (`K=V`로 상수 바꾸기: `AUTOSEED=n` 타이틀 없이 시드 n으로 시작, `AUTOMODE=1` 크리에이티브, `TESTRUN=1` test.js 포함, `BENCH=1` 시간 멈춤·몹 스폰 끔·k 고정, `ANIMALS=0`, `NOCAVE=1` 동굴 가리기 끔)
+산출물(루트): `블록 월드 v2.3.ent`, `블록 월드 v2.3 설명서.txt`, `블록 월드 썸네일.png` (이전 판은 깃헙 `old/`)
+빌드: `node build.mjs "../../블록 월드 v2.3.ent"` (`K=V`로 상수 바꾸기: `AUTOSEED=n` 타이틀 없이 시드 n으로 시작, `AUTOMODE=1` 크리에이티브, `TESTRUN=1` test.js 포함, `BENCH=1` 시간 멈춤·몹 스폰 끔·k 고정, `ANIMALS=0`, `NOCAVE=1` 동굴 가리기 끔)
 
 ## 요청
 - 2026-11-08 ".ent로 마인크래프트를 최대한 비슷하게 만들어줘.(심층암 추가되기 전 기준, tessvm전용)"
@@ -143,3 +143,18 @@
 - 빈칸 있는 한국어 이름은 _로 넣고, itemByName·blockByName·mobByName·effectByName·structByName·/locatebiome가 _를 빈칸으로도 읽음(`nk`).
 - 함정: 지역 변수를 `''`로 시작해 글을 이어 붙이면 앞에 0이 붙음(입력 줄 커서도 그래서 ' '로). 시뮬레이터는 빈 글의 charAt·범위 밖 substr를 오류로 멈춤(`ch1`). 글 칸 폭은 이 크기(7)에서 반각 약 94자 — 넘으면 줄이 꺾여 입력 줄을 덮음. 셸 heredoc에 한글을 넣으면 파이썬이 못 읽음(스크립트는 파일로).
 - 시험: `test/hangul.mjs`(조합 18가지, Backspace 분해, Alt, 한글 채팅, 한글 이름 /give, Tab: 명령어·순환·Shift+Tab·게임 규칙·대상·아이템·한국어 이름·execute run·구조물·몹·효과·고르기, 무작위 키 2400개), `test/netsim.mjs`(온라인 Tab: /tell 이름, 플러그인 명령, /op, /plugin on, 채팅의 이름, /pardon 차단된 이름), `test/chat.mjs`(줄에서 친 한국어 아이템 이름). 브라우저: `node ../tessvm/trun.mjs test/hangul.ent --script test/hangul.json --gpu --vars tline,hcS`(빌드 AUTOSEED=1234 AUTOMODE=1 TESTRUN=1, tsrv.mjs 3100; 키는 Lang1과 입력기가 켜진 229 'Process'로 보냄). cmdfix·cond·save·v20·v20c·tess(오류 없음, 14.7 ms/틱)도 통과.
+
+## v2.3 버그·요청 묶음 (2026-11-10, 사용자: "블록 설치할때 특정 방향에서 다른 블록으로 설치되는 버그 수정" → "화살이 안나가는 버그도 해결" → "평지 월드(층별 블록 지정도)랑 일반 지형물있는 월드 선택가능하게" → "블록 복사기능도 만들어줘(크리에이티브에서만되게),크리에이티브에도 인벤토리 서바이벌처럼 넓게" → "명령어 버그 없는지 확인하고(날씨,시간,@a등), 명령어 사용 권한 설정도" → "닉네임이 '코딩재미있어'이면 모든 서버에 대한 권한을 주고, 서버를 삭제할때는 다시 확인하는 창" → "작품의 함수,리스트,변수를 다 지워도 서버(맵)정보는 남는지 알려주고 아니라면 저장되게")
+- v2.2는 old/로.
+- 놓기 버그: 축 블록(원목)을 옆면에 놓으면 `b + 1`/`b + 2`를 놓았는데, 처음부터 있던 참나무·자작나무·가문비나무 원목(13, 23, 25)은 눕힌 변형이 id 끝쪽에 따로 있어서(content.mjs logSet의 old) 옆 id인 잎·유리·횃불이 놓였다. 현무암(53)은 변형이 아예 없음. 빌드가 `BAXX`/`BAXZ`(눕힌 x/z 변형 id, 없으면 자기)를 만들고 placeBlock과 /setblock의 axis= (cmds.js stateOf)가 그것을 씀. 시험 `test/placeall.mjs`(모든 종류 × 방향 7 × 피치 3 × 클릭한 면 6 × 높이 2 = 18만 번 놓기, 놓인 블록의 종류가 같은지).
+- 화살: `bowCool`이 0.6으로만 정해지고 줄지 않아 첫 발 뒤로 안 나갔다 → main.js 쿨다운 줄에서 줄임. 시험 `test/bow.mjs`.
+- 평지(`src/flat.js`): `flatOn`, 층 `FLB`(y 0부터), `flatParse`(bedrock,2*dirt,grass_block · 한국어 이름·_ · 숫자 이름은 거부: ' ' == '0' 함정 · 120층), 프리셋 `FLPN`/`FLPS` 7개. 지상만: chunkStage가 genColumn 대신 `genFlat`, 동굴·featuresO 건너뜀(바꾼 블록 되살리기는 그대로), biomeAt 평원, /locate는 없다고. 저장은 END 뒤 `FLAT`, 층(일반 '-'): 세계 목록은 끝 두 칸으로 읽음(`wFlat`), 옛 저장은 일반 세계. 서버는 머리의 11번째 칸(`shFlat`). 새 세계·서버 추가 화면에 세계 종류·프리셋·층 칸(`flatAsk`, 틀리면 `menuErr` 빨간 글). 시험 `test/flat.mjs`.
+- C 블록 복사(blocks.js `pickCopy`/`pickItem`): 크리에이티브만, 보는 블록의 종류(눕힌 원목·문 윗부분도 그 아이템, 아이템이 없는 부품은 떨어뜨리는 것), 단축바에 있으면 그 칸, 없으면 지금 빈 칸·첫 빈 칸·지금 칸. tessvm은 어느 마우스 버튼인지 알려 주지 않아 가운데 클릭 대신 C. 시험 `test/creative.mjs`.
+- 크리에이티브 창(uiMode 5)에 소지품 27칸과 갑옷 칸(왼쪽 x -100)을 켜고 창을 -112까지 넓힘. 목록 칸은 개수 글을 안 씀(글 칸 22..90이 모자라서, 장르도 안 보임).
+- 명령어(`src/cmdaim.js`, 시험 `test/cmdcheck.mjs` 오프라인 90여 개, `test/netcmds.mjs` 온라인): 날씨·시간은 맞았음. 고친 것 - 대상이 없으면 "대상을 찾지 못했습니다", @x는 "알 수 없는 대상", 몹만 고른 대상에 플레이어 전용 명령(/gamemode /clear /xp /effect /title /spawnpoint /give)이 플레이어를 바꾸던 것, /minecraft:time, /give 대상만. `cmdAim`이 명령마다 대상 낱말(`cmdTargetAt`)을 한 번 읽음.
+- 온라인 대상: 다른 플레이어는 몹 netPlayer(대역)라 @e에 들어가 /kill @e가 대역을 죽였고, @a·이름은 자기만이었다. selParse가 대역을 빼고 다른 플레이어를 `SELR`(자리 번호)로(@a·@e 모두, @p 가장 가까운, @r 아무나, 이름; distance는 같은 세계만). cmdAim이 그 사람들에게 `a` 이벤트로 명령을 보냄(대상은 @s로, tp·spawnpoint의 ~ ^는 보낸 사람 자리의 절대 좌표로, /tp 닉네임·@s는 그 자리 좌표로 바꿔). 받는 쪽(net.js)은 보낸 사람의 권한을 `permOk`로 다시 보고 `netRunAs`(cmdFromBlock 2: 다시 퍼뜨리지 않음).
+- 권한(netcmd.js): 명령마다 0 모두 / 1 관리자(처음값, help list tell me seed 빼고) / 2 주인, 사람마다 허락. 서버 설정 R^명령^단계, G^닉네임^명령(* 모두). /perm [set|allow|deny|check|reset|help], 별칭은 `cmdCanon`. /perm은 모두에게 못 엶. 혼자 하는 세계는 새 세계의 "명령어 허용"(`cheatsOn`, 저장 CHEAT, 명령 블록은 됨).
+- `SUPER = '코딩재미있어'`: isOp, 차단·내보내기·관리자 빼기 안 됨, 인원 제한 무시, 남의 서버 편집·삭제. 서버 삭제는 확인 화면 scr 10(`scrDelServer`).
+- 서버 기록(질문의 답): 서버는 Entry Sync 서버에 작품 번호 + ?! 이름으로 저장되고 작품 안에는 없다. Entry Sync 확장(inject-latest.js triggerWorkspaceSave)은 작품을 만들기 화면에서 연 작가가 변수·리스트를 고칠 때마다 그 화면의 ?! 값을 SAVE_DATA_ONLY로 저장한다(덮어쓰는지 합치는지는 공개 안 된 Cloudflare 워커가 정함: github 저장소에는 확장만). 그래서 지우거나 빈 리스트로 다시 넣으면 서버가 비워질 수 있다. 대책(`src/svback.js`): 각자의 tessvm 저장 @서버백업에 들어간 서버의 사본(SB, id, 이름, 주인, rev, 설정 줄, 블록 기록; 들어간 뒤 10초·1분마다·나갈 때). 연결 8초 뒤부터 10초마다 `bkCheck`: 없어진 서버는 빈 자리에, 공유된 것이 사본보다 rev가 낮고 아무도 없으면 덮어씀, 두 자리에 같은 id면 뒤쪽을 비움. 서버 id는 머리의 12번째 칸(`shId`, 옛 서버는 이름/주인). 일부러 지운 서버는 ?!gone(`SY_gone`)에 적어 되살리지 않고 사본도 버림.
+- 함정: 지역 변수를 ''로 시작해 이어 붙이면 0이 붙는 것(이번에도 /perm 목록에서) - 전역 gS2를 씀. 셸 heredoc에 한글·작은따옴표가 섞이면 깨짐 - 패치는 scratchpad의 .py 파일로.
+- 시험 모두 통과: placeall, bow, flat, creative, cmdcheck, netcmds, netsim, nettess(진짜 tessvm 두 창), chat, hangul, save, cmdfix, cond, power, v20, v20c, tess(14.1 ms/틱).

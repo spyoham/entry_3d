@@ -69,7 +69,7 @@ run(6);
 ok(A.g('netMy') > 0 && B.g('netMy') > 0 && A.g('netMy') !== B.g('netMy'), `two slots: ${A.g('netMy')} ${B.g('netMy')}`);
 ok(A.call((fn) => fn.netOnline()) === 2, 'alice sees two online');
 // alice makes a server and goes in
-const K = A.call((fn) => fn.srvCreate('테스트 서버', '어서 오세요', 1234, 0));
+const K = A.call((fn) => fn.srvCreate('테스트 서버', '어서 오세요', 1234, 0, '-'));
 ok(K >= 1, 'server made: ' + K);
 run(1);
 ok(B.call((fn) => fn.srvHas(K)) === 1 && B.g('shName') === '테스트 서버' && B.g('shOwner') === 'alice', 'bob sees it in the list');

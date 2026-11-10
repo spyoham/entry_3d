@@ -16,7 +16,7 @@ function testStep() {
   if (testCmd == 9) { testCmd = 0; txClear(); loadGame(tStage); }
   // 10: a new world in place tStage, seed tCmd (as 새 세계 만들기)
   // 11: online (as the multiplayer screen), a server made (name tCmd) and joined
-  if (testCmd == 11) { testCmd = 0; netEnter(); netClaim(); let k = srvCreate(tCmd, '시험 서버입니다', 1234, 1); if (k > 0) { txClear(); netJoin(k); } }
+  if (testCmd == 11) { testCmd = 0; netEnter(); netClaim(); let k = srvCreate(tCmd, '시험 서버입니다', 1234, 1, '-'); if (k > 0) { txClear(); netJoin(k); } }
   if (testCmd == 10) { testCmd = 0; cwSeedText = tCmd; cwName = '시험'; cwMode = 0; worldNew(tStage); }
   // 4: to world tStage at (tX, tZ)
   if (testCmd == 4) { testCmd = 0; startTravel(tStage, tX, tZ, 1 + tStage * 0); if (tStage == 2) { travelKind = 2; } }

@@ -5,13 +5,16 @@ let netCmdHit = 0, netCmdOut = '';
 function netCmd(c) {
   netCmdHit = 1; netCmdOut = '';
   let n = cw(2), sub = lower(cw(2));
-  let free = 0;
-  if (c == 'help' || c == '?' || c == 'list' || c == 'tell' || c == 'msg' || c == 'w' || c == 'me') { free = 1; }
   if (plugCommand(c, ' ') == 1) { netCmdOut = ''; }
   else {
-    if (free == 0 && cmdFromBlock == 0 && iAmOp() == 0) { netCmdOut = '이 명령어는 서버 관리자만 쓸 수 있습니다'; }
+    if (cmdFromBlock == 0 && permOk(netNick, c) == 0) {
+      netCmdOut = '이 명령어는 서버 관리자만 쓸 수 있습니다 (관리자가 /perm 으로 허락할 수 있습니다)';
+      if (cmdLevel(c) == 2) { netCmdOut = '이 명령어는 서버 주인만 쓸 수 있습니다'; }
+    }
     else {
-      if (c == 'list') { netCmdOut = netListText(); }
+      if ((c == 'ban' || c == 'kick' || c == 'deop') && n == SUPER) { netCmdOut = `${SUPER} 님은 모든 서버의 관리자입니다`; }
+      else { if (c == 'perm' || c == 'permission' || c == 'perms') { netCmdOut = netPermCmd(sub); }
+      else { if (c == 'list') { netCmdOut = netListText(); }
       else { if (c == 'tell' || c == 'msg' || c == 'w') { let t = netClean(wordsFrom(3, CMW.length)); evAdd('w', `${n}^${t}`); netCmdOut = `${n} 님에게 속삭임: ${t}`; }
       else { if (c == 'me') { let t = `* ${netNick} ${netClean(wordsFrom(2, CMW.length))}`; if (netQuiet == 0) { evAdd('c', t); } netCmdOut = netDec(t); }
       else { if (c == 'say') { let t = `[${netNick}] ${netClean(plainText(wordsFrom(2, CMW.length)))}`; if (cmdFromBlock == 2) { t = netClean(plainText(wordsFrom(2, CMW.length))); } if (netQuiet == 0) { evAdd('c', t); } netCmdOut = netDec(t); }
@@ -23,9 +26,89 @@ function netCmd(c) {
       else { if (c == 'whitelist') { netCmdOut = netWhitelist(sub, cw(3)); }
       else { if (c == 'server') { netCmdOut = netServerCmd(sub); }
       else { if (c == 'plugin' || c == 'plugins' || c == 'pl') { netCmdOut = netPluginCmd(sub); }
-      else { netCmdHit = 0; } } } } } } } } } } } }
+      else { netCmdHit = 0; } } } } } } } } } } } } } }
     }
   }
+}
+// ---------------------------------------------------------------- who may use what (v2.3)
+// A command is for everyone (0), the ops (1: the default but for help list tell me) or the owner (2):
+// /perm set <command> all|op|owner. A player may be let use one (or every: *) whatever its level:
+// /perm allow <nick> <command>, /perm deny <nick> <command>. Kept in the server's settings (R and G).
+// The one nickname SUPER is an op of every server, can not be banned, kicked or made no op, and may
+// change and delete any server.
+const SUPER = '코딩재미있어';
+function cmdCanon(c) {
+  let r = c;
+  if (c == 'teleport') { r = 'tp'; } if (c == 'experience') { r = 'xp'; } if (c == 'msg' || c == 'w') { r = 'tell'; }
+  if (c == 'pl' || c == 'plugins') { r = 'plugin'; } if (c == 'unban') { r = 'pardon'; } if (c == 'permission' || c == 'perms') { r = 'perm'; }
+  if (c == '?') { r = 'help'; } if (c == 'item') { r = 'replaceitem'; } if (c == 'save-all') { r = 'save'; }
+  return r;
+}
+function cmdLvDefault(c) {
+  let r = 1;
+  if (c == 'help' || c == 'list' || c == 'tell' || c == 'me' || c == 'seed') { r = 0; }
+  return r;
+}
+function cmdLevel(c) {
+  c = cmdCanon(c);
+  let r = cmdLvDefault(c), i = 1;
+  while (i <= MPC.length) { if (MPC[i] == c) { r = MPL[i]; } i = i + 1; }
+  if (c == 'perm' && r < 1) { r = 1; }
+  return r;
+}
+function permOk(nick, c) {
+  c = cmdCanon(c);
+  let lv = cmdLevel(c), r = 0;
+  if (nick == SUPER) { r = 1; }
+  if (lv == 0) { r = 1; }
+  if (lv == 1) { if (isOp(nick) == 1) { r = 1; } }
+  if (lv == 2) { if (nick == shOwner) { r = 1; } }
+  let i = 1;
+  while (i <= MGN.length) { if (MGN[i] == nick) { if (MGC[i] == c || MGC[i] == '*') { r = 1; } } i = i + 1; }
+  return r;
+}
+let LVNAME = ['모두', '관리자', '주인'];
+function netPermCmd(sub) {
+  gS = '-';
+  let a = lower(cw(3)), b = lower(cw(4));
+  if (sub == 'set') {
+    let c = cmdCanon(bare(a)), lv = 0 - 1;
+    if (b == 'all' || b == 'everyone' || b == '0' || b == '모두') { lv = 0; }
+    if (b == 'op' || b == '1' || b == '관리자') { lv = 1; }
+    if (b == 'owner' || b == '2' || b == '주인') { lv = 2; }
+    if (lv < 0 || strlen(c) == 0) { gS = '/perm set <명령어> all|op|owner'; }
+    else { if (c == 'perm' && lv == 0) { gS = '/perm 은 모두에게 열 수 없습니다'; } else { netWish(`pset^${c}^${lv}`); gS = `/${c} 을(를) 쓸 수 있는 사람: ${LVNAME[lv + 1]}`; } }
+  }
+  if (sub == 'allow' || sub == 'deny') {
+    let who = cw(3), c = cmdCanon(bare(b));
+    if (strlen(who) == 0 || strlen(c) == 0) { gS = `/perm ${sub} <닉네임> <명령어|*>`; }
+    else {
+      if (c == 'all') { c = '*'; }
+      netWish(`p${sub}^${netClean(who)}^${c}`);
+      let what = `/${c}`; if (c == '*') { what = '모든 명령어'; }
+      if (sub == 'allow') { gS = `${who} 님이 ${what}을(를) 쓸 수 있게 했습니다`; } else { gS = `${who} 님의 ${what} 허락을 거뒀습니다`; }
+    }
+  }
+  if (sub == 'reset') { netWish('preset'); gS = '명령어 권한을 처음대로 했습니다'; }
+  if (sub == 'help') { gS = '/perm · /perm set <명령어> all|op|owner · /perm allow|deny <닉네임> <명령어|*> · /perm reset · /perm check <닉네임>'; }
+  if (sub == 'check') {
+    let who = cw(3), i = 1, m = 0;
+    gS = `${who} 님이 쓸 수 있는 것:`;
+    while (i <= ACN.length) { if (permOk(who, ACN[i]) == 1) { gS = `${gS} /${ACN[i]}`; m = m + 1; } i = i + 1; }
+    i = 1; while (i <= ACNET.length) { if (permOk(who, ACNET[i]) == 1) { gS = `${gS} /${ACNET[i]}`; m = m + 1; } i = i + 1; }
+    if (m == 0) { gS = `${gS} 없음`; }
+  }
+  if (gS == '-') {
+    let i = 1;
+    gS = '모두: /help /list /tell /me /seed';
+    while (i <= MPC.length) { if (MPL[i] == 0) { gS = `${gS} /${MPC[i]}`; } i = i + 1; }
+    gS2 = ' '; i = 1; while (i <= MPC.length) { if (MPL[i] == 2) { gS2 = `${gS2}/${MPC[i]} `; } i = i + 1; }
+    if (strlen(gS2) > 1) { gS = `${gS} · 주인만:${gS2}`; }
+    gS = `${gS} · 나머지는 관리자`;
+    if (MGN.length > 0) { gS = `${gS} · 따로 허락:`; i = 1; while (i <= MGN.length) { let c = `/${MGC[i]}`; if (MGC[i] == '*') { c = '모두'; } gS = `${gS} ${MGN[i]}(${c})`; i = i + 1; } }
+    gS = `${gS} · /perm help`;
+  }
+  return gS;
 }
 function netListText() {
   let j = 1, n = 0;
@@ -49,7 +132,7 @@ function netServerCmd(sub) {
   if (sub == 'pvp') { let p = 0; if (lower(v) == 'on' || v == '1' || lower(v) == 'true') { p = 1; } netWish(`set^pvp^${p}`); gS = `플레이어끼리 싸우기: ${p}`; }
   if (sub == 'mode') { let m = 0; if (lower(v) == 'creative' || v == '1') { m = 1; } if (lower(v) == 'adventure' || v == '2') { m = 2; } netWish(`set^mode^${m}`); gS = `새로 오는 사람의 게임 모드: ${MODEKO[m + 1]}`; }
   if (sub == 'max') { netWish(`set^max^${v}`); gS = `최대 인원: ${v}`; }
-  if (gS == '-') { gS = `${shName} · 주인 ${shOwner} · 시드 ${shSeed} · 싸움 ${shPvp} · 모드 ${MODEKO[shMode + 1]} · 최대 ${shMax} · 화이트리스트 ${shWl} (/server motd|name|pvp|mode|max)`; }
+  if (gS == '-') { let wk = '기본 지형'; if (shFlat != '-') { wk = `평지 ${shFlat}`; } gS = `${shName} · 주인 ${shOwner} · ${wk} · 시드 ${shSeed} · 싸움 ${shPvp} · 모드 ${MODEKO[shMode + 1]} · 최대 ${shMax} · 화이트리스트 ${shWl} (/server motd|name|pvp|mode|max)`; }
   return gS;
 }
 // /plugin add 이름 이벤트[:조건] me|all 명령 ...   /plugin list   /plugin rules 이름   /plugin del 이름 [번호]   /plugin on|off 이름

@@ -44,7 +44,7 @@ function pollKeys() {
   keyPoll(27, key(27)); keyPoll(37, key(37)); keyPoll(39, key(39));
   keyPoll(49, key(49)); keyPoll(50, key(50)); keyPoll(51, key(51)); keyPoll(52, key(52)); keyPoll(53, key(53)); keyPoll(54, key(54)); keyPoll(55, key(55)); keyPoll(56, key(56)); keyPoll(57, key(57));
   keyPoll(32, key(32)); keyPoll(84, key(84)); keyPoll(191, key(191));
-  keyPoll(69, key(69)); keyPoll(70, key(70)); keyPoll(71, key(71)); keyPoll(72, key(72)); keyPoll(80, key(80)); keyPoll(81, key(81)); keyPoll(114, key(114)); keyPoll(13, key(13));
+  keyPoll(67, key(67)); keyPoll(69, key(69)); keyPoll(70, key(70)); keyPoll(71, key(71)); keyPoll(72, key(72)); keyPoll(80, key(80)); keyPoll(81, key(81)); keyPoll(114, key(114)); keyPoll(13, key(13));
 }
 function keyHit(code) { return KHIT[code]; }
 
@@ -150,7 +150,7 @@ function playLook(dt) {
   wasLocked = lkNow;
   clickHeld = 0;
   if (mouseDown()) { if (lkNow == 1) { clickHeld = 1; } }
-  attackCool = attackCool - dt; placeCool = placeCool - dt; swingT = swingT - dt;
+  attackCool = attackCool - dt; placeCool = placeCool - dt; swingT = swingT - dt; bowCool = Math.max(0, bowCool - dt);
 }
 // the keys of play (or of the open screen)
 function playKeys(dt) {
@@ -174,6 +174,7 @@ function playKeys(dt) {
       if (keyHit(70) == 1) { useKey(); }
       if (key(70)) { if (placeCool <= 0) { if (KW[70] == 1) { useKey(); placeCool = 0.25; } } }
       if (keyHit(81) == 1) { dropHeld(); }
+      if (keyHit(67) == 1) { pickCopy(); }
       if (keyHit(69) == 1) { if (gameMode == 1) { uiOpen(5); } else { if (gameMode != 3) { uiOpen(1); } } }
       if (keyHit(80) == 1) { uiMode = 6; mouseFree(); txClear(); }
       // a command: T or /
@@ -275,7 +276,8 @@ function uiInput() {
         else {
           // a click outside the window throws what is on the cursor
           let mx = mouseX(), my = mouseY();
-          if (curI > 0) { if (mx < -88 || mx > 88 || my > 92 || my < -94) { if (uiMode != 5) { dropItem(curI, curN, curD, camX + lookX * 0.4, camY - 0.3, camZ + lookZ * 0.4, 2); } curI = 0; curN = 0; curD = 0; } }
+          let left = -88; if (uiMode == 5) { left = -112; }
+          if (curI > 0) { if (mx < left || mx > 88 || my > 92 || my < -94) { if (uiMode != 5) { dropItem(curI, curN, curD, camX + lookX * 0.4, camY - 0.3, camZ + lookZ * 0.4, 2); } curI = 0; curN = 0; curD = 0; } }
         }
       }
       // number keys: the hovered slot to the hotbar

@@ -139,7 +139,7 @@ function stateOf(b, st) {
   if (f < 0) { f = 0; }
   if (pl == P_STAIRS) { v = f + half * 4; }
   if (pl == P_SLAB) { v = typ; }
-  if (pl == P_AXIS) { v = ax; }
+  if (pl == P_AXIS) { if (ax == 1) { v = BAXX[b + 1] - b; } if (ax == 2) { v = BAXZ[b + 1] - b; } }
   if (pl == P_BED) { v = f + half * 4; }
   if (pl == P_LADDER) { v = mod(f + 2, 4); }
   if (pl == P_GATE) { v = mod(f, 2) + op * 2; }
@@ -200,9 +200,10 @@ function coordOf(w, here) {
 
 // ---------------------------------------------------------------- targets
 // SEL: 0 the player, e > 0 the mobs; selN how many
-let SEL = [], selN = 0, selPlayer = 0;
+// (v2.3) SELR: the other players on the server (their slots), selBad 1: not a selector
+let SEL = [], selN = 0, selPlayer = 0, SELR = [], selBad = 0;
 function selParse(w) {
-  SEL = []; selN = 0; selPlayer = 0;
+  SEL = []; selN = 0; selPlayer = 0; SELR = []; selBad = 0;
   if (charAt(w, 1) == '@') {
     let k = charAt(w, 2), args = '';
     let br = indexOf(w, '[');
@@ -229,6 +230,9 @@ function selParse(w) {
     if (li > 0) { let rest = substr(args, li + 6, strlen(args)), cm = indexOf(rest, ','); if (cm > 0) { rest = substr(rest, 1, cm - 1); } lim = Math.floor(rest * 1); }
     if (indexOf(args, 'sort=nearest') > 0) { srt = 1; } if (indexOf(args, 'sort=furthest') > 0) { srt = 2; } if (indexOf(args, 'sort=random') > 0) { srt = 3; }
     if (k == 'p' || k == 's' || k == 'a' || k == 'r') { selAdd(0); }
+    if (k != 'p' && k != 's' && k != 'a' && k != 'r' && k != 'e') { selBad = 1; }
+    let plOk = 1;
+    if (hasT == 1) { if (ty == 0 - 1) { plOk = 1 - neg; } else { plOk = neg; } }
     if (k == 'e') {
       // the player: no type, type=player, or type=!<a mob>
       let pOk = 0;
@@ -236,7 +240,7 @@ function selParse(w) {
       if (pOk == 1) { selAdd(0); }
       let e = 1;
       while (e <= NMOB) {
-        if (ET[e] > 0) {
+        if (ET[e] > 0 && ET[e] != M_NETPLAYER) {
           let okT = 1;
           if (ty > 0) { if (ET[e] != ty) { okT = 0; } if (neg == 1) { okT = 1 - okT; } }
           if (ty == 0 - 1) { okT = neg; }
@@ -262,10 +266,55 @@ function selParse(w) {
     if (lim > 0) { if (selN > lim) { selN = lim; } }
     let q2 = 1;
     while (q2 <= selN) { if (SEL[q2] == 0) { selPlayer = 1; } q2 = q2 + 1; }
+    if (netSrv > 0 && cmdFromBlock != 2) { selOthers(k, plOk, dmin, dmax, lim); }
   } else {
-    // a name: the player (alone in this world)
-    if (strlen(w) > 0) { selAdd(0); selPlayer = 1; }
+    // a name: the player (alone in this world); on a server, the one of that name
+    if (strlen(w) > 0) {
+      if (netSrv > 0 && cmdFromBlock != 2) {
+        if (w == netNick) { selAdd(0); selPlayer = 1; }
+        else { let j = 1; while (j <= NSLOT) { if (j != netMy) { if (NLIVE[j] == 1) { if (NSRVk[j] == netSrv) { if (NNICK[j] == w) { SELR.push(j); } } } } j = j + 1; } }
+      } else { selAdd(0); selPlayer = 1; }
+    }
   }
+}
+// the other players on the server a selector finds (into SELR)
+function selOthers(k, plOk, dmin, dmax, lim) {
+  if (plOk == 1 && (k == 'a' || k == 'e' || k == 'p' || k == 'r')) {
+    let j = 1;
+    while (j <= NSLOT) {
+      if (j != netMy) { if (NLIVE[j] == 1) { if (NSRVk[j] == netSrv) { if (NSTT[j] >= 1) {
+        let ok = 1;
+        if (dmin >= 0 || dmax >= 0) {
+          if (NDIM[j] != dim) { ok = 0; }
+          else { let d = Math.sqrt((NPX[j] - cmdX) * (NPX[j] - cmdX) + (NPY[j] - cmdY) * (NPY[j] - cmdY) + (NPZ[j] - cmdZ) * (NPZ[j] - cmdZ)); if ((dmin >= 0 && d < dmin) || (dmax >= 0 && d > dmax)) { ok = 0; } }
+        }
+        if (ok == 1) { SELR.push(j); }
+      } } } }
+      j = j + 1;
+    }
+    // @p: the nearest of all (in this world); @r: one of all
+    if (k == 'p') {
+      let best = 0, bd = 999999999;
+      if (selPlayer == 1) { bd = selDist(0); }
+      let q = 1;
+      while (q <= SELR.length) { let o = SELR[q]; if (NDIM[o] == dim) { let d = Math.sqrt((NPX[o] - cmdX) * (NPX[o] - cmdX) + (NPY[o] - cmdY) * (NPY[o] - cmdY) + (NPZ[o] - cmdZ) * (NPZ[o] - cmdZ)); if (d < bd) { bd = d; best = o; } } q = q + 1; }
+      SELR = [];
+      if (best > 0) { SELR.push(best); selNoMe(); }
+    }
+    if (k == 'r') {
+      let tot = SELR.length + selPlayer;
+      if (tot > 0) {
+        let q = rand(1, tot);
+        if (q <= SELR.length) { let o = SELR[q]; SELR = []; SELR.push(o); selNoMe(); } else { SELR = []; }
+      }
+    }
+    if (lim > 0) { while (SELR.length > 0 && SELR.length + selN > lim) { SELR.removeAt(SELR.length); } }
+  }
+}
+function selNoMe() {
+  let q = SEL.length;
+  while (q >= 1) { if (SEL[q] == 0) { SEL.removeAt(q); } q = q - 1; }
+  selN = SEL.length; selPlayer = 0;
 }
 function selAdd(e) { SEL.push(e); selN = SEL.length; }
 function selDist(e) {
@@ -468,7 +517,8 @@ function runCommand(s) {
   if (charAt(s, 1) == '/') { s = substr(s, 2, strlen(s)); }
   if (cmdFromBlock == 0) { if (cmdDepth == 0) { cmdX = px; cmdY = py; cmdZ = pz; cmdYaw = yaw; cmdPitch = pitch; } }
   cmdSplit(s);
-  let c = lower(cw(1)), out = '';
+  // (minecraft:time is /time)
+  let c = lower(bare(cw(1))), out = '';
   CMW[1] = c;
   // (the words but the texts in lower case)
   let i = 2;
@@ -476,7 +526,9 @@ function runCommand(s) {
   // on a server: the rights, the server's own commands, the plugins' (netcmd.js)
   netCmdHit = 0;
   if (netSrv > 0) { netCmd(c); }
-  if (netCmdHit == 1) { out = netCmdOut; } else { out = runCmd(c); }
+  else { if (cheatsOn == 0 && cmdFromBlock == 0 && cmdLvDefault(cmdCanon(c)) > 0) { netCmdHit = 1; netCmdOut = '이 세계는 명령어를 쓸 수 없게 만들어졌습니다 (새 세계의 "명령어 허용")'; } }
+  if (netCmdHit == 1) { out = netCmdOut; }
+  else { if (cmdAim(c) == 1) { out = runCmd(c); if (strlen(aimSent) > 0) { if (strlen(out) > 0) { out = `${out} (+ ${aimSent})`; } } } else { out = cmdAimOut; } }
   // (a text local starts as 0 in Entry: no message is 0)
   if (strlen(out) > 0) { if (out != 0) { cmdOut(out); } }
 }
@@ -551,6 +603,7 @@ function cmdGive() {
     if (selPlayer == 1) { addItem(id, n, 0); if (addLeft > 0) { dropItem(id, addLeft, 0, px, py + 1, pz, 0); } }
     out = `[${ITNAME[id + 1]}] ${n}개를 플레이어에게 주었습니다`;
   }
+  if (CMW.length < 3) { out = '/give <대상> <아이템> [개수] 예: /give @s oak_planks 64'; }
   return out;
 }
 function cmdClear() {
@@ -934,6 +987,8 @@ function cmdEnchant() {
 function cmdLocate(nm) {
   let t = structByName(nm), out = '';
   if (t == 0) { out = `알 수 없는 구조물입니다: ${nm} (/help locate)`; }
+  else { if (flatOn == 1 && dim == 0) { out = '평지 세계에는 구조물이 없습니다'; t = 0; } }
+  if (t == 0) { }
   else {
     locateStruct(t, Math.floor(px), Math.floor(pz));
     if (locOk == 1) { out = `가장 가까운 ${STNAME[t]}은(는) [${locX}, ~, ${locZ}]에 있습니다 (${Math.round(Math.sqrt((locX - px) * (locX - px) + (locZ - pz) * (locZ - pz)))}블록 떨어짐)`; }

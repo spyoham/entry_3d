@@ -21,7 +21,7 @@ F(s, 5);
 s.poke('AT_확장프로그램', 1); s.poke('worldCur', 1); s.poke('worldName', '시험 세계');
 call(s, () => s.fn.saveGame(1));
 const save = s.peek('AT_세계1').slice();
-ok(save[0] === 'BW22' && save[1] === '시험 세계' && save[save.length - 1] === 'END', `written: ${save.length} items`);
+ok(save[0] === 'BW22' && save[1] === '시험 세계' && save[save.length - 5] === 'END' && save[save.length - 4] === 'CHEAT' && save[save.length - 2] === 'FLAT', `written: ${save.length} items`);
 ok(s.peek('EDX').length < ed0 - 250, `the log made short: ${ed0} -> ${s.peek('EDX').length}`);
 const tday = s.peek('tday'), inv = s.peek('INVI').slice(), invn = s.peek('INVN').slice();
 // a new run: the title, the kept list put back (as tessvm does), then 이어하기

@@ -29,7 +29,7 @@ function worldGet(k) { if (k == 1) { M_fromW(AT_세계1); } if (k == 2) { M_from
 function worldPut(k) { if (k == 1) { M_toW(AT_세계1); } if (k == 2) { M_toW(AT_세계2); } if (k == 3) { M_toW(AT_세계3); } if (k == 4) { M_toW(AT_세계4); } if (k == 5) { M_toW(AT_세계5); } }
 function worldClear(k) { if (k == 1) { AT_세계1 = []; } if (k == 2) { AT_세계2 = []; } if (k == 3) { AT_세계3 = []; } if (k == 4) { AT_세계4 = []; } if (k == 5) { AT_세계5 = []; } }
 // a world's header (wName wMode wDate): is it there
-let wName = '', wMode = 0, wDate = '', wSeed = 0;
+let wName = '', wMode = 0, wDate = '', wSeed = 0, wFlat = '-';
 function worldHead(k) {
   let r = 0, a = '', n = 0;
   if (k == 1) { n = AT_세계1.length; if (n >= 5) { a = AT_세계1[1]; wName = AT_세계1[2]; wMode = AT_세계1[3]; wDate = AT_세계1[4]; wSeed = AT_세계1[5]; } }
@@ -38,6 +38,15 @@ function worldHead(k) {
   if (k == 4) { n = AT_세계4.length; if (n >= 5) { a = AT_세계4[1]; wName = AT_세계4[2]; wMode = AT_세계4[3]; wDate = AT_세계4[4]; wSeed = AT_세계4[5]; } }
   if (k == 5) { n = AT_세계5.length; if (n >= 5) { a = AT_세계5[1]; wName = AT_세계5[2]; wMode = AT_세계5[3]; wDate = AT_세계5[4]; wSeed = AT_세계5[5]; } }
   if (n > 10) { if (a == SVTAG) { r = 1; } }
+  // the kind of world: the last two items
+  wFlat = '-';
+  if (r == 1) {
+    if (k == 1) { if (AT_세계1[n - 1] == 'FLAT') { wFlat = AT_세계1[n]; } }
+    if (k == 2) { if (AT_세계2[n - 1] == 'FLAT') { wFlat = AT_세계2[n]; } }
+    if (k == 3) { if (AT_세계3[n - 1] == 'FLAT') { wFlat = AT_세계3[n]; } }
+    if (k == 4) { if (AT_세계4[n - 1] == 'FLAT') { wFlat = AT_세계4[n]; } }
+    if (k == 5) { if (AT_세계5[n - 1] == 'FLAT') { wFlat = AT_세계5[n]; } }
+  }
   return r;
 }
 function worldFree() {
@@ -193,6 +202,9 @@ function svWrite() {
     c = c + 1;
   }
   svN('END');
+  // (v2.3: the kind of world; read from the end for the list)
+  svN('CHEAT'); svN(cheatsOn);
+  svN('FLAT'); svN(flatKept());
   worldPut(worldCur);
 }
 // wait 1: until it is written (the menu); 0: it goes on its own (the timer)
@@ -254,6 +266,9 @@ function loadGame(k) {
     while (k <= 27) { let q = (c - 1) * 27 + k; CHI[q] = rdN(); CHN[q] = rdN(); CHD[q] = rdN(); k = k + 1; }
     j = j + 1;
   }
+  flatOn = 0; cheatsOn = 1;
+  if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'CHEAT') { svP = svP + 2; cheatsOn = rdN(); svP = svP - 1; } }
+  if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'FLAT') { svP = svP + 2; let fbad = flatSet(rdN()); } }
   curI = 0; curN = 0; curD = 0;
   FOC = 210; saveT = 0;
   // the world round the kept place is made (as when going between worlds), then arriveKept
