@@ -78,11 +78,13 @@ function svBackDrop(k) {
   }
 }
 // the copies against the shared lists (once they have come: some seconds after Entry Sync is on)
+let BKID = [];
 function bkCheck() {
   let p = 1, n = AT_서버백업.length, ch = 0, any = 0, q = 1;
   bkPut = 0;
-  // (only when every place is empty)
-  while (q <= NSRV) { if (metaLen(q) > 0) { any = 1; } q = q + 1; }
+  // (only when every place is empty; each place's id read once into BKID, '-' for an empty one)
+  BKID = [];
+  while (q <= NSRV) { if (srvHas(q) == 1) { any = 1; BKID.push(shId); } else { BKID.push('-'); } q = q + 1; }
   while (p <= n) {
     if (AT_서버백업[p] != 'SB') { p = n + 1; }
     else {
@@ -91,11 +93,11 @@ function bkCheck() {
       else {
         let k = 1, at = 0, free = 0;
         while (k <= NSRV) {
-          if (srvHas(k) == 1) { if (shId == id) { if (at == 0) { at = k; } } } else { if (free == 0) { free = k; } }
+          if (BKID[k] != '-') { if (BKID[k] == id) { if (at == 0) { at = k; } } } else { if (free == 0) { free = k; } }
           k = k + 1;
         }
         if (at == 0 && any == 0) {
-          if (free > 0) { bkWrite(p, free); bkPut = bkPut + 1; netMsg = `사라진 서버 '${name}'을(를) 이 컴퓨터에 남은 기록에서 되살렸습니다`; }
+          if (free > 0) { bkWrite(p, free); BKID[free] = id; bkPut = bkPut + 1; netMsg = `사라진 서버 '${name}'을(를) 이 컴퓨터에 남은 기록에서 되살렸습니다`; }
         }
         let nm = AT_서버백업[p + 5] * 1, ne = AT_서버백업[p + 6 + nm] * 1;
         p = p + 7 + nm + ne;
@@ -105,9 +107,9 @@ function bkCheck() {
   // (two places holding one server - two games put it back at once: the later place is cleared)
   let a = 1;
   while (a <= NSRV) {
-    if (srvHas(a) == 1) {
-      let ida = shId, b = a + 1;
-      while (b <= NSRV) { if (srvHas(b) == 1) { if (shId == ida) { if (srvCount(b) == 0 && b != netSrv) { NMW = []; metaPut(b); NEW = []; editsPut(b); } } } b = b + 1; }
+    if (BKID[a] != '-') {
+      let b = a + 1;
+      while (b <= NSRV) { if (BKID[b] == BKID[a]) { if (srvCount(b) == 0 && b != netSrv) { NMW = []; metaPut(b); NEW = []; editsPut(b); BKID[b] = '-'; } } b = b + 1; }
     }
     a = a + 1;
   }
@@ -126,6 +128,48 @@ function svBackStep(dt) {
     bkChkT = bkChkT + dt;
     if (syOnT >= 0 && netClock - syOnT > 20 && bkChkT > 10) { bkChkT = 0; if (AT_서버백업.length > 0) { bkCheck(); } }
   }
+  ageT = ageT + dt;
+  if (syOnT >= 0 && netClock - syOnT > 20 && ageT > 30) { ageT = 0; srvAgeCheck(); }
+}
+// ---------------------------------------------------------------- servers nobody plays (v2.4.1)
+// Each server's header holds the day it was last played (its host writes it). One nobody has played
+// for SRVDAYS days is cleared by whoever has the server list open, its place freed for new ones.
+// (Each computer's own clock says what day it is: so that one set wrong cannot clear them all, a
+// server goes only when another server has been played SRVDAYS days after it too.)
+const SRVDAYS = 30;
+let ageT = 0;
+// days since long ago (the civil calendar), from this computer's clock
+function dayNow() {
+  let y = dateYear(), m = dateMonth(), d = dateDay(), mm = m - 3;
+  if (m <= 2) { y = y - 1; mm = m + 9; }
+  return 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) + Math.floor((153 * mm + 2) / 5) + d - 738000;
+}
+function srvAgeCheck() {
+  let today = dayNow(), newest = 0, k = 1, gone = 0;
+  while (k <= NSRV) { if (srvHas(k) == 1) { if (shDay > newest) { if (shDay <= today + 2) { newest = shDay; } } } k = k + 1; }
+  k = 1;
+  while (k <= NSRV) {
+    if (srvHas(k) == 1) { if (srvCount(k) == 0 && k != netSrv) {
+      if (shDay <= 0) {
+        // (a server from before v2.4.1: its day starts now)
+        shDay = today; NMW = []; NMW.push(headLine());
+        let i = 2, n = metaLen(k);
+        while (i <= n) { NMW.push(metaItem(k, i)); i = i + 1; }
+        metaPut(k);
+      } else {
+        if (today - shDay >= SRVDAYS && newest - shDay >= SRVDAYS) {
+          gS2 = shName;
+          svBackDrop(k);
+          NMW = []; metaPut(k); NEW = []; editsPut(k);
+          gone = gone + 1;
+          if (gone == 1) { netMsg = `${SRVDAYS}일 넘게 아무도 들어오지 않은 서버 '${gS2}'을(를) 지웠습니다`; }
+          else { netMsg = `${SRVDAYS}일 넘게 아무도 들어오지 않은 서버 ${gone}개를 지웠습니다`; }
+        }
+      }
+    } }
+    k = k + 1;
+  }
+  if (netSrv > 0) { srvHead(netSrv); }
 }
 // leaving a server: its copy as it is then
 function svBackLeave() {

@@ -11,7 +11,9 @@ import { TEX, CRACK, BLOCKS, NBLOCK, ITEMS, TIERS, KINDS, SMITH, toolId, NITEM, 
 import { MODELS, ARMS, ARMCOL, pottedModel } from './models.mjs';
 import { makeSounds } from './sounds.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '2.4';
+export const VERSION = '2.4.1';
+// how many servers Entry Sync holds (each one two ?! lists; the slot line carries the number in two digits)
+export const NSRV = 99;
 export const NAME = '블록 월드';
 
 // the ring window of loaded chunks: NCH x NCH slots of 16 x 16 columns; chunks are made within
@@ -429,7 +431,35 @@ export function sources(C) {
     const stub = files.includes('test.js') ? '' : '\nfunction testStep() { }\n';
     const lit = (v) => typeof v === 'string' ? JSON.stringify(v) : (Number.isFinite(v) ? String(v) : (() => { throw new Error('bad ' + v); })());
     const parts = [], init = [];
+    // (v2.4.1) a data list of whole numbers (64 items or more) is kept packed: each item as w digits
+    // of 64 (PA) from its least, in texts of up to 8000 (PKS, each led by 'P' so it stays a text),
+    // and unpacked by bigInit. The work's project.json went 16.7 -> about 12 MB (the site takes 16).
+    const PA = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/';
+    const PKS = [], unpack = [], packed = new Set();
     for (const [k, v] of Object.entries(L)) {
+        if (C.NOPACK || v.length < 64 || !v.every(x => typeof x === 'number' && Number.isInteger(x))) continue;
+        let mn = v[0], mx = v[0];
+        for (const x of v) { if (x < mn) mn = x; if (x > mx) mx = x; }
+        let w = 1; while (64 ** w <= mx - mn) w++;
+        if (w > 4) continue;
+        const per = Math.floor(7999 / w), a = PKS.length + 1;
+        for (let s = 0; s < v.length; s += per) {
+            let t = 'P';
+            for (const x of v.slice(s, s + per)) { let d = x - mn, q = ''; for (let j = 0; j < w; j++) { q = PA[d % 64] + q; d = Math.floor(d / 64); } t += q; }
+            PKS.push(t);
+        }
+        let dec = `v = indexOf(PA, charAt(s, j)) - 1;`;
+        for (let j = 1; j < w; j++) dec += ` v = v * 64 + indexOf(PA, charAt(s, j + ${j})) - 1;`;
+        unpack.push(`  c = ${a}; while (c <= ${PKS.length}) { s = PKS[c]; n = strlen(s); j = 2; while (j <= n) { ${dec} ${k}.push(v + ${mn}); j = j + ${w}; } c = c + 1; }`);
+        parts.push(`let ${k} = [];`);
+        packed.add(k);
+    }
+    parts.push(`let PA = ${JSON.stringify(PA)};`);
+    parts.push(`let PKS = [${PKS.map(lit).join(', ')}];`);
+    parts.push(`function unpackLists() {\n  let c = 1, s = ' ', n = 0, j = 0, v = 0;\n${unpack.join('\n')}\n}`);
+    init.push('  unpackLists();');
+    for (const [k, v] of Object.entries(L)) {
+        if (packed.has(k)) continue;
         if (v.length <= PART) { parts.push(`let ${k} = [${v.map(lit).join(', ')}];`); continue; }
         parts.push(`let ${k} = [];`);
         for (let p = 0; p * PART < v.length; p++) {
@@ -440,6 +470,21 @@ export function sources(C) {
     // every Korean syllable in order (the typed line puts them together: src/keyin.js)
     let hsy = ''; for (let i = 0; i < 11172; i++) hsy += String.fromCharCode(0xAC00 + i);
     parts.push(`let HSY = ${JSON.stringify(hsy)};`);
+    // (v2.4.1) the servers' places in Entry Sync: SY_m1..NSRV (settings) and SY_e1..NSRV (blocks), and
+    // the functions that reach place k (a list can't be picked by a number in Entry: a tree of ifs)
+    parts.push(`const NSRV = ${NSRV};`);
+    for (const p of ['m', 'e']) parts.push(`let ${Array.from({ length: NSRV }, (_, i) => `SY_${p}${i + 1} = []`).join(', ')};`);
+    const tree = (lo, hi, leaf) => {
+        if (lo === hi) return leaf(lo);
+        const mid = (lo + hi) >> 1;
+        return `if (k <= ${mid}) { ${tree(lo, mid, leaf)} } else { ${tree(mid + 1, hi, leaf)} }`;
+    };
+    parts.push(`function metaLen(k) { let n = 0; if (k >= 1 && k <= NSRV) { ${tree(1, NSRV, (i) => `n = SY_m${i}.length;`)} } return n; }`);
+    parts.push(`function metaItem(k, i) { let s = ''; if (i >= 1 && i <= metaLen(k)) { ${tree(1, NSRV, (j) => `s = SY_m${j}[i];`)} } return \`\${s}\`; }`);
+    parts.push(`function metaPut(k) { let q = 1; if (k >= 1 && k <= NSRV) { ${tree(1, NSRV, (j) => `SY_m${j} = []; q = 1; while (q <= NMW.length) { SY_m${j}.push(NMW[q]); q = q + 1; }`)} } }`);
+    parts.push(`function editLen(k) { let n = 0; if (k >= 1 && k <= NSRV) { ${tree(1, NSRV, (i) => `n = SY_e${i}.length;`)} } return n; }`);
+    parts.push(`function editItem(k, i) { let v = 0; if (k >= 1 && k <= NSRV) { ${tree(1, NSRV, (j) => `v = SY_e${j}[i];`)} } return v; }`);
+    parts.push(`function editsPut(k) { let q = 1; if (k >= 1 && k <= NSRV) { ${tree(1, NSRV, (j) => `SY_e${j} = []; q = 1; while (q <= NEW.length) { SY_e${j}.push(NEW[q]); q = q + 1; }`)} } }`);
     parts.push(`function bigInit() {\n  let i = 0;\n${init.join('\n')}\n}`);
     const raw = parts.join('\n') + '\n' + files.map(f => fs.readFileSync(path.join(HERE, 'src', f), 'utf8')).join('\n') + stub;
     const { src, count } = expandMacros(raw);

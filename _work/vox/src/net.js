@@ -7,7 +7,7 @@
 // - SY_p1..16, the players' slots: each player holds one and only ever writes that one. A fixed-width
 //   line (where they are, what they do) then '|' nickname '|' their last events (block changes,
 //   chat, ...), each `id:type:fields`, fields split by ^.
-// - SY_m1..8 and SY_e1..8, the servers: the settings and what is kept of each server (owner, ops,
+// - SY_m1..99 and SY_e1..99, the servers (v2.4.1: 99 places, declared and reached by code build.mjs writes): the settings and what is kept of each server (owner, ops,
 //   bans, the whitelist, plugins, the players' things by nickname, chests, signs) and the blocks
 //   changed in its world (x, y, z, block, world: 5 items each). Only the server's host writes
 //   them: the player in it with the lowest slot. Anybody's wish to change them is an event the
@@ -16,12 +16,9 @@
 let SY_ = 0;
 let SY_p1 = '', SY_p2 = '', SY_p3 = '', SY_p4 = '', SY_p5 = '', SY_p6 = '', SY_p7 = '', SY_p8 = '';
 let SY_p9 = '', SY_p10 = '', SY_p11 = '', SY_p12 = '', SY_p13 = '', SY_p14 = '', SY_p15 = '', SY_p16 = '';
-let SY_m1 = [], SY_m2 = [], SY_m3 = [], SY_m4 = [], SY_m5 = [], SY_m6 = [], SY_m7 = [], SY_m8 = [];
-let SY_e1 = [], SY_e2 = [], SY_e3 = [], SY_e4 = [], SY_e5 = [], SY_e6 = [], SY_e7 = [], SY_e8 = [];
 const NSLOT = 16;
-const NSRV = 8;
 const NSTALE = 8;
-const NHDR = 58;
+const NHDR = 59;
 let netOn = 0, netMy = 0, netSid = 0, netSeq = 0, netSrv = 0, netSt = 0, netHost = 0, netClock = 0, netNick = '';
 let netWriteT = 0, netLastWrite = '', netHostT = 0, netUserT = 0, netUserAct = 0, netApplying = 0, netMsg = '', netStartT = 0;
 let netPX = 0, netPY = 0, netPZ = 0, netYaw = 0;
@@ -101,11 +98,11 @@ function nsPut(k, s) {
   if (k == 13) { SY_p13 = s; } if (k == 14) { SY_p14 = s; } if (k == 15) { SY_p15 = s; } if (k == 16) { SY_p16 = s; }
 }
 // my slot as a line:
-//   B sid6 seq5 wall5 st1 srv1 dim1 x7 y4 z7 yaw3 pitch3 held4 flags2 hp2 mode1 tday4 (58) | nick | events
+//   B sid6 seq5 wall5 st1 srv2 dim1 x7 y4 z7 yaw3 pitch3 held4 flags2 hp2 mode1 tday4 (59) | nick | events
 function slotLine() {
   let fl = 0;
   if (sneaking == 1) { fl = fl + 1; } if (swingT > 0) { fl = fl + 2; } if (hurtT > 0) { fl = fl + 4; } if (flying == 1) { fl = fl + 8; }
-  let s = `B${padN(netSid, 6)}${padN(netSeq, 5)}${padN(wallNow(), 5)}${netSt}${netSrv}${dim}${padN(px * 10 + 5000000, 7)}${padN((py + 100) * 10, 4)}${padN(pz * 10 + 5000000, 7)}`;
+  let s = `B${padN(netSid, 6)}${padN(netSeq, 5)}${padN(wallNow(), 5)}${netSt}${padN(netSrv, 2)}${dim}${padN(px * 10 + 5000000, 7)}${padN((py + 100) * 10, 4)}${padN(pz * 10 + 5000000, 7)}`;
   s = `${s}${padN(mod(yaw, 360), 3)}${padN(pitch + 90, 3)}${padN(INVI[hotSel], 4)}${padN(fl, 2)}${padN(hp, 2)}${gameMode}${padN(tday * 9999, 4)}|${netNick}|`;
   let i = 1;
   gS = s;
@@ -143,11 +140,11 @@ function slotRead(k) {
         if (first == 1) { if (wallDiff(wall, wallNow()) > 20) { NST[k] = 0 - 999; } }
         if (sid != NSID[k]) { NSID[k] = sid; NLE[k] = 0 - 1; }
         let oldSrv = NSRVk[k];
-        NSTT[k] = substr(s, 18, 18) * 1; NSRVk[k] = substr(s, 19, 19) * 1; NDIM[k] = substr(s, 20, 20) * 1;
+        NSTT[k] = substr(s, 18, 18) * 1; NSRVk[k] = substr(s, 19, 20) * 1; NDIM[k] = substr(s, 21, 21) * 1;
         if (k != netMy) { if (netSrv > 0) { if (oldSrv == netSrv) { if (NSRVk[k] != netSrv) { if (NLIVE[k] == 1) { chatAdd(`${NNICK[k]} 님이 나갔습니다`); if (netHost == 1) { plugRun('quit', ' ', NNICK[k]); } } } } } }
-        NPX[k] = (substr(s, 21, 27) * 1 - 5000000) / 10; NPY[k] = substr(s, 28, 31) / 10 - 100; NPZ[k] = (substr(s, 32, 38) * 1 - 5000000) / 10;
-        NYAW[k] = substr(s, 39, 41) * 1; NPIT[k] = substr(s, 42, 44) - 90; NHELD[k] = substr(s, 45, 48) * 1; NFLG[k] = substr(s, 49, 50) * 1;
-        NHP[k] = substr(s, 51, 52) * 1; NMODE[k] = substr(s, 53, 53) * 1; NTD[k] = substr(s, 54, 57) / 9999;
+        NPX[k] = (substr(s, 22, 28) * 1 - 5000000) / 10; NPY[k] = substr(s, 29, 32) / 10 - 100; NPZ[k] = (substr(s, 33, 39) * 1 - 5000000) / 10;
+        NYAW[k] = substr(s, 40, 42) * 1; NPIT[k] = substr(s, 43, 45) - 90; NHELD[k] = substr(s, 46, 49) * 1; NFLG[k] = substr(s, 50, 51) * 1;
+        NHP[k] = substr(s, 52, 53) * 1; NMODE[k] = substr(s, 54, 54) * 1; NTD[k] = substr(s, 55, 58) / 9999;
         // the nickname and the events
         let rest = substr(s, NHDR + 1, strlen(s)), bar = indexOf(rest, '|');
         if (bar > 1) { NNICK[k] = substr(rest, 1, bar - 1); } else { NNICK[k] = '?'; }
@@ -185,49 +182,14 @@ function slotEvents(k, evs, first) {
   NLE[k] = top;
 }
 
-// ---------------------------------------------------------------- the servers (SY_m1..8, SY_e1..8)
-// their first line: H^name^owner^motd^seed^mode^pvp^max^whitelist^rev
-function metaLen(k) {
-  let n = 0;
-  if (k == 1) { n = SY_m1.length; } if (k == 2) { n = SY_m2.length; } if (k == 3) { n = SY_m3.length; } if (k == 4) { n = SY_m4.length; }
-  if (k == 5) { n = SY_m5.length; } if (k == 6) { n = SY_m6.length; } if (k == 7) { n = SY_m7.length; } if (k == 8) { n = SY_m8.length; }
-  return n;
-}
-function metaItem(k, i) {
-  let s = '';
-  if (i <= metaLen(k)) {
-    if (k == 1) { s = SY_m1[i]; } if (k == 2) { s = SY_m2[i]; } if (k == 3) { s = SY_m3[i]; } if (k == 4) { s = SY_m4[i]; }
-    if (k == 5) { s = SY_m5[i]; } if (k == 6) { s = SY_m6[i]; } if (k == 7) { s = SY_m7[i]; } if (k == 8) { s = SY_m8[i]; }
-  }
-  return `${s}`;
-}
-function M_toMeta(L) { L = []; let q = 1; while (q <= NMW.length) { L.push(NMW[q]); q = q + 1; } }
-function metaPut(k) {
-  if (k == 1) { M_toMeta(SY_m1); } if (k == 2) { M_toMeta(SY_m2); } if (k == 3) { M_toMeta(SY_m3); } if (k == 4) { M_toMeta(SY_m4); }
-  if (k == 5) { M_toMeta(SY_m5); } if (k == 6) { M_toMeta(SY_m6); } if (k == 7) { M_toMeta(SY_m7); } if (k == 8) { M_toMeta(SY_m8); }
-}
-function editLen(k) {
-  let n = 0;
-  if (k == 1) { n = SY_e1.length; } if (k == 2) { n = SY_e2.length; } if (k == 3) { n = SY_e3.length; } if (k == 4) { n = SY_e4.length; }
-  if (k == 5) { n = SY_e5.length; } if (k == 6) { n = SY_e6.length; } if (k == 7) { n = SY_e7.length; } if (k == 8) { n = SY_e8.length; }
-  return n;
-}
-function editItem(k, i) {
-  let v = 0;
-  if (k == 1) { v = SY_e1[i]; } if (k == 2) { v = SY_e2[i]; } if (k == 3) { v = SY_e3[i]; } if (k == 4) { v = SY_e4[i]; }
-  if (k == 5) { v = SY_e5[i]; } if (k == 6) { v = SY_e6[i]; } if (k == 7) { v = SY_e7[i]; } if (k == 8) { v = SY_e8[i]; }
-  return v;
-}
-function M_toEdits(L) { L = []; let q = 1; while (q <= NEW.length) { L.push(NEW[q]); q = q + 1; } }
-function editsPut(k) {
-  if (k == 1) { M_toEdits(SY_e1); } if (k == 2) { M_toEdits(SY_e2); } if (k == 3) { M_toEdits(SY_e3); } if (k == 4) { M_toEdits(SY_e4); }
-  if (k == 5) { M_toEdits(SY_e5); } if (k == 6) { M_toEdits(SY_e6); } if (k == 7) { M_toEdits(SY_e7); } if (k == 8) { M_toEdits(SY_e8); }
-}
+// ---------------------------------------------------------------- the servers (SY_m1..99, SY_e1..99)
+// their first line: H^name^owner^motd^seed^mode^pvp^max^whitelist^rev^flat^id^day (v2.4.1: the day it was last played, dayNow)
+// (metaLen metaItem metaPut editLen editItem editsPut: written by build.mjs, one branch per place)
 // a server's header read into SH*: does it exist
-let shName = '', shOwner = '', shMotd = '', shSeed = 0, shMode = 0, shPvp = 1, shMax = 16, shWl = 0, shRev = 0, shFlat = '-', shId = '';
+let shName = '', shOwner = '', shMotd = '', shSeed = 0, shMode = 0, shPvp = 1, shMax = 16, shWl = 0, shRev = 0, shFlat = '-', shId = '', shDay = 0;
 function srvHas(k) {
   let h = metaItem(k, 1), r = 0;
-  shName = ''; shOwner = ''; shMotd = ''; shSeed = 0; shMode = 0; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shFlat = '-'; shId = '';
+  shName = ''; shOwner = ''; shMotd = ''; shSeed = 0; shMode = 0; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shFlat = '-'; shId = ''; shDay = 0;
   if (strlen(h) > 3) { if (charAt(h, 1) == 'H') {
     splitBy(h, '^');
     if (SPL.length >= 10) {
@@ -236,6 +198,7 @@ function srvHas(k) {
       // (v2.3: a server's own id, for the copies kept on the players' computers: svback.js)
       shId = `${shName}/${shOwner}`;
       if (SPL.length >= 12) { shId = SPL[12]; }
+      if (SPL.length >= 13) { shDay = SPL[13] * 1; }
       r = 1;
     }
   } }
@@ -286,11 +249,12 @@ function metaRead(k) {
     i = i + 1;
   }
 }
+function headLine() { return `H^${shName}^${shOwner}^${shMotd}^${shSeed}^${shMode}^${shPvp}^${shMax}^${shWl}^${shRev}^${shFlat}^${shId}^${shDay}`; }
 // the host writes them back (after a change)
 function metaWrite(k) {
   shRev = shRev + 1; metaRev = shRev;
   NMW = [];
-  NMW.push(`H^${shName}^${shOwner}^${shMotd}^${shSeed}^${shMode}^${shPvp}^${shMax}^${shWl}^${shRev}^${shFlat}^${shId}`);
+  NMW.push(headLine());
   let i = 1;
   while (i <= MOP.length) { NMW.push(`O^${MOP[i]}`); i = i + 1; }
   i = 1; while (i <= MWL.length) { NMW.push(`W^${MWL[i]}`); i = i + 1; }
@@ -330,7 +294,7 @@ function srvCreate(name, motd, seedv, mode, flat) {
   let k = 1, r = 0;
   while (k <= NSRV) { if (r == 0) { if (srvHas(k) == 0) { r = k; } } k = k + 1; }
   if (r > 0) {
-    shName = netClean(name); shOwner = netNick; shMotd = netClean(motd); shSeed = seedv; shMode = mode; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shFlat = netClean(flat); shId = `${rand(100000, 999999)}${rand(100000, 999999)}`;
+    shName = netClean(name); shOwner = netNick; shMotd = netClean(motd); shSeed = seedv; shMode = mode; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shFlat = netClean(flat); shId = `${rand(100000, 999999)}${rand(100000, 999999)}`; shDay = dayNow();
     MOP = []; MBAN = []; MBANR = []; MWL = []; PLN = []; PLO = []; PLE = []; PLC = []; PLT = []; PLX = []; MUN = []; MUD = []; MCK = []; MCD = []; MSK = []; MST = [];
     MPC = []; MPL = []; MGN = []; MGC = [];
     // a plugin to start from: a greeting
@@ -620,6 +584,8 @@ function hostKeepSign(key, t) {
 }
 function hostStep(dt) {
   netHostT = netHostT + dt; metaT = metaT + dt; editT = editT + dt;
+  // (v2.4.1) the day it was last played, for the clearing of servers nobody plays (svback.js)
+  if (netHostT > 5) { netHostT = 0; let td = dayNow(); if (shDay != td) { shDay = td; metaDirty = 1; } }
   // the block changes and the settings written at most once a second / two
   if (editDirty == 1) { if (editT > 1) {
     // made short when long: the last of each cell

@@ -258,7 +258,8 @@ function scrServers() {
         if (SY_ == 1) { bars = 5; }
         let b = 0;
         while (b < 5) { let c = '#3a3a3a'; if (b < bars) { c = '#40e040'; } box(134 + b * 4, y0 - 9 + b * 2, 136 + b * 4, y0 - 11, c); b = b + 1; }
-        tx(ti + 3, `주인 ${shOwner}`, 156, y0 - 17, 6, '#808080', 2);
+        gS2 = `주인 ${shOwner}`; if (shDay > 0) { let ago = dayNow() - shDay; if (ago >= 1) { gS2 = `${gS2} · ${ago}일 전`; } }
+        tx(ti + 3, gS2, 156, y0 - 17, 6, '#808080', 2);
         ti = ti + 4;
         if (hot == 1) { if (clickLatch == 1) { if (selS == k) { serverJoin(k); } else { selS = k; } } }
         shown = shown + 1;
@@ -285,8 +286,8 @@ function scrServers() {
   button(80, -102, 154, -122, '취소', 8, 1); if (btnHot == 1) { if (clickLatch == 1) { netLeaveAll(); menuGo(0); } }
 }
 function serverIcon(k) {
-  let r = 2;
-  if (k == 2) { r = 1; } if (k == 3) { r = 8; } if (k == 4) { r = 13; } if (k == 5) { r = 12; } if (k == 6) { r = 4; } if (k == 7) { r = 21; } if (k == 8) { r = 24; }
+  let r = 2, c = mod(k - 1, 8) + 1;
+  if (c == 2) { r = 1; } if (c == 3) { r = 8; } if (c == 4) { r = 13; } if (c == 5) { r = 12; } if (c == 6) { r = 4; } if (c == 7) { r = 21; } if (c == 8) { r = 24; }
   return r;
 }
 function netOnline() {
@@ -334,7 +335,7 @@ function serverSave() {
     let fl = '-';
     if (esFlat == 1) { if (flatParse(esFlatSpec) == 0) { fl = esFlatSpec; } }
     let k = srvCreate(esName, esMotd, s, esMode, fl);
-    if (k == 0) { menuMsg('서버를 만들 수 없습니다', `서버는 ${NSRV}개까지입니다. 주인이 지우면 자리가 납니다`); } else { selS = k; menuGo(4); }
+    if (k == 0) { menuMsg('서버를 만들 수 없습니다', `서버 자리 ${NSRV}개가 모두 찼습니다. 주인이 지우면 자리가 납니다`); } else { selS = k; menuGo(4); }
   } else { srvEdit(esEdit, esName, esMotd); menuGo(4); }
 }
 
