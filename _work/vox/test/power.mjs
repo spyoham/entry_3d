@@ -189,6 +189,40 @@ for (const [yaw, dx] of [[90, 1], [270, -1]]) {
   for (let i = 0; i < 30; i++) { F(1); if (lit(ox - dx, Y, oz)) lit3 = 1; }
   ok(lit3 === 1, '/setblock before it is seen too');
 }
+// (v2.4.3) an observer moved by a piston just after it saw a change, or while it fired: the pulse
+// goes along with it (it never fired, or stayed on for good)
+for (const delay of [0, 1, 3, 5]) {
+  const x0 = X - 20 + delay * 6, z0 = Z + 32;
+  placeAs(x0, Y, z0, 'observer', 3, 0);
+  placeAs(x0 - 1, Y, z0, 'piston', 3, 270);
+  settle(); wait(0.5);
+  placeAs(x0, Y, z0 + 1, 'stone');
+  F(delay);
+  put(x0 - 2, Y, z0, 'spark_block');
+  let fired = 0;
+  for (let k = 0; k < 60; k++) { F(1); if (BON[B(x0, Y, z0)] === 1 || BON[B(x0 + 1, Y, z0)] === 1) fired = 1; }
+  ok(BFAC[B(x0 + 1, Y, z0)] === 5 && fired === 1 && BON[B(x0 + 1, Y, z0)] === 0, `pushed ${delay} frames after it saw a change: it fired once and went off (${K(B(x0 + 1, Y, z0))})`);
+}
+// shuttled back and forth fast by a sticky piston for 3 s while blocks come and go before it: after, all is still
+{
+  const x0 = X + 8, z0 = Z + 36;
+  placeAs(x0, Y, z0, 'observer', 3, 0);
+  placeAs(x0 - 1, Y, z0, 'sticky_piston', 3, 270);
+  put(x0, Y - 1, z0 - 1, 'stone'); put(x0 + 1, Y - 1, z0 - 1, 'stone'); put(x0, Y, z0 - 1, 'spark_wire'); put(x0 + 1, Y, z0 - 1, 'spark_wire');
+  settle(); wait(0.5);
+  let pulses = 0, was = 0;
+  for (let k = 0; k < 180; k++) {
+    if (k % 4 === 0) put(x0 - 2, Y, z0, (k / 4) % 2 ? 'air' : 'spark_block');
+    if (k % 3 === 0) { const c = (k / 3) % 2; put(x0, Y, z0 + 1, c ? 'stone' : 'air'); put(x0 + 1, Y, z0 + 1, c ? 'air' : 'stone'); }
+    F(1);
+    const o = Math.max(BON[B(x0, Y, z0)] === 1 && BRS[B(x0, Y, z0)] === 10 ? 1 : 0, BON[B(x0 + 1, Y, z0)] === 1 && BRS[B(x0 + 1, Y, z0)] === 10 ? 1 : 0);
+    if (o && !was) pulses++; was = o;
+  }
+  put(x0 - 2, Y, z0, 'air'); wait(1.5);
+  const at = BRS[B(x0, Y, z0)] === 10 ? x0 : x0 + 1;
+  ok(pulses > 5 && BON[B(at, Y, z0)] === 0 && lvl(x0, Y, z0 - 1) === 0 && lvl(x0 + 1, Y, z0 - 1) === 0, `after 3 s of moving fast (${pulses} pulses): the observer is off and the dust behind is out (${K(B(at, Y, z0))}, ${lvl(x0, Y, z0 - 1)} ${lvl(x0 + 1, Y, z0 - 1)})`);
+  ok(s.peek('SCT').filter(t => t >= 0).length < 4, 'no ticks left waiting: ' + s.peek('SCT').filter(t => t >= 0).length);
+}
 
 // 10 doors, a dispenser, TNT
 put(X - 6, Y, Z, 'iron_door'); put(X - 6, Y + 1, Z, 'iron_door[half=upper]'); placeAs(X - 5, Y, Z, 'lever');
@@ -202,7 +236,7 @@ call(() => { fn.chestFind(X - 10, Y, Z); }); ok(s.peek('CHN')[(s.peek('cFound') 
 placeAs(X - 14, Y, Z, 'tnt'); placeAs(X - 15, Y, Z, 'lever'); useAt(X - 15, Y, Z); F(200); ok(B(X - 14, Y, Z) === 0, 'lever -> TNT went off');
 
 // 11 commands
-put(X - 4, Y, Z - 20, 'repeater[facing=east,delay=3]'); ok(BFAC[B(X - 4, Y, Z - 20)] === 1 && BAUX[B(X - 4, Y, Z - 20)] === 3, '/setblock repeater[facing=east,delay=3]');
+put(X - 4, Y, Z - 20, 'repeater[facing=east,delay=3]'); ok(BFAC[B(X - 4, Y, Z - 20)] === 0 && BAUX[B(X - 4, Y, Z - 20)] === 3, '/setblock repeater[facing=east,delay=3]: input from the east, out to the west (as in the genre)');
 put(X - 6, Y, Z - 20, 'sticky_piston[facing=down]'); ok(BFAC[B(X - 6, Y, Z - 20)] === 2, '/setblock sticky_piston[facing=down]');
 put(X - 8, Y, Z - 20, 'lever[face=wall,facing=north]'); ok(BATT[B(X - 8, Y, Z - 20)] === 5 || B(X - 8, Y, Z - 20) === 0, '/setblock lever[face=wall,facing=north] hangs on +z');
 put(X - 10, Y, Z - 20, 'spark_lamp'); put(X - 9, Y, Z - 20, 'lever[powered=true]'); settle(); ok(lit(X - 10, Y, Z - 20), '/setblock lever[powered=true] -> lamp on');

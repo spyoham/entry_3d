@@ -181,7 +181,7 @@ function placeBlock(b, id) {
   if (pl == P_AXIS) { if (pickF < 2) { put = BAXX[b + 1]; } if (pickF >= 4) { put = BAXZ[b + 1]; } }
   if (pl == P_STAIRS) { put = b + f; if (pickF == 2 || (pickF != 3 && pickHY > 0.5)) { put = b + f + 4; } }
   if (pl == P_DOOR) { let s = mod(f + 2, 4); put = b + s; x2 = x; y2 = y + 1; z2 = z; put2 = b + 4 + s; if (freeAt(x, y + 1, z) == 0) { ok = 0; } if (BSOL[blockAt(x, y - 1, z) + 1] == 0) { ok = 0; } }
-  if (pl == P_TRAPDOOR) { if (pickF == 2 || (pickF != 3 && pickHY > 0.5)) { put = b + 1; } }
+  if (pl == P_TRAPDOOR) { if (pickF == 2 || (pickF != 3 && pickHY > 0.5)) { put = b + 1; } trapKeep(x, y, z, mod(f + 2, 4)); }
   if (pl == P_GATE) { if (mod(f, 2) == 1) { put = b + 1; } }
   if (pl == P_RAIL) { if (mod(f, 2) == 1) { put = b + 1; } }
   if (pl == P_BED) { x2 = x + dirX(f); y2 = y; z2 = z + dirZ(f); put = b + f; put2 = b + 4 + f; if (freeAt(x2, y2, z2) == 0) { ok = 0; } }
@@ -242,40 +242,99 @@ function doorSet(x, y, z, b, open) {
   let v = BVAR[b + 1];
   if (idiv(v, 8) != open) { doorToggle(x, y, z, b); }
 }
+// (v2.4.3) the side a trapdoor opens to, kept by its place (a closed one's variant has none): set
+// when it is put or opened by hand, used when power opens it
+let TDX = [], TDY = [], TDZ = [], TDS = [], tdN = 0;
+function trapKeep(x, y, z, s) {
+  let i = 1, f = 0;
+  while (i <= TDX.length) { if (TDX[i] == x && TDY[i] == y + dim * 1000 && TDZ[i] == z) { f = i; } i = i + 1; }
+  if (f == 0) {
+    if (TDX.length < 256) { TDX.push(0); TDY.push(0); TDZ.push(0); TDS.push(0); f = TDX.length; }
+    else { tdN = mod(tdN, 256) + 1; f = tdN; }
+  }
+  TDX[f] = x; TDY[f] = y + dim * 1000; TDZ[f] = z; TDS[f] = s;
+}
+function trapSide(x, y, z) {
+  let i = 1, r = 0 - 1;
+  while (i <= TDX.length) { if (TDX[i] == x && TDY[i] == y + dim * 1000 && TDZ[i] == z) { r = TDS[i]; } i = i + 1; }
+  // (not known: against a full block beside it, else the first side)
+  if (r < 0) {
+    r = 0; let s = 3;
+    while (s >= 0) { if (BSOL[blockAt(x - dirX(s), y, z - dirZ(s)) + 1] == 1) { r = s; } s = s - 1; }
+  }
+  return r;
+}
 // a trapdoor (closed 0 / 1, open 2 .. 5) or a gate (closed 0 / 1, open 2 / 3)
 function toggleSimple(x, y, z, b) {
   let k = BKIND[b + 1], v = BVAR[b + 1], f = faceOf(yaw);
   if (BPLC[k + 1] == P_GATE) { if (v < 2) { v = v + 2; } else { v = v - 2; } }
-  else { if (v < 2) { v = 2 + v * 4 + mod(f + 2, 4); } else { v = idiv(v - 2, 4); } }
+  else { if (v < 2) { v = 2 + v * 4 + mod(f + 2, 4); trapKeep(x, y, z, mod(f + 2, 4)); } else { v = idiv(v - 2, 4); } }
   setBlock(x, y, z, k + v);
   sndPlay(6);
 }
 // pressed buttons and plates: on for a while
-let PRX = [], PRY = [], PRZ = [], PRT = [];
-function pressAdd(x, y, z, t) {
+// pressed buttons, plates, targets: how long yet (PRT), the power (PRL), the world (PRD), and for
+// plates how many stood on it since the last frame (PRC; v2.4.3: mobs, other players and items too,
+// the weighted ones by the count)
+let PRX = [], PRY = [], PRZ = [], PRT = [], PRL = [], PRD = [], PRC = [];
+let prF = 0;
+function pressFind(x, y, z) {
   let i = 1, f = 0;
-  while (i <= PRX.length) { if (PRX[i] == x && PRY[i] == y && PRZ[i] == z) { f = i; } i = i + 1; }
+  while (i <= PRX.length) { if (PRX[i] == x && PRY[i] == y && PRZ[i] == z && PRD[i] == dim) { f = i; } i = i + 1; }
   if (f == 0) {
     i = 1;
     while (i <= PRX.length) { if (f == 0) { if (PRT[i] <= 0) { f = i; } } i = i + 1; }
-    if (f == 0) { PRX.push(0); PRY.push(0); PRZ.push(0); PRT.push(0); f = PRX.length; }
-    PRX[f] = x; PRY[f] = y; PRZ[f] = z; PRT[f] = t;
-    powerAround(x, y, z);
-  } else { if (PRT[f] <= 0) { PRT[f] = t; powerAround(x, y, z); } else { PRT[f] = Math.max(PRT[f], t); } }
+    if (f == 0) { PRX.push(0); PRY.push(0); PRZ.push(0); PRT.push(0); PRL.push(0); PRD.push(0); PRC.push(0); f = PRX.length; }
+    PRX[f] = x; PRY[f] = y; PRZ[f] = z; PRD[f] = dim; PRT[f] = 0; PRL[f] = 0; PRC[f] = 0;
+  }
+  prF = f;
 }
-function pressedAt(x, y, z) {
+function pressAdd(x, y, z, t) {
+  pressFind(x, y, z);
+  let f = prF;
+  if (PRT[f] <= 0 || PRL[f] != 15) { PRT[f] = t; PRL[f] = 15; powerAround(x, y, z); } else { PRT[f] = Math.max(PRT[f], t); }
+}
+// the power of the button, plate or target at (x, y, z): 0..15
+function pressLevel(x, y, z) {
   let i = 1, r = 0;
-  while (i <= PRX.length) { if (PRT[i] > 0) { if (PRX[i] == x && PRY[i] == y && PRZ[i] == z) { r = 1; } } i = i + 1; }
+  while (i <= PRX.length) { if (PRT[i] > 0) { if (PRX[i] == x && PRY[i] == y && PRZ[i] == z && PRD[i] == dim) { r = PRL[i]; } } i = i + 1; }
   return r;
 }
+function pressedAt(x, y, z) { let r = 0; if (pressLevel(x, y, z) > 0) { r = 1; } return r; }
+// a plate's power for n on it (kind = its aux: 0 wood, 1 stone, 2 light weighted, 3 heavy weighted)
+function plateLevel(k, n) { let r = 15; if (k == 2) { r = Math.min(15, n); } if (k == 3) { r = Math.min(15, Math.ceil(n / 10)); } return r; }
 function buttonPress(x, y, z) { pressAdd(x, y, z, BAUX[blockAt(x, y, z) + 1] / 10); sndPlay(1); }
-function plateStep(x, y, z) { if (BSPEC[blockAt(x, y, z) + 1] == 5) { pressAdd(x, y, z, 0.6); } }
+// something on the cell (x, y, z): who 0 the player, a mob or another player, 1 an item (a stone
+// plate does not feel items)
+function plateHit(x, y, z, who) {
+  let b = blockAt(x, y, z);
+  if (BSPEC[b + 1] == 5) {
+    let k = BAUX[b + 1];
+    if (who == 0 || k != 1) {
+      pressFind(x, y, z);
+      let f = prF;
+      PRC[f] = PRC[f] + 1;
+      let l = plateLevel(k, PRC[f]);
+      PRT[f] = Math.max(PRT[f], 0.6);
+      if (l > PRL[f]) { PRL[f] = l; powerAround(x, y, z); }
+    }
+  }
+}
+function plateStep(x, y, z) { plateHit(x, y, z, 0); }
 function pressStep(dt) {
   let i = 1;
   while (i <= PRX.length) {
     if (PRT[i] > 0) {
       PRT[i] = PRT[i] - dt;
-      if (PRT[i] <= 0) { PRT[i] = 0; powerAround(PRX[i], PRY[i], PRZ[i]); }
+      if (PRT[i] <= 0) { PRT[i] = 0; PRL[i] = 0; PRC[i] = 0; if (PRD[i] == dim) { powerAround(PRX[i], PRY[i], PRZ[i]); } }
+      else {
+        // (a plate: the weight now; fewer on it goes down at once, nothing on it waits for its time)
+        if (PRC[i] > 0) {
+          let b = blockAt(PRX[i], PRY[i], PRZ[i]);
+          if (BSPEC[b + 1] == 5) { let l = plateLevel(BAUX[b + 1], PRC[i]); if (l != PRL[i]) { PRL[i] = l; powerAround(PRX[i], PRY[i], PRZ[i]); } }
+          PRC[i] = 0;
+        }
+      }
     }
     i = i + 1;
   }
@@ -339,7 +398,7 @@ function explode(cx, cy, cz, r, breakIt) {
                   if (rand(1, 3) == 1) { if (grTileDrops == 1) { if (BDROP[b + 1] > 0) { dropItem(BDROP[b + 1], 1, 0, x + 0.5, y + 0.5, z + 0.5, 0); } } }
                   if (BUSE[b + 1] == U_CHEST || BUSE[b + 1] == U_FURNACE) { chestOrFurnaceGone(x, y, z, b); }
                   if (BRS[b + 1] > 0) { if (XPW.length < 96) { XPW.push(x); XPW.push(y); XPW.push(z); } }
-                  wput(x, y, z, 0); markDirty(x, y, z); obsTell(x, y, z);
+                  wput(x, y, z, 0); markDirty(x, y, z); rsTell(x, y, z);
                 }
               }
             }
@@ -754,7 +813,7 @@ function worldExtraInit() {
   SPX = []; SPY = []; SPZ = []; SPD = []; SPT = [];
   CBX = []; CBY = []; CBZ = []; CBT = []; CBD = [];
   PMT = []; PMX = []; PMY = []; PMZ = []; SMX = []; SMZ = [];
-  PRX = []; PRY = []; PRZ = []; PRT = []; TNX = []; TNY = []; TNZ = []; TNT_T = []; EGX = []; EGY = []; EGZ = []; EGD = []; EGS = []; XPW = [];
+  PRX = []; PRY = []; PRZ = []; PRT = []; PRL = []; PRD = []; PRC = []; TNX = []; TNY = []; TNZ = []; TNT_T = []; EGX = []; EGY = []; EGZ = []; EGD = []; EGS = []; XPW = [];
   CHT = []; CHTT = [];
   xpPts = 0; xpLevel = 0; dayN = 0; spawnDim = 0; spawnSet = 0; lodeOn = 0; anchorCh = 0; specMob = 0; difficulty = 2; gameTicks = 0;
   weatherClear(); gamerulesInit();

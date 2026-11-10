@@ -122,7 +122,9 @@ function mobsStep(dt) {
     // (far from the player they rest: only the ones near are worth the time)
     if (ET[e] > 0) {
       if (cOK(Math.floor(EX[e]), Math.floor(EZ[e])) == 0) { ET[e] = 0; }
-      else { if (ET[e] != 10 && ET[e] != M_NETPLAYER) { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 1600) { mobStep(e, dt); } } }
+      else {
+        // (v2.4.3) mobs and the other players press plates too
+        if (ET[e] != 13) { plateHit(Math.floor(EX[e]), Math.floor(EY[e] + 0.05), Math.floor(EZ[e]), 0); } if (ET[e] != 10 && ET[e] != M_NETPLAYER) { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 1600) { mobStep(e, dt); } } }
     }
     e = e + 1;
   }
@@ -436,6 +438,7 @@ function itemsStep(dt) {
       bmX = IXX[i]; bmY = IYY[i]; bmZ = IZZ[i]; bmW = 0.12; bmH = 0.25;
       bodyMove(IVX[i] * dt, IVY[i] * dt, IVZ[i] * dt);
       IXX[i] = bmX; IYY[i] = bmY; IZZ[i] = bmZ;
+      plateHit(Math.floor(IXX[i]), Math.floor(IYY[i] + 0.05), Math.floor(IZZ[i]), 1);
       if (bmHitY == 1) { IVY[i] = 0; IVX[i] = IVX[i] * 0.5; IVZ[i] = IVZ[i] * 0.5; }
       if (bmHitX == 1) { IVX[i] = 0; } if (bmHitZ == 1) { IVZ[i] = 0; }
       if (bmGround == 1) { IVX[i] = IVX[i] * (1 - Math.min(1, 6 * dt)); IVZ[i] = IVZ[i] * (1 - Math.min(1, 6 * dt)); }

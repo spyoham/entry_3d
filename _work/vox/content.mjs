@@ -385,14 +385,14 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     stone('chiseledBlackrock', 'chiseled_polished_blackrock', '조각된 흑암', tex('chBlackrockT', pat(P.chiseled, { a: '362e34', b: '1e181c', c: '564c52' }))); R(['polishedBlackrockSlab', 'polishedBlackrockSlab'], 'chiseledBlackrock', 1);
     stone('gildedBlackrock', 'gilded_blackrock', '금박 흑암', tex('gildedT', oreOn('blackrockT', 'e8b830')), { drop: 'goldNugget', dropN: 3 });
     button({ n: 'blackrockButton', key: 'polished_blackrock_button', ko: '흑암 버튼', t: [pbr.t[0]], hard: 0.5, aux: 10 }); R(['polishedBlackrock'], 'blackrockButton', 1);
-    add({ n: 'blackrockPlate', key: 'polished_blackrock_pressure_plate', ko: '흑암 압력판', t: [pbr.t[0]], hard: 0.5, tool: 1, shape: 5, hide: 0, lop: 0, solid: 0, model: 'plate', cat: 4, need: 'floor', plate: 1 }); R(['polishedBlackrock polishedBlackrock'], 'blackrockPlate', 1);
+    add({ n: 'blackrockPlate', key: 'polished_blackrock_pressure_plate', ko: '흑암 압력판', t: [pbr.t[0]], hard: 0.5, tool: 1, shape: 5, hide: 0, lop: 0, solid: 0, model: 'plate', cat: 4, need: 'floor', plate: 1, aux: 1 }); R(['polishedBlackrock polishedBlackrock'], 'blackrockPlate', 1);
     old(53, 'basalt', null, 2, { place: 'axis' });
     stone('polishedBasalt', 'polished_basalt', '윤 나는 현무암', [tex('pBasaltTop', pat(P.pillarTop, { a: '5c5c64', b: '38383e', c: '6e6e76' })), tex('pBasaltSide', pat(P.pillarSide, { a: '5c5c64', b: '38383e', c: '6e6e76' })), 'pBasaltTop'], { hard: 1.25 });
     R(['basalt basalt', 'basalt basalt'], 'polishedBasalt', 4);
     button({ n: 'stoneButton', key: 'stone_button', ko: '돌 버튼', t: ['stone'], hard: 0.5, aux: 10 }); R(['stone'], 'stoneButton', 1);
-    add({ n: 'stonePlate', key: 'stone_pressure_plate', ko: '돌 압력판', t: ['stone'], hard: 0.5, tool: 1, shape: 5, hide: 0, lop: 0, solid: 0, model: 'plate', cat: 4, need: 'floor', plate: 1 }); R(['stone stone'], 'stonePlate', 1);
-    add({ n: 'ironPlate', key: 'heavy_weighted_pressure_plate', ko: '무거운 압력판', t: ['blockIron'], hard: 0.5, tool: 1, shape: 5, hide: 0, lop: 0, solid: 0, model: 'plate', cat: 4, need: 'floor', plate: 1 }); R(['ingotIron ingotIron'], 'ironPlate', 1);
-    add({ n: 'goldPlate', key: 'light_weighted_pressure_plate', ko: '가벼운 압력판', t: ['blockGold'], hard: 0.5, tool: 1, shape: 5, hide: 0, lop: 0, solid: 0, model: 'plate', cat: 4, need: 'floor', plate: 1 }); R(['ingotGold ingotGold'], 'goldPlate', 1);
+    add({ n: 'stonePlate', key: 'stone_pressure_plate', ko: '돌 압력판', t: ['stone'], hard: 0.5, tool: 1, shape: 5, hide: 0, lop: 0, solid: 0, model: 'plate', cat: 4, need: 'floor', plate: 1, aux: 1 }); R(['stone stone'], 'stonePlate', 1);
+    add({ n: 'ironPlate', key: 'heavy_weighted_pressure_plate', ko: '무거운 압력판', t: ['blockIron'], hard: 0.5, tool: 1, shape: 5, hide: 0, lop: 0, solid: 0, model: 'plate', cat: 4, need: 'floor', plate: 1, aux: 3 }); R(['ingotIron ingotIron'], 'ironPlate', 1);
+    add({ n: 'goldPlate', key: 'light_weighted_pressure_plate', ko: '가벼운 압력판', t: ['blockGold'], hard: 0.5, tool: 1, shape: 5, hide: 0, lop: 0, solid: 0, model: 'plate', cat: 4, need: 'floor', plate: 1, aux: 2 }); R(['ingotGold ingotGold'], 'goldPlate', 1);
 
     // ================================================================ 4. ores and mineral blocks
     stone('oreJade', 'jade_ore', '비취 광석', tex('oreJadeT', oreOn('stone', '3ac06a', 1)), { hard: 3, tier: 2, drop: 'jade', xp: 5 });

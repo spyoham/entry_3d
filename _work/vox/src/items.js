@@ -162,6 +162,10 @@ function furnacesStep(dt) {
   }
 }
 let cFound = 0;
+// (v2.4.3) what is in chest c changed: the comparators reading it (next to it, or through a block) ask again
+function chestTouched(c) {
+  if (c > 0 && c <= CHON.length) { if (CHON[c] == 1) { if (idiv(CHY[c], 1000) == dim) { powerAround(CHX[c], CHY[c] - dim * 1000, CHZ[c]); } } }
+}
 function chestFind(x, y, z) {
   cFound = 0;
   let i = 1;
@@ -238,7 +242,7 @@ function slotSet(s, i, n, d) {
   else { if (s == 52) { FFI[curFur] = i; FFN[curFur] = n; }
   else { if (s == 53) { FOI[curFur] = i; FON[curFur] = n; }
   else { if (s == 54) { SMI1 = i; SMN1 = n; SMD1 = d; smithMatch(); } else { if (s == 55) { SMI2 = i; SMN2 = n; smithMatch(); }
-  else { if (s >= 61) { if (s <= 87) { let j = (curChest - 1) * 27 + s - 60; CHI[j] = i; CHN[j] = n; CHD[j] = d; } } } } } } } } }
+  else { if (s >= 61) { if (s <= 87) { let j = (curChest - 1) * 27 + s - 60; CHI[j] = i; CHN[j] = n; CHD[j] = d; chestTouched(curChest); } } } } } } } } }
 }
 // a click on slot s (half: Shift held)
 function slotClick(s, half) {

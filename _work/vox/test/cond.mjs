@@ -23,7 +23,7 @@ for (const blk of ['stone', 'white_wool', 'target', 'oak_planks', 'white_concret
   const b = lit(X + 7, Y, z);
   put(X + 12, Y, z, 'stone'); put(X + 12, Y + 1, z, 'spark_torch'); put(X + 12, Y + 2, z, blk); put(X + 13, Y + 1, z, 'stone'); put(X + 13, Y + 2, z, 'spark_wire'); F(30);
   const c = BRS[B(X + 13, Y + 2, z)] === 1 ? BAUX[B(X + 13, Y + 2, z)] : -1;
-  put(X - 8, Y, z, 'spark_block'); put(X - 7, Y, z, 'repeater[facing=east]'); put(X - 6, Y, z, blk); put(X - 5, Y, z, 'spark_wire'); F(30);
+  put(X - 8, Y, z, 'spark_block'); put(X - 7, Y, z, 'repeater[facing=west]'); put(X - 6, Y, z, blk); put(X - 5, Y, z, 'spark_wire'); F(30);
   const d = BRS[B(X - 5, Y, z)] === 1 ? BAUX[B(X - 5, Y, z)] : -1;
   ok(a && b && c === 15 && d === 15, `${blk.padEnd(15)} lever ${a} wire->lamp ${b} torch-under ${c} repeater-through ${d}`);
   z += 4;

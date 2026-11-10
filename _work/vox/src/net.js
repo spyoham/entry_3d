@@ -797,7 +797,7 @@ function netChestWatch() {
 }
 function netChestSlot(x, y, z, k, id, n, d) {
   chestAt(x, y, z);
-  if (cFound > 0) { let s = (cFound - 1) * 27 + k; CHI[s] = id; CHN[s] = n; CHD[s] = d; if (cFound == ncwC) { NCW[k] = id; NCW[k + 27] = n; NCW[k + 54] = d; } }
+  if (cFound > 0) { let s = (cFound - 1) * 27 + k; CHI[s] = id; CHN[s] = n; CHD[s] = d; chestTouched(cFound); if (cFound == ncwC) { NCW[k] = id; NCW[k + 27] = n; NCW[k + 54] = d; } }
 }
 // the host keeps a chest as `x,y,z,dim` and its 27 slots (id.n.d,...)
 function hostKeepChest(f) {

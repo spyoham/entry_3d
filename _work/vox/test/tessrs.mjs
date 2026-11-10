@@ -51,7 +51,7 @@ set('px', X + 0.5); set('py', Y + 6); set('pz', Z - 5); set('flying', 1); ticks2
 // lever -> 6 wires -> repeater -> 2 wires -> lamp; a piston by the lamp's wire; a torch under a block
 run(`/setblock ${X} ${Y} ${Z} spark_lamp`);
 for (let a = 1; a <= 2; a++) run(`/setblock ${X + a} ${Y} ${Z} spark_wire`);
-run(`/setblock ${X + 3} ${Y} ${Z} repeater[facing=west,delay=2]`);
+run(`/setblock ${X + 3} ${Y} ${Z} repeater[facing=east,delay=2]`);
 for (let a = 4; a <= 9; a++) run(`/setblock ${X + a} ${Y} ${Z} spark_wire`);
 run(`/setblock ${X + 1} ${Y} ${Z + 1} sticky_piston[facing=south]`);
 run(`/setblock ${X + 1} ${Y} ${Z + 2} oak_planks`);
@@ -62,7 +62,7 @@ const chk = (cond, name) => { run(`/execute if block ${cond} run say ${name}`); 
 const r = {
   wire15: chk(`${X + 9} ${Y} ${Z} spark_wire[power=15]`, 'w15'),
   wire10: chk(`${X + 4} ${Y} ${Z} spark_wire[power=10]`, 'w10'),
-  repOn: chk(`${X + 3} ${Y} ${Z} repeater[facing=west,delay=2,powered=true]`, 'rep'),
+  repOn: chk(`${X + 3} ${Y} ${Z} repeater[facing=east,delay=2,powered=true]`, 'rep'),
   wireAfter: chk(`${X + 2} ${Y} ${Z} spark_wire[power=15]`, 'w2'),
   lamp: chk(`${X} ${Y} ${Z} spark_lamp_on`, 'lamp'),
   pushed: chk(`${X + 1} ${Y} ${Z + 3} oak_planks`, 'pushed'),

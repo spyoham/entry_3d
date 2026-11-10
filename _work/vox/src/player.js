@@ -619,7 +619,7 @@ function fallBlock(x, y, z) {
   if (y2 < y) {
     logOn = 1; wput(x, y, z, 0); wput(x, y2, z, b); logOn = 0;
     markDirty(x, y, z); markDirty(x, y2, z);
-    obsTell(x, y, z); obsTell(x, y2, z);
+    rsTell(x, y, z); rsTell(x, y2, z);
     if (BWET[b + 1] > 0) { if (waterNear(x, y2, z) == 1 || BLQ[blockAt(x, y2 + 1, z) + 1] == 7) { logOn = 1; wput(x, y2, z, BWET[b + 1]); logOn = 0; } }
     let up = blockAt(x, y + 1, z);
     if (BFALL[up + 1] == 1) { fallBlock(x, y + 1, z); }

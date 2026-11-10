@@ -30,7 +30,7 @@ let rsTime = 0;
 function emitTo(x, y, z, d) {
   let b = blockAt(x, y, z), rl = BRS[b + 1], r = 0;
   if (rl == RS_LEVER) { if (BON[b + 1] == 1) { r = 15; } }
-  if (rl == RS_BUTTON || rl == RS_PLATE || rl == RS_TARGET) { if (pressedAt(x, y, z) == 1) { r = 15; } }
+  if (rl == RS_BUTTON || rl == RS_PLATE || rl == RS_TARGET) { r = pressLevel(x, y, z); }
   if (rl == RS_BLOCK) { r = 15; }
   if (rl == RS_SENSOR) { r = sensorLevel(x, y, z); }
   if (rl == RS_TORCH) { if (BON[b + 1] == 1) { if (d != BATT[b + 1]) { r = 15; } } }
@@ -48,12 +48,12 @@ function strongIn(x, y, z) {
     // (e: the way from the part to this block)
     if (rl > 0) {
       if (rl == RS_LEVER) { if (BON[b + 1] == 1) { if (BATT[b + 1] == e) { v = 15; } } }
-      if (rl == RS_BUTTON) { if (BATT[b + 1] == e) { v = 15 * pressedAt(nx, ny, nz); } }
+      if (rl == RS_BUTTON) { if (BATT[b + 1] == e) { v = pressLevel(nx, ny, nz); } }
       if (rl == RS_TORCH) { if (BON[b + 1] == 1) { if (e == 3) { v = 15; } } }
       if (rl == RS_REPEATER) { if (BON[b + 1] == 1) { if (BFAC[b + 1] == e) { v = 15; } } }
       if (rl == RS_COMPARATOR) { if (BFAC[b + 1] == e) { v = cmpLevel(nx, ny, nz); } }
       if (rl == RS_OBSERVER) { if (BON[b + 1] == 1) { if (OP6[BFAC[b + 1] + 1] == e) { v = 15; } } }
-      if (rl == RS_PLATE) { if (e == 2) { v = 15 * pressedAt(nx, ny, nz); } }
+      if (rl == RS_PLATE) { if (e == 2) { v = pressLevel(nx, ny, nz); } }
       if (v > r) { r = v; }
     }
     d = d + 1;
@@ -137,7 +137,8 @@ function backIn(x, y, z, d) {
 function sideIn(x, y, z, d) {
   let nx = x + DX6[d + 1], ny = y + DY6[d + 1], nz = z + DZ6[d + 1], b = blockAt(nx, ny, nz), rl = BRS[b + 1], v = 0;
   if (rl == RS_WIRE) { v = BAUX[b + 1]; }
-  if (rl == RS_REPEATER || rl == RS_COMPARATOR || rl == RS_BLOCK) { v = emitTo(nx, ny, nz, OP6[d + 1]); }
+  // (v2.4.3: and an observer's back, as in the genre)
+  if (rl == RS_REPEATER || rl == RS_COMPARATOR || rl == RS_BLOCK || rl == RS_OBSERVER) { v = emitTo(nx, ny, nz, OP6[d + 1]); }
   return v;
 }
 // the wire's power from what is not wire: parts next to it, and blocks next to it powered strongly
@@ -304,10 +305,17 @@ function rsSchedule(x, y, z, t, w) {
 }
 // the cells to look round (a changed one: w 1 two steps out (a part changed), + 2 a block changed there)
 let NQX = [], NQY = [], NQZ = [], NQW = [], nqH = 1, nqN = 0;
+// (v2.4.3) two asks of one cell as one: a real change (1, 2, 3) wins over a put back (4), and the
+// two steps (1) and a block changed (2) both stay (they were merged by the larger: 1 + 2 lost the 1)
+function rsMergeW(a, b) {
+  let r = a;
+  if (a == 4) { r = b; } else { if (b != 4) { r = 2 * Math.max(idiv(a, 2), idiv(b, 2)) + Math.max(mod(a, 2), mod(b, 2)); } }
+  return r;
+}
 function rsNotify(x, y, z, w) {
   let k = nqN, dup = 0;
   while (k >= nqH && k > nqN - 6) {
-    if (NQX[k] == x && NQY[k] == y && NQZ[k] == z) { dup = 1; if (w > NQW[k]) { NQW[k] = w; } }
+    if (NQX[k] == x && NQY[k] == y && NQZ[k] == z) { dup = 1; NQW[k] = rsMergeW(NQW[k], w); }
     k = k - 1;
   }
   if (dup == 0) {
@@ -325,7 +333,7 @@ function rsStep(dt) {
   rsTime = rsTime + dt;
   let i = 1;
   while (i <= SCX.length) {
-    if (SCT[i] >= 0) { if (SCT[i] <= rsTime) { SCT[i] = 0 - 1; if (SCD[i] == dim) { rsApply(SCX[i], SCY[i], SCZ[i], SCW[i]); } } }
+    if (SCT[i] >= 0) { if (SCT[i] <= rsTime) { if (SCD[i] != dim) { SCT[i] = 0 - 1; } else { if (rsReady(SCX[i], SCZ[i]) == 1) { SCT[i] = 0 - 1; rsApply(SCX[i], SCY[i], SCZ[i], SCW[i]); } } } }
     i = i + 1;
   }
   rsFlush(3000);
@@ -339,21 +347,30 @@ function rsFlush(n) {
   }
   if (nqH > nqN) { nqH = 1; nqN = 0; }
 }
-// (v2.4.2) an observer next to (x, y, z): a change there not made by setBlock (a command, an
-// explosion, a falling block) is told to it
-function obsNear(x, y, z) {
+// (v2.4.2, v2.4.3) a spark part next to (x, y, z): a change there not made by setBlock (a command,
+// an explosion, a falling block) is told to it (an observer sees it, a wire is cut or joined by it, a
+// torch on it falls, ...)
+function rsNear(x, y, z) {
   let d = 0, r = 0;
-  while (d < 6) { if (BRS[blockAt(x + DX6[d + 1], y + DY6[d + 1], z + DZ6[d + 1]) + 1] == RS_OBSERVER) { r = 1; } d = d + 1; }
+  while (d < 6) { if (BRS[blockAt(x + DX6[d + 1], y + DY6[d + 1], z + DZ6[d + 1]) + 1] > 0) { r = 1; } d = d + 1; }
   return r;
 }
-function obsTell(x, y, z) { if (obsNear(x, y, z) == 1) { rsNotify(x, y, z, 2); } }
+function rsTell(x, y, z) { if (rsNear(x, y, z) == 1) { rsNotify(x, y, z, 2); } }
 // w 4: a part put back from the log (a world opened again, a chunk made again): it and its
 // neighbours are asked, but a door, note, command block or dispenser seen for the first time
 // takes the power it has as what it had (rsReplay; edgeSet) - opening a world does not run them
 let rsReplay = 0;
 function rsAround(x, y, z, w) {
   let d = 0;
-  if (w == 4) { rsReplay = 1; w = 0; }
+  if (w == 4) {
+    rsReplay = 1; w = 0;
+    // (an observer clock: its waiting tick is not kept, so two observers face to face start again)
+    let ob = blockAt(x, y, z);
+    if (BRS[ob + 1] == RS_OBSERVER) {
+      let fo = BFAC[ob + 1], o2 = blockAt(x + DX6[fo + 1], y + DY6[fo + 1], z + DZ6[fo + 1]);
+      if (BRS[o2 + 1] == RS_OBSERVER) { if (BFAC[o2 + 1] == OP6[fo + 1]) { rsSchedule(x, y, z, 0.1, 1); } }
+    }
+  }
   // observers looking at a cell that changed
   if (w >= 2) {
     while (d < 6) {
@@ -375,8 +392,15 @@ function rsAround(x, y, z, w) {
   }
   rsReplay = 0;
 }
+// (v2.4.3) the cell's chunk and the four by it are made (blockAt reads a chunk not made as stone: an
+// opened piston on a chunk's edge took its arm for stone and broke, a wire read no power)
+function rsReady(x, z) {
+  let r = 0;
+  if (cOK(x, z) == 1) { if (cOK(x - 1, z) == 1 && cOK(x + 1, z) == 1 && cOK(x, z - 1) == 1 && cOK(x, z + 1) == 1) { r = 1; } }
+  return r;
+}
 function rsEvalAt(x, y, z) {
-  if (y >= 0 && y < WY) {
+  if (y >= 0 && y < WY && rsReady(x, z) == 1) {
     let b = blockAt(x, y, z);
     if (BRS[b + 1] > 0) { rsEval(x, y, z, b); }
   }
@@ -400,29 +424,19 @@ function rsEval(x, y, z, b) {
   if (rl == RS_TORCH) {
     if (rsHangs(x, y, z, b) == 0) { rsDrop(x, y, z, b); }
     else {
-      let a = BATT[b + 1], ax = x + DX6[a + 1], ay = y + DY6[a + 1], az = z + DZ6[a + 1], ab = blockAt(ax, ay, az), want = 1;
-      if (BCOND[ab + 1] == 1) { if (blockPower(ax, ay, az) > 0) { want = 0; } }
-      if (BRS[ab + 1] == RS_BLOCK) { want = 0; }
+      let want = torchWant(x, y, z, b);
       // (burnt out: out at once, and looked at again in a while)
       if (torchBurnt(x, y, z) == 1) { if (on == 1) { setBlock(x, y, z, b + 1); } rsSchedule(x, y, z, 3.1, 0 - 1); }
       else { if (want != on) { rsSchedule(x, y, z, 0.1, want); } }
     }
   }
   if (rl == RS_REPEATER) {
-    let want = 0, lock = 0, s1 = 0, s2 = 1;
+    let want = 0;
     if (backIn(x, y, z, OP6[f + 1]) > 0) { want = 1; }
-    if (f == 0 || f == 1) { s1 = 4; s2 = 5; }
-    if (rsLocks(x + DX6[s1 + 1], y, z + DZ6[s1 + 1], OP6[s1 + 1]) == 1 || rsLocks(x + DX6[s2 + 1], y, z + DZ6[s2 + 1], OP6[s2 + 1]) == 1) { lock = 1; }
-    if (lock == 0) { if (want != on) { rsSchedule(x, y, z, BAUX[b + 1] * 0.1, want); } }
+    if (repLocked(x, y, z, f) == 0) { if (want != on) { rsSchedule(x, y, z, BAUX[b + 1] * 0.1, want); } }
   }
   if (rl == RS_COMPARATOR) {
-    let bk = OP6[f + 1], bx = x + DX6[bk + 1], bz = z + DZ6[bk + 1], a = backIn(x, y, z, bk), s1 = 0, s2 = 1, sd = 0, out = 0;
-    let cb = blockAt(bx, y, bz);
-    if (BUSE[cb + 1] == U_CHEST) { a = chestLevel(bx, y, bz); }
-    else { if (BCOND[cb + 1] == 1) { let c2 = blockAt(bx + DX6[bk + 1], y, bz + DZ6[bk + 1]); if (BUSE[c2 + 1] == U_CHEST) { let cl = chestLevel(bx + DX6[bk + 1], y, bz + DZ6[bk + 1]); if (cl > a) { a = cl; } } } }
-    if (f == 0 || f == 1) { s1 = 4; s2 = 5; }
-    sd = Math.max(sideIn(x, y, z, s1), sideIn(x, y, z, s2));
-    if (BAUX[b + 1] == 1) { out = Math.max(0, a - sd); } else { if (a >= sd) { out = a; } }
+    let out = cmpOut(x, y, z, b);
     if (out != cmpLevel(x, y, z)) { rsSchedule(x, y, z, 0.1, out); }
   }
   if (rl == RS_LAMP) {
@@ -440,6 +454,9 @@ function rsEval(x, y, z, b) {
       if (want != on) { rsSchedule(x, y, z, 0.05, want); }
     }
   }
+  // (v2.4.3) an observer on with no tick waiting (put on by a command, a world saved in its pulse)
+  // stayed on for good: it goes off after its pulse (rsSchedule keeps a tick already waiting)
+  if (rl == RS_OBSERVER) { if (on == 1) { rsSchedule(x, y, z, 0.1, 0); } }
   if (rl == RS_HEAD) {
     let bb = blockAt(x - DX6[f + 1], y - DY6[f + 1], z - DZ6[f + 1]);
     if (BRS[bb + 1] != RS_PISTON || BON[bb + 1] != 1 || BFAC[bb + 1] != f) { setBlock(x, y, z, 0); }
@@ -457,6 +474,31 @@ function rsEval(x, y, z, b) {
     if (egWas != p) { rsSwitch(x, y, z, b, p); }
   }
 }
+// (v2.4.3) what a part wants, asked again when its delay is over (as the genre asks at its tick):
+// a pulse shorter than the delay no longer made a repeater go off with its input back on, and a
+// comparator put out the level of when it was asked
+function torchWant(x, y, z, b) {
+  let a = BATT[b + 1], ax = x + DX6[a + 1], ay = y + DY6[a + 1], az = z + DZ6[a + 1], ab = blockAt(ax, ay, az), want = 1;
+  if (BCOND[ab + 1] == 1) { if (blockPower(ax, ay, az) > 0) { want = 0; } }
+  if (BRS[ab + 1] == RS_BLOCK) { want = 0; }
+  return want;
+}
+function repLocked(x, y, z, f) {
+  let s1 = 0, s2 = 1, r = 0;
+  if (f == 0 || f == 1) { s1 = 4; s2 = 5; }
+  if (rsLocks(x + DX6[s1 + 1], y, z + DZ6[s1 + 1], OP6[s1 + 1]) == 1 || rsLocks(x + DX6[s2 + 1], y, z + DZ6[s2 + 1], OP6[s2 + 1]) == 1) { r = 1; }
+  return r;
+}
+function cmpOut(x, y, z, b) {
+  let f = BFAC[b + 1], bk = OP6[f + 1], bx = x + DX6[bk + 1], bz = z + DZ6[bk + 1], a = backIn(x, y, z, bk), s1 = 0, s2 = 1, sd = 0, out = 0;
+  let cb = blockAt(bx, y, bz);
+  if (BUSE[cb + 1] == U_CHEST) { a = chestLevel(bx, y, bz); }
+  else { if (BCOND[cb + 1] == 1) { let c2 = blockAt(bx + DX6[bk + 1], y, bz + DZ6[bk + 1]); if (BUSE[c2 + 1] == U_CHEST) { let cl = chestLevel(bx + DX6[bk + 1], y, bz + DZ6[bk + 1]); if (cl > a) { a = cl; } } } }
+  if (f == 0 || f == 1) { s1 = 4; s2 = 5; }
+  sd = Math.max(sideIn(x, y, z, s1), sideIn(x, y, z, s2));
+  if (BAUX[b + 1] == 1) { out = Math.max(0, a - sd); } else { if (a >= sd) { out = a; } }
+  return out;
+}
 // a repeater (or comparator) at (x, y, z) pointing the way d, on: it locks what it points into
 function rsLocks(x, y, z, d) {
   let b = blockAt(x, y, z), r = 0;
@@ -468,7 +510,7 @@ function rsSwitch(x, y, z, b, on) {
   let k = BKIND[b + 1];
   if (BPLC[b + 1] == P_DOOR) { doorSet(x, y, z, b, on); }
   // trapdoors: closed 0 bottom / 1 top, open 2 + half * 4 + side (the half is kept)
-  if (BPLC[b + 1] == P_TRAPDOOR) { let v = BVAR[b + 1]; if (on == 1 && v < 2) { setBlock(x, y, z, k + 2 + v * 4 + mod(faceOf(yaw) + 2, 4)); } if (on == 0 && v >= 2) { setBlock(x, y, z, k + idiv(v - 2, 4)); } }
+  if (BPLC[b + 1] == P_TRAPDOOR) { let v = BVAR[b + 1]; if (on == 1 && v < 2) { setBlock(x, y, z, k + 2 + v * 4 + trapSide(x, y, z)); } if (on == 0 && v >= 2) { setBlock(x, y, z, k + idiv(v - 2, 4)); } }
   if (BPLC[b + 1] == P_GATE) { let v = BVAR[b + 1]; if (on == 1 && v < 2) { setBlock(x, y, z, b + 2); } if (on == 0 && v >= 2) { setBlock(x, y, z, b - 2); } }
   if (on == 1) {
     if (BRS[b + 1] == RS_NOTE) { sndPlay(6); }
@@ -479,19 +521,30 @@ function rsSwitch(x, y, z, b, on) {
 // a delay is over
 function rsApply(x, y, z, w) {
   let b = blockAt(x, y, z), rl = BRS[b + 1], on = BON[b + 1];
-  if (rl == RS_REPEATER || rl == RS_OBSERVER) { if (w != on) { setBlock(x, y, z, b + w - on); } }
+  if (rl == RS_REPEATER) {
+    // (locked: it keeps what it has; going off with its input back on: it stays on; going on, it
+    // goes on even if the input already went (a short pulse comes out as long as its delay))
+    let f = BFAC[b + 1];
+    if (repLocked(x, y, z, f) == 0) {
+      let ww = w;
+      if (ww == 0) { if (backIn(x, y, z, OP6[f + 1]) > 0) { ww = 1; } }
+      if (ww != on) { setBlock(x, y, z, b + ww - on); }
+    }
+  }
+  if (rl == RS_OBSERVER) { if (w != on) { setBlock(x, y, z, b + w - on); } }
   if (rl == RS_OBSERVER) { if (w == 1) { rsSchedule(x, y, z, 0.1, 0); } }
   if (rl == RS_TORCH) {
     if (w < 0) { rsNotify(x, y, z, 1); }
     else {
-      let ww = w;
+      let ww = torchWant(x, y, z, b);
       if (ww == 1) { if (torchBurnt(x, y, z) == 1) { ww = 0; rsSchedule(x, y, z, 3.1, 0 - 1); } }
       if (ww != on) { setBlock(x, y, z, b + on - ww); torchToggled(x, y, z); }
     }
   }
   if (rl == RS_COMPARATOR) {
-    cmpSet(x, y, z, w);
-    let want = 0; if (w > 0) { want = 1; }
+    let lv = cmpOut(x, y, z, b);
+    cmpSet(x, y, z, lv);
+    let want = 0; if (lv > 0) { want = 1; }
     if (want != on) { setBlock(x, y, z, b + want - on); } else { rsNotify(x, y, z, 1); }
   }
   if (rl == RS_LAMP) { if (on == 1) { if (powerIn(x, y, z, 0 - 1) == 0) { setBlock(x, y, z, b - 1); } } }
@@ -525,6 +578,7 @@ function pushHow(c) {
     if (BSOL[c + 1] == 0 || BSHP[c + 1] == 1 || BSHP[c + 1] == 2 || BPLC[c + 1] == P_DOOR || BPLC[c + 1] == P_BED) { r = 2; }
     if (BHARD[c + 1] < 0 || c == 34 || BUSE[c + 1] == U_CHEST || BUSE[c + 1] == U_FURNACE || BUSE[c + 1] == U_SHELL || BUSE[c + 1] == U_VOIDCHEST || BUSE[c + 1] == U_ENCHANT || BUSE[c + 1] == U_ANCHOR || BSPEC[c + 1] == 6 || BRS[c + 1] == RS_HEAD) { r = 3; }
     if (BRS[c + 1] == RS_PISTON) { if (BON[c + 1] == 1) { r = 3; } }
+    if (BRS[c + 1] == RS_REPEATER || BRS[c + 1] == RS_COMPARATOR) { r = 2; }
   }
   return r;
 }
@@ -533,6 +587,7 @@ function pushHow(c) {
 // jelly and honey not each other. 12 blocks at most; a block that cannot move stops it when it is
 // in the way, and is left where it is when it only sticks on at a side. Blocks that break go.
 // PVX.. the blocks that move, PDX.. the ones that break; psMove the way (D6).
+let PSM = [];
 let PVX = [], PVY = [], PVZ = [], PVB = [], PDX = [], PDY = [], PDZ = [], PQX = [], PQY = [], PQZ = [], PQT = [];
 let psOk = 1, psMove = 0, psPX = 0, psPY = 0, psPZ = 0;
 function psSticky(b) { let r = 0; if (b == I_jellyBlock || b == I_honeyBlock) { r = 1; } return r; }
@@ -597,10 +652,24 @@ function psPut(x, y, z, b) {
 function psDo(hx, hy, hz, head) {
   let d = psMove, dx = DX6[d + 1], dy = DY6[d + 1], dz = DZ6[d + 1], i = 1;
   while (i <= PDX.length) { let c = blockAt(PDX[i], PDY[i], PDZ[i]); rsDrop(PDX[i], PDY[i], PDZ[i], c); partnerGone(PDX[i], PDY[i], PDZ[i], c, 0); i = i + 1; }
+  // (v2.4.3) an observer's waiting tick (its pulse to start or end) goes along with it: it was
+  // kept at the old cell, so one moved just after it saw a change never fired, and one moved
+  // while it fired stayed on for good (a flying machine or a fast clock stopped or ran wild)
+  PSM = [];
+  i = 1;
+  while (i <= SCX.length) {
+    if (SCT[i] >= 0) { if (SCD[i] == dim) { if (psHas(SCX[i], SCY[i], SCZ[i]) == 1) { if (BRS[blockAt(SCX[i], SCY[i], SCZ[i]) + 1] > 0) { PSM.push(i); } } } }
+    i = i + 1;
+  }
   i = 1;
   while (i <= PVX.length) { psPut(PVX[i], PVY[i], PVZ[i], 0); i = i + 1; }
   i = 1;
   while (i <= PVX.length) { psPut(PVX[i] + dx, PVY[i] + dy, PVZ[i] + dz, PVB[i]); i = i + 1; }
+  i = 1;
+  while (i <= PSM.length) { let k = PSM[i]; SCX[k] = SCX[k] + dx; SCY[k] = SCY[k] + dy; SCZ[k] = SCZ[k] + dz; i = i + 1; }
+  // (and one that arrives on with no tick waiting goes off after its pulse)
+  i = 1;
+  while (i <= PVX.length) { if (BRS[PVB[i] + 1] == RS_OBSERVER) { if (BON[PVB[i] + 1] == 1) { rsSchedule(PVX[i] + dx, PVY[i] + dy, PVZ[i] + dz, 0.1, 0); } } i = i + 1; }
   if (head > 0) { setBlock(hx, hy, hz, head); }
   i = 1;
   while (i <= PVX.length) {
@@ -667,6 +736,7 @@ function dispense(x, y, z, b) {
       dropItem(id, 1, CHD[s], x + 0.5 + DX6[f + 1] * 0.7, y + 0.3 + DY6[f + 1] * 0.7, z + 0.5 + DZ6[f + 1] * 0.7, 0);
       CHN[s] = CHN[s] - 1;
       if (CHN[s] <= 0) { CHI[s] = 0; CHN[s] = 0; CHD[s] = 0; }
+      chestTouched(c);
       sndPlay(1);
     }
   }
@@ -721,8 +791,10 @@ function rsState(b, st) {
       v = Math.min(15, Math.max(0, v));
     }
   }
-  if (rl == RS_REPEATER) { let d = 1; if (dl > 0) { d = Math.min(4, Math.max(1, substr(st, dl + 6, dl + 6) * 1)); } v = (f * 4 + d - 1) * 2 + on; }
-  if (rl == RS_COMPARATOR) { let m = 0; if (indexOf(st, 'mode=subtract') > 0) { m = 1; } v = (f * 2 + m) * 2 + on; }
+  // (v2.4.3) a repeater's or comparator's facing= names where its input comes from, as in the genre
+  // (it was taken as where it points: one put by a command worked backwards)
+  if (rl == RS_REPEATER) { let d = 1; if (dl > 0) { d = Math.min(4, Math.max(1, substr(st, dl + 6, dl + 6) * 1)); } v = (mod(f + 2, 4) * 4 + d - 1) * 2 + on; }
+  if (rl == RS_COMPARATOR) { let m = 0; if (indexOf(st, 'mode=subtract') > 0) { m = 1; } v = (mod(f + 2, 4) * 2 + m) * 2 + on; }
   if (rl == RS_LEVER) { v = ATTI[a + 1] * 2 + on; }
   if (rl == RS_BUTTON) { v = ATTI[a + 1]; }
   if (rl == RS_TORCH) { if (a == 3) { a = 2; } v = ATTI[a + 1] * 2; if (indexOf(st, 'lit=false') > 0) { v = v + 1; } }

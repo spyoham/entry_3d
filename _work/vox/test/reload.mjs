@@ -56,6 +56,17 @@ ok(d0 >= 1, `before: the command block ran once (${d0} diamond)`);
 cmd(s, '/effect give @s night_vision 600 0'); cmd(s, '/effect give @s speed 600 1');
 const eft = s.peek('EFT').slice(), efl = s.peek('EFL').slice();
 ok(eft[7] > 500 && eft[0] > 500, `effects on: night vision ${eft[7].toFixed(0)} s, speed ${eft[0].toFixed(0)} s`);
+// (v2.4.3) an observer clock (two face to face), and a sticky piston held out across a chunk's edge
+const OX = X + 2, OZ = Z - 4;
+placeAs(s, OX, Y, OZ, 'observer', 3, 90); placeAs(s, OX + 1, Y, OZ, 'observer', 3, 270);
+call(s, () => s.fn.rsSchedule(OX + 1, Y, OZ, 0.05, 1));
+const obsFlips = (sim, frames) => { let f = 0, last = BON[B(sim, OX, Y, OZ)]; for (let i = 0; i < frames; i++) { F(sim, 1); const q = BON[B(sim, OX, Y, OZ)]; if (q !== last) { f++; last = q; } } return f; };
+ok(obsFlips(s, 120) >= 8, 'before: the observer clock runs');
+const EX = Math.ceil((X + 12) / 16) * 16 - 1, EZ = Z - 8;
+cmd(s, `/setblock ${EX - 1} ${Y} ${EZ} spark_block`); cmd(s, `/setblock ${EX} ${Y} ${EZ} sticky_piston[facing=east]`); settle(s); F(s, 20);
+const BRS = s.peek('BRS');
+const held = (sim) => BRS[B(sim, EX, Y, EZ)] === 11 && BON[B(sim, EX, Y, EZ)] === 1 && BRS[B(sim, EX + 1, Y, EZ)] === 12;
+ok(held(s), `before: the piston at x ${EX} is out, its arm at x ${EX + 1} in the next chunk`);
 // keep it, and open it again in a new run
 s.poke('AT_확장프로그램', 1); s.poke('worldCur', 1); s.poke('worldName', '다시 열기');
 call(s, () => s.fn.saveGame(1));
@@ -69,6 +80,8 @@ F(t, 30);
 const eft2 = t.peek('EFT'), efl2 = t.peek('EFL');
 ok(eft2[7] > 400 && eft2[0] > 400 && efl2[0] === efl[0], `after: night vision ${(+eft2[7]).toFixed(0)} s, speed ${(+eft2[0]).toFixed(0)} s level ${efl2[0]}`);
 const f1 = flipsOf(t, 360);
+ok(obsFlips(t, 120) >= 8, 'after: the observer clock runs again');
+ok(held(t), 'after: the piston on the edge of a chunk is still out (it did not break)');
 ok(f1 >= 4, `after: the clock still runs (${f1} switches in 6 s)`);
 useAt(t, X, Y, Z); settle(t); F(t, 10);
 ok(lit(t, X + 2, Y, Z), 'after: lever on, lamp on');
@@ -79,5 +92,7 @@ ok(dia(t) === d0, `after: the powered command block did not run again (${dia(t)}
 t.poke('px', X + 400); t.poke('pz', Z + 400); F(t, 400);
 t.poke('px', X + 0.5); t.poke('pz', Z - 3); t.poke('py', Y + 6); F(t, 400);
 const f2 = flipsOf(t, 360);
+ok(obsFlips(t, 120) >= 8, 'after going far and back: the observer clock runs');
+ok(held(t), 'after going far and back: the piston is still out');
 ok(f2 >= 4, `after going far and coming back: the clock runs (${f2} switches in 6 s)`);
 console.log(fails ? fails + ' FAILED' : 'all ok');
