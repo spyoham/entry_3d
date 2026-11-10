@@ -11,7 +11,7 @@ import { TEX, CRACK, BLOCKS, NBLOCK, ITEMS, TIERS, KINDS, SMITH, toolId, NITEM, 
 import { MODELS, ARMS, ARMCOL, pottedModel } from './models.mjs';
 import { makeSounds } from './sounds.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '2.3.1';
+export const VERSION = '2.4';
 export const NAME = '블록 월드';
 
 // the ring window of loaded chunks: NCH x NCH slots of 16 x 16 columns; chunks are made within
@@ -209,6 +209,15 @@ export function makeData() {
         B.BRS.push(rs); B.BFAC.push(b.fac ?? -1); B.BON.push(b.on || 0); B.BAUX.push(b.aux || 0); B.BATT.push(b.att ?? -1);
         B.BCOND.push(shape === 0 && sol === 1 && (b.hide ?? 1) === 1 && !b.leaf && (!rs || rs === RS.lamp || rs === RS.tnt || rs === RS.note || rs === RS.command || rs === RS.target) && id > 0 ? 1 : 0);
     }
+    // (v2.3.2) liquids: BLQ 7 water / 35 lava / 0 none, BLV 0 source, 1..7 flowing, 8 falling
+    B.BLQ = []; B.BLV = [];
+    for (let id = 0; id < NBLOCK; id++) {
+        const b = BLOCKS[id];
+        let q = 0, v = 0;
+        if (id === 7) q = 7; if (id === 35) q = 35;
+        if (b && b.liq) { q = b.liq === 'water' ? 7 : 35; v = b.lv; }
+        B.BLQ.push(q); B.BLV.push(v);
+    }
     // an axis block's lying variants (x, z): the newer logs have them right after, the first logs
     // (13, 23, 25) far away, basalt none (it stays upright) - put by these, never by + 1 / + 2
     B.BAXX = []; B.BAXZ = [];
@@ -259,6 +268,8 @@ export function makeData() {
             if (it.spawn) { spawn = it.spawn; st = 64; }
             if (it.throwIt) thr = it.throwIt;
             if (it.n === 'voidPearl') thr = 3;
+            // (v2.3.2) the boat with the tools, where one looks for it (it was among the materials)
+            if (it.n === 'boat') cat = 6;
             if (it.n === 'waterBucket') plb = 7; if (it.n === 'lavaBucket') plb = 35;
             if (it.drink) k = 2, food = 0;
             ic = iconOf(it.icon, it.p); c1 = c2 = iconCol(it.icon, it.p);
@@ -403,7 +414,7 @@ export function makeData() {
 }
 
 // ------------------------------------------------------------------ sources
-export const FILES = ['world.js', 'flat.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'save.js', 'net.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'items.js', 'hud.js', 'extra.js', 'cmds.js', 'keyin.js', 'main.js', 'test.js'];
+export const FILES = ['world.js', 'flat.js', 'fluid.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'save.js', 'net.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'items.js', 'hud.js', 'extra.js', 'cmds.js', 'keyin.js', 'main.js', 'test.js'];
 export function allConsts(more = {}) {
     const { C } = makeData();
     return { ...consts, ...C, ...more };

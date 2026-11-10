@@ -8,6 +8,8 @@ export const MODELS = {};
 const M = (name, boxes, col) => { MODELS[name] = { boxes, col: col === undefined ? boxes.filter(b => b[7] !== 'X') : col }; };
 
 M('slab_b', [[0, 0, 0, 16, 8, 16]]);
+// (v2.3.2) flowing water and lava: level 1 (by the source) 14/16 high down to level 7, 2/16; nothing hits them
+for (let L = 1; L <= 7; L++) M(`liq_${L}`, [[0, 0, 0, 16, 16 - 2 * L, 16]], 'none');
 M('slab_t', [[0, 8, 0, 16, 16, 16]]);
 // stairs facing f (the high side toward 0 +z, 1 +x, 2 -z, 3 -x), half 0 bottom / 1 upside down
 const STEP = [[0, 8, 16, 16], [8, 0, 16, 16], [0, 0, 16, 8], [0, 0, 8, 16]];   // x0 z0 x1 z1

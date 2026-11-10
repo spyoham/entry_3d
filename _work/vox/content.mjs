@@ -858,5 +858,11 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     for (let i = RECIPES.length - 1; i >= 0; i--) if (RECIPES[i].n === 0) RECIPES.splice(i, 1);
     S('potato', 'bakedPotato'); S('cactus', 'greenDye'); S('kelpItem', 'driedKelp'); S('oreJade', 'jade'); S('oreQuartz', 'quartz'); S('oreSpark', 'sparkDust');
     // spawn eggs (one for each mob that walks)
+    // (v2.3.2) flowing liquids: water and lava at levels 1..7 (lower and lower: models liq_1..7) and
+    // falling (a full block, as the source): all of them water or lava to the game (src/fluid.js)
+    for (const [base, ko, more] of [['water', '물', { hide: 2 }], ['lava', '용암', { hide: 3, light: 15 }]]) {
+        for (let L = 1; L <= 7; L++) add({ n: `${base}Flow${L}`, key: `${base}_flowing_${L}`, ko, t: [base], hard: -1, shape: 5, model: `liq_${L}`, hide: 0, solid: 0, lop: 0, drop: 'none', light: more.light || 0, item: base, hidden: 1, nokind: 1, liq: base, lv: L, cat: 2 });
+        add({ n: `${base}Fall`, key: `${base}_falling`, ko, t: [base], hard: -1, shape: 3, hide: more.hide, solid: 0, lop: 0, drop: 'none', light: more.light || 0, item: base, hidden: 1, nokind: 1, liq: base, lv: 8, cat: 2 });
+    }
     return { item, I, R, S, ICON, kinds, byKey };
 }

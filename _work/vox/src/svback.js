@@ -4,8 +4,12 @@
 // the editor has over them; a work whose lists were taken out and put back (or loaded again from a
 // file, empty) can leave the servers empty. So every player's game keeps a copy of each server it
 // was on (@서버백업: tessvm keeps @ lists between runs) and puts a server back into the shared
-// lists when it is gone from them, or when the shared one is older than the copy and nobody is on
-// it. A server deleted on purpose is named in ?!gone and is not put back.
+// lists when they have all been emptied (what an editor saving empty lists over them does). A
+// server deleted on purpose is named in ?!gone and is not put back.
+// (v2.3.2) Before, a copy went back when one server was missing, or older than the copy, 8 s after
+// Entry Sync was on. When the room's values came later than that (a slow start), the copy - older
+// than the room - was written over it, and what was done since (an /op) was gone. Now only when
+// every server place is empty, 20 s on, and never over a server that is there.
 // @서버백업: sections SB, id, name, owner, rev, nm, nm settings lines, ne, ne block numbers.
 let AT_서버백업 = [];
 let SY_gone = [];
@@ -75,8 +79,10 @@ function svBackDrop(k) {
 }
 // the copies against the shared lists (once they have come: some seconds after Entry Sync is on)
 function bkCheck() {
-  let p = 1, n = AT_서버백업.length, ch = 0;
+  let p = 1, n = AT_서버백업.length, ch = 0, any = 0, q = 1;
   bkPut = 0;
+  // (only when every place is empty)
+  while (q <= NSRV) { if (metaLen(q) > 0) { any = 1; } q = q + 1; }
   while (p <= n) {
     if (AT_서버백업[p] != 'SB') { p = n + 1; }
     else {
@@ -88,10 +94,7 @@ function bkCheck() {
           if (srvHas(k) == 1) { if (shId == id) { if (at == 0) { at = k; } } } else { if (free == 0) { free = k; } }
           k = k + 1;
         }
-        if (at > 0) {
-          let r2 = srvHas(at);
-          if (shRev < rev && srvCount(at) == 0 && at != netSrv) { bkWrite(p, at); bkPut = bkPut + 1; netMsg = `서버 '${name}'을(를) 이 컴퓨터에 남은 더 새로운 기록으로 되돌렸습니다`; }
-        } else {
+        if (at == 0 && any == 0) {
           if (free > 0) { bkWrite(p, free); bkPut = bkPut + 1; netMsg = `사라진 서버 '${name}'을(를) 이 컴퓨터에 남은 기록에서 되살렸습니다`; }
         }
         let nm = AT_서버백업[p + 5] * 1, ne = AT_서버백업[p + 6 + nm] * 1;
@@ -109,6 +112,8 @@ function bkCheck() {
     a = a + 1;
   }
   if (ch == 1) { if (canSave() == 1) { AT_비동기저장(); } }
+  // (srvHas above read every place into the sh* globals: back to the server I am on)
+  if (netSrv > 0) { srvHead(netSrv); }
 }
 // each frame (net.js netStep)
 function svBackStep(dt) {
@@ -119,7 +124,7 @@ function svBackStep(dt) {
     bkT = bkT + dt;
     if (netSrv > 0 && netSt == 2 && bkT > 60) { bkT = 0; bkKeep(netSrv); AT_비동기저장(); }
     bkChkT = bkChkT + dt;
-    if (syOnT >= 0 && netClock - syOnT > 8 && bkChkT > 10) { bkChkT = 0; if (AT_서버백업.length > 0) { bkCheck(); } }
+    if (syOnT >= 0 && netClock - syOnT > 20 && bkChkT > 10) { bkChkT = 0; if (AT_서버백업.length > 0) { bkCheck(); } }
   }
 }
 // leaving a server: its copy as it is then

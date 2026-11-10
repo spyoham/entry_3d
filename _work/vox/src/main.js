@@ -197,7 +197,7 @@ function playKeys(dt) {
 }
 // the world goes on: mobs, items, blocks, chunks, the sky
 function playWorld(dt) {
-  mobsStep(dt); itemsStep(dt); arrowsStep(dt); furnacesStep(dt); spawnStep(dt); randomTicks(dt);
+  mobsStep(dt); itemsStep(dt); arrowsStep(dt); furnacesStep(dt); spawnStep(dt); randomTicks(dt); fluidStep(dt);
   blocksStep(dt); pendingMobs(); weatherStep(dt);
   gameTicks = gameTicks + dt * 20;
   worldFlush();

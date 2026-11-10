@@ -345,18 +345,20 @@ function boatPlace() {
   let x = 0, y = 0, z = 0, ok = 0;
   if (pickOn == 1) {
     pickNeighbour(); x = nbX; y = nbY; z = nbZ;
-    if (pickB == 7) { x = pickX; y = pickY; z = pickZ; }
+    if (BLQ[pickB + 1] == 7) { x = pickX; y = pickY; z = pickZ; }
     ok = 1;
   } else {
     // water under the look within 5 blocks
     let t = 1;
-    while (t <= 5 && ok == 0) { let qx = Math.floor(camX + lookX * t), qy = Math.floor(camY + lookY * t), qz = Math.floor(camZ + lookZ * t); if (blockAt(qx, qy, qz) == 7) { ok = 1; x = qx; y = qy; z = qz; } t = t + 0.5; }
+    while (t <= 5 && ok == 0) { let qx = Math.floor(camX + lookX * t), qy = Math.floor(camY + lookY * t), qz = Math.floor(camZ + lookZ * t); if (BLQ[blockAt(qx, qy, qz) + 1] == 7) { ok = 1; x = qx; y = qy; z = qz; } t = t + 0.5; }
   }
   if (ok == 1) {
-    while (blockAt(x, y + 1, z) == 7 && y < WY - 2) { y = y + 1; }
+    while (BLQ[blockAt(x, y + 1, z) + 1] == 7 && y < WY - 2) { y = y + 1; }
     let by = y + 0.6;
-    if (blockAt(x, y, z) != 7) { by = y; }
+    if (BLQ[blockAt(x, y, z) + 1] != 7) { by = y; }
     mobAdd(13, x + 0.5, by, z + 0.5);
+    // (v2.3.2) it faces the way the player looks (it went on a heading of its own)
+    if (lastMob > 0) { EYAW[lastMob] = mod(yaw, 360); EST[lastMob] = 0; }
     if (mod(gameMode, 2) == 0) { takeHeld(1); }
     placeCool = 0.4;
   }
@@ -365,7 +367,9 @@ function boatStep(e, dt) {
   let w = MW[13] / 2;
   let inWt = 0;
   let b0 = blockAt(Math.floor(EX[e]), Math.floor(EY[e] + 0.1), Math.floor(EZ[e])), b1 = blockAt(Math.floor(EX[e]), Math.floor(EY[e] - 0.3), Math.floor(EZ[e]));
-  if (b0 == 7 || b1 == 7) { inWt = 1; }
+  if (BLQ[b0 + 1] == 7 || BLQ[b1 + 1] == 7) { inWt = 1; }
+  // (v2.3.2) a hit wears off (boats do not take the mobs' step that counted it down: one hit and no more)
+  if (EHURT[e] > 0) { EHURT[e] = EHURT[e] - dt; }
   let sp = 0, turn = 0;
   if (riding == e) {
     if (key(87)) { sp = 1; } if (key(83)) { sp = 0 - 0.5; }
@@ -382,10 +386,16 @@ function boatStep(e, dt) {
   if (inWt == 1) {
     // the top water cell under it: the boat's bottom sits a little under the surface
     let sy = Math.floor(EY[e] + 0.1);
-    if (blockAt(Math.floor(EX[e]), sy, Math.floor(EZ[e])) != 7) { sy = sy - 1; }
-    while (blockAt(Math.floor(EX[e]), sy + 1, Math.floor(EZ[e])) == 7) { sy = sy + 1; }
-    let want = sy + 0.72;
+    if (BLQ[blockAt(Math.floor(EX[e]), sy, Math.floor(EZ[e])) + 1] != 7) { sy = sy - 1; }
+    while (BLQ[blockAt(Math.floor(EX[e]), sy + 1, Math.floor(EZ[e])) + 1] == 7) { sy = sy + 1; }
+    // (the top of flowing water is lower)
+    let tb = blockAt(Math.floor(EX[e]), sy, Math.floor(EZ[e])), top2 = 1;
+    if (BLV[tb + 1] >= 1 && BLV[tb + 1] <= 7) { top2 = (16 - 2 * BLV[tb + 1]) / 16; }
+    let want = sy + top2 - 0.28;
     EVY[e] = (want - EY[e]) * 4;
+    // the current carries it
+    flowAt(Math.floor(EX[e]), sy, Math.floor(EZ[e]));
+    EVX[e] = EVX[e] + flX * 3 * dt; EVZ[e] = EVZ[e] + flZ * 3 * dt;
   } else { EVY[e] = EVY[e] - 32 * dt; if (EVY[e] < -40) { EVY[e] = 0 - 40; } }
   bmX = EX[e]; bmY = EY[e]; bmZ = EZ[e]; bmW = w; bmH = 0.55;
   bodyMove(EVX[e] * dt, EVY[e] * dt, EVZ[e] * dt);

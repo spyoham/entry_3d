@@ -218,7 +218,7 @@ function mobStep0(e, dt) {
   if (MHOST[t] == 0 && EST[e] != 4) { if (want != 0) {
     let ax = Math.floor(EX[e] + sind(EYAW[e]) * (w + 0.6)), az = Math.floor(EZ[e] + cosd(EYAW[e]) * (w + 0.6)), ay = Math.floor(EY[e]);
     let ab = blockAt(ax, ay - 1, az);
-    if (BSOL[ab + 1] == 0) { if (BSOL[blockAt(ax, ay - 2, az) + 1] == 0 || ab == 7) { tx = 0; tz = 0; EWY[e] = EYAW[e] + 180; } }
+    if (BSOL[ab + 1] == 0) { if (BSOL[blockAt(ax, ay - 2, az) + 1] == 0 || BLQ[ab + 1] > 0) { tx = 0; tz = 0; EWY[e] = EYAW[e] + 180; } }
   } }
   let a = Math.min(1, 10 * dt);
   if (EGND[e] == 0) { a = Math.min(1, 2 * dt); }
@@ -253,7 +253,7 @@ function mobStep0(e, dt) {
 function headIn(e) {
   let b = blockAt(Math.floor(EX[e]), Math.floor(EY[e] + MH[ET[e]] - 0.2), Math.floor(EZ[e]));
   let r = 0;
-  if (b == 7) { r = 1; }
+  if (BLQ[b + 1] == 7) { r = 1; }
   return r;
 }
 function atan2d(x, z) {
@@ -268,7 +268,8 @@ function mobHurt(e, n, fx, fz) {
   if (EHURT[e] <= 0 && n > 0) {
     EHP[e] = EHP[e] - n; EHURT[e] = 0.5;
     sndPlay(4);
-    if (fx != 0 || fz != 0) {
+    // (a boat is not knocked away: it went out of reach after one hit)
+    if ((fx != 0 || fz != 0) && ET[e] != M_BOAT) {
       let l = Math.sqrt(fx * fx + fz * fz) + 0.001;
       EVX[e] = fx / l * 6; EVZ[e] = fz / l * 6; EVY[e] = 5;
     }
@@ -667,7 +668,7 @@ function thrownStep(a, dt) {
   AVY[a] = AVY[a] - 20 * dt;
   let nx = AXX[a] + AVX[a] * dt, ny = AYY[a] + AVY[a] * dt, nz = AZZ[a] + AVZ[a] * dt;
   let hb = blockAt(Math.floor(nx), Math.floor(ny), Math.floor(nz)), hit = 0;
-  if (BSOL[hb + 1] > 0 || hb == 7) { hit = 1; }
+  if (BSOL[hb + 1] > 0 || BLQ[hb + 1] == 7) { hit = 1; }
   else { AXX[a] = nx; AYY[a] = ny; AZZ[a] = nz; }
   let e = 1;
   while (e <= NMOB && hit == 0) {

@@ -59,6 +59,9 @@ function ashBiome(x, z) {
   if (a < -0.3) { abm = 24; if (b > 0.25) { abm = 25; } }
 }
 function featuresU(cx, cz) {
+  // (v2.3.2) lava falls from the walls and the roof of the depths
+  chunkSeed(cx, cz, 6);
+  springs(48, 12, 35, 12, 60);
   chunkSeed(cx, cz, 2);
   veins(51, 6, 3, 7, 14, 50);
   veins(I_oreQuartz, 8, 4, 10, 10, 54); veins(I_oreAshGold, 5, 4, 10, 10, 54);
@@ -354,7 +357,7 @@ let travelTo = 0, travelKind = 0, gateT = 0, gateCool = 0;
 function startTravel(nd, x, z, kind) {
   let s = 1;
   while (s <= NCH * NCH) { if (CKST[s] > 0) { chunkDrop(s); } s = s + 1; }
-  thingsInit();
+  thingsInit(); fluidInit();
   dim = nd; travelKind = kind;
   px = x; pz = z; py = 40; pvx = 0; pvy = 0; pvz = 0; flying = 0;
   pcxW = -99999; pczW = -99999;

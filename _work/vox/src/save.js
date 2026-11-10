@@ -132,6 +132,8 @@ function edReplay(cx, cz) {
         // (v2.3.1) a spark part: looked at again once the world goes on - what was due later (a
         // clock's next switch) is not kept, and nothing asked the parts again, so a clock stood still
         if (BRS[EDB[k] + 1] > 0) { rsNotify(EDX[k], EDY[k], EDZ[k], 4); }
+        // (v2.3.2) and the liquid by it flows again (what flows is not in the log)
+        fluidReplay(EDX[k], EDY[k], EDZ[k]);
       }
       k = EDN[k];
     }

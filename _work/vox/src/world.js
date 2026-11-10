@@ -327,13 +327,8 @@ function genCaves(cx, cz) {
     }
     a = a + 1;
   }
-  // the top of cave lava under air cools to obsidian (the only way to it: there are no buckets)
-  a = gx0;
-  while (a <= gx1) {
-    c = gz0;
-    while (c <= gz1) { let i = (mod(a, WS) * WS + mod(c, WS)) * WY + LAVAY + 1; if (W[i] == 35) { if (W[i + 1] == 0) { W[i] = 34; } } c = c + 1; }
-    a = a + 1;
-  }
+  // (v2.3.2: the lava of the deep caves stays lava - it used to cool to obsidian when there were
+  // no buckets; now it can be taken, and water makes obsidian of it)
 }
 
 // ---------------------------------------------------------------- ores and trees of one chunk
@@ -704,6 +699,10 @@ function featuresO(cx, cz) {
   }  // now and then a broken gate frame of obsidian on the ground (with what fell off lying by it)
   chunkSeed(cx, cz, 4);
   if (rndI(1, 9) == 1) { ruinFrame(gx0 + rndI(4, 9), gz0 + rndI(5, 10)); }
+  // (v2.3.2) springs in the cave walls, lava ones deep down, and a lava lake on the land now and then
+  chunkSeed(cx, cz, 6);
+  springs(1, 14, 7, 10, 70); springs(1, 6, 35, 6, 30);
+  if (rndI(1, 40) == 1) { lavaLake(gx0 + 8, gz0 + 8); }
   // the old ruins with their gates
   featuresRuins();
   // the villages, temples, mines and the rest
@@ -965,6 +964,7 @@ function worldInit() {
 let genPhase = 0, genN = 0, genMsg = '';
 function genStart(s) {
   seed = s;
+  fluidInit();
   noiseInit();
   worldInit();
   let i = 1;

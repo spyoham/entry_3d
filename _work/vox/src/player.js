@@ -142,7 +142,7 @@ function bodyIn(x, y, z, w, h) {
       yy = y0;
       while (yy <= y1) {
         k = blockAt(a, yy, c);
-        if (k == 7) { inW = 1; } if (k == 35) { inL = 1; }
+        if (BLQ[k + 1] == 7) { inW = 1; } if (BLQ[k + 1] == 35) { inL = 1; }
         if (BWATER[k + 1] == 1) { inW = 1; }
         if (BMOVE[k + 1] == 1) { inClimb = 1; } if (BMOVE[k + 1] == 3) { inWeb = 1; }
         if (BHURT[k + 1] == 2) { inC = 2; } if (BHURT[k + 1] == 1) { if (BSHP[k + 1] != 0) { inC = 1; } }
@@ -197,7 +197,7 @@ function spectatorMove(dt) {
   px = px + pvx * dt; py = py + pvy * dt; pz = pz + pvz * dt;
   if (py < -30) { py = -30; } if (py > WY + 60) { py = WY + 60; }
   headWater = 0;
-  if (blockAt(Math.floor(px), Math.floor(py + 1.62), Math.floor(pz)) == 7) { headWater = 1; }
+  if (BLQ[blockAt(Math.floor(px), Math.floor(py + 1.62), Math.floor(pz)) + 1] == 7) { headWater = 1; }
 }
 function playerMove2(dt) {
   let fw = 0, st = 0;
@@ -213,6 +213,8 @@ function playerMove2(dt) {
   if (key(16)) { if (uiMode == 0) { sneaking = 1; sprinting = 0; } }
   bodyIn(px, py, pz, 0.3, 1.8);
   inWater = inW; inLava = inL;
+  // (v2.3.2) flowing water carries the player along
+  if (inW == 1 || inL == 1) { flowAt(Math.floor(px), Math.floor(py + 0.3), Math.floor(pz)); let cs = 2.6; if (inL == 1) { cs = 0.9; } if (flying == 0) { pvx = pvx + flX * cs * dt * 3; pvz = pvz + flZ * cs * dt * 3; } }
   let sp = 4.3;
   if (sprinting == 1) { sp = 5.6; }
   if (sneaking == 1) { if (flying == 0) { sp = 1.3; } }
@@ -319,7 +321,7 @@ function playerMove2(dt) {
   if (sprinting == 1) { exhaust = exhaust + moved * 0.1; } else { exhaust = exhaust + moved * 0.01; }
   headWater = 0;
   let hb = blockAt(Math.floor(px), Math.floor(py + 1.62), Math.floor(pz));
-  if (hb == 7 || BWATER[hb + 1] == 1) { headWater = 1; }
+  if (BLQ[hb + 1] == 7 || BWATER[hb + 1] == 1) { headWater = 1; }
 }
 
 // ---------------------------------------------------------------- health and hunger
@@ -431,7 +433,7 @@ function pickRay() {
     if (t <= reach) {
       b = blockAt(x, y, z);
       if (y >= WY) { b = 0; }
-      if (b != 0 && b != 7 && b != 35) { found = 1; }
+      if (b != 0 && BLQ[b + 1] == 0) { found = 1; }
       if (b == I_barrier) { if (gameMode != 1) { found = 0; } }
     }
     k = k + 1;
@@ -549,11 +551,14 @@ let DIRTY = [], SDIRTY = [];
 function setBlock(x, y, z, b) {
   if (y >= 0 && y < WY && cOK(x, z) == 1) {
     let old = W[wi(x, y, z)];
-    logOn = 1; wput(x, y, z, b); logOn = 0;
+    logOn = lqLog; wput(x, y, z, b); logOn = 0;
     if (old == 34) { if (b != 34) { veilN = 0; veilBreak(x + 1, y, z); veilBreak(x - 1, y, z); veilBreak(x, y + 1, z); veilBreak(x, y - 1, z); veilBreak(x, y, z + 1); veilBreak(x, y, z - 1); } }
     markDirty(x, y, z);
-    lbX0 = Math.min(lbX0, x - 14); lbX1 = Math.max(lbX1, x + 14); lbZ0 = Math.min(lbZ0, z - 14); lbZ1 = Math.max(lbZ1, z + 14);
-    if (b == 0) { blockGone(x, y, z); }
+    // (liquid flowing over air and back is not lit again - the dear part, 29 x 29 columns: flowing
+    // lava's own light comes with the next change near it, its source lights the place already)
+    let relit = 1;
+    if (lqLog == 0) { if (BLOP[old + 1] == 0 && BLOP[b + 1] == 0) { relit = 0; } }
+    if (relit == 1) { lbX0 = Math.min(lbX0, x - 14); lbX1 = Math.max(lbX1, x + 14); lbZ0 = Math.min(lbZ0, z - 14); lbZ1 = Math.max(lbZ1, z + 14); }
     // a block that cannot stand where it is now
     let up = blockAt(x, y + 1, z);
     if (b == 0 || BSOL[b + 1] == 0) {
@@ -569,14 +574,16 @@ function setBlock(x, y, z, b) {
     if (BFALL[b + 1] == 1) { fallBlock(x, y, z); }
     // concrete powder by water sets
     if (BWET[b + 1] > 0) { if (BFALL[b + 1] == 1) { if (waterNear(x, y, z) == 1) { logOn = 1; wput(x, y, z, BWET[b + 1]); logOn = 0; } } }
-    if (b == 7) { wetAround(x, y, z); }
+    if (BLQ[b + 1] == 7) { wetAround(x, y, z); }
     // spark power: the cells round look again (two steps out when a part came or went)
     if (BRS[old + 1] > 0 || BRS[b + 1] > 0) { rsNotify(x, y, z, 3); } else { rsNotify(x, y, z, 2); }
+    // (v2.3.2) liquid by the change looks again: it runs into a hole, goes back when its source went
+    fluidNotify(x, y, z);
   }
 }
 function waterNear(x, y, z) {
   let r = 0;
-  if (blockAt(x + 1, y, z) == 7 || blockAt(x - 1, y, z) == 7 || blockAt(x, y + 1, z) == 7 || blockAt(x, y, z + 1) == 7 || blockAt(x, y, z - 1) == 7) { r = 1; }
+  if (BLQ[blockAt(x + 1, y, z) + 1] == 7 || BLQ[blockAt(x - 1, y, z) + 1] == 7 || BLQ[blockAt(x, y + 1, z) + 1] == 7 || BLQ[blockAt(x, y, z + 1) + 1] == 7 || BLQ[blockAt(x, y, z - 1) + 1] == 7) { r = 1; }
   return r;
 }
 function wetAround(x, y, z) {
@@ -608,52 +615,16 @@ function worldFlush() {
 // sand, gravel, concrete powder, anvils drop to the first support
 function fallBlock(x, y, z) {
   let b = blockAt(x, y, z), y2 = y;
-  while (y2 > 0 && (blockAt(x, y2 - 1, z) == 0 || blockAt(x, y2 - 1, z) == 7 || BSHP[blockAt(x, y2 - 1, z) + 1] == 1)) { y2 = y2 - 1; }
+  while (y2 > 0 && (blockAt(x, y2 - 1, z) == 0 || BLQ[blockAt(x, y2 - 1, z) + 1] > 0 || BSHP[blockAt(x, y2 - 1, z) + 1] == 1)) { y2 = y2 - 1; }
   if (y2 < y) {
     logOn = 1; wput(x, y, z, 0); wput(x, y2, z, b); logOn = 0;
     markDirty(x, y, z); markDirty(x, y2, z);
-    if (BWET[b + 1] > 0) { if (waterNear(x, y2, z) == 1 || blockAt(x, y2 + 1, z) == 7) { logOn = 1; wput(x, y2, z, BWET[b + 1]); logOn = 0; } }
+    if (BWET[b + 1] > 0) { if (waterNear(x, y2, z) == 1 || BLQ[blockAt(x, y2 + 1, z) + 1] == 7) { logOn = 1; wput(x, y2, z, BWET[b + 1]); logOn = 0; } }
     let up = blockAt(x, y + 1, z);
     if (BFALL[up + 1] == 1) { fallBlock(x, y + 1, z); }
   }
 }
-// a hole opened next to water (or lava): it runs in, and down
-function blockGone(x, y, z) {
-  let lq = 0;
-  if (blockAt(x, y + 1, z) == 7) { lq = 7; }
-  if (blockAt(x - 1, y, z) == 7 || blockAt(x + 1, y, z) == 7 || blockAt(x, y, z - 1) == 7 || blockAt(x, y, z + 1) == 7) { lq = 7; }
-  if (lq == 0) { if (blockAt(x, y + 1, z) == 35 || blockAt(x - 1, y, z) == 35 || blockAt(x + 1, y, z) == 35 || blockAt(x, y, z - 1) == 35 || blockAt(x, y, z + 1) == 35) { lq = 35; } }
-  if (lq > 0) { flowN = 0; flowInto(x, y, z, lq, 0); }
-}
-let flowN = 0;
-function flowInto(x, y, z, lq, side) {
-  if (flowN < 40) {
-    if (y >= 1 && y < WY && cOK(x, z) == 1) {
-      let b = W[wi(x, y, z)];
-      if (b == 0 || (BSHP[b + 1] == 1 && BWATER[b + 1] == 0) || b == 27 || BSPEC[b + 1] == 10) {
-        flowN = flowN + 1;
-        logOn = 1; wput(x, y, z, lq); logOn = 0; markDirty(x, y, z);
-        lbX0 = Math.min(lbX0, x - 14); lbX1 = Math.max(lbX1, x + 14); lbZ0 = Math.min(lbZ0, z - 14); lbZ1 = Math.max(lbZ1, z + 14);
-        if (lq == 7) { wetAround(x, y, z); }
-        let below = blockAt(x, y - 1, z);
-        if (below == 0 || BSHP[below + 1] == 1) { flowInto(x, y - 1, z, lq, 0); }
-        else {
-          if (side < 2) {
-            if (BSOL[below + 1] > 0) {
-              flowInto(x + 1, y, z, lq, side + 1); flowInto(x - 1, y, z, lq, side + 1);
-              flowInto(x, y, z + 1, lq, side + 1); flowInto(x, y, z - 1, lq, side + 1);
-            }
-          }
-        }
-      } else {
-        logOn = 1;
-        if (lq == 7) { if (b == 35) { wput(x, y, z, 34); markDirty(x, y, z); } }
-        if (lq == 35) { if (b == 7) { wput(x, y, z, 4); markDirty(x, y, z); } }
-        logOn = 0;
-      }
-    }
-  }
-}
+// (before v2.3.2 a hole by water was filled at once, 40 cells deep: now fluid.js)
 
 // ---------------------------------------------------------------- bow and armour
 let bowCool = 0;

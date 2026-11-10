@@ -512,7 +512,7 @@ function torchBurnt(x, y, z) {
 // how a block meets a piston: 0 taken over (air, water, lava, fire), 1 moves, 2 breaks, 3 stops it
 function pushHow(c) {
   let r = 1;
-  if (c == 0 || c == 7 || c == 35 || BSPEC[c + 1] == 10) { r = 0; }
+  if (c == 0 || BLQ[c + 1] > 0 || BSPEC[c + 1] == 10) { r = 0; }
   else {
     if (BSOL[c + 1] == 0 || BSHP[c + 1] == 1 || BSHP[c + 1] == 2 || BPLC[c + 1] == P_DOOR || BPLC[c + 1] == P_BED) { r = 2; }
     if (BHARD[c + 1] < 0 || c == 34 || BUSE[c + 1] == U_CHEST || BUSE[c + 1] == U_FURNACE || BUSE[c + 1] == U_SHELL || BUSE[c + 1] == U_VOIDCHEST || BUSE[c + 1] == U_ENCHANT || BUSE[c + 1] == U_ANCHOR || BSPEC[c + 1] == 6 || BRS[c + 1] == RS_HEAD) { r = 3; }

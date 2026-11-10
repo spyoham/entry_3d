@@ -9,7 +9,7 @@ function dirX(f) { let r = 0; if (f == 1) { r = 1; } if (f == 3) { r = 0 - 1; } 
 function dirZ(f) { let r = 0; if (f == 0) { r = 1; } if (f == 2) { r = 0 - 1; } return r; }
 function freeAt(x, y, z) {
   let o = blockAt(x, y, z), r = 0;
-  if (o == 0 || o == 7 || o == 35 || (BSHP[o + 1] == 1 && BCROP[o + 1] < 0 && BWATER[o + 1] == 0) || BSPEC[o + 1] == 10 || o == I_snowLayer) { r = 1; }
+  if (o == 0 || BLQ[o + 1] > 0 || (BSHP[o + 1] == 1 && BCROP[o + 1] < 0 && BWATER[o + 1] == 0) || BSPEC[o + 1] == 10 || o == I_snowLayer) { r = 1; }
   if (y < 0 || y >= WY) { r = 0; }
   return r;
 }
@@ -23,14 +23,14 @@ function standsOn(b, under, x, y, z) {
   let n = BNEED[b + 1], r = 1;
   if (n == N_SOIL) { r = soilAt(under); if (b == 46) { if (under == 8 || under == I_redSand || BKIND[under + 1] == I_terracotta) { r = 1; } } }
   if (n == N_FLOOR) { if (BSOL[under + 1] == 0) { r = 0; } }
-  if (n == N_BELOW) { if (under == 0 || BSHP[under + 1] == 1 || under == 7 || under == 35) { r = 0; } }
+  if (n == N_BELOW) { if (under == 0 || BSHP[under + 1] == 1 || BLQ[under + 1] > 0) { r = 0; } }
   if (n == N_ASHEN) { r = 0; if (under == 48 || under == I_emberMoss || under == I_indigoMoss || under == I_wailSoil || under == I_wailSand) { r = 1; } }
   if (n == N_FARM) { r = 0; if (under == I_farmland || under == I_farmlandWet) { r = 1; } }
   if (n == N_REED) { r = 0; if (soilAt(under) == 1 || under == 8 || under == I_redSand || under == b) { r = 1; } }
   if (n == N_DARK) { if (BSOL[under + 1] == 0) { r = 0; } }
-  if (n == N_WATER) { r = 0; if (under == 7 || BSOL[under + 1] > 0) { r = 1; } }
+  if (n == N_WATER) { r = 0; if (BLQ[under + 1] == 7 || BSOL[under + 1] > 0) { r = 1; } }
   if (b == 19) { r = 0; if (under == 8 || under == I_redSand || under == 19) { r = 1; } }
-  if (BWATER[b + 1] == 1) { if (blockAt(x, y, z) != 7) { if (blockAt(x, y + 1, z) != 7) { r = 0; } } }
+  if (BWATER[b + 1] == 1) { if (BLQ[blockAt(x, y, z) + 1] != 7) { if (BLQ[blockAt(x, y + 1, z) + 1] != 7) { r = 0; } } }
   return r;
 }
 
@@ -146,7 +146,7 @@ function pickCopy() {
 // the item a block is (its kind; a part with no item of its own: what it drops), 0 none
 function pickItem(b) {
   let id = 0;
-  if (b > 0 && b != 7 && b != 35) {
+  if (b > 0 && BLQ[b + 1] == 0) {
     id = BKIND[b + 1];
     if (ITNAME[id + 1] == ' ' || ITPLB[id + 1] == 0) { id = BDROP[b + 1]; }
     if (id > 0) { if (ITNAME[id + 1] == ' ') { id = 0; } }
@@ -333,7 +333,7 @@ function explode(cx, cy, cz, r, breakIt) {
             d = (x + 0.5 - cx) * (x + 0.5 - cx) + (y + 0.5 - cy) * (y + 0.5 - cy) + (z + 0.5 - cz) * (z + 0.5 - cz);
             if (d < r * r * (0.7 + rand(0, 30) / 100)) {
               b = W[wi(x, y, z)];
-              if (b != 0 && BHARD[b + 1] >= 0 && BHARD[b + 1] < 40 && b != 7 && b != 35) {
+              if (b != 0 && BHARD[b + 1] >= 0 && BHARD[b + 1] < 40 && BLQ[b + 1] == 0) {
                 if (b == I_tnt) { tntPrime(x, y, z); }
                 else {
                   if (rand(1, 3) == 1) { if (grTileDrops == 1) { if (BDROP[b + 1] > 0) { dropItem(BDROP[b + 1], 1, 0, x + 0.5, y + 0.5, z + 0.5, 0); } } }
@@ -405,7 +405,7 @@ function liquidRay() {
   while (t <= 5 && lqB == 0) {
     let x = Math.floor(camX + lookX * t), y = Math.floor(camY + lookY * t), z = Math.floor(camZ + lookZ * t);
     b = blockAt(x, y, z);
-    if (b == 7 || b == 35) { lqB = b; lqX = x; lqY = y; lqZ = z; }
+    if (BLQ[b + 1] > 0 && BLV[b + 1] == 0) { lqB = b; lqX = x; lqY = y; lqZ = z; }
     else { if (BSOL[b + 1] > 0) { t = 99; } }
     t = t + 0.25;
   }
@@ -427,7 +427,7 @@ function bucketUse(id) {
       if (id == I_lavaBucket) { lq = 35; }
       if (freeAt(nbX, nbY, nbZ) == 1) {
         if (dim == 1 && lq == 7) { msgShow('물이 금세 증발했습니다', 2); }
-        else { setBlock(nbX, nbY, nbZ, lq); flowN = 0; flowInto(nbX + 1, nbY, nbZ, lq, 1); flowInto(nbX - 1, nbY, nbZ, lq, 1); flowInto(nbX, nbY, nbZ + 1, lq, 1); flowInto(nbX, nbY, nbZ - 1, lq, 1); flowInto(nbX, nbY - 1, nbZ, lq, 0); }
+        else { setBlock(nbX, nbY, nbZ, lq); }
         if (mod(gameMode, 2) == 0) { INVI[hotSel] = I_bucket; }
         sndPlay(5);
       }
@@ -510,7 +510,7 @@ function randomTicks(dt) {
 }
 function waterWithin(x, y, z) {
   let r = 0, a = x - 4;
-  while (a <= x + 4 && r == 0) { let c = z - 4; while (c <= z + 4) { if (blockAt(a, y, c) == 7) { r = 1; } c = c + 1; } a = a + 1; }
+  while (a <= x + 4 && r == 0) { let c = z - 4; while (c <= z + 4) { if (BLQ[blockAt(a, y, c) + 1] == 7) { r = 1; } c = c + 1; } a = a + 1; }
   return r;
 }
 
