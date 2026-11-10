@@ -352,6 +352,16 @@ function sightLine(x0, y0, z0, x1, y1, z1) {
 }
 
 // ---------------------------------------------------------------- arrows
+// (v2.4.4) the target's power by how near its face's middle the arrow came: 15 in the middle, 1 at
+// the edge (it was 15 anywhere)
+function targetHit(nx, ny, nz, a) {
+  let ax = Math.abs(AVX[a]), ay = Math.abs(AVY[a]), az = Math.abs(AVZ[a]);
+  let ox = nx - Math.floor(nx) - 0.5, oy = ny - Math.floor(ny) - 0.5, oz = nz - Math.floor(nz) - 0.5, d = 0;
+  if (ax >= ay && ax >= az) { d = Math.max(Math.abs(oy), Math.abs(oz)); }
+  else { if (ay >= az) { d = Math.max(Math.abs(ox), Math.abs(oz)); } else { d = Math.max(Math.abs(ox), Math.abs(oy)); } }
+  let l = Math.max(1, Math.min(15, Math.ceil(15 * (0.5 - d) / 0.5)));
+  pressAddL(Math.floor(nx), Math.floor(ny), Math.floor(nz), 1, l);
+}
 function arrowShoot(x, y, z, tx, ty, tz, own) {
   let i = 1, a = 0;
   while (i <= NARR) { if (a == 0) { if (AON[i] == 0) { a = i; } } i = i + 1; }
@@ -383,7 +393,9 @@ function arrowsStep(dt) {
         let hb = blockAt(Math.floor(nx), Math.floor(ny), Math.floor(nz));
         // the player's arrow breaks a warding crystal
         if (hb == 57) { if (AON[a] == 2) { crystalBreak(Math.floor(nx), Math.floor(ny), Math.floor(nz)); AON[a] = 0; } }
-        if (BSOL[hb + 1] > 0) { ASTK[a] = 1; AAGE[a] = 0; if (AON[a] == 3) { AON[a] = 0; } if (hb == I_target) { pressAdd(Math.floor(nx), Math.floor(ny), Math.floor(nz), 1); } if (hb == I_tnt) { if (AON[a] == 3) { tntPrime(Math.floor(nx), Math.floor(ny), Math.floor(nz)); } } }
+        // (v2.4.4) a wooden button with an arrow in it is pressed (it stops there)
+        if (BRS[hb + 1] == RS_BUTTON) { if (BAUX[hb + 1] >= 15) { if (AON[a] <= 2) { ASTK[a] = 1; AAGE[a] = 0; pressAdd(Math.floor(nx), Math.floor(ny), Math.floor(nz), 1.5); } } }
+        if (BSOL[hb + 1] > 0) { ASTK[a] = 1; AAGE[a] = 0; if (AON[a] == 3) { AON[a] = 0; } if (hb == I_target) { targetHit(nx, ny, nz, a); } if (hb == I_tnt) { if (AON[a] == 3) { tntPrime(Math.floor(nx), Math.floor(ny), Math.floor(nz)); } } }
         else { AXX[a] = nx; AYY[a] = ny; AZZ[a] = nz; }
         // the player
         if (AON[a] == 1 || AON[a] == 3) {
@@ -408,6 +420,8 @@ function arrowsStep(dt) {
         }
       } else {
         if (AAGE[a] > 8) { AON[a] = 0; }
+        // (v2.4.4) an arrow on a wooden or weighted plate keeps it down
+        plateHit(Math.floor(AXX[a]), Math.floor(AYY[a]), Math.floor(AZZ[a]), 1);
         // a stuck arrow can be picked up
         if (Math.abs(AXX[a] - px) < 1 && Math.abs(AZZ[a] - pz) < 1 && Math.abs(AYY[a] - py - 0.5) < 1.5) { if (AON[a] <= 2) { if (mod(gameMode, 2) == 0) { if (rand(1, 2) == 1 || AON[a] == 2) { addItem(115, 1, 0); } } } AON[a] = 0; }
       }
@@ -663,7 +677,7 @@ function bombStep(e, dist, dt) {
   if (EST[e] != 5) { if (dist < 2.6) { EST[e] = 5; ETM[e] = 1.5; sndPlay(4); } }
   else {
     if (dist > 6) { EST[e] = 0; }
-    if (ETM[e] <= 0) { let x = EX[e], y = EY[e], z = EZ[e]; ET[e] = 0; explode(x, y + 0.8, z, 3, 1); }
+    if (ETM[e] <= 0) { let x = EX[e], y = EY[e], z = EZ[e]; ET[e] = 0; explodeShared(x, y + 0.8, z, 3); }
   }
 }
 // snowballs, eggs and void pearls in flight

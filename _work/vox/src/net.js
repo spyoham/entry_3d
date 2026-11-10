@@ -515,19 +515,26 @@ function netEvent(k, t, f) {
   if (t == 'b') { splitBy(f, '^'); if (SPL.length >= 5) { netEditApply(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, SPL[5] * 1); } }
   if (t == 'c') { chatAdd(netDec(f)); }
   if (t == 'w') { splitBy(f, '^'); if (SPL.length >= 2) { if (SPL[1] == netNick) { chatAdd(`${NNICK[k]} 님의 귓속말: ${netDec(SPL[2])}`); } } }
-  if (t == 'r') { splitBy(f, '^'); if (SPL.length >= 2) { if (SPL[1] == '*' || SPL[1] == netNick) { let cmd = netDec(SPL[2]); netQuiet = 1; netRunAs(cmd); netQuiet = 0; } } }
+  if (t == 'r') { splitBy(f, '^'); if (SPL.length >= 2 && k == srvHost(netSrv)) { if (SPL[1] == '*' || SPL[1] == netNick) { let cmd = netDec(SPL[2]); netQuiet = 1; netRunAs(cmd); netQuiet = 0; } } }
   if (t == 't') { titleS = netDec(f); titleT = 4; }
   // (v2.3) a command for me from someone who may give it (cmdaim.js)
   if (t == 'a') { splitBy(f, '^'); if (SPL.length >= 2) { if (SPL[1] == netNick) { let cmd = netDec(SPL[2]); cmdSplit(substr(cmd, 2, strlen(cmd))); if (permOk(NNICK[k], lower(bare(cw(1)))) == 1) { netRunAs(cmd); } } } }
-  if (t == 'k') { splitBy(f, '^'); if (SPL.length >= 2) { if (SPL[1] == netNick && netNick != SUPER) { netDisconnect(netDec(SPL[2])); } } }
+  if (t == 'k') { splitBy(f, '^'); if (SPL.length >= 2 && permOk(NNICK[k], 'kick') == 1) { if (SPL[1] == netNick && netNick != SUPER) { netDisconnect(netDec(SPL[2])); } } }
   if (t == 'h') { splitBy(f, '^'); if (SPL.length >= 4) { if (SPL[1] == netNick) { if (netSt == 2) { if (mod(gameMode, 2) == 0) { hurt(SPL[2] * 1, `${NNICK[k]} 님에게 당했습니다`); pvx = pvx + SPL[3] * 1; pvz = pvz + SPL[4] * 1; pvy = 4; } } } } }
+  // (v2.4.4) a button pressed, TNT lit, a blast (an anchor, a bed, a creeper), a /fill or /clone: the same on every screen
+  if (t == 'p') { splitBy(f, '^'); if (SPL.length >= 4) { if (SPL[4] * 1 == dim) { let px0 = SPL[1] * 1, py0 = SPL[2] * 1, pz0 = SPL[3] * 1; if (cOK(px0, pz0) == 1) { if (BRS[blockAt(px0, py0, pz0) + 1] == RS_BUTTON) { pressAdd(px0, py0, pz0, BAUX[blockAt(px0, py0, pz0) + 1] / 10); } } } } }
+  if (t == 'n') { splitBy(f, '^'); if (SPL.length >= 4) { if (SPL[4] * 1 == dim) { tntLight(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, 0, 4); } } }
+  if (t == 'e') { splitBy(f, '^'); if (SPL.length >= 5) { if (SPL[5] * 1 == dim) { exDrops = 0; explode(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, 1); exDrops = 1; } } }
+  if (t == 'F') { splitBy(f, '^'); if (SPL.length >= 10) { if (SPL[10] * 1 == dim) { netQuiet = 1; fillBox(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, SPL[5] * 1, SPL[6] * 1, SPL[7] * 1, SPL[8], SPL[9] * 1, 0); netQuiet = 0; } } }
+  if (t == 'K') { splitBy(f, '^'); if (SPL.length >= 12) { if (SPL[12] * 1 == dim) { netQuiet = 1; cloneBox(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, SPL[5] * 1, SPL[6] * 1, SPL[7] * 1, SPL[8] * 1, SPL[9] * 1, SPL[10], SPL[11]); netQuiet = 0; } } }
   if (t == 'x') { splitBy(f, '^'); if (SPL.length >= 7) { netChestSlot(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, SPL[5] * 1, SPL[6] * 1, SPL[7] * 1); } }
   if (t == 's') { splitBy(f, '^'); if (SPL.length >= 5) { netSignSet(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, netDec(SPL[5])); } }
   netApplying = 0;
 }
 // a block someone changed: in this world now, or in the log for another
 function netEditApply(x, y, z, b, d) {
-  if (d == dim) {
+  // (v2.4.4: in a chunk not made here yet it went nowhere: now it waits in the log like another world's)
+  if (d == dim && cOK(x, z) == 1) {
     let o = blockAt(x, y, z);
     if (o != b) {
       if (BUSE[o + 1] == U_CHEST || BUSE[o + 1] == U_FURNACE) { chestOrFurnaceGone(x, y, z, o); }
@@ -558,8 +565,31 @@ function hostEvent(k, t, f) {
   if (t == 'u') { let c = indexOf(f, '^'); if (c > 1) { if (substr(f, 1, c - 1) * 1 == netSrv) { hostKeepUser(NNICK[k], substr(f, c + 1, strlen(f))); } } }
   if (t == 'q') { hostWish(NNICK[k], f); }
   if (t == 'x') { hostKeepChest(f); }
+  if (t == 'F') { splitBy(f, '^'); if (SPL.length >= 10) { hostKeepBox(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, SPL[5] * 1, SPL[6] * 1, SPL[10] * 1); } }
+  if (t == 'K') { splitBy(f, '^'); if (SPL.length >= 12) {
+    let w0 = Math.abs(SPL[4] * 1 - SPL[1] * 1), h0 = Math.abs(SPL[5] * 1 - SPL[2] * 1), d0 = Math.abs(SPL[6] * 1 - SPL[3] * 1), gx = SPL[7] * 1, gy = SPL[8] * 1, gz = SPL[9] * 1, gd = SPL[12] * 1;
+    hostKeepBox(gx, gy, gz, gx + w0, gy + h0, gz + d0, gd);
+    if (SPL[11] == 'move') { hostKeepBox(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, SPL[5] * 1, SPL[6] * 1, gd); }
+  } }
   if (t == 's') { splitBy(f, '^'); if (SPL.length >= 5) { hostKeepSign(`${SPL[1]},${SPL[2]},${SPL[3]},${SPL[4]}`, SPL[5]); } }
 }
+// (v2.4.4) every cell of a box as it is here now (after a /fill or /clone ran here)
+function hostKeepBox(x0, y0, z0, x1, y1, z1, d) {
+  if (d == dim) {
+    let ax = Math.min(x0, x1), bx = Math.max(x0, x1), ay = Math.max(0, Math.min(y0, y1)), by = Math.min(WY - 1, Math.max(y0, y1)), az = Math.min(z0, z1), bz = Math.max(z0, z1), x = ax;
+    while (x <= bx) { let z = az; while (z <= bz) { if (cOK(x, z) == 1) { let y = ay; while (y <= by) { hostKeepEdit(x, y, z, blockAt(x, y, z), d); y = y + 1; } } z = z + 1; } x = x + 1; }
+  }
+}
+// (v2.4.4) a world's doing that leaves something (a dispenser's item, a part that fell off, a blast's
+// blocks): in a single game by the rules, on a server only on the host's screen (it ran on every
+// screen: one item each)
+function worldDrops() {
+  let r = 0;
+  if (netSrv == 0 || netSt != 2) { if (mod(gameMode, 2) == 0) { r = 1; } } else { if (netHost == 1) { r = 1; } }
+  return r;
+}
+// (v2.4.4) one of mine to everyone (a button, a blast, ...)
+function netSay(t, f) { if (netSrv > 0) { if (netSt == 2) { if (netApplying == 0) { if (netQuiet == 0) { evAdd(t, f); } } } } }
 function hostKeepEdit(x, y, z, b, d) {
   if (NEW.length == 0) { netEditsLoad(); }
   NEW.push(x); NEW.push(y); NEW.push(z); NEW.push(b); NEW.push(d);

@@ -73,7 +73,7 @@ function lqHole(x, y, z, q) {
 // put liquid (or what it made) at a cell: a plant or a torch is washed out (and drops)
 function lqPut(x, y, z, b, logged) {
   let o = blockAt(x, y, z);
-  if (BLQ[o + 1] == 0 && o != 0) { if (mod(gameMode, 2) == 0 || netSrv > 0) { blockDrops(o, x, y, z); } }
+  if (BLQ[o + 1] == 0 && o != 0) { if (worldDrops() == 1) { blockDrops(o, x, y, z); } }
   lqLog = logged;
   setBlock(x, y, z, b);
   lqLog = 1;

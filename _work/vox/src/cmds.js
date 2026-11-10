@@ -822,34 +822,56 @@ function cmdFill() {
     let vol = (x1 - x0 + 1) * (y1 - y0 + 1) * (z1 - z0 + 1);
     if (vol > 32768) { out = `범위 안의 블록이 너무 많습니다 (최대 32768, 지정한 범위 ${vol})`; }
     else {
-      bxN = 0;
-      let x = x0, y = 0, z = 0;
-      while (x <= x1) {
-        z = z0;
-        while (z <= z1) {
-          y = y0;
-          while (y <= y1) {
-            let edge = 0, o = blockAt(x, y, z), put = b;
-            if (x == x0 || x == x1 || y == y0 || y == y1 || z == z0 || z == z1) { edge = 1; }
-            if (md == 'hollow') { if (edge == 0) { put = 0; } }
-            if (md == 'outline') { if (edge == 0) { put = 0 - 1; } }
-            if (md == 'keep') { if (o != 0) { put = 0 - 1; } }
-            if (flt >= 0) { if (BKIND[o + 1] != BKIND[flt + 1]) { put = 0 - 1; } }
-            if (put >= 0) {
-              if (md == 'destroy') { if (o != 0) { if (rand(1, 4) == 1) { blockDrops(o, x, y, z); } } }
-              boxPut(x, y, z, put);
-            }
-            y = y + 1;
-          }
-          z = z + 1;
-        }
-        x = x + 1;
-      }
-      boxLight(x0, x1, z0, z1);
+      netSay('F', `${x0}^${y0}^${z0}^${x1}^${y1}^${z1}^${b}^${md}^${flt}^${dim}`);
+      let q0 = netQuiet; netQuiet = 1;
+      fillBox(x0, y0, z0, x1, y1, z1, b, md, flt, 1);
+      netQuiet = q0;
       if (bxN == 0) { out = '바뀐 블록이 없습니다'; } else { out = `블록 ${bxN}개를 채웠습니다`; }
     }
   } }
   return out;
+}
+// (v2.4.4) a /fill's box (also run from another screen's event: drops only where it was typed)
+function fillBox(x0, y0, z0, x1, y1, z1, b, md, flt, drops) {
+  bxN = 0;
+  let x = x0, y = 0, z = 0;
+  while (x <= x1) {
+    z = z0;
+    while (z <= z1) {
+      y = y0;
+      while (y <= y1) {
+        let edge = 0, o = blockAt(x, y, z), put = b;
+        if (x == x0 || x == x1 || y == y0 || y == y1 || z == z0 || z == z1) { edge = 1; }
+        if (md == 'hollow') { if (edge == 0) { put = 0; } }
+        if (md == 'outline') { if (edge == 0) { put = 0 - 1; } }
+        if (md == 'keep') { if (o != 0) { put = 0 - 1; } }
+        if (flt >= 0) { if (BKIND[o + 1] != BKIND[flt + 1]) { put = 0 - 1; } }
+        if (put >= 0) {
+          if (md == 'destroy') { if (o != 0) { if (drops == 1) { if (rand(1, 4) == 1) { blockDrops(o, x, y, z); } } } }
+          boxPut(x, y, z, put);
+        }
+        y = y + 1;
+      }
+      z = z + 1;
+    }
+    x = x + 1;
+  }
+  boxLight(x0, x1, z0, z1);
+}
+// (v2.4.4) a /clone's boxes (also run from another screen's event)
+function cloneBox(x0, y0, z0, x1, y1, z1, dx, dy, dz, mk, md) {
+  CLB = [];
+  let x = x0, y = 0, z = 0;
+  while (x <= x1) { z = z0; while (z <= z1) { y = y0; while (y <= y1) { CLB.push(blockAt(x, y, z)); y = y + 1; } z = z + 1; } x = x + 1; }
+  if (md == 'move') { x = x0; while (x <= x1) { z = z0; while (z <= z1) { y = y0; while (y <= y1) { boxPut(x, y, z, 0); y = y + 1; } z = z + 1; } x = x + 1; } }
+  bxN = 0;
+  let k = 1;
+  x = x0;
+  while (x <= x1) { z = z0; while (z <= z1) { y = y0; while (y <= y1) {
+    let b = CLB[k];
+    if (mk != 'masked' || b != 0) { boxPut(dx + x - x0, dy + y - y0, dz + z - z0, b); }
+    k = k + 1; y = y + 1; } z = z + 1; } x = x + 1; }
+  boxLight(Math.min(x0, dx), Math.max(x1, dx + x1 - x0), Math.min(z0, dz), Math.max(z1, dz + z1 - z0));
 }
 let CLB = [];
 function cmdClone() {
@@ -865,18 +887,11 @@ function cmdClone() {
     if (vol > 32768) { out = `범위 안의 블록이 너무 많습니다 (최대 32768, 지정한 범위 ${vol})`; }
     else {
       // copied first (the two places may overlap)
-      CLB = [];
-      let x = x0, y = 0, z = 0;
-      while (x <= x1) { z = z0; while (z <= z1) { y = y0; while (y <= y1) { CLB.push(blockAt(x, y, z)); y = y + 1; } z = z + 1; } x = x + 1; }
-      if (md == 'move') { x = x0; while (x <= x1) { z = z0; while (z <= z1) { y = y0; while (y <= y1) { boxPut(x, y, z, 0); y = y + 1; } z = z + 1; } x = x + 1; } }
-      bxN = 0;
-      let k = 1;
-      x = x0;
-      while (x <= x1) { z = z0; while (z <= z1) { y = y0; while (y <= y1) {
-        let b = CLB[k];
-        if (mk != 'masked' || b != 0) { boxPut(dx + x - x0, dy + y - y0, dz + z - z0, b); }
-        k = k + 1; y = y + 1; } z = z + 1; } x = x + 1; }
-      boxLight(Math.min(x0, dx), Math.max(x1, dx + x1 - x0), Math.min(z0, dz), Math.max(z1, dz + z1 - z0));
+      let m1 = mk, m2 = md; if (strlen(m1) < 2) { m1 = 'replace'; } if (strlen(m2) < 2) { m2 = 'normal'; }
+      netSay('K', `${x0}^${y0}^${z0}^${x1}^${y1}^${z1}^${dx}^${dy}^${dz}^${m1}^${m2}^${dim}`);
+      let q0 = netQuiet; netQuiet = 1;
+      cloneBox(x0, y0, z0, x1, y1, z1, dx, dy, dz, mk, md);
+      netQuiet = q0;
       out = `블록 ${bxN}개를 복제했습니다`;
     }
   }

@@ -514,6 +514,8 @@ function breakBlock(x, y, z, byP) {
 }
 function blockDrops(b, x, y, z) {
   let d = BDROP[b + 1], n = BDROPN[b + 1], held = INVI[hotSel];
+  // (v2.4.4) lit TNT gives nothing back (it goes off anyway)
+  if (b == I_tnt) { if (tntLit(x, y, z) == 1) { d = 0; } }
   if (b == 9) { if (rand(1, 10) == 1) { d = 118; } }
   if (BLEAF[b + 1] == 1) {
     d = 0;
@@ -566,7 +568,7 @@ function setBlock(x, y, z, b) {
         // (a spark part hung on a wall is not stood on)
         let hangs = 1; if (BATT[up + 1] >= 0) { if (BATT[up + 1] != 2) { hangs = 0; } }
         if (hangs == 1) { if (BSHP[up + 1] == 1 || BSHP[up + 1] == 2 || up == 19 || (BNEED[up + 1] > 0 && BNEED[up + 1] != N_ANY)) {
-          if (BPLC[up + 1] != P_DOOR || BSHP[b + 1] == 0) { if (mod(gameMode, 2) == 0) { blockDrops(up, x, y + 1, z); } setBlock(x, y + 1, z, 0); }
+          if (BPLC[up + 1] != P_DOOR || BSHP[b + 1] == 0) { if (mod(gameMode, 2) == 0 && netApplying == 0) { blockDrops(up, x, y + 1, z); } setBlock(x, y + 1, z, 0); }
         } }
         if (BFALL[up + 1] == 1) { fallBlock(x, y + 1, z); }
       }

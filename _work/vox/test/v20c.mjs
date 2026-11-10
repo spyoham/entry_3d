@@ -54,7 +54,7 @@ let wet = 0; for (let a = -4; a <= 0; a++) for (let c = -4; c <= 2; c++) if (B(X
 ok(wet > 0, 'water poured: ' + wet + ' cells, hand ' + K(s.peek('INVI')[s.peek('hotSel') - 1]));
 // TNT
 cmd(`/fill ${X + 3} ${Y} ${Z + 3} ${X + 5} ${Y + 2} ${Z + 5} stone`); cmd(`/setblock ${X + 4} ${Y + 3} ${Z + 4} tnt`);
-call(() => fn.tntPrime(X + 4, Y + 3, Z + 4)); F(200);
+call(() => fn.tntPrime(X + 4, Y + 3, Z + 4)); F(260);
 let left = 0; for (let a = 3; a <= 5; a++) for (let c = 3; c <= 5; c++) for (let y = 0; y <= 2; y++) if (B(X + a, Y + y, Z + c) === 1) left++;
 ok(left < 27 && B(X + 4, Y + 3, Z + 4) === 0, 'TNT went off: stone left ' + left + '/27, hp ' + s.peek('hp'));
 // a bed: sleeping at night

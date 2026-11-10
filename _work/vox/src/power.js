@@ -153,10 +153,39 @@ function wireExt(x, y, z) {
   return r;
 }
 // a light sensor: the sky's light while it is day
+// (v2.4.4: the genre's: the sky's light less the dark, times the sun's height; turned: 15 less it.
+// It was the sky's light while the day was bright, else 0, and rain made it 0)
 function sensorLevel(x, y, z) {
   let r = 0;
-  if (dark <= 3) { if (cOK(x, z) == 1) { r = idiv(LT[wi(x, y, z)], 16); } }
+  if (cOK(x, z) == 1) {
+    let base = Math.max(0, idiv(LT[wi(x, y, z)], 16) - dark);
+    if (blockAt(x, y, z) == I_daylightInv) { r = Math.min(15, 15 - base); }
+    else { r = Math.round(base * Math.max(0, sind(sunA))); }
+    r = Math.max(0, Math.min(15, r));
+  }
   return r;
+}
+// the sensors known (put, or seen again): asked each second, wherever the player is
+let SNX = [], SNY = [], SNZ = [], SND = [], SNL = [], snT = 0;
+function sensorKeep(x, y, z) {
+  let i = 1, f = 0;
+  while (i <= SNX.length) { if (SNX[i] == x && SNY[i] == y && SNZ[i] == z && SND[i] == dim) { f = i; } i = i + 1; }
+  if (f == 0) { if (SNX.length < 256) { SNX.push(x); SNY.push(y); SNZ.push(z); SND.push(dim); SNL.push(0 - 1); } }
+}
+function sensorStep(dt) {
+  snT = snT + dt;
+  if (snT >= 1) {
+    snT = 0;
+    let i = 1;
+    while (i <= SNX.length) {
+      let gone = 0;
+      if (SND[i] == dim) { if (cOK(SNX[i], SNZ[i]) == 1) {
+        if (BSPEC[blockAt(SNX[i], SNY[i], SNZ[i]) + 1] != 9) { gone = 1; }
+        else { let l = sensorLevel(SNX[i], SNY[i], SNZ[i]); if (l != SNL[i]) { SNL[i] = l; powerAround(SNX[i], SNY[i], SNZ[i]); } }
+      } }
+      if (gone == 1) { SNX.removeAt(i); SNY.removeAt(i); SNZ.removeAt(i); SND.removeAt(i); SNL.removeAt(i); } else { i = i + 1; }
+    }
+  }
 }
 
 // ---------------------------------------------------------------- the wire's power
@@ -213,7 +242,7 @@ function wireCheck(x, y, z, b) {
       if (BRS[nb + 1] == RS_WIRE) { l = BAUX[nb + 1]; }
       else {
         if (BCOND[nb + 1] == 0) { let q = blockAt(nx, y - 1, nz); if (BRS[q + 1] == RS_WIRE) { l = BAUX[q + 1]; } }
-        if (upCut == 0) { let q = blockAt(nx, y + 1, nz); if (BRS[q + 1] == RS_WIRE) { if (BAUX[q + 1] > l) { l = BAUX[q + 1]; } } }
+        if (upCut == 0 && BCOND[nb + 1] == 1) { let q = blockAt(nx, y + 1, nz); if (BRS[q + 1] == RS_WIRE) { if (BAUX[q + 1] > l) { l = BAUX[q + 1]; } } }
       }
       if (l - 1 > want) { want = l - 1; }
       s = s + 1;
@@ -232,7 +261,7 @@ function wireSolve(x, y, z) {
       let d = F2D[s + 1], nx = a + DX6[d + 1], nz = c + DZ6[d + 1], nb = blockAt(nx, yy, nz);
       if (BRS[nb + 1] == RS_WIRE) { nwLink(h, nx, yy, nz); }
       else {
-        if (BCOND[nb + 1] == 0) { if (BRS[blockAt(nx, yy - 1, nz) + 1] == RS_WIRE) { nwLink(h, nx, yy - 1, nz); } }
+        if (BCOND[nb + 1] == 0) { if (BRS[blockAt(nx, yy - 1, nz) + 1] == RS_WIRE) { if (BCOND[blockAt(a, yy - 1, c) + 1] == 1) { nwLink(h, nx, yy - 1, nz); } } }
         if (upCut == 0) { if (BRS[blockAt(nx, yy + 1, nz) + 1] == RS_WIRE) { nwLink(h, nx, yy + 1, nz); } }
       }
       s = s + 1;
@@ -336,6 +365,9 @@ function rsStep(dt) {
     if (SCT[i] >= 0) { if (SCT[i] <= rsTime) { if (SCD[i] != dim) { SCT[i] = 0 - 1; } else { if (rsReady(SCX[i], SCZ[i]) == 1) { SCT[i] = 0 - 1; rsApply(SCX[i], SCY[i], SCZ[i], SCW[i]); } } } }
     i = i + 1;
   }
+  if (RLX.length > 0) { rsLaterStep(); }
+  sensorStep(dt);
+  prT = prT + dt; if (prT > 30) { prT = 0; rsPrune(); }
   rsFlush(3000);
 }
 function rsFlush(n) {
@@ -400,16 +432,48 @@ function rsReady(x, z) {
   return r;
 }
 function rsEvalAt(x, y, z) {
-  if (y >= 0 && y < WY && rsReady(x, z) == 1) {
-    let b = blockAt(x, y, z);
-    if (BRS[b + 1] > 0) { rsEval(x, y, z, b); }
+  if (y >= 0 && y < WY) {
+    if (rsReady(x, z) == 1) {
+      let b = blockAt(x, y, z);
+      if (BRS[b + 1] > 0) { rsEval(x, y, z, b); }
+    } else { if (rsReplay == 1) { if (cOK(x, z) == 1) { if (BRS[blockAt(x, y, z) + 1] > 0) { rsLater(x, y, z); } } } }
+  }
+}
+// (v2.4.4) the remembered states of parts gone (seen where their chunk is made) are dropped
+let prT = 0;
+function rsPrune() {
+  let i = 1;
+  while (i <= EGX.length) {
+    let gone = 0;
+    if (EGD[i] == dim) { if (cOK(EGX[i], EGZ[i]) == 1) { let q = BRS[blockAt(EGX[i], EGY[i], EGZ[i]) + 1]; if (q != RS_DOOR && q != RS_NOTE && q != RS_COMMAND && q != RS_DISPENSER) { gone = 1; } } }
+    if (gone == 1) { EGX.removeAt(i); EGY.removeAt(i); EGZ.removeAt(i); EGD.removeAt(i); EGS.removeAt(i); } else { i = i + 1; }
+  }
+  i = 1;
+  while (i <= CMX.length) {
+    let gone = 0;
+    if (CMD[i] == dim) { if (cOK(CMX[i], CMZ[i]) == 1) { if (BRS[blockAt(CMX[i], CMY[i], CMZ[i]) + 1] != RS_COMPARATOR) { gone = 1; } } }
+    if (gone == 1) { CMX.removeAt(i); CMY.removeAt(i); CMZ.removeAt(i); CMD.removeAt(i); CML.removeAt(i); } else { i = i + 1; }
+  }
+}
+// (v2.4.4) parts put back at a chunk's edge before the chunk by it was made: put back when it is
+let RLX = [], RLY = [], RLZ = [], RLD = [];
+function rsLater(x, y, z) {
+  if (RLX.length < 512) { RLX.push(x); RLY.push(y); RLZ.push(z); RLD.push(dim); }
+}
+function rsLaterStep() {
+  let i = 1;
+  while (i <= RLX.length) {
+    let done = 0;
+    if (RLD[i] != dim || cOK(RLX[i], RLZ[i]) == 0) { done = 1; }
+    else { if (rsReady(RLX[i], RLZ[i]) == 1) { rsNotify(RLX[i], RLY[i], RLZ[i], 4); done = 1; } }
+    if (done == 1) { RLX.removeAt(i); RLY.removeAt(i); RLZ.removeAt(i); RLD.removeAt(i); } else { i = i + 1; }
   }
 }
 
 // ---------------------------------------------------------------- each part decides
 // a part that cannot hang where it is falls off
 function rsDrop(x, y, z, b) {
-  if (mod(gameMode, 2) == 0) { if (BDROP[b + 1] > 0) { dropItem(BDROP[b + 1], 1, 0, x + 0.5, y + 0.3, z + 0.5, 0); } }
+  if (worldDrops() == 1) { if (BDROP[b + 1] > 0) { dropItem(BDROP[b + 1], 1, 0, x + 0.5, y + 0.3, z + 0.5, 0); } }
   setBlock(x, y, z, 0);
 }
 function rsHangs(x, y, z, b) {
@@ -420,6 +484,7 @@ function rsHangs(x, y, z, b) {
 function rsEval(x, y, z, b) {
   let rl = BRS[b + 1], on = BON[b + 1], f = BFAC[b + 1];
   if (rl == RS_WIRE) { wireCheck(x, y, z, b); }
+  if (rl == RS_SENSOR) { sensorKeep(x, y, z); }
   if (rl == RS_LEVER || rl == RS_BUTTON) { if (rsHangs(x, y, z, b) == 0) { rsDrop(x, y, z, b); } }
   if (rl == RS_TORCH) {
     if (rsHangs(x, y, z, b) == 0) { rsDrop(x, y, z, b); }
@@ -472,6 +537,7 @@ function rsEval(x, y, z, b) {
       edgeSet(x, y - h0, z, p);
     } else { edgeSet(x, y, z, p); }
     if (egWas != p) { rsSwitch(x, y, z, b, p); }
+    else { if (rsReplay == 1 && p == 1) { if (BPLC[b + 1] == P_DOOR || BPLC[b + 1] == P_TRAPDOOR || BPLC[b + 1] == P_GATE) { rsSwitch(x, y, z, b, 1); } } }
   }
 }
 // (v2.4.3) what a part wants, asked again when its delay is over (as the genre asks at its tick):
@@ -549,9 +615,11 @@ function rsApply(x, y, z, w) {
   }
   if (rl == RS_LAMP) { if (on == 1) { if (powerIn(x, y, z, 0 - 1) == 0) { setBlock(x, y, z, b - 1); } } }
   if (rl == RS_PISTON) {
-    let f = BFAC[b + 1];
-    if (w == 1 && on == 0) { pistonOut(x, y, z, b, f); }
-    if (w == 0 && on == 1) { pistonIn(x, y, z, b, f); }
+    // (v2.4.4: the power now, not when it was asked)
+    let f = BFAC[b + 1], ww = 0;
+    if (powerIn(x, y, z, f) > 0) { ww = 1; }
+    if (ww == 1 && on == 0) { pistonOut(x, y, z, b, f); }
+    if (ww == 0 && on == 1) { pistonIn(x, y, z, b, f); }
   }
 }
 // torches that switch too often burn out for a while (8 times in 3 s)
@@ -728,15 +796,30 @@ function pushBodies(dx, dy, dz, hx, hy, hz, head) {
 // ---------------------------------------------------------------- dispensers and droppers
 function dispense(x, y, z, b) {
   chestFind(x, y, z);
+  // (v2.4.4: on a server only the host's screen dispenses, and tells the others what left)
+  if (netSrv > 0 && netSt == 2 && netHost == 0) { cFound = 0; }
   if (cFound > 0) {
     let c = cFound, k = 1, n = 0, pick = 0;
     while (k <= 27) { if (CHI[(c - 1) * 27 + k] > 0) { n = n + 1; if (rand(1, n) == 1) { pick = k; } } k = k + 1; }
     if (pick > 0) {
-      let s = (c - 1) * 27 + pick, id = CHI[s], f = BFAC[b + 1];
-      dropItem(id, 1, CHD[s], x + 0.5 + DX6[f + 1] * 0.7, y + 0.3 + DY6[f + 1] * 0.7, z + 0.5 + DZ6[f + 1] * 0.7, 0);
-      CHN[s] = CHN[s] - 1;
+      let s = (c - 1) * 27 + pick, id = CHI[s], f = BFAC[b + 1], how = 0;
+      let fx = x + DX6[f + 1], fy = y + DY6[f + 1], fz = z + DZ6[f + 1], fb = blockAt(fx, fy, fz);
+      // (v2.4.4: a dropper puts it into a container before it; a dispenser uses what it can)
+      if (BAUX[b + 1] == 1) {
+        chestFind(fx, fy, fz);
+        if (cFound > 0) { if (chestTake(cFound, id, 1, CHD[s]) == 1) { how = 1; } else { how = 3; } }
+        cFound = c;
+      } else {
+        if (id == I_arrow) { arrowShoot(x + 0.5 + DX6[f + 1] * 0.6, y + 0.5 + DY6[f + 1] * 0.6, z + 0.5 + DZ6[f + 1] * 0.6, x + 0.5 + DX6[f + 1] * 10, y + 0.5 + DY6[f + 1] * 10, z + 0.5 + DZ6[f + 1] * 10, 1); how = 1; }
+        if (id == I_waterBucket || id == I_lavaBucket) { if (fb == 0 || (BLQ[fb + 1] > 0 && BLV[fb + 1] > 0)) { let lq = 7; if (id == I_lavaBucket) { lq = 35; } setBlock(fx, fy, fz, lq); CHI[s] = I_bucket; how = 2; } }
+        if (id == I_bucket) { if (BLQ[fb + 1] > 0 && BLV[fb + 1] == 0) { let full = I_waterBucket; if (BLQ[fb + 1] == 35) { full = I_lavaBucket; } setBlock(fx, fy, fz, 0); if (CHN[s] == 1) { CHI[s] = full; how = 2; } else { if (chestTake(c, full, 1, 0) == 1) { how = 1; } else { how = 3; } } } }
+        if (id == I_tnt) { if (fb == 0 || BLQ[fb + 1] > 0) { setBlock(fx, fy, fz, I_tnt); tntLight(fx, fy, fz, worldDrops(), 4); how = 1; } }
+      }
+      if (how == 0) { dropItem(id, 1, CHD[s], x + 0.5 + DX6[f + 1] * 0.7, y + 0.3 + DY6[f + 1] * 0.7, z + 0.5 + DZ6[f + 1] * 0.7, 0); how = 1; }
+      if (how == 1) { CHN[s] = CHN[s] - 1; }
       if (CHN[s] <= 0) { CHI[s] = 0; CHN[s] = 0; CHD[s] = 0; }
       chestTouched(c);
+      if (netSrv > 0) { gS2 = `${x}^${y}^${z}^${pick}^${CHI[s]}^${CHN[s]}^${CHD[s]}`; netSay('x', gS2); hostKeepChest(gS2); }
       sndPlay(1);
     }
   }
@@ -766,6 +849,7 @@ function rsPut(b) {
 }
 // F on a repeater (its delay) or a comparator (compare / subtract)
 function rsUse(x, y, z, b) {
+  if (BSPEC[b + 1] == 9) { if (b == I_daylight) { setBlock(x, y, z, I_daylightInv); } else { setBlock(x, y, z, I_daylight); } powerAround(x, y, z); }
   if (BRS[b + 1] == RS_REPEATER) { let dl = BAUX[b + 1]; setBlock(x, y, z, b + (mod(dl, 4) + 1 - dl) * 2); }
   if (BRS[b + 1] == RS_COMPARATOR) { let m = BAUX[b + 1]; setBlock(x, y, z, b + (1 - 2 * m) * 2); }
   sndPlay(1);

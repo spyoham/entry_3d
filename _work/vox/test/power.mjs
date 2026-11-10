@@ -233,7 +233,7 @@ ok(BFAC[B(X - 10, Y, Z)] === 1, 'a dispenser put looking -x faces +x: ' + BFAC[B
 call(() => { fn.chestFind(X - 10, Y, Z); const c = s.peek('cFound'); s.peek('CHI')[(c - 1) * 27 + 1] = ID('diamond'); s.peek('CHN')[(c - 1) * 27 + 1] = 2; });
 placeAs(X - 10, Y, Z + 1, 'lever', 5); useAt(X - 10, Y, Z + 1); settle();
 call(() => { fn.chestFind(X - 10, Y, Z); }); ok(s.peek('CHN')[(s.peek('cFound') - 1) * 27 + 1] === 1, 'the dispenser gave one diamond out');
-placeAs(X - 14, Y, Z, 'tnt'); placeAs(X - 15, Y, Z, 'lever'); useAt(X - 15, Y, Z); F(200); ok(B(X - 14, Y, Z) === 0, 'lever -> TNT went off');
+placeAs(X - 14, Y, Z, 'tnt'); placeAs(X - 15, Y, Z, 'lever'); useAt(X - 15, Y, Z); F(260); ok(B(X - 14, Y, Z) === 0, 'lever -> TNT went off (4 s)');
 
 // 11 commands
 put(X - 4, Y, Z - 20, 'repeater[facing=east,delay=3]'); ok(BFAC[B(X - 4, Y, Z - 20)] === 0 && BAUX[B(X - 4, Y, Z - 20)] === 3, '/setblock repeater[facing=east,delay=3]: input from the east, out to the west (as in the genre)');

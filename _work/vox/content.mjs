@@ -673,7 +673,7 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     R(['blazePowder', 'voidPearl'], 'voidRod', 4);
     cube('target', 'target', '과녁', [tc('targetTop', ['ffffffff', 'frrrrrrf', 'frwwwwrf', 'frwrrwrf', 'frwrrwrf', 'frwwwwrf', 'frrrrrrf', 'ffffffff'], { f: 'e8dcc0', r: 'c02020', w: 'f0f0f0' })], { hard: 0.5, cat: 4, rs: 'target' });
     R(['_ sparkDust _', 'sparkDust hayBale sparkDust', '_ sparkDust _'], 'target', 1);
-    add({ n: 'daylight', key: 'daylight_detector', ko: '햇빛 감지기', t: [tc('daylightT', ['bbbbbbbb', 'bgggggab', 'bgaagaab', 'bgggggab', 'bgaagaab', 'bgggggab', 'baaaaaab', 'bbbbbbbb'], { a: 'c0c8d0', b: '8a6a3a', g: '2a4a6a' }), 'planks', 'planks'], hard: 0.2, tool: 2, shape: 5, model: 'slab6', hide: 0, lop: 0, cat: 4, sensor: 1, rs: 'sensor' });
+    add({ n: 'daylight', key: 'daylight_detector', ko: '햇빛 감지기', t: [tc('daylightT', ['bbbbbbbb', 'bgggggab', 'bgaagaab', 'bgggggab', 'bgaagaab', 'bgggggab', 'baaaaaab', 'bbbbbbbb'], { a: 'c0c8d0', b: '8a6a3a', g: '2a4a6a' }), 'planks', 'planks'], hard: 0.2, tool: 2, shape: 5, model: 'slab6', hide: 0, lop: 0, cat: 4, sensor: 1, rs: 'sensor', use: 'rs' });
     R(['glass glass glass', 'quartz quartz quartz', 'oakSlab oakSlab oakSlab'], 'daylight', 1);
     const cobS = 'cobble';
     // blocks that face one of six ways (D6; the variant (d + 3) % 6 first, so the kind faces up):
@@ -864,5 +864,7 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
         for (let L = 1; L <= 7; L++) add({ n: `${base}Flow${L}`, key: `${base}_flowing_${L}`, ko, t: [base], hard: -1, shape: 5, model: `liq_${L}`, hide: 0, solid: 0, lop: 0, drop: 'none', light: more.light || 0, item: base, hidden: 1, nokind: 1, liq: base, lv: L, cat: 2 });
         add({ n: `${base}Fall`, key: `${base}_falling`, ko, t: [base], hard: -1, shape: 3, hide: more.hide, solid: 0, lop: 0, drop: 'none', light: more.light || 0, item: base, hidden: 1, nokind: 1, liq: base, lv: 8, cat: 2 });
     }
+    // (v2.4.4) the light sensor turned (F): power at night, 15 less the day's light
+    add({ n: 'daylightInv', key: 'daylight_detector_inverted', ko: '햇빛 감지기', t: [tc('daylightInvT', ['bbbbbbbb', 'bgggggab', 'bgaagaab', 'bgggggab', 'bgaagaab', 'bgggggab', 'baaaaaab', 'bbbbbbbb'], { a: 'c0c8d0', b: '8a6a3a', g: '6a2a3a' }), 'planks', 'planks'], hard: 0.2, tool: 2, shape: 5, model: 'slab6', hide: 0, lop: 0, cat: 4, sensor: 1, rs: 'sensor', use: 'rs', drop: 'daylight', hidden: 1, nokind: 1, item: 'daylight' });
     return { item, I, R, S, ICON, kinds, byKey };
 }

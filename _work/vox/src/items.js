@@ -162,6 +162,81 @@ function furnacesStep(dt) {
   }
 }
 let cFound = 0;
+// (v2.4.4) n of an item into chest c (a stack of it with room, else an empty slot): 1 when it went in
+function chestTake(c, id, n, d) {
+  let k = 1, f = 0, base = (c - 1) * 27;
+  while (k <= 27) { if (f == 0) { if (CHI[base + k] == id && CHD[base + k] == d && CHN[base + k] + n <= ITST[id + 1]) { f = k; } } k = k + 1; }
+  k = 1;
+  while (k <= 27) { if (f == 0) { if (CHI[base + k] == 0) { f = k; } } k = k + 1; }
+  let r = 0;
+  if (f > 0) { if (CHI[base + f] == 0) { CHI[base + f] = id; CHN[base + f] = 0; CHD[base + f] = d; } CHN[base + f] = CHN[base + f] + n; r = 1; chestTouched(c); chestSay(c, f); }
+  return r;
+}
+// (v2.4.4) a slot of chest c changed by the world (a dispenser, a hopper): the others hear it
+function chestSay(c, k) {
+  if (netSrv > 0) { if (netSt == 2) {
+    let base = (c - 1) * 27, y = CHY[c] - dim * 1000;
+    gS2 = `${CHX[c]}^${y}^${CHZ[c]}^${k}^${CHI[base + k]}^${CHN[base + k]}^${CHD[base + k]}`;
+    netSay('x', gS2); if (netHost == 1) { hostKeepChest(gS2); }
+  } }
+}
+// (v2.4.4) hoppers: every 0.4 s one item from a container over it (or the items lying on it) into it,
+// and one from it into a container (or a furnace's top) under it; held while powered. (They did
+// nothing.) On a server the host's screen does it and tells the others.
+let hopT = 0;
+function hoppersStep(dt) {
+  hopT = hopT + dt;
+  if (hopT >= 0.4) {
+    hopT = 0;
+    if (netSrv == 0 || netSt != 2 || netHost == 1) {
+      let c = 1;
+      while (c <= NCHEST) {
+        if (CHON[c] == 1) { if (idiv(CHY[c], 1000) == dim) {
+          let x = CHX[c], y = CHY[c] - dim * 1000, z = CHZ[c];
+          if (cOK(x, z) == 1) { if (blockAt(x, y, z) == I_hopper) { if (powerIn(x, y, z, 0 - 1) == 0) { hopperWork(c, x, y, z); } } }
+        } }
+        c = c + 1;
+      }
+    }
+  }
+}
+function hopperWork(c, x, y, z) {
+  let base = (c - 1) * 27, k = 1, f = 0;
+  // out: the first item into what is under it
+  while (k <= 27) { if (f == 0) { if (CHI[base + k] > 0) { f = k; } } k = k + 1; }
+  if (f > 0) {
+    let id = CHI[base + f], moved = 0;
+    chestFind(x, y - 1, z);
+    if (cFound > 0) { moved = chestTake(cFound, id, 1, CHD[base + f]); }
+    else {
+      furnaceFind(x, y - 1, z);
+      if (fFound > 0) { if (FII[fFound] == 0 || (FII[fFound] == id && FIN[fFound] < ITST[id + 1])) { FII[fFound] = id; FIN[fFound] = FIN[fFound] + 1; moved = 1; } }
+    }
+    if (moved == 1) { CHN[base + f] = CHN[base + f] - 1; if (CHN[base + f] <= 0) { CHI[base + f] = 0; CHN[base + f] = 0; CHD[base + f] = 0; } chestTouched(c); chestSay(c, f); }
+  }
+  // in: one from a container over it, else the items lying on it
+  chestFind(x, y + 1, z);
+  if (cFound > 0) {
+    let a = cFound, ab = (a - 1) * 27, g = 0;
+    k = 1;
+    while (k <= 27) { if (g == 0) { if (CHI[ab + k] > 0) { g = k; } } k = k + 1; }
+    if (g > 0) { if (chestTake(c, CHI[ab + g], 1, CHD[ab + g]) == 1) { CHN[ab + g] = CHN[ab + g] - 1; if (CHN[ab + g] <= 0) { CHI[ab + g] = 0; CHN[ab + g] = 0; CHD[ab + g] = 0; } chestTouched(a); chestSay(a, g); } }
+  } else {
+    furnaceFind(x, y + 1, z);
+    if (fFound > 0) { if (FON[fFound] > 0) { if (chestTake(c, FOI[fFound], 1, 0) == 1) { FON[fFound] = FON[fFound] - 1; if (FON[fFound] <= 0) { FOI[fFound] = 0; FON[fFound] = 0; } } } }
+    else {
+      let i = 1;
+      while (i <= NITM) {
+        if (IID[i] > 0) { if (Math.floor(IXX[i]) == x && Math.floor(IZZ[i]) == z && IYY[i] >= y && IYY[i] < y + 1.6) {
+          let n = INN[i];
+          while (n > 0) { if (chestTake(c, IID[i], 1, IDU[i]) == 1) { n = n - 1; } else { INN[i] = n; n = 0 - 1; } }
+          if (n == 0) { IID[i] = 0; }
+        } }
+        i = i + 1;
+      }
+    }
+  }
+}
 // (v2.4.3) what is in chest c changed: the comparators reading it (next to it, or through a block) ask again
 function chestTouched(c) {
   if (c > 0 && c <= CHON.length) { if (CHON[c] == 1) { if (idiv(CHY[c], 1000) == dim) { powerAround(CHX[c], CHY[c] - dim * 1000, CHZ[c]); } } }

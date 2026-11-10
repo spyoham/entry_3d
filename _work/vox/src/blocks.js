@@ -204,6 +204,9 @@ function placeBlock(b, id) {
   if (ok == 1) {
     if (netSrv > 0) { plugRun('place', ITKEY[b + 1], netNick); }
     setBlock(x, y, z, put);
+    // (v2.4.4: a note block, command block or dispenser put next to power already on takes it as
+    // what it had: it does not sound or fire, as in the genre)
+    if (BRS[put + 1] == RS_NOTE || BRS[put + 1] == RS_COMMAND || BRS[put + 1] == RS_DISPENSER) { let pw = 0; if (powerIn(x, y, z, 0 - 1) > 0) { pw = 1; } edgeSet(x, y, z, pw); }
     if (y2 >= 0) { setBlock(x2, y2, z2, put2); }
     sndPlay(2);
     swingT = 0.3;
@@ -289,10 +292,11 @@ function pressFind(x, y, z) {
   }
   prF = f;
 }
-function pressAdd(x, y, z, t) {
+function pressAdd(x, y, z, t) { pressAddL(x, y, z, t, 15); }
+function pressAddL(x, y, z, t, l) {
   pressFind(x, y, z);
   let f = prF;
-  if (PRT[f] <= 0 || PRL[f] != 15) { PRT[f] = t; PRL[f] = 15; powerAround(x, y, z); } else { PRT[f] = Math.max(PRT[f], t); }
+  if (PRT[f] <= 0 || PRL[f] != l) { PRT[f] = t; PRL[f] = l; powerAround(x, y, z); } else { PRT[f] = Math.max(PRT[f], t); }
 }
 // the power of the button, plate or target at (x, y, z): 0..15
 function pressLevel(x, y, z) {
@@ -303,7 +307,10 @@ function pressLevel(x, y, z) {
 function pressedAt(x, y, z) { let r = 0; if (pressLevel(x, y, z) > 0) { r = 1; } return r; }
 // a plate's power for n on it (kind = its aux: 0 wood, 1 stone, 2 light weighted, 3 heavy weighted)
 function plateLevel(k, n) { let r = 15; if (k == 2) { r = Math.min(15, n); } if (k == 3) { r = Math.min(15, Math.ceil(n / 10)); } return r; }
-function buttonPress(x, y, z) { pressAdd(x, y, z, BAUX[blockAt(x, y, z) + 1] / 10); sndPlay(1); }
+function buttonPress(x, y, z) {
+  // (v2.4.4) pressed again while it is down: nothing (it kept it down longer); the others see it too
+  if (pressLevel(x, y, z) == 0) { pressAdd(x, y, z, BAUX[blockAt(x, y, z) + 1] / 10); sndPlay(1); netSay('p', `${x}^${y}^${z}^${dim}`); }
+}
 // something on the cell (x, y, z): who 0 the player, a mob or another player, 1 an item (a stone
 // plate does not feel items)
 function plateHit(x, y, z, who) {
@@ -354,32 +361,56 @@ function edgeSet(x, y, z, on) {
 
 // ---------------------------------------------------------------- TNT and explosions
 let TNX = [], TNY = [], TNZ = [], TNT_T = [];
-function tntPrime(x, y, z) {
-  let i = 1, f = 0;
-  while (i <= TNX.length) { if (TNT_T[i] > 0) { if (TNX[i] == x && TNY[i] == y && TNZ[i] == z) { f = 1; } } i = i + 1; }
-  if (f == 0) {
-    i = 1;
+// lit TNT (v2.4.4): TND its world, TNO 1 when its blast leaves items here (see worldDrops). The fuse
+// is the genre's 4 s (set off by another blast 0.5..1.5 s, the same on every screen); it goes on
+// when the block is broken or moved (it is lit: broken, it gives no TNT back)
+let TND = [], TNO = [];
+function tntPrime(x, y, z) { tntLight(x, y, z, worldDrops(), 4); }
+function tntLit(x, y, z) {
+  let i = 1, r = 0;
+  while (i <= TNX.length) { if (TNT_T[i] > 0) { if (TNX[i] == x && TNY[i] == y && TNZ[i] == z && TND[i] == dim) { r = 1; } } i = i + 1; }
+  return r;
+}
+function tntLight(x, y, z, o, t) {
+  if (tntLit(x, y, z) == 0) {
+    let i = 1, f = 0;
     while (i <= TNX.length) { if (f == 0) { if (TNT_T[i] <= 0) { f = i; } } i = i + 1; }
-    if (f == 0) { TNX.push(0); TNY.push(0); TNZ.push(0); TNT_T.push(0); f = TNX.length; }
-    TNX[f] = x; TNY[f] = y; TNZ[f] = z; TNT_T[f] = 2.5;
+    if (f == 0) { TNX.push(0); TNY.push(0); TNZ.push(0); TNT_T.push(0); TND.push(0); TNO.push(0); f = TNX.length; }
+    TNX[f] = x; TNY[f] = y; TNZ[f] = z; TNT_T[f] = t; TND[f] = dim; TNO[f] = o;
     sndPlay(1); msgShow('치익...', 1.5);
   }
 }
 function tntStep(dt) {
   let i = 1;
   while (i <= TNX.length) {
-    if (TNT_T[i] > 0) {
+    if (TNT_T[i] > 0) { if (TND[i] == dim) {
       TNT_T[i] = TNT_T[i] - dt;
-      if (TNT_T[i] <= 0) { TNT_T[i] = 0; if (blockAt(TNX[i], TNY[i], TNZ[i]) == I_tnt) { setBlock(TNX[i], TNY[i], TNZ[i], 0); explode(TNX[i] + 0.5, TNY[i] + 0.5, TNZ[i] + 0.5, 4, 1); } }
-    }
+      if (TNT_T[i] <= 0) {
+        TNT_T[i] = 0;
+        if (cOK(TNX[i], TNZ[i]) == 1) {
+          if (blockAt(TNX[i], TNY[i], TNZ[i]) == I_tnt) { setBlock(TNX[i], TNY[i], TNZ[i], 0); }
+          exDrops = TNO[i]; explode(TNX[i] + 0.5, TNY[i] + 0.5, TNZ[i] + 0.5, 4, 1); exDrops = 1;
+        }
+      }
+    } }
     i = i + 1;
   }
 }
+// (v2.4.4) a blast a player or a mob of mine made: here, and the same blast on the other screens
+function explodeShared(cx, cy, cz, r) {
+  netSay('e', `${cx}^${cy}^${cz}^${r}^${dim}`);
+  explode(cx, cy, cz, r, 1);
+}
+// (v2.4.4) the blast's own dice: the same for the same blast on every screen (each screen made its
+// own crater)
+function exRoll(x, y, z, n) { return mod(Math.abs(x * 7919 + y * 104729 + z * 1299709 + exSeed), n); }
+let exDrops = 1, exSeed = 0;
 // a blast of radius r at a point: blocks broken (some fall as items), TNT near set off, bodies hurt
 function explode(cx, cy, cz, r, breakIt) {
   sndPlay(7);
   if (grGrief == 0) { breakIt = 0; }
   if (breakIt == 1) {
+    exSeed = Math.floor(cx * 31 + cy * 57 + cz * 101);
     let x0 = Math.floor(cx - r), x1 = Math.floor(cx + r), y0 = Math.max(1, Math.floor(cy - r)), y1 = Math.min(WY - 1, Math.floor(cy + r)), z0 = Math.floor(cz - r), z1 = Math.floor(cz + r);
     let x = x0, y = 0, z = 0, d = 0, b = 0;
     logOn = 1;
@@ -390,15 +421,16 @@ function explode(cx, cy, cz, r, breakIt) {
           y = y0;
           while (y <= y1) {
             d = (x + 0.5 - cx) * (x + 0.5 - cx) + (y + 0.5 - cy) * (y + 0.5 - cy) + (z + 0.5 - cz) * (z + 0.5 - cz);
-            if (d < r * r * (0.7 + rand(0, 30) / 100)) {
+            if (d < r * r * (0.7 + exRoll(x, y, z, 31) / 100)) {
               b = W[wi(x, y, z)];
               if (b != 0 && BHARD[b + 1] >= 0 && BHARD[b + 1] < 40 && BLQ[b + 1] == 0) {
-                if (b == I_tnt) { tntPrime(x, y, z); }
+                if (b == I_tnt) { tntLight(x, y, z, exDrops, 0.5 + exRoll(x, y, z, 11) / 10); }
                 else {
-                  if (rand(1, 3) == 1) { if (grTileDrops == 1) { if (BDROP[b + 1] > 0) { dropItem(BDROP[b + 1], 1, 0, x + 0.5, y + 0.5, z + 0.5, 0); } } }
+                  if (exRoll(z, x, y, 3) == 0) { if (grTileDrops == 1 && exDrops == 1) { if (BDROP[b + 1] > 0) { dropItem(BDROP[b + 1], 1, 0, x + 0.5, y + 0.5, z + 0.5, 0); } } }
                   if (BUSE[b + 1] == U_CHEST || BUSE[b + 1] == U_FURNACE) { chestOrFurnaceGone(x, y, z, b); }
                   if (BRS[b + 1] > 0) { if (XPW.length < 96) { XPW.push(x); XPW.push(y); XPW.push(z); } }
                   wput(x, y, z, 0); markDirty(x, y, z); rsTell(x, y, z);
+                  if (netSrv > 0) { if (netHost == 1) { hostKeepEdit(x, y, z, 0, dim); } }
                 }
               }
             }
@@ -437,9 +469,9 @@ let XPW = [];
 
 // ---------------------------------------------------------------- fire
 function ignite() {
-  if (pickB == I_tnt) { tntPrime(pickX, pickY, pickZ); wearHeld(1); }
+  if (pickB == I_tnt) { tntLight(pickX, pickY, pickZ, 1, 4); netSay('n', `${pickX}^${pickY}^${pickZ}^${dim}`); wearHeld(1); }
   else {
-    if (pickB == I_anchor) { explode(pickX + 0.5, pickY + 0.5, pickZ + 0.5, 5, 1); }
+    if (pickB == I_anchor) { setBlock(pickX, pickY, pickZ, 0); explodeShared(pickX + 0.5, pickY + 0.5, pickZ + 0.5, 5); }
     else {
       pickNeighbour();
       lightGate(nbX, nbY, nbZ);
@@ -576,7 +608,7 @@ function waterWithin(x, y, z) {
 // ---------------------------------------------------------------- beds, signs, pots, cake, ...
 let spawnDim = 0, dayN = 0, spawnSet = 0;
 function bedUse(x, y, z, b) {
-  if (dim != 0) { msgShow('여기서는 잘 수 없습니다! 침대가 터집니다', 2); setBlock(x, y, z, 0); partnerGone(x, y, z, b, 0); explode(x + 0.5, y + 0.5, z + 0.5, 4, 1); }
+  if (dim != 0) { msgShow('여기서는 잘 수 없습니다! 침대가 터집니다', 2); setBlock(x, y, z, 0); partnerGone(x, y, z, b, 0); explodeShared(x + 0.5, y + 0.5, z + 0.5, 4); }
   else {
     spawnX = x + 0.5; spawnY = y + 1; spawnZ = z + 0.5; spawnDim = 0; spawnSet = 1;
     if (dark >= 7) {
@@ -677,7 +709,7 @@ function anchorUse(x, y, z, id) {
   if (id == I_glowCrystal) { anchorCh = Math.min(4, anchorCh + 1); if (mod(gameMode, 2) == 0) { takeHeld(1); } msgShow(`되살아남 닻 충전 ${anchorCh} / 4`, 2); }
   else {
     if (dim == 1) { if (anchorCh > 0) { spawnX = x + 0.5; spawnY = y + 1; spawnZ = z + 0.5; spawnDim = 1; spawnSet = 1; msgShow('잿빛 심연에서 되살아납니다', 2); } else { msgShow('빛수정으로 충전하세요', 2); } }
-    else { msgShow('닻이 터집니다!', 2); setBlock(x, y, z, 0); explode(x + 0.5, y + 0.5, z + 0.5, 5, 1); }
+    else { msgShow('닻이 터집니다!', 2); setBlock(x, y, z, 0); explodeShared(x + 0.5, y + 0.5, z + 0.5, 5); }
   }
 }
 // the void chest: one store for all of them
@@ -685,7 +717,9 @@ function voidChestOpen() { curChest = NCHEST; CHON[NCHEST] = 3; uiOpen(4); }
 // command blocks: their commands, run when they get power
 let CBX = [], CBY = [], CBZ = [], CBT = [], CBD = [];
 function commandBlockEdit(x, y, z) {
-  if (gameMode == 1) {
+  // (v2.4.4: on a server only its ops: a command block runs with every right)
+  if (netSrv > 0 && iAmOp() == 0) { msgShow('서버에서는 관리자만 명령 블록을 고칠 수 있습니다', 2); }
+  else { if (gameMode == 1) {
     mouseFree();
     ask('명령 블록에 넣을 명령어 (전원이 들어오면 실행)');
     let s = answer();
@@ -694,7 +728,7 @@ function commandBlockEdit(x, y, z) {
     if (k == 0) { CBX.push(x); CBY.push(y); CBZ.push(z); CBT.push(s); CBD.push(dim); } else { CBT[k] = s; }
     lockReq();
     msgShow('명령을 넣었습니다', 2);
-  } else { msgShow('명령 블록은 크리에이티브에서만 고칠 수 있습니다', 2); }
+  } else { msgShow('명령 블록은 크리에이티브에서만 고칠 수 있습니다', 2); } }
 }
 function cbFind(x, y, z) {
   let i = 1, r = 0;
@@ -703,7 +737,8 @@ function cbFind(x, y, z) {
 }
 function commandBlockRun(x, y, z) {
   let k = cbFind(x, y, z);
-  if (k > 0) { cmdX = x + 0.5; cmdY = y + 1; cmdZ = z + 0.5; cmdFromBlock = 1; runCommand(CBT[k]); cmdFromBlock = 0; }
+  // (v2.4.4: ~ is the block's middle, as in the genre: it was one block up)
+  if (k > 0) { cmdX = x + 0.5; cmdY = y + 0.5; cmdZ = z + 0.5; cmdFromBlock = 1; runCommand(CBT[k]); cmdFromBlock = 0; }
 }
 
 // ---------------------------------------------------------------- experience
@@ -786,13 +821,14 @@ function nearMobs(x, y, z) {
 }
 // once a frame
 function blocksStep(dt) {
-  pressStep(dt); tntStep(dt); spawnersStep(dt); rsStep(dt); saveStep(dt);
+  pressStep(dt); tntStep(dt); spawnersStep(dt); hoppersStep(dt); rsStep(dt); saveStep(dt);
   if (flashT > 0) { flashT = flashT - dt; }
   // what the eye rests on: a sign's words
   if (pickOn == 1) { if (BUSE[pickB + 1] == U_SIGN) { if (pickB != I_lectern) { let k = signFind(pickX, pickY, pickZ); if (k > 0) { if (msgT < 0.5) { msgShow(SGT[k], 0.6); } } } } }
   // the light sensors follow the day
   sensorT = sensorT + dt;
   if (sensorT > 3) { sensorT = 0; if (dark != sensorDark) { sensorDark = dark; sensorsAround(); } }
+  // (v2.4.4: the sensors round the player are known to sensorStep after this)
 }
 let sensorT = 0, sensorDark = 0 - 1;
 function sensorsAround() {
@@ -800,7 +836,7 @@ function sensorsAround() {
   while (x <= Math.floor(px) + 12) {
     let z = Math.floor(pz) - 12;
     while (z <= Math.floor(pz) + 12) {
-      if (cOK(x, z) == 1) { let y = Math.max(1, Math.floor(py) - 10); while (y < Math.min(WY - 1, Math.floor(py) + 10)) { if (BSPEC[W[wi(x, y, z)] + 1] == 9) { powerAround(x, y, z); } y = y + 1; } }
+      if (cOK(x, z) == 1) { let y = Math.max(1, Math.floor(py) - 10); while (y < Math.min(WY - 1, Math.floor(py) + 10)) { if (BSPEC[W[wi(x, y, z)] + 1] == 9) { sensorKeep(x, y, z); powerAround(x, y, z); } y = y + 1; } }
       z = z + 1;
     }
     x = x + 1;
@@ -813,7 +849,7 @@ function worldExtraInit() {
   SPX = []; SPY = []; SPZ = []; SPD = []; SPT = [];
   CBX = []; CBY = []; CBZ = []; CBT = []; CBD = [];
   PMT = []; PMX = []; PMY = []; PMZ = []; SMX = []; SMZ = [];
-  PRX = []; PRY = []; PRZ = []; PRT = []; PRL = []; PRD = []; PRC = []; TNX = []; TNY = []; TNZ = []; TNT_T = []; EGX = []; EGY = []; EGZ = []; EGD = []; EGS = []; XPW = [];
+  PRX = []; PRY = []; PRZ = []; PRT = []; PRL = []; PRD = []; PRC = []; TNX = []; TNY = []; TNZ = []; TNT_T = []; TND = []; TNO = []; EGX = []; EGY = []; EGZ = []; EGD = []; EGS = []; XPW = [];
   CHT = []; CHTT = [];
   xpPts = 0; xpLevel = 0; dayN = 0; spawnDim = 0; spawnSet = 0; lodeOn = 0; anchorCh = 0; specMob = 0; difficulty = 2; gameTicks = 0;
   weatherClear(); gamerulesInit();

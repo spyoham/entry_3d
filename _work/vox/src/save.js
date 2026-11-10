@@ -106,8 +106,22 @@ function edLink(k) {
   if (ekAt > 0) { EDN[k] = EKV[ekAt]; EKV[ekAt] = k; } else { EDN[k] = 0; }
 }
 function edPush(x, y, z, b) {
-  EDX.push(x); EDY.push(y); EDZ.push(z); EDB.push(b); EDD.push(dim); EDN.push(0);
-  edLink(EDX.length);
+  // (v2.4.3) a cell changed again soon (a spark clock, a lamp, a door): its newest entry, among the
+  // chunk's last few, takes the new block (a world with clocks logged every switch: 800 entries a
+  // second, the log made short every half minute with a hitch); replay takes each cell's newest
+  // entry anyway, so it reads the same
+  let k = 0, n = 0, f = 0;
+  edSlot(edKey(idiv(x, 16), idiv(z, 16)), 0);
+  if (ekAt > 0) { k = EKV[ekAt]; }
+  while (k > 0 && n < 48 && f == 0) {
+    if (EDX[k] == x && EDY[k] == y && EDZ[k] == z && EDD[k] == dim) { f = k; }
+    k = EDN[k]; n = n + 1;
+  }
+  if (f > 0) { EDB[f] = b; }
+  else {
+    EDX.push(x); EDY.push(y); EDZ.push(z); EDB.push(b); EDD.push(dim); EDN.push(0);
+    edLink(EDX.length);
+  }
 }
 // the whole index again (a new world, the log made short, a kept world read)
 function edIndex() {
