@@ -339,6 +339,14 @@ function rsFlush(n) {
   }
   if (nqH > nqN) { nqH = 1; nqN = 0; }
 }
+// (v2.4.2) an observer next to (x, y, z): a change there not made by setBlock (a command, an
+// explosion, a falling block) is told to it
+function obsNear(x, y, z) {
+  let d = 0, r = 0;
+  while (d < 6) { if (BRS[blockAt(x + DX6[d + 1], y + DY6[d + 1], z + DZ6[d + 1]) + 1] == RS_OBSERVER) { r = 1; } d = d + 1; }
+  return r;
+}
+function obsTell(x, y, z) { if (obsNear(x, y, z) == 1) { rsNotify(x, y, z, 2); } }
 // w 4: a part put back from the log (a world opened again, a chunk made again): it and its
 // neighbours are asked, but a door, note, command block or dispenser seen for the first time
 // takes the power it has as what it had (rsReplay; edgeSet) - opening a world does not run them
@@ -678,6 +686,10 @@ function rsPut(b) {
     let d = OP6[F2D[f4 + 1] + 1];
     if (pitch < 0 - 45) { d = 3; }
     if (pitch > 45) { d = 2; }
+    // (v2.4.2) an observer looks the way the player looks, as in the genre: its back (where the
+    // signal comes out) to the player. It was put the other way round, like a piston, so one put
+    // looking at a plant or a door from the side watched the player's side and saw nothing.
+    if (rl == RS_OBSERVER) { d = OP6[d + 1]; }
     if (rl == RS_DISPENSER) { r = b + mod(d + 3, 6); } else { r = b + mod(d + 3, 6) * 2; }
   }
   return r;

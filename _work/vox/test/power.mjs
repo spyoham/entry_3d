@@ -165,13 +165,30 @@ ok(s.peek('pz') < Z + 16, 'the player pushed along (pz ' + s.peek('pz').toFixed(
 s.poke('flying', 1); s.poke('px', X + 0.5); s.poke('py', Y + 12); s.poke('pz', Z - 22);
 
 // 9 observers: a block put before it gives a pulse
-placeAs(X, Y, Z + 20, 'observer', 3, 180);
-ok(BFAC[B(X, Y, Z + 20)] === 5, 'an observer put looking -z faces +z (to the player): ' + BFAC[B(X, Y, Z + 20)]);
+placeAs(X, Y, Z + 20, 'observer', 3, 0);
+ok(BFAC[B(X, Y, Z + 20)] === 5, 'an observer put looking +z faces +z (the way the player looks, its back to the player): ' + BFAC[B(X, Y, Z + 20)]);
 placeAs(X, Y, Z + 19, 'spark_dust'); settle(); wait(0.5);
 let seen = 0;
 placeAs(X, Y, Z + 21, 'stone');
 for (let i = 0; i < 30; i++) { F(1); if (lvl(X, Y, Z + 19) > 0) seen = 1; }
 ok(seen === 1 && lvl(X, Y, Z + 19) === 0, 'a block before it: a short pulse out of its back');
+// (v2.4.2) put from the side, looking at a reed (+x, -x): it watches the reed, the signal comes out toward the player
+for (const [yaw, dx] of [[90, 1], [270, -1]]) {
+  const ox = X + 6 * dx, oz = Z + 26;
+  put(ox + dx, Y - 2, oz, 'sand'); put(ox + dx, Y - 1, oz, 'reeds');
+  placeAs(ox, Y, oz, 'observer', 3, yaw);
+  ok(BFAC[B(ox, Y, oz)] === (dx > 0 ? 1 : 0), `an observer put looking ${dx > 0 ? '+x' : '-x'} watches that way: ` + BFAC[B(ox, Y, oz)]);
+  put(ox - dx, Y, oz, 'spark_lamp'); settle(); wait(0.5);
+  let lit2 = 0;
+  call(() => fn.setBlock(ox + dx, Y, oz, fn.blockAt(ox + dx, Y - 1, oz)));
+  for (let i = 0; i < 30; i++) { F(1); if (lit(ox - dx, Y, oz)) lit2 = 1; }
+  ok(lit2 === 1 && K(B(ox + dx, Y, oz)) === 'reeds', 'the reed grows into the cell it watches: the lamp behind it lights');
+  wait(0.5);
+  let lit3 = 0;
+  cmd(`/setblock ${ox + dx} ${Y} ${oz} air`);
+  for (let i = 0; i < 30; i++) { F(1); if (lit(ox - dx, Y, oz)) lit3 = 1; }
+  ok(lit3 === 1, '/setblock before it is seen too');
+}
 
 // 10 doors, a dispenser, TNT
 put(X - 6, Y, Z, 'iron_door'); put(X - 6, Y + 1, Z, 'iron_door[half=upper]'); placeAs(X - 5, Y, Z, 'lever');

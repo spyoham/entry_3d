@@ -776,7 +776,7 @@ function boxPut(x, y, z, b) {
       markDirty(x, y, z);
       if (BUSE[b + 1] == U_CHEST) { chestAt(x, y, z); } if (BUSE[b + 1] == U_FURNACE) { furnaceAt(x, y, z); }
       if (BSPEC[b + 1] == 6) { spawnerNote(x, y, z); }
-      if (BRS[b + 1] > 0 || BRS[o + 1] > 0) { rsNotify(x, y, z, 3); }
+      if (BRS[b + 1] > 0 || BRS[o + 1] > 0) { rsNotify(x, y, z, 3); } else { obsTell(x, y, z); }
       // (v2.3.2) water or lava put by a command flows; a hole made by one fills
       fluidNotify(x, y, z);
       bxN = bxN + 1;

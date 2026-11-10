@@ -339,7 +339,7 @@ function explode(cx, cy, cz, r, breakIt) {
                   if (rand(1, 3) == 1) { if (grTileDrops == 1) { if (BDROP[b + 1] > 0) { dropItem(BDROP[b + 1], 1, 0, x + 0.5, y + 0.5, z + 0.5, 0); } } }
                   if (BUSE[b + 1] == U_CHEST || BUSE[b + 1] == U_FURNACE) { chestOrFurnaceGone(x, y, z, b); }
                   if (BRS[b + 1] > 0) { if (XPW.length < 96) { XPW.push(x); XPW.push(y); XPW.push(z); } }
-                  wput(x, y, z, 0); markDirty(x, y, z);
+                  wput(x, y, z, 0); markDirty(x, y, z); obsTell(x, y, z);
                 }
               }
             }
