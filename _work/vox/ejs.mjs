@@ -580,7 +580,8 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
     // or list whose name starts with '?!' - so SY_x becomes '?!x', and SY_
     // alone the connection flag '?!' (1 connected, -1 not). They are ordinary
     // variables to Entry: never cloud, never Entry's own real-time ones.
-    const entryName = (n) => (n.startsWith('SY_') ? '?!' + n.slice(3) : n.startsWith('AT_') ? '@' + n.slice(3) : n);
+    // (DQ_x: Entry Sync's ??x - kept only: read at the start, written at the stop)
+    const entryName = (n) => (n.startsWith('SY_') ? '?!' + n.slice(3) : n.startsWith('AT_') ? '@' + n.slice(3) : n.startsWith('DQ_') ? '??' + n.slice(3) : n);
     // (a start value or list item of exactly true / false would come back a boolean in tessvm: see txt)
     for (const [name, g] of globals) if (/^(true|false)$/i.test(String(g.init))) throw new Error(`${name}: a start value of true / false reads as a boolean in tessvm`);
     for (const [name, l] of lists) if (l.init.some(v => /^(true|false)$/i.test(String(v)))) throw new Error(`${name}: an item true / false reads as a boolean in tessvm`);

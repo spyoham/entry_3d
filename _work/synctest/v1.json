@@ -1,0 +1,1 @@
+[{"wait":1500},{"eval":"(()=>{const V=n=>window.__vm.variables.find(v=>v.name===n);V('?!').setValue(1);return 1})()"},{"wait":7500},{"shot":"v1_before.png"},{"down":{"code":"Digit1","key":"1","keyCode":49}},{"wait":60},{"up":{"code":"Digit1","key":"1","keyCode":49}},{"wait":300},{"wait":1200},{"shot":"v1_after.png"},{"vars":true}]

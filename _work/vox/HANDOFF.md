@@ -163,3 +163,8 @@
 - true/false: tessvm은 작품을 자기 언어(tess)로 디컴파일해 다시 컴파일하는데, 디컴파일러(`tessvm/ext/vendor/tess/decompiler/src/expr.js`의 text, `ident.js` tessLiteral)가 글이 정확히 true/false(대소문자 무관)인 텍스트 블록을 참/거짓 값으로 바꾼다. 그래서 코드의 'true'가 불린이 되어 `v == 'true'`가 늘 거짓, 'false'를 쓰면 FALSE로 찍혔다(/gamerule ... true가 "잘못된 값", 조회가 FALSE). 시뮬레이터는 디컴파일을 안 거쳐서 몰랐다. ejs.mjs `txt`가 그런 글을 두 조각의 합치기로 만들고, 전역 시작값·리스트 항목에 true/false가 있으면 빌드가 멈춘다. 확인은 진짜 tessvm(trun, test/tf.json)과 tesssave.mjs.
 - 효과: 혼자 하는 세계는 저장에 원래 있었고(tessvm에서도 확인), 서버에서 나갔다 오면 사라졌다(닉네임으로 남기는 netUserPack에 없음) → 15번째 칸 `종류.초.단계,...`(옛 기록은 칸이 없어 그대로).
 - 불꽃가루: 늦게 할 일(SC*: 시계의 다음 바뀜)은 저장되지 않고, 다시 만든 청크의 부품을 아무도 다시 묻지 않아 시계가 섰다(세계를 다시 열 때도, 멀리 갔다 올 때도). edReplay가 부품마다 `rsNotify(…, 4)`, rsAround가 w 4를 `rsReplay`로: 처음 보는 문·소리·명령·발사기는 지금 전원을 원래 것으로 받아 움직이지 않고(edgeSet), 폭약은 안 켬. 시험 `test/reload.mjs`(레버-선-등, 반복기 지연 4 시계, 켜진 레버의 명령 블록이 다시 안 돌기, 효과, 멀리 갔다 오기), netcmds에 서버 효과.
+
+## Entry Sync 저장 시험 작품 (2026-11-10, 사용자: "작품을 새버전으로 덮어씌워도 맵정보등이 사리지는지 저장되는지 확인하는 테스트 작품 만들어줘")
+- 루트 `Entry Sync 저장 시험 v1.ent`, `v2.ent`, `Entry Sync 저장 시험 사용법.txt`. 원본 `_work/synctest/src.js`(EJS, VER 1/2), `node _work/synctest/build.mjs`(vox의 ejs.mjs·pack.mjs를 씀). ejs.mjs에 `DQ_x` → `??x`.
+- 블록 월드와 같은 이름(?!m1 ?!m2 ?!e1 ?!gone)과 ?!시험값, ??시험값. 판 1의 1 키가 표지 c를 모든 곳에 씀(e1은 1..50), 판 2가 읽어 줄마다 남음/사라짐과 결론. ?!m2는 판 2 파일에 시작값이 있어 파일 값이 서버 기록을 덮는지 보임. 7초 기다린 뒤 0.5초마다 다시 그림.
+- tessvm에서 판 1 기록, 판 2(남은 경우, 사라진 경우)를 Entry Sync 없이 값을 넣어 확인(_work/synctest/*.json). 실제 결과는 사용자가 엔트리에서 시험해야 앎(Entry Sync 서버 코드는 비공개).
