@@ -54,6 +54,9 @@ await run(async ({ vm, V, set, tick }) => {
   let k = 0; while (V('gState').getValue() != 2 && k < 6000) { tick(1); k++; }
   tick(60);
   set('tCmd', '/setblock ~ ~3 ~ gold_block'); set('testCmd', 8); tick(3);
+  set('tCmd', '/effect give @s night_vision 600 0'); set('testCmd', 8); tick(3);
+  set('tCmd', '/gamerule keepInventory true'); set('testCmd', 8); tick(3);
+  console.log('  run 1 keepInventory', V('grKeep').getValue(), 'night vision', V('EFT').getArray().map(x => x.data)[7]);
   set('tCmd', '/save-all'); set('testCmd', 8); tick(5);
   await new Promise(r => setTimeout(r, 50)); tick(3);
   console.log('run 1: seed', V('seed').getValue(), 'pos', (+V('px').getValue()).toFixed(1), (+V('py').getValue()).toFixed(1), (+V('pz').getValue()).toFixed(1), 'writes', writes, 'errors', JSON.stringify(vm.errors.slice(0, 2)));
@@ -69,6 +72,7 @@ await run(async ({ vm, V, set, tick }) => {
   let k = 0; while (V('gState').getValue() != 2 && k < 6000) { tick(1); k++; }
   tick(30);
   console.log('run 2: seed', V('seed').getValue(), 'pos', (+V('px').getValue()).toFixed(1), (+V('py').getValue()).toFixed(1), (+V('pz').getValue()).toFixed(1), 'gState', V('gState').getValue(), 'errors', JSON.stringify(vm.errors.slice(0, 2)));
+  console.log('  run 2 keepInventory', V('grKeep').getValue(), 'night vision', V('EFT').getArray().map(x => x.data)[7], 'nightVis', V('nightVis').getValue());
   set('tCmd', '/execute if block ~ ~3 ~ gold_block run say gold'); set('testCmd', 8); tick(3);
   const ch = V('CHT').getArray().map(x => x.data); console.log('  chat', ch.slice(-2).join(' | '));
 });

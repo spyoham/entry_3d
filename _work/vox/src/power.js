@@ -339,8 +339,13 @@ function rsFlush(n) {
   }
   if (nqH > nqN) { nqH = 1; nqN = 0; }
 }
+// w 4: a part put back from the log (a world opened again, a chunk made again): it and its
+// neighbours are asked, but a door, note, command block or dispenser seen for the first time
+// takes the power it has as what it had (rsReplay; edgeSet) - opening a world does not run them
+let rsReplay = 0;
 function rsAround(x, y, z, w) {
   let d = 0;
+  if (w == 4) { rsReplay = 1; w = 0; }
   // observers looking at a cell that changed
   if (w >= 2) {
     while (d < 6) {
@@ -360,6 +365,7 @@ function rsAround(x, y, z, w) {
     }
     d = d + 1;
   }
+  rsReplay = 0;
 }
 function rsEvalAt(x, y, z) {
   if (y >= 0 && y < WY) {
@@ -430,7 +436,7 @@ function rsEval(x, y, z, b) {
     let bb = blockAt(x - DX6[f + 1], y - DY6[f + 1], z - DZ6[f + 1]);
     if (BRS[bb + 1] != RS_PISTON || BON[bb + 1] != 1 || BFAC[bb + 1] != f) { setBlock(x, y, z, 0); }
   }
-  if (rl == RS_TNT) { if (powerIn(x, y, z, 0 - 1) > 0) { tntPrime(x, y, z); } }
+  if (rl == RS_TNT) { if (rsReplay == 0) { if (powerIn(x, y, z, 0 - 1) > 0) { tntPrime(x, y, z); } } }
   if (rl == RS_DOOR || rl == RS_NOTE || rl == RS_COMMAND || rl == RS_DISPENSER) {
     let p = 0;
     if (powerIn(x, y, z, 0 - 1) > 0) { p = 1; }

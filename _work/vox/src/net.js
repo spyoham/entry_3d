@@ -488,7 +488,10 @@ function netUserPack() {
   let i = 1, n = 0;
   gS2 = '-';
   while (i <= 40) { if (INVI[i] > 0) { n = n + 1; if (n == 1) { gS2 = `${i}.${INVI[i]}.${INVN[i]}.${INVD[i]}`; } else { gS2 = `${gS2},${i}.${INVI[i]}.${INVN[i]}.${INVD[i]}`; } } i = i + 1; }
-  return `${s}${gS2}`;
+  // (v2.3.1) the effects: kind.seconds.level
+  gS = '-'; i = 1; n = 0;
+  while (i <= EFT.length) { if (EFT[i] > 0) { n = n + 1; let e = `${i}.${Math.ceil(EFT[i])}.${EFL[i]}`; if (n == 1) { gS = e; } else { gS = `${gS},${e}`; } } i = i + 1; }
+  return `${s}${gS2}^${gS}`;
 }
 function netUserLoad(d) {
   splitBy(d, '^');
@@ -496,7 +499,8 @@ function netUserLoad(d) {
     netArrX = SPL[1] * 1; netArrY = SPL[2] * 1; netArrZ = SPL[3] * 1; dim = SPL[4] * 1; px = netArrX; pz = netArrZ;
     hp = SPL[5] * 1; food = SPL[6] * 1; xpLevel = SPL[7] * 1; xpPts = SPL[8] * 1; gameMode = SPL[9] * 1;
     spawnX = SPL[10] * 1; spawnY = SPL[11] * 1; spawnZ = SPL[12] * 1; spawnSet = SPL[13] * 1;
-    let inv = SPL[14];
+    let inv = SPL[14], efs = '-';
+    if (SPL.length >= 15) { efs = SPL[15]; }
     if (inv != '-') {
       splitBy(inv, ',');
       SPL2 = [];
@@ -504,6 +508,14 @@ function netUserLoad(d) {
       while (i <= SPL.length) { SPL2.push(SPL[i]); i = i + 1; }
       i = 1;
       while (i <= SPL2.length) { splitBy(SPL2[i], '.'); if (SPL.length >= 4) { let s = SPL[1] * 1; INVI[s] = SPL[2] * 1; INVN[s] = SPL[3] * 1; INVD[s] = SPL[4] * 1; } i = i + 1; }
+    }
+    if (efs != '-') {
+      splitBy(efs, ',');
+      SPL2 = [];
+      let i = 1;
+      while (i <= SPL.length) { SPL2.push(SPL[i]); i = i + 1; }
+      i = 1;
+      while (i <= SPL2.length) { splitBy(SPL2[i], '.'); if (SPL.length >= 3) { let k = SPL[1] * 1; if (k >= 1 && k <= EFT.length) { EFT[k] = SPL[2] * 1; EFL[k] = SPL[3] * 1; } } i = i + 1; }
     }
   }
 }

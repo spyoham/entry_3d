@@ -127,7 +127,12 @@ function edReplay(cx, cz) {
     let k = EKV[ekAt];
     while (k > 0) {
       let c = (mod(EDX[k], 16) * 16 + mod(EDZ[k], 16)) * WY + EDY[k] + 1;
-      if (RPS[c] != rpGen) { RPS[c] = rpGen; W[(mod(EDX[k], WS) * WS + mod(EDZ[k], WS)) * WY + EDY[k] + 1] = EDB[k]; }
+      if (RPS[c] != rpGen) {
+        RPS[c] = rpGen; W[(mod(EDX[k], WS) * WS + mod(EDZ[k], WS)) * WY + EDY[k] + 1] = EDB[k];
+        // (v2.3.1) a spark part: looked at again once the world goes on - what was due later (a
+        // clock's next switch) is not kept, and nothing asked the parts again, so a clock stood still
+        if (BRS[EDB[k] + 1] > 0) { rsNotify(EDX[k], EDY[k], EDZ[k], 4); }
+      }
       k = EDN[k];
     }
   }

@@ -1,7 +1,7 @@
-# 블록 월드 — 작업 인계 메모 (2026-11-10, v2.3)
+# 블록 월드 — 작업 인계 메모 (2026-11-10, v2.3.1)
 
-산출물(루트): `블록 월드 v2.3.ent`, `블록 월드 v2.3 설명서.txt`, `블록 월드 썸네일.png` (이전 판은 깃헙 `old/`)
-빌드: `node build.mjs "../../블록 월드 v2.3.ent"` (`K=V`로 상수 바꾸기: `AUTOSEED=n` 타이틀 없이 시드 n으로 시작, `AUTOMODE=1` 크리에이티브, `TESTRUN=1` test.js 포함, `BENCH=1` 시간 멈춤·몹 스폰 끔·k 고정, `ANIMALS=0`, `NOCAVE=1` 동굴 가리기 끔)
+산출물(루트): `블록 월드 v2.3.1.ent`, `블록 월드 v2.3.1 설명서.txt`, `블록 월드 썸네일.png` (이전 판은 깃헙 `old/`)
+빌드: `node build.mjs "../../블록 월드 v2.3.1.ent"` (`K=V`로 상수 바꾸기: `AUTOSEED=n` 타이틀 없이 시드 n으로 시작, `AUTOMODE=1` 크리에이티브, `TESTRUN=1` test.js 포함, `BENCH=1` 시간 멈춤·몹 스폰 끔·k 고정, `ANIMALS=0`, `NOCAVE=1` 동굴 가리기 끔)
 
 ## 요청
 - 2026-11-08 ".ent로 마인크래프트를 최대한 비슷하게 만들어줘.(심층암 추가되기 전 기준, tessvm전용)"
@@ -158,3 +158,8 @@
 - 서버 기록(질문의 답): 서버는 Entry Sync 서버에 작품 번호 + ?! 이름으로 저장되고 작품 안에는 없다. Entry Sync 확장(inject-latest.js triggerWorkspaceSave)은 작품을 만들기 화면에서 연 작가가 변수·리스트를 고칠 때마다 그 화면의 ?! 값을 SAVE_DATA_ONLY로 저장한다(덮어쓰는지 합치는지는 공개 안 된 Cloudflare 워커가 정함: github 저장소에는 확장만). 그래서 지우거나 빈 리스트로 다시 넣으면 서버가 비워질 수 있다. 대책(`src/svback.js`): 각자의 tessvm 저장 @서버백업에 들어간 서버의 사본(SB, id, 이름, 주인, rev, 설정 줄, 블록 기록; 들어간 뒤 10초·1분마다·나갈 때). 연결 8초 뒤부터 10초마다 `bkCheck`: 없어진 서버는 빈 자리에, 공유된 것이 사본보다 rev가 낮고 아무도 없으면 덮어씀, 두 자리에 같은 id면 뒤쪽을 비움. 서버 id는 머리의 12번째 칸(`shId`, 옛 서버는 이름/주인). 일부러 지운 서버는 ?!gone(`SY_gone`)에 적어 되살리지 않고 사본도 버림.
 - 함정: 지역 변수를 ''로 시작해 이어 붙이면 0이 붙는 것(이번에도 /perm 목록에서) - 전역 gS2를 씀. 셸 heredoc에 한글·작은따옴표가 섞이면 깨짐 - 패치는 scratchpad의 .py 파일로.
 - 시험 모두 통과: placeall, bow, flat, creative, cmdcheck, netcmds, netsim, nettess(진짜 tessvm 두 창), chat, hangul, save, cmdfix, cond, power, v20, v20c, tess(14.1 ms/틱).
+
+## v2.3.1 (2026-11-10, 사용자: "true/false 인식 안되는 버그와 나갔다 들어오면 효과(야간투시등) 사라지고 레드스톤 멈추는 버그 수정")
+- true/false: tessvm은 작품을 자기 언어(tess)로 디컴파일해 다시 컴파일하는데, 디컴파일러(`tessvm/ext/vendor/tess/decompiler/src/expr.js`의 text, `ident.js` tessLiteral)가 글이 정확히 true/false(대소문자 무관)인 텍스트 블록을 참/거짓 값으로 바꾼다. 그래서 코드의 'true'가 불린이 되어 `v == 'true'`가 늘 거짓, 'false'를 쓰면 FALSE로 찍혔다(/gamerule ... true가 "잘못된 값", 조회가 FALSE). 시뮬레이터는 디컴파일을 안 거쳐서 몰랐다. ejs.mjs `txt`가 그런 글을 두 조각의 합치기로 만들고, 전역 시작값·리스트 항목에 true/false가 있으면 빌드가 멈춘다. 확인은 진짜 tessvm(trun, test/tf.json)과 tesssave.mjs.
+- 효과: 혼자 하는 세계는 저장에 원래 있었고(tessvm에서도 확인), 서버에서 나갔다 오면 사라졌다(닉네임으로 남기는 netUserPack에 없음) → 15번째 칸 `종류.초.단계,...`(옛 기록은 칸이 없어 그대로).
+- 불꽃가루: 늦게 할 일(SC*: 시계의 다음 바뀜)은 저장되지 않고, 다시 만든 청크의 부품을 아무도 다시 묻지 않아 시계가 섰다(세계를 다시 열 때도, 멀리 갔다 올 때도). edReplay가 부품마다 `rsNotify(…, 4)`, rsAround가 w 4를 `rsReplay`로: 처음 보는 문·소리·명령·발사기는 지금 전원을 원래 것으로 받아 움직이지 않고(edgeSet), 폭약은 안 켬. 시험 `test/reload.mjs`(레버-선-등, 반복기 지연 4 시계, 켜진 레버의 명령 블록이 다시 안 돌기, 효과, 멀리 갔다 오기), netcmds에 서버 효과.

@@ -289,7 +289,7 @@ function edgeSet(x, y, z, on) {
   let i = 1, f = 0;
   egWas = 0;
   while (i <= EGX.length) { if (EGX[i] == x && EGY[i] == y && EGZ[i] == z && EGD[i] == dim) { f = i; } i = i + 1; }
-  if (f == 0) { EGX.push(x); EGY.push(y); EGZ.push(z); EGD.push(dim); EGS.push(on); }
+  if (f == 0) { EGX.push(x); EGY.push(y); EGZ.push(z); EGD.push(dim); EGS.push(on); if (rsReplay == 1) { egWas = on; } }
   else { egWas = EGS[f]; EGS[f] = on; }
 }
 

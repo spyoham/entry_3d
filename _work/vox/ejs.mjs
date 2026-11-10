@@ -83,7 +83,12 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
     const blockLines = {};
     const B = (type, params = [], statements = []) => { const id = newId(); blockLines[id] = curLine; return { id, x: 0, y: 0, type, params, statements, movable: null, deletable: 1, emphasized: false, readOnly: null, copyable: true, assemble: true, extensions: [] }; };
     const num = (v) => B('number', [String(v)]);
-    const txt = (v) => B('text', [String(v)]);
+    // tessvm reads a work through its own source language, and its decompiler takes a text that is
+    // exactly true or false (any case) for the yes / no value: 'true' in the code became a boolean,
+    // == 'true' never held and 'false' printed as FALSE. Such a text is made of two halves instead.
+    const txt = (v) => /^(true|false)$/i.test(String(v))
+        ? B('combine_something', [null, B('text', [String(v).slice(0, 2)]), null, B('text', [String(v).slice(2)]), null])
+        : B('text', [String(v)]);
     const isNumLit = (b) => b && b.type === 'number' && /^-?\d+(\.\d+)?$/.test(String(b.params[0]));
     const negLit = (b) => num(-Number(b.params[0]));
     const calc = (a, op, b) => {
@@ -576,6 +581,9 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
     // alone the connection flag '?!' (1 connected, -1 not). They are ordinary
     // variables to Entry: never cloud, never Entry's own real-time ones.
     const entryName = (n) => (n.startsWith('SY_') ? '?!' + n.slice(3) : n.startsWith('AT_') ? '@' + n.slice(3) : n);
+    // (a start value or list item of exactly true / false would come back a boolean in tessvm: see txt)
+    for (const [name, g] of globals) if (/^(true|false)$/i.test(String(g.init))) throw new Error(`${name}: a start value of true / false reads as a boolean in tessvm`);
+    for (const [name, l] of lists) if (l.init.some(v => /^(true|false)$/i.test(String(v)))) throw new Error(`${name}: an item true / false reads as a boolean in tessvm`);
     for (const [name, g] of globals) variables.push({ name: entryName(name), id: g.id, value: g.init, variableType: 'variable', visible: false, isCloud: false, isRealTime: false, cloudDate: false, object: g.object || null, x: 0, y: 0 });
     for (const [name, l] of lists) variables.push({ name: entryName(name), id: l.id, value: 0, variableType: 'list', visible: false, isCloud: false, isRealTime: false, cloudDate: false, object: null, x: 0, y: 0, width: 100, height: 120,
         array: l.init.map((v, i) => ({ id: `${l.id}_${i}`, data: v })) });

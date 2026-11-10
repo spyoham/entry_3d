@@ -102,6 +102,12 @@ r = cmd(A, '/execute as @a run give @s apple 1'); run(1);
 ok(count(B, 'apple') === 1 && count(A, 'apple') === 1, `/execute as @a run give @s: alice ${count(A, 'apple')}, bob ${count(B, 'apple')}`);
 r = cmd(A, '/kill bob'); run(1); ok(B.g('dead') === 1 && A.g('dead') === 0, '/kill bob');
 B.call((fn) => fn.respawn()); run(2);
+// effects stay with a player who leaves and comes back
+r = cmd(A, '/effect give bob night_vision 600 0'); run(1);
+ok(B.g('EFT')[7] > 500, 'bob has night vision');
+B.call((fn) => { fn.netLeave(); B.sim.poke('gState', 0); fn.menuGo(4); }); run(4);
+B.call((fn) => fn.serverJoin(K)); ok(run(60, () => B.g('gState') === 2), 'bob back'); run(2);
+ok(B.g('EFT')[7] > 400 && B.g('nightVis') === 1, `night vision kept: ${(+B.g('EFT')[7]).toFixed(0)} s`);
 // ---- rights
 const bd0 = count(B, 'diamond'), ad0 = count(A, 'diamond');
 r = cmd(B, '/give @s diamond 1'); ok(r.includes('관리자만') && count(B, 'diamond') === bd0, 'bob may not /give: ' + r);
