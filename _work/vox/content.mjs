@@ -727,16 +727,24 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     for (const dd of D6S) for (const sticky of [0, 1]) HD.push({ v: dd !== 3 || sticky ? `f${dd}${sticky ? 's' : ''}` : undefined, fac: dd, aux: sticky, model: `phead_${dd}`, t6: faced(dd, sticky ? stickyTop : 'planks', 'planks', () => 'planks') });
     variants({ n: 'pistonHead', key: 'piston_head', ko: '피스톤 팔', t: ['planks'], hard: 1.5, shape: 5, hide: 0, lop: 0, cat: 4, hidden: 1, drop: 'none', rs: 'head', nokind: 1 }, HD);
     R(['#planks #planks #planks', 'cobble ingotIron cobble', 'cobble sparkDust cobble'], 'piston', 1); R(['jellyBall', 'piston'], 'stickyPiston', 1);
-    const railT = tc('railT', ['b.b..b.b', 'kkkkkkkk', 'b.b..b.b', 'b.b..b.b', 'b.b..b.b', 'kkkkkkkk', 'b.b..b.b', 'b.b..b.b'].map(r => r), { b: 'a0a0a0', k: '6a4a2a' });
+    // (v2.6) two rails (b, their inner side d) over the ties (k), as the genre; powered and activator
+    // rails a redstone line between them (c: dark off, bright on), detector rails a plate there. The
+    // rails were thin lines of the stone's grey at 0, 2, 5, 7: on the ground only the ties showed
+    const RG0 = ['.bd..db.', 'kbdkkdbk', '.bd..db.', '.bd..db.', '.bd..db.', 'kbdkkdbk', '.bd..db.', '.bd..db.'];
+    const RG1 = ['.bdccdb.', 'kbdccdbk', '.bdccdb.', '.bdccdb.', '.bdccdb.', 'kbdccdbk', '.bdccdb.', '.bdccdb.'];
+    const RG2 = ['.bd..db.', 'kbdkkdbk', '.bd..db.', '.bdccdb.', '.bdccdb.', 'kbdkkdbk', '.bd..db.', '.bd..db.'];
+    const railT = tc('railT', RG0, { b: 'd0d0d0', d: '6a6a6a', k: '6a4a2a' });
     // (v2.5) rails in the circuit (rs rail, aux the kind, fac the shape: 0 along z, 1 along x; the
     // slopes, curves and the powered ones on come at the end); their textures kept for them
-    const RAILS = [['rail', 'rail', '레일', 'a0a0a0', ''], ['poweredRail', 'powered_rail', '전동 레일', 'e8c030', 'f8e870'], ['detectorRail', 'detector_rail', '감지 레일', 'a02020', ''], ['activatorRail', 'activator_rail', '작동 레일', 'c04040', 'f87070']];
+    // [name, key, ko, rails, their side, ties, the line off, on ('' none), the pattern]
+    const RAILS = [['rail', 'rail', '레일', 'd0d0d0', '6a6a6a', '6a4a2a', '', '', RG0], ['poweredRail', 'powered_rail', '전동 레일', 'f0c838', '9a7418', '6a4a2a', '5a1410', 'ff3020', RG1],
+        ['detectorRail', 'detector_rail', '감지 레일', 'd0d0d0', '6a6a6a', '6a4a2a', '8a3a3a', '', RG2], ['activatorRail', 'activator_rail', '작동 레일', 'd0d0d0', '6a6a6a', '5a2a22', '5a1410', 'ff3020', RG1]];
     const RTX = {};
-    RAILS.forEach(([n, key, ko, col, oncol], ti) => {
-        const t = n === 'rail' ? railT : tc(n + 'T', ['b.b..b.b', 'kkkkkkkk', 'b.b..b.b', 'b.bccb.b', 'b.bccb.b', 'kkkkkkkk', 'b.b..b.b', 'b.b..b.b'], { b: col, k: '6a4a2a', c: 'e02020' });
+    RAILS.forEach(([n, key, ko, col, side, tie, coff, oncol, G], ti) => {
+        const t = n === 'rail' ? railT : tc(n + 'T', G, { b: col, d: side, k: tie, c: coff });
         const tx = tc(n + 'Tx', tr(TEX[t].g), TEX[t].p);
         RTX[n] = { t, tx };
-        if (oncol) { RTX[n].ton = tc(n + 'OnT', TEX[t].g, { ...TEX[t].p, b: oncol, c: 'ff6060' }); RTX[n].txon = tc(n + 'OnTx', tr(TEX[t].g), { ...TEX[t].p, b: oncol, c: 'ff6060' }); }
+        if (oncol) { RTX[n].ton = tc(n + 'OnT', TEX[t].g, { ...TEX[t].p, c: oncol }); RTX[n].txon = tc(n + 'OnTx', tr(TEX[t].g), { ...TEX[t].p, c: oncol }); }
         variants({ n, key, ko, t: [t], hard: 0.7, tool: 1, shape: 5, model: 'rail', hide: 0, lop: 0, solid: 0, cat: 4, place: 'rail', need: 'floor', rs: 'rail', aux: ti, fac: 0 }, [{}, { v: 'x', t: [tx], fac: 1 }]);
         byKey.get(n + '_x').drop = n;
     });
@@ -888,7 +896,7 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     // (v2.5) the rails' slopes (2 .. 5), the curves of plain rails (6 .. 9), powered and activator rails on (0 .. 5)
     const curveG = (cx, cz) => { const g = []; for (let r = 0; r < 8; r++) { let row = ''; for (let c = 0; c < 8; c++) { const d = Math.hypot(c + 0.5 - cx, r + 0.5 - cz), a = Math.atan2(r + 0.5 - cz, c + 0.5 - cx); let ch = '.'; if (d > 1.5 && d < 6.5 && Math.abs(Math.sin(a * 5)) < 0.5) ch = 'k'; if (Math.abs(d - 2.3) < 0.5 || Math.abs(d - 5.7) < 0.5) ch = 'b'; row += ch; } g.push(row); } return g; };
     const CURVE = { 6: [8, 8], 7: [0, 8], 8: [0, 0], 9: [8, 0] };
-    RAILS.forEach(([n, key, ko, col, oncol], ti) => {
+    RAILS.forEach(([n, key, ko, col, side, tie, coff, oncol], ti) => {
         const L = [];
         for (let s = 2; s <= 5; s++) L.push([s, 0]);
         if (ti === 0) for (let s = 6; s <= 9; s++) L.push([s, 0]);
@@ -896,7 +904,7 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
         for (const [s, on] of L) {
             const alongX = s === 1 || s === 2 || s === 3;
             let t = on ? (alongX ? RTX[n].txon : RTX[n].ton) : (alongX ? RTX[n].tx : RTX[n].t);
-            if (s >= 6) t = tc(`railCurve${s}`, curveG(...CURVE[s]), { ...TEX[railT].p, b: 'c8c8c8' });
+            if (s >= 6) t = tc(`railCurve${s}`, curveG(...CURVE[s]), { ...TEX[railT].p });
             add({ n: `${n}_s${s}${on ? 'on' : ''}`, key: `${key}_${s}${on ? '_on' : ''}`, ko, t: [t], hard: 0.7, tool: 1, shape: 5, model: s >= 2 && s <= 5 ? `railup_${s}` : 'rail', hide: 0, lop: 0, solid: 0, cat: 4, need: 'floor', rs: 'rail', aux: ti, fac: s, on, item: n, drop: n, hidden: 1, nokind: 1 });
         }
     });

@@ -506,7 +506,8 @@ function bucketThings() {
   // (v2.5) blocks a piston moves, sliding
   let m = 1;
   while (m <= MVX.length) {
-    if (MVD[m] == dim) { mvPos(m); inView(mvPX, mvPY + 0.5, mvPZ, 1); if (inV == 1) { bucketThing(0 - 300 - m, mvPX, mvPY + 0.5, mvPZ); } }
+    // ((v2.6) a piston coming in: drawn in order where it stands)
+    if (MVD[m] == dim) { mvPos(m); if (MVS[m] == 1) { if (MVE[m] == 0) { mvPX = MVX[m] + 0.5; mvPY = MVY[m]; mvPZ = MVZ[m] + 0.5; } } inView(mvPX, mvPY + 0.5, mvPZ, 1); if (inV == 1) { bucketThing(0 - 300 - m, mvPX, mvPY + 0.5, mvPZ); } }
     m = m + 1;
   }
 }
@@ -630,8 +631,68 @@ function drawItemThing(i, fog) {
     boxFace(1, 3, 7, 5, cs, 4); boxFace(2, 6, 8, 4, cs, 5);
   }
 }
-// (v2.5) a block on its way with a piston: a whole block in its colours
+// (v2.5) a block on its way with a piston: a whole block in its colours; (v2.6) a piston's own arm:
+// its plate and rod sliding out of the piston, or (the piston coming in) the piston's body with its
+// arm sliding back in (it was a whole brown block, and went back at once)
 function drawMoving(m, fog) {
+  if (m <= MVX.length) { if (MVS[m] == 1) { drawArm(m, fog); } else { drawMoving1(m, fog); } }
+}
+function drawArm(m, fog) {
+  let d = MVF[m], t = Math.max(0, Math.min(1, (MVT[m] - rsTime) / 0.1)), s = 1 - t;
+  let bx = MVX[m] - DX6[d + 1], by = MVY[m] - DY6[d + 1], bz = MVZ[m] - DZ6[d + 1], pk = I_piston;
+  if (MVE[m] == 0) { s = t; bx = MVX[m]; by = MVY[m]; bz = MVZ[m]; if (BAUX[MVB[m] + 1] == 1) { pk = I_stickyPiston; } }
+  else { if (BAUX[MVB[m] + 1] == 1) { pk = I_stickyPiston; } }
+  mdSy = 0; mdCy = 1024; mdTint = 0; mdFog = fog;
+  mdLv = lightAt(bx + 0.5 + DX6[d + 1], by + 0.5 + DY6[d + 1], bz + 0.5 + DZ6[d + 1]);
+  let face = ITC1[pk + 1], side = ITC2[pk + 1], wood = ITC2[5 + 1];
+  // far ones first: the body, the rod, the plate in the order of their distance
+  let n = 0;
+  if (MVE[m] == 0) { n = 1; }
+  let k = 0;
+  while (k < 3) {
+    // (k 0 the farthest of the three; which is which by the look along the way d)
+    let along = DX6[d + 1] * (camX - bx - 0.5) + DY6[d + 1] * (camY - by - 0.5) + DZ6[d + 1] * (camZ - bz - 0.5);
+    let part = k;
+    if (along < 0) { part = 2 - k; }
+    if (part == 0) { if (n == 1) { mvSlab(bx, by, bz, d, 0, 0.75, 0, 1, side, side); } }
+    if (part == 1) { if (s > 0.02) { mvSlab(bx, by, bz, d, 0.75, 0.75 + s, 0.375, 0.625, wood, wood); } }
+    if (part == 2) { mvSlab(bx, by, bz, d, 0.75 + s, 1 + s, 0, 1, face, wood); }
+    k = k + 1;
+  }
+}
+// a box in the cell (x, y, z): along the way d from u0 to u1 (0 the cell's back, 1 its face that
+// way), across from c0 to c1; ct the face the way d, cs the rest
+function mvSlab(x, y, z, d, u0, u1, c0, c1, ct, cs) {
+  let a0 = u0, a1 = u1;
+  if (mod(d, 2) == 0) { a0 = 1 - u1; a1 = 1 - u0; }
+  let x0 = x + c0, x1 = x + c1, y0 = y + c0, y1 = y + c1, z0 = z + c0, z1 = z + c1;
+  if (d == 0 || d == 1) { x0 = x + a0; x1 = x + a1; }
+  if (d == 2 || d == 3) { y0 = y + a0; y1 = y + a1; }
+  if (d == 4 || d == 5) { z0 = z + a0; z1 = z + a1; }
+  mvBox(x0, y0, z0, x1, y1, z1, d, ct, cs);
+}
+function mvBox(x0, y0, z0, x1, y1, z1, d, ct, cs) {
+  let k = 0, wx = 0, wy = 0, wz = 0, vz = 0, behind = 0, foc = FOC;
+  while (k < 8) {
+    let lx = x0, ly = y0, lz = z0;
+    if (k >= 4) { lx = x1; }
+    if (mod(k, 4) >= 2) { ly = y1; }
+    if (mod(k, 2) == 1) { lz = z1; }
+    wx = Math.round((lx - camX) * MK); wy = Math.round((ly - camY) * MK); wz = Math.round((lz - camZ) * MK);
+    vz = r31 * wx + r32 * wy + r33 * wz;
+    if (vz < 40000000000) { behind = 1; vz = 40000000000; }
+    PSX[k + 1] = (r11 * wx + r13 * wz) * foc / vz; PSY[k + 1] = (r21 * wx + r22 * wy + r23 * wz) * foc / vz;
+    k = k + 1;
+  }
+  if (behind == 0) {
+    let c0 = cs, c1 = cs, c2 = cs, c3 = cs, c4 = cs, c5 = cs;
+    if (d == 0) { c0 = ct; } if (d == 1) { c1 = ct; } if (d == 2) { c2 = ct; } if (d == 3) { c3 = ct; } if (d == 4) { c4 = ct; } if (d == 5) { c5 = ct; }
+    boxFace(1, 2, 4, 3, c0, 0); boxFace(5, 7, 8, 6, c1, 1);
+    boxFace(1, 5, 6, 2, c2, 2); boxFace(3, 4, 8, 7, c3, 3);
+    boxFace(1, 3, 7, 5, c4, 4); boxFace(2, 6, 8, 4, c5, 5);
+  }
+}
+function drawMoving1(m, fog) {
   if (m <= MVX.length) {
     mvPos(m);
     let id = BKIND[MVB[m] + 1];

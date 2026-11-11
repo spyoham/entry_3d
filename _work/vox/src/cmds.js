@@ -353,21 +353,41 @@ function isSel(w) {
 }
 
 // ---------------------------------------------------------------- the chat
-let CHT = [], CHTT = [];
+// CHT: the last six lines (each shown for 10 s); (v2.6) CHL: all of them (the last 100), seen with
+// the chat open (T): 12 lines over the line typed, the newest at the bottom, the wheel or
+// PgUp / PgDn going back (chScroll: the lines under the ones shown)
+let CHT = [], CHTT = [], CHL = [], chScroll = 0;
 function chatAdd(s) {
   if (CHT.length >= 6) { CHT.removeAt(1); CHTT.removeAt(1); }
   CHT.push(s); CHTT.push(10);
+  CHL.push(s); if (CHL.length > 100) { CHL.removeAt(1); }
+  // (looking back: the lines shown stay put)
+  if (chScroll > 0) { chScroll = Math.min(chScroll + 1, Math.max(0, CHL.length - 12)); }
 }
+function chatSlot(j) { let r = 103 + j; if (j > 6) { r = 133 + j; } return r; }
 function chatHud(dt) {
   let k = 1, y = -60 - (CHT.length - 1) * 10;
-  while (k <= 6) {
-    if (k <= CHT.length) {
-      CHTT[k] = CHTT[k] - dt;
-      if (CHTT[k] > 0 || uiMode == 9) { tx(103 + k, CHT[k], -236, y + (k - 1) * 10, 7, '#ffffff', 1); } else { txOff(103 + k); }
-    } else { txOff(103 + k); }
-    k = k + 1;
+  while (k <= CHT.length) { CHTT[k] = CHTT[k] - dt; k = k + 1; }
+  if (uiMode == 9) {
+    let j = 1;
+    while (j <= 12) {
+      let i = CHL.length - chScroll - j + 1, s = chatSlot(j);
+      if (i >= 1) { tx(s, CHL[i], -236, -20 + (j - 1) * 10, 7, '#ffffff', 1); } else { txOff(s); }
+      j = j + 1;
+    }
+  } else {
+    k = 1;
+    while (k <= 6) {
+      if (k <= CHT.length) {
+        if (CHTT[k] > 0) { tx(103 + k, CHT[k], -236, y + (k - 1) * 10, 7, '#ffffff', 1); } else { txOff(103 + k); }
+      } else { txOff(103 + k); }
+      k = k + 1;
+    }
+    k = 140;
+    while (k <= 145) { txOff(k); k = k + 1; }
   }
 }
+function chatScroll(n) { chScroll = Math.max(0, Math.min(Math.max(0, CHL.length - 12), chScroll + n)); }
 function cmdOut(s) { if (grFeedback == 1 || cmdFromBlock == 0) { if (strlen(s) > 0) { chatAdd(s); } } }
 // The line typed after T or / is read from the keys by the game itself: tessvm's answer box hands
 // the keyboard's focus to the page when it closes, and W A S D did nothing until a click.
@@ -444,13 +464,15 @@ on('key:13', 'pen', function () { kq(13); });
 on('key:9', 'pen', function () { kq(9); });
 on('key:27', 'pen', function () { kq(27); });
 on('key:38', 'pen', function () { kq(38); });
+on('key:33', 'pen', function () { kq(33); });
+on('key:34', 'pen', function () { kq(34); });
 on('key:40', 'pen', function () { kq(40); });
 // 한/영 (Lang1: 21; on some keyboards it is the right Alt: 18) switches Korean and Latin
 on('key:21', 'pen', function () { kq(21); });
 on('key:18', 'pen', function () { kq(18); });
 function chatOpen(pre) {
   // (2: the key that opened it is not typed; from the next frame 1)
-  uiMode = 9; typing = 2; tline = pre; KQ = []; KQS = []; chH = CHH.length + 1; tBlink = 0;
+  uiMode = 9; typing = 2; tline = pre; KQ = []; KQS = []; chH = CHH.length + 1; tBlink = 0; chScroll = 0;
   hanClear(); acCyc = 0; acDirty = 1;
 }
 function chatClose() {
@@ -468,13 +490,18 @@ function chatType(dt) {
       else { if (c == 27) { chatClose(); }
       else { if (c == 21 || c == 18) { hanCommit(); hanMode = 1 - hanMode; }
       else { if (c == 8) { if (hanBack() == 0) { if (strlen(tline) <= 1) { tline = ''; } else { tline = substr(tline, 1, strlen(tline) - 1); } } }
+      else { if (c == 33) { chatScroll(6); }
+      else { if (c == 34) { chatScroll(0 - 6); }
       else { if (c == 38) { hanClear(); if (chH > 1) { chH = chH - 1; tline = CHH[chH]; } }
       else { if (c == 40) { hanClear(); if (chH < CHH.length) { chH = chH + 1; tline = CHH[chH]; } else { chH = CHH.length + 1; tline = ''; } }
-      else { if (strlen(tline) < 240) { if (hanMode == 1 && c >= 65 && c <= 90) { hanKey(c, sh); } else { hanCommit(); typeKey(c, sh); } } } } } } } } }
+      else { if (strlen(tline) < 240) { if (hanMode == 1 && c >= 65 && c <= 90) { hanKey(c, sh); } else { hanCommit(); typeKey(c, sh); } } } } } } } } } } }
     }
     i = i + 1;
   }
   KQ = []; KQS = [];
+  // (the wheel: up goes back)
+  while (wheelAcc <= 0 - 1) { chatScroll(3); wheelAcc = wheelAcc + 1; }
+  while (wheelAcc >= 1) { chatScroll(0 - 3); wheelAcc = wheelAcc - 1; }
   if (typing == 2) { typing = 1; }
   if (typing == 1) {
     tBlink = tBlink + dt;
@@ -484,7 +511,7 @@ function chatType(dt) {
     acShow();
     let cur = ' '; if (mod(Math.floor(tBlink * 2), 2) == 0) { cur = '_'; }
     let md = 'A'; if (hanMode == 1) { md = '한'; }
-    tx(123, `> ${line}${cur}   [${md}] 한/영: 한글·영어  Tab: 자동완성`, -236, -42, 8, '#ffff80', 1);
+    tx(123, `> ${line}${cur}   [${md}] 한/영: 한글·영어  Tab: 자동완성  휠: 지난 대화`, -236, -42, 8, '#ffff80', 1);
   }
 }
 function typeKey(c, sh) {

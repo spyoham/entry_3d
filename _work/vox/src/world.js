@@ -791,7 +791,160 @@ function skyColumn(x, z) {
 // relight the world columns x0..x1, z0..z1 (all heights, chunks that are made only): sky
 // straight down, then spread from what is lit in the box and from the ring of cells round it
 let SFL = [];
+// (v2.6) the settings: light worked out (1) or not (0: every cell as under the open sky, nothing
+// lit again when blocks change - the dear part, 29 x 29 columns a change)
+let lightOn = 1;
 function relight(x0, x1, z0, z1) {
+  if (lightOn == 1) { relight1(x0, x1, z0, z1); } else { lightFlat(x0, x1, z0, z1); }
+}
+function lightFlat(x0, x1, z0, z1) {
+  let x = x0, z = 0, y = 0, i = 0;
+  while (x <= x1) {
+    z = z0;
+    while (z <= z1) {
+      if (cOK(x, z) == 1) { i = (mod(x, WS) * WS + mod(z, WS)) * WY + 1; y = 0; while (y < WY) { LT[i] = 240; y = y + 1; i = i + 1; } }
+      z = z + 1;
+    }
+    x = x + 1;
+  }
+}
+// switched: the chunks made are lit again (or made flat) and meshed again, a few a frame (LRQ the
+// chunk's slot, LRM 0 its columns' sky first, 1 then the light spread, 2 flat)
+let LRQ = [], LRM = [];
+function lightSet(on) {
+  lightOn = on;
+  LRQ = []; LRM = [];
+  let s = 1, m = 2;
+  if (on == 1) { m = 0; }
+  while (s <= NCH * NCH) { if (CKST[s] == 5) { LRQ.push(s); LRM.push(m); } s = s + 1; }
+  if (on == 1) { s = 1; while (s <= NCH * NCH) { if (CKST[s] == 5) { LRQ.push(s); LRM.push(1); } s = s + 1; } }
+}
+function lightRedoStep() {
+  let n = 0;
+  while (n < 4 && LRQ.length > 0) {
+    let s = LRQ[1], m = LRM[1];
+    LRQ.removeAt(1); LRM.removeAt(1);
+    if (CKST[s] == 5) {
+      let cx = CKX[s], cz = CKZ[s];
+      if (m == 0) { let x = cx * 16; while (x < cx * 16 + 16) { let z = cz * 16; while (z < cz * 16 + 16) { skyColumn(x, z); SFL[wcol(x, z)] = skyFloor; z = z + 1; } x = x + 1; } n = n + 1; }
+      else {
+        if (m == 1) { relight1(cx * 16, cx * 16 + 15, cz * 16, cz * 16 + 15); } else { lightFlat(cx * 16, cx * 16 + 15, cz * 16, cz * 16 + 15); }
+        let a = 0;
+        while (a < 2) { let c = 0; while (c < 2) { let y = 0; while (y < NSY) { remeshLater(secOf(cx * 16 + a * 8, y * 8, cz * 16 + c * 8)); y = y + 1; } c = c + 1; } a = a + 1; }
+        n = 4;
+      }
+    }
+  }
+}
+// (v2.6) a cell's own light became e: more spreads from it; less is taken back from what it lit (the
+// cells lit less than it, one step on from it) and those still lit by others spread again (the
+// genre's way). It was the whole 29 x 29 columns round it each time (a lamp's clock was slow)
+let RMX = [], RMY = [], RMZ = [], RML = [];
+function blockLightSet(x, y, z, e) {
+  if (y >= 0 && y < WY && cOK(x, z) == 1) {
+    let i = wi(x, y, z), cur = mod(LT[i], 16), sk = LT[i] - cur;
+    if (e > cur) { LT[i] = sk + e; lqPush(i); lightSpread(1); }
+    if (e < cur) {
+      LT[i] = sk;
+      RMX = []; RMY = []; RMZ = []; RML = [];
+      RMX.push(x); RMY.push(y); RMZ.push(z); RML.push(cur);
+      let h = 1;
+      while (h <= RMX.length && h < 6000) {
+        let cx = RMX[h], cy = RMY[h], cz = RMZ[h], l = RML[h], d = 0;
+        while (d < 6) {
+          let nx = cx + DX6[d + 1], ny = cy + DY6[d + 1], nz = cz + DZ6[d + 1];
+          if (ny >= 0 && ny < WY) { if (cOK(nx, nz) == 1) {
+            let j = wi(nx, ny, nz), bl = mod(LT[j], 16);
+            if (bl > 0) {
+              if (bl < l) {
+                LT[j] = LT[j] - bl; RMX.push(nx); RMY.push(ny); RMZ.push(nz); RML.push(bl);
+                // (a light of its own: back, and spread again)
+                let own = BLIT[W[j] + 1];
+                if (own > 0) { LT[j] = LT[j] + own; lqPush(j); }
+              } else { lqPush(j); }
+            }
+          } }
+          d = d + 1;
+        }
+        h = h + 1;
+      }
+      if (e > 0) { LT[i] = sk + e; lqPush(i); }
+      lightSpread(1);
+      RMX = []; RMY = []; RMZ = []; RML = [];
+    }
+  }
+}
+// (v2.6) one cell that stops or dims the light differently now (a block put or broken, one moved by a
+// piston): both lights worked out from it alone, as the genre - what it lit, or what came through it,
+// taken back (ch 0 the sky: also the open sky straight down from it), then spread again from what is
+// left, and from the open sky over it when it lets that through. It was the 29 x 29 columns round it.
+function lvOf(i, ch) { let r = mod(LT[i], 16); if (ch == 0) { r = idiv(LT[i], 16); } return r; }
+function lvSet(i, ch, v) { if (ch == 0) { LT[i] = v * 16 + mod(LT[i], 16); } else { LT[i] = LT[i] - mod(LT[i], 16) + v; } }
+function lightTake(ch, x, y, z, l0) {
+  RMX = []; RMY = []; RMZ = []; RML = [];
+  RMX.push(x); RMY.push(y); RMZ.push(z); RML.push(l0);
+  let h = 1;
+  while (h <= RMX.length && h < 20000) {
+    let cx = RMX[h], cy = RMY[h], cz = RMZ[h], l = RML[h], d = 0;
+    while (d < 6) {
+      let nx = cx + DX6[d + 1], ny = cy + DY6[d + 1], nz = cz + DZ6[d + 1];
+      if (ny >= 0 && ny < WY) { if (cOK(nx, nz) == 1) {
+        let j = wi(nx, ny, nz), bl = lvOf(j, ch);
+        if (bl > 0) {
+          // (less than it: from it; the open sky's 15 straight down: from it too)
+          if (bl < l || (ch == 0 && d == 2 && bl == 15 && l == 15)) {
+            lvSet(j, ch, 0); RMX.push(nx); RMY.push(ny); RMZ.push(nz); RML.push(bl);
+            if (ch == 1) { let own = BLIT[W[j] + 1]; if (own > 0) { lvSet(j, 1, own); lqPush(j); } }
+          } else { lqPush(j); }
+        }
+      } }
+      d = d + 1;
+    }
+    h = h + 1;
+  }
+  RMX = []; RMY = []; RMZ = []; RML = [];
+}
+function lightCell(x, y, z) {
+  if (y >= 0 && y < WY && cOK(x, z) == 1) {
+    let i = wi(x, y, z), b = W[i], s = lvOf(i, 0), d = 0;
+    // the sky
+    if (s > 0) { lvSet(i, 0, 0); lightTake(0, x, y, z, s); }
+    if (BLOP[b + 1] == 0) {
+      if (BHC[b + 1] == 0) {
+        let up = 15; if (y + 1 < WY) { up = lvOf(wi(x, y + 1, z), 0); }
+        if (up == 15) {
+          let yy = y, k = i;
+          while (yy >= 0) {
+            let bb = W[k];
+            if (BLOP[bb + 1] == 1 || BHC[bb + 1] != 0) { yy = 0 - 1; }
+            else { lvSet(k, 0, 15); lqPush(k); yy = yy - 1; k = k - 1; }
+          }
+        }
+      }
+      d = 0;
+      while (d < 6) {
+        let nx = x + DX6[d + 1], ny = y + DY6[d + 1], nz = z + DZ6[d + 1];
+        if (ny >= 0 && ny < WY) { if (cOK(nx, nz) == 1) { let j = wi(nx, ny, nz); if (lvOf(j, 0) > 1) { lqPush(j); } } }
+        d = d + 1;
+      }
+    }
+    lightSpread(0);
+    // the blocks' light
+    let c = lvOf(i, 1);
+    if (c > 0) { lvSet(i, 1, 0); lightTake(1, x, y, z, c); }
+    if (BLOP[b + 1] == 0) {
+      d = 0;
+      while (d < 6) {
+        let nx = x + DX6[d + 1], ny = y + DY6[d + 1], nz = z + DZ6[d + 1];
+        if (ny >= 0 && ny < WY) { if (cOK(nx, nz) == 1) { let j = wi(nx, ny, nz); if (lvOf(j, 1) > 1) { lqPush(j); } } }
+        d = d + 1;
+      }
+    }
+    if (BLIT[b + 1] > 0) { lvSet(i, 1, Math.max(lvOf(i, 1), BLIT[b + 1])); lqPush(i); }
+    lightSpread(1);
+  }
+}
+function relight1(x0, x1, z0, z1) {
   let x = x0, z = 0, y = 0, i = 0, f = 0, m = 0;
   while (x <= x1) {
     z = z0;

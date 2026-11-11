@@ -864,7 +864,7 @@ function worldExtraInit() {
   CBX = []; CBY = []; CBZ = []; CBT = []; CBD = [];
   PMT = []; PMX = []; PMY = []; PMZ = []; SMX = []; SMZ = [];
   PRX = []; PRY = []; PRZ = []; PRT = []; PRL = []; PRD = []; PRC = []; TNX = []; TNY = []; TNZ = []; TNT_T = []; TND = []; TNO = []; EGX = []; EGY = []; EGZ = []; EGD = []; EGS = []; XPW = [];
-  CHT = []; CHTT = [];
+  CHT = []; CHTT = []; CHL = []; chScroll = 0;
   xpPts = 0; xpLevel = 0; dayN = 0; spawnDim = 0; spawnSet = 0; lodeOn = 0; anchorCh = 0; specMob = 0; difficulty = 2; gameTicks = 0;
   weatherClear(); gamerulesInit();
 }

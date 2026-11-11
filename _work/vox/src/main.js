@@ -207,12 +207,15 @@ function playWorld(dt) {
   blocksStep(dt); pendingMobs(); weatherStep(dt);
   gameTicks = gameTicks + dt * 20;
   worldFlush();
+  if (LRQ.length > 0) { lightRedoStep(); }
   // the world round the player: a few chunk stages and some sections a frame
   let cw = 1;
   if (kStep == 1) { cw = 2; }
   chunkWork(cw); remeshSome(6);
   if (BENCH == 0) { if (grDay == 1) { tday = tday + dt / dayLen; } }
   if (tday >= 1) { tday = tday - 1; dayN = dayN + 1; }
+  // ((v2.6) a time that is no number (a broken value read) would hold the sky for good)
+  if ((tday >= 0) == false) { tday = 0.25; }
   if (dim == 0) { dimAmb = 0; daySky(); } else { dimSky(); }
   gateStep(dt);
   if (dim == 2) { bossStep(dt); }
@@ -247,6 +250,8 @@ function drawView() {
 // the HUD and the screens over it
 function drawUI(dt) {
   if (uiMode <= 6) { if (dead == 0) { drawHud(dt); } }
+  // ((v2.6) the chat open: its history)
+  if (uiMode == 9) { chatHud(dt); }
   if (uiMode >= 1) { if (uiMode <= 5 || uiMode == 8) { invScreen(); } }
   if (uiMode == 6) { pauseScreen(); }
   if (uiMode == 10) { tradeScreen(); }
@@ -310,6 +315,9 @@ function uiInput() {
       if (menuSel == 3) { if (right == 1) { sens = Math.min(2, sens + 0.1); } else { sens = Math.max(0.1, sens - 0.1); } }
       if (menuSel == 4) { setMode(mod(gameMode + 1, 4)); }
       if (menuSel == 5) { sndOn = 1 - sndOn; }
+      if (menuSel == 8) { autoView = 1 - autoView; setView(viewWant); }
+      if (menuSel == 9) { fogOn = 1 - fogOn; setView(viewR); }
+      if (menuSel == 10) { lightSet(1 - lightOn); }
       if (menuSel == 7) { if (netSrv == 0) { saveGame(1); } }
       if (menuSel == 6) { if (netSrv > 0) { netLeave(); } else { if (canSave() == 1) { saveGame(1); } } uiMode = 0; gState = 0; txClear(); }
     }

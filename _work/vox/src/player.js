@@ -16,6 +16,10 @@ let specSpeed = 1, wasHitX = 0;
 // bmStep: how high a step it may walk up (on the ground).
 let bmX = 0, bmY = 0, bmZ = 0, bmW = 0.3, bmH = 1.8, bmHitX = 0, bmHitY = 0, bmHitZ = 0, bmGround = 0, bmStep = 0;
 let solidHit = 0, hTop = 0, hBot = 0, hX0 = 0, hX1 = 0, hZ0 = 0, hZ1 = 0;
+// (v2.6) a move takes only the boxes ahead of the body the way it goes (hfA 1 down, 2 up, 3 +x,
+// 4 -x, 5 +z, 6 -z; hfV the face), as the genre: one it is already in is let be. A trapdoor shut
+// at the head stopped the fall there and put the body on top of it (up through the trapdoor)
+let hfA = 0, hfV = 0;
 // any solid cell (full or shaped) in the cells x0..x1, y0..y1, z0..z1
 function solidIn(x0, x1, y0, y1, z0, z1) {
   solidHit = 0;
@@ -33,7 +37,7 @@ function solidIn(x0, x1, y0, y1, z0, z1) {
 // what of the blocks' boxes is inside the box (ax0, ay0, az0) .. (ax1, ay1, az1): solidHit and the
 // bounds of what was hit (hTop the highest top, hBot the lowest bottom, hX0 .. hZ1 the sides)
 function M_hit(QX0, QY0, QZ0, QX1, QY1, QZ1) {
-  if (QX1 > ax0 && QX0 < ax1 && QY1 > ay0 && QY0 < ay1 && QZ1 > az0 && QZ0 < az1) {
+  if (QX1 > ax0 && QX0 < ax1 && QY1 > ay0 && QY0 < ay1 && QZ1 > az0 && QZ0 < az1 && (hfA == 0 || (hfA == 1 && QY1 <= hfV) || (hfA == 2 && QY0 >= hfV) || (hfA == 3 && QX0 >= hfV) || (hfA == 4 && QX1 <= hfV) || (hfA == 5 && QZ0 >= hfV) || (hfA == 6 && QZ1 <= hfV))) {
     solidHit = 1;
     if (QY1 > hTop) { hTop = QY1; } if (QY0 < hBot) { hBot = QY0; }
     if (QX0 < hX0) { hX0 = QX0; } if (QX1 > hX1) { hX1 = QX1; } if (QZ0 < hZ0) { hZ0 = QZ0; } if (QZ1 > hZ1) { hZ1 = QZ1; }
@@ -79,7 +83,11 @@ function bodyMove(dx, dy, dz) {
   while (k < n) {
     if (sy != 0) {
       let ny = bmY + sy;
+      // (down: what ends below the body's middle (a floor it sank into a little still holds it);
+      // up: what is over the head or but a little into it)
+      if (sy < 0) { hfA = 1; hfV = bmY + 0.5; } else { hfA = 2; hfV = bmY + bmH - 0.2; }
       solidBox(bmX - w, bmX + w, ny, ny + bmH, bmZ - w, bmZ + w);
+      hfA = 0;
       if (solidHit == 1) {
         if (sy < 0) { ny = hTop; bmGround = 1; } else { ny = hBot - bmH - e; }
         bmHitY = 1; sy = 0;
@@ -88,7 +96,9 @@ function bodyMove(dx, dy, dz) {
     }
     if (sx != 0) {
       let nx = bmX + sx;
+      if (sx > 0) { hfA = 3; hfV = bmX + w - 0.2; } else { hfA = 4; hfV = bmX - w + 0.2; }
       solidBox(nx - w, nx + w, bmY, bmY + bmH, bmZ - w, bmZ + w);
+      hfA = 0;
       if (solidHit == 1) {
         let top = hTop, lo = hX0, hi = hX1, stepped = 0;
         if (bmStep > 0) { if (top > bmY) { if (top - bmY <= bmStep) {
@@ -105,7 +115,9 @@ function bodyMove(dx, dy, dz) {
     }
     if (sz != 0) {
       let nz = bmZ + sz;
+      if (sz > 0) { hfA = 5; hfV = bmZ + w - 0.2; } else { hfA = 6; hfV = bmZ - w + 0.2; }
       solidBox(bmX - w, bmX + w, bmY, bmY + bmH, nz - w, nz + w);
+      hfA = 0;
       if (solidHit == 1) {
         let top = hTop, lo = hZ0, hi = hZ1, stepped = 0;
         if (bmStep > 0) { if (top > bmY) { if (top - bmY <= bmStep) {
@@ -566,7 +578,14 @@ function setBlock(x, y, z, b) {
     // lava's own light comes with the next change near it, its source lights the place already)
     let relit = 1;
     if (lqLog == 0) { if (BLOP[old + 1] == 0 && BLOP[b + 1] == 0) { relit = 0; } }
-    if (relit == 1) { lbX0 = Math.min(lbX0, x - 14); lbX1 = Math.max(lbX1, x + 14); lbZ0 = Math.min(lbZ0, z - 14); lbZ1 = Math.max(lbZ1, z + 14); }
+    // ((v2.6) nor when the two stop and dim the light alike (stone put for stone, a door turned): only
+    // a light that changes (a lamp, a torch put, lit or out) is spread or taken back from its cell)
+    if (relit == 1) { if (BLOP[old + 1] == BLOP[b + 1] && BHC[old + 1] == BHC[b + 1]) {
+      relit = 0;
+      if (BLIT[old + 1] != BLIT[b + 1]) { if (lightOn == 1) { blockLightSet(x, y, z, BLIT[b + 1]); } }
+    } }
+    // ((v2.6) worked out from this cell alone: lightCell)
+    if (relit == 1) { if (lightOn == 1) { lightCell(x, y, z); } }
     // a block that cannot stand where it is now
     let up = blockAt(x, y + 1, z);
     if (b == 0 || BSOL[b + 1] == 0) {
@@ -620,7 +639,7 @@ function markSec(s) {
   if (SDIRTY[s] != 1) { SDIRTY[s] = 1; dirtyN = dirtyN + 1; if (dirtyN > DIRTY.length) { DIRTY.push(s); } else { DIRTY[dirtyN] = s; } }
 }
 function worldFlush() {
-  if (lbX1 >= 0) { relight(lbX0, lbX1, lbZ0, lbZ1); lbX0 = 9999; lbX1 = -1; lbZ0 = 9999; lbZ1 = -1; }
+  if (lbX1 >= 0) { if (lightOn == 1) { relight(lbX0, lbX1, lbZ0, lbZ1); } lbX0 = 9999; lbX1 = -1; lbZ0 = 9999; lbZ1 = -1; }
   let i = 1;
   while (i <= dirtyN) { if (SOK[DIRTY[i]] == 1) { meshSection(DIRTY[i]); } SDIRTY[DIRTY[i]] = 0; i = i + 1; }
   dirtyN = 0;

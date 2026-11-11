@@ -45,11 +45,14 @@ on('start', 'txt', function () {
   }
   k = 1;
   while (k <= NTX0) { txt$slot = k; cloneSelf(); k = k + 1; }
+  // ((v2.6) the chat's lines 7..12 seen with it open: 140..145)
+  k = 140;
+  while (k <= NTX) { txt$slot = k; cloneSelf(); k = k + 1; }
   txt$slot = 0;
-  // (the names over the heads, 124..NTX: only once the game goes online, a clone costs every tick)
+  // (the names over the heads, 124..139: only once the game goes online, a clone costs every tick)
   waitUntil(txMore == 1);
   k = NTX0 + 1;
-  while (k <= NTX) { txt$slot = k; cloneSelf(); k = k + 1; }
+  while (k <= 139) { txt$slot = k; cloneSelf(); k = k + 1; }
   txt$slot = 0;
 });
 let txMore = 0;
@@ -417,20 +420,25 @@ function pauseScreen() {
   penAlpha(40); box(-245, 140, 245, -140, '#000000'); fillStop(); penAlpha(0);
   tx(20, '게임 메뉴', 0, 96, 14, '#ffffff', 0);
   menuSel = 0;
-  button(-90, 76, 90, 58, '게임으로 돌아가기', 21, 1); if (btnHot == 1) { menuSel = 1; }
-  button(-90, 54, 90, 36, `시야 거리: ${viewR} 블록`, 22, 1); if (btnHot == 1) { menuSel = 2; }
-  button(-90, 32, 90, 14, `마우스 감도: ${Math.round(sens * 100)}%`, 23, 1); if (btnHot == 1) { menuSel = 3; }
+  button(-200, 76, -10, 58, '게임으로 돌아가기', 21, 1); if (btnHot == 1) { menuSel = 1; }
+  button(-200, 54, -10, 36, `시야 거리: ${viewR} 블록`, 22, 1); if (btnHot == 1) { menuSel = 2; }
+  button(-200, 32, -10, 14, `마우스 감도: ${Math.round(sens * 100)}%`, 23, 1); if (btnHot == 1) { menuSel = 3; }
   let gm = MODEKO[gameMode + 1];
-  button(-90, 10, 90, -8, `게임 모드: ${gm}`, 24, 1); if (btnHot == 1) { menuSel = 4; }
+  button(-200, 10, -10, -8, `게임 모드: ${gm}`, 24, 1); if (btnHot == 1) { menuSel = 4; }
   let so = '끔';
   if (sndOn == 1) { so = '켬'; }
-  button(-90, -12, 90, -30, `소리: ${so}`, 25, 1); if (btnHot == 1) { menuSel = 5; }
+  button(-200, -12, -10, -30, `소리: ${so}`, 25, 1); if (btnHot == 1) { menuSel = 5; }
   let sv = 1, svl = '세계 저장하기'; if (netSrv > 0) { sv = 0; svl = '서버가 저절로 기억합니다'; }
-  button(-90, -34, 90, -52, svl, 28, sv); if (btnHot == 1) { menuSel = 7; }
+  button(-200, -34, -10, -52, svl, 28, sv); if (btnHot == 1) { menuSel = 7; }
   let tt = '타이틀 화면으로'; if (canSave() == 1) { tt = '저장하고 타이틀 화면으로'; } if (netSrv > 0) { tt = '연결 끊기'; }
-  button(-90, -56, 90, -74, tt, 26, 1); if (btnHot == 1) { menuSel = 6; }
+  button(-200, -56, -10, -74, tt, 26, 1); if (btnHot == 1) { menuSel = 6; }
+  // ((v2.6) the picture: the render distance kept as chosen, fog, light)
+  button(10, 54, 200, 36, `시야 거리 ${optOn(1 - autoView, '고정', '자동 조절')}`, 29, 1); if (btnHot == 1) { menuSel = 8; }
+  button(10, 32, 200, 14, `안개: ${optOn(fogOn, '켬', '끔')}`, 30, 1); if (btnHot == 1) { menuSel = 9; }
+  button(10, 10, 200, -8, `빛 계산: ${optOn(lightOn, '켬', '끔(빠름)')}`, 31, 1); if (btnHot == 1) { menuSel = 10; }
   tx(27, '시야·감도는 왼쪽(좌반)·오른쪽(우반)을 눌러 줄이기·늘리기 · 5분마다 저절로 저장', 0, -82, 7, '#c0c0c0', 0);
 }
+function optOn(v, a, b) { let r = b; if (v == 1) { r = a; } return r; }
 function deathScreen() {
   penAlpha(30); box(-245, 140, 245, -140, '#a00000'); fillStop(); penAlpha(0);
   tx(20, '죽었습니다!', 0, 60, 18, '#ffffff', 0);

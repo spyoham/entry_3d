@@ -364,7 +364,11 @@ function scrOptions() {
   button(-100, 44, 100, 24, `마우스 감도: ${Math.round(sens * 100)}%`, 3, 1); if (btnHot == 1) { if (clickLatch == 1) { if (mouseX() > 0) { sens = Math.min(2, sens + 0.1); } else { sens = Math.max(0.1, sens - 0.1); } } }
   let so = '끔'; if (sndOn == 1) { so = '켬'; }
   button(-100, 18, 100, -2, `소리: ${so}`, 4, 1); if (btnHot == 1) { if (clickLatch == 1) { sndOn = 1 - sndOn; } }
-  tx(5, '왼쪽 반을 누르면 줄이고 오른쪽 반을 누르면 늘립니다', 0, -14, 7, '#a0a0a0', 0);
+  // ((v2.6) the render distance kept as chosen (not lowered when slow), fog, light)
+  button(-100, -6, 100, -26, `시야 거리 ${optOn(1 - autoView, '고정', '자동 조절')}`, 7, 1); if (btnHot == 1) { if (clickLatch == 1) { autoView = 1 - autoView; } }
+  button(-100, -30, 100, -50, `안개: ${optOn(fogOn, '켬', '끔')}`, 8, 1); if (btnHot == 1) { if (clickLatch == 1) { fogOn = 1 - fogOn; } }
+  button(-100, -54, 100, -74, `빛 계산: ${optOn(lightOn, '켬', '끔(빠름)')}`, 9, 1); if (btnHot == 1) { if (clickLatch == 1) { lightOn = 1 - lightOn; } }
+  tx(5, '왼쪽 반을 누르면 줄이고 오른쪽 반을 누르면 늘립니다', 0, -84, 7, '#a0a0a0', 0);
   button(-100, -102, 100, -122, '완료', 6, 1); if (btnHot == 1) { if (clickLatch == 1) { menuGo(0); } }
 }
 

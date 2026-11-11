@@ -17,6 +17,13 @@
 //   that reaches the cell over them (quasi-connectivity), only when something by them changes.
 // Every setBlock tells rsNotify; rsFlush (each frame) looks at the cells round it (two steps when a
 // part changed) and each part there decides (rsEval), at once or after a delay (rsSchedule).
+// (v2.6) The genre's game tick (1.16.5 Java), 20 a second (rsTick): first the parts whose delay is
+// over (scheduled ticks, by their time, then their priority, then the order they were asked), then
+// the pistons' block events (asked by a piston that sees its power change, done in the order asked,
+// each asking its power again), then the moving blocks two ticks old land. What a change tells is
+// done at once after each. Between ticks (the player's doing) it is done at once too, and a piston
+// starts at the next tick. So a sticky piston given a pulse of two ticks (an observer's, a repeater's)
+// lets go of its block, as in the genre, and one of three ticks or more pulls it back.
 // D6 directions: 0 -x, 1 +x, 2 -y, 3 +y, 4 -z, 5 +z (the face groups).
 let DX6 = [-1, 1, 0, 0, 0, 0], DY6 = [0, 0, -1, 1, 0, 0], DZ6 = [0, 0, 0, 0, -1, 1], OP6 = [1, 0, 3, 2, 5, 4];
 // the facing of the look (0 +z, 1 +x, 2 -z, 3 -x) as D6, and back
@@ -26,6 +33,9 @@ let D6BIT = [8, 2, 0, 0, 4, 1];
 // the variant of a hung part by the side it hangs on (floor, +z, +x, -z, -x, ceiling)
 let ATTI = [4, 2, 0, 5, 3, 1];
 let rsTime = 0;
+// (v2.6) the game ticks: gtNow done so far, gtT the time of the last; rsPhase 0 between ticks, 1
+// scheduled ticks, 2 block events, 3 moving blocks landing
+let gtNow = 0, gtT = 0, rsPhase = 0;
 
 // ---------------------------------------------------------------- reading power
 // what a part at (x, y, z) gives the neighbour the way d (from it): 0..15 (wire: not here)
@@ -353,18 +363,73 @@ function chestLevel(x, y, z) {
 }
 
 // ---------------------------------------------------------------- what is due later
-let SCX = [], SCY = [], SCZ = [], SCD = [], SCT = [], SCW = [];
-function rsSchedule(x, y, z, t, w) {
+// SCT the game tick it is due (-1: a free place), SCP its priority (less first: a repeater into a
+// repeater -3, one going off -2, other repeaters and comparators into a repeater -1, the rest 0), SCQ
+// the order asked, SCR the kind of part it is for (one of another kind there then: dropped, as the
+// genre: a part moved away by a piston does not take its tick along); scN the active ones
+let SCX = [], SCY = [], SCZ = [], SCD = [], SCT = [], SCW = [], SCP = [], SCQ = [], SCR = [], scSeq = 0, scN = 0;
+function rsSchedule(x, y, z, t, w) { rsSchedP(x, y, z, t, w, 0); }
+function rsSchedP(x, y, z, t, w, p) {
   let i = 1, f = 0, free = 0;
-  while (i <= SCX.length) {
-    if (SCT[i] >= 0) { if (SCX[i] == x && SCY[i] == y && SCZ[i] == z && SCD[i] == dim) { f = i; } }
+  while (i <= SCX.length && f == 0) {
+    if (SCT[i] >= 0) { if (SCX[i] == x) { if (SCZ[i] == z && SCY[i] == y && SCD[i] == dim) { f = i; } } }
     else { if (free == 0) { free = i; } }
     i = i + 1;
   }
   if (f == 0) {
-    if (free == 0) { SCX.push(0); SCY.push(0); SCZ.push(0); SCD.push(0); SCT.push(0); SCW.push(0); free = SCX.length; }
-    SCX[free] = x; SCY[free] = y; SCZ[free] = z; SCD[free] = dim; SCT[free] = rsTime + t; SCW[free] = w;
+    if (free == 0) { SCX.push(0); SCY.push(0); SCZ.push(0); SCD.push(0); SCT.push(0); SCW.push(0); SCP.push(0); SCQ.push(0); SCR.push(0); free = SCX.length; }
+    scSeq = scSeq + 1; scN = scN + 1;
+    SCX[free] = x; SCY[free] = y; SCZ[free] = z; SCD[free] = dim; SCT[free] = gtNow + Math.max(1, Math.round(t / 0.05)); SCW[free] = w; SCP[free] = p; SCQ[free] = scSeq; SCR[free] = BRS[blockAt(x, y, z) + 1];
   }
+}
+// the ticks due now, in the genre's order, each with what it tells done at once
+function rsTickDue() {
+  let go = 1;
+  while (go == 1) {
+    let best = 0, i = 1;
+    while (i <= SCX.length) {
+      if (SCT[i] >= 0) { if (SCT[i] <= gtNow) {
+        if (SCD[i] != dim) { SCT[i] = 0 - 1; scN = scN - 1; }
+        else { if (rsReady(SCX[i], SCZ[i]) == 1) {
+          if (best == 0) { best = i; }
+          else { if (SCT[i] < SCT[best] || (SCT[i] == SCT[best] && (SCP[i] < SCP[best] || (SCP[i] == SCP[best] && SCQ[i] < SCQ[best])))) { best = i; } }
+        } }
+      } }
+      i = i + 1;
+    }
+    if (best == 0) { go = 0; }
+    else {
+      SCT[best] = 0 - 1; scN = scN - 1;
+      let x = SCX[best], y = SCY[best], z = SCZ[best];
+      if (BRS[blockAt(x, y, z) + 1] == SCR[best]) { rsApply(x, y, z, SCW[best]); rsFlush(3000); }
+    }
+  }
+}
+// (v2.6) the pistons' block events: BET 0 push out, 1 pull back, 2 back without pulling (its block
+// still on its way: left there); one asked twice is done once
+let BEX = [], BEY = [], BEZ = [], BET = [], BED = [];
+function bevAdd(x, y, z, t) {
+  let i = 1, f = 0;
+  while (i <= BEX.length) { if (BEX[i] == x && BEY[i] == y && BEZ[i] == z && BET[i] == t && BED[i] == dim) { f = 1; } i = i + 1; }
+  if (f == 0) { BEX.push(x); BEY.push(y); BEZ.push(z); BET.push(t); BED.push(dim); }
+}
+function bevRun() {
+  let k = 0;
+  while (BEX.length > 0 && k < 2000) {
+    let x = BEX[1], y = BEY[1], z = BEZ[1], t = BET[1], d = BED[1];
+    BEX.removeAt(1); BEY.removeAt(1); BEZ.removeAt(1); BET.removeAt(1); BED.removeAt(1);
+    if (d == dim) { if (rsReady(x, z) == 1) { pistonEvent(x, y, z, t); rsFlush(3000); } }
+    k = k + 1;
+  }
+}
+function rsTick() {
+  rsPhase = 1;
+  if (scN > 0) { rsTickDue(); }
+  rsPhase = 2;
+  if (BEX.length > 0) { bevRun(); }
+  rsPhase = 3;
+  if (MVX.length > 0) { mvStep(); }
+  rsPhase = 0;
 }
 // the cells to look round (a changed one: w 1 two steps out (a part changed), + 2 a block changed there)
 let NQX = [], NQY = [], NQZ = [], NQW = [], nqH = 1, nqN = 0;
@@ -394,15 +459,13 @@ function powerCheck(x, y, z) { rsNotify(x, y, z, 1); }
 function rsStep(dt) {
   if (HSK.length == 0) { hsInit(); }
   rsTime = rsTime + dt;
-  // (v2.5) what pistons move lands first, then the parts due (as the genre: a moving block ends its
-  // move before the tick's block events, so a sticky piston given two ticks pulls its block back)
-  if (MVX.length > 0) { mvStep(); }
-  let i = 1;
-  while (i <= SCX.length) {
-    // (v2.5: a part on its way with a piston waits till it lands)
-    if (SCT[i] >= 0) { if (SCT[i] <= rsTime) { if (SCD[i] != dim) { SCT[i] = 0 - 1; } else { if (rsReady(SCX[i], SCZ[i]) == 1) { if (BRS[blockAt(SCX[i], SCY[i], SCZ[i]) + 1] != RS_MOVING) { SCT[i] = 0 - 1; rsApply(SCX[i], SCY[i], SCZ[i], SCW[i]); } } } } }
-    i = i + 1;
-  }
+  // (what the player did since: at once)
+  rsPhase = 0;
+  rsFlush(3000);
+  // (v2.6) the game ticks due (a slow frame: up to four, the rest let go)
+  let k = 0;
+  while (rsTime >= gtT + 0.05 && k < 4) { gtT = gtT + 0.05; gtNow = gtNow + 1; rsTick(); k = k + 1; }
+  if (rsTime > gtT + 0.05) { gtT = rsTime - 0.05; }
   if (RLX.length > 0) { rsLaterStep(); }
   sensorStep(dt);
   prT = prT + dt; if (prT > 30) { prT = 0; rsPrune(); }
@@ -455,7 +518,9 @@ function rsAround(x, y, z, w) {
     let nx = x + DX6[d + 1], ny = y + DY6[d + 1], nz = z + DZ6[d + 1];
     rsEvalAt(nx, ny, nz);
     if (mod(w, 2) == 1) {
-      let e = 0;
+      // ((v2.6) each cell two steps out once: one corner to corner was asked from both sides; the
+      // genre's order, W E D U N S, kept - the first time it is met)
+      let e = d;
       while (e < 6) { if (e != OP6[d + 1]) { rsEvalAt(nx + DX6[e + 1], ny + DY6[e + 1], nz + DZ6[e + 1]); } e = e + 1; }
     }
     d = d + 1;
@@ -471,10 +536,13 @@ function rsReady(x, z) {
 }
 function rsEvalAt(x, y, z) {
   if (y >= 0 && y < WY) {
-    if (rsReady(x, z) == 1) {
-      let b = blockAt(x, y, z);
-      if (BRS[b + 1] > 0) { rsEval(x, y, z, b); }
-    } else { if (rsReplay == 1) { if (cOK(x, z) == 1) { if (BRS[blockAt(x, y, z) + 1] > 0) { rsLater(x, y, z); } } } }
+    // ((v2.6) a part there first (most cells are none; a chunk not made reads as stone), then its
+    // chunk and the four by it made)
+    let b = blockAt(x, y, z);
+    if (BRS[b + 1] > 0) {
+      if (rsReady(x, z) == 1) { rsEval(x, y, z, b); }
+      else { if (rsReplay == 1) { if (cOK(x, z) == 1) { rsLater(x, y, z); } } }
+    }
   }
 }
 // (v2.4.4) the remembered states of parts gone (seen where their chunk is made) are dropped
@@ -538,11 +606,15 @@ function rsEval(x, y, z, b) {
   if (rl == RS_REPEATER) {
     let want = 0;
     if (backIn(x, y, z, OP6[f + 1]) > 0) { want = 1; }
-    if (repLocked(x, y, z, f) == 0) { if (want != on) { rsSchedule(x, y, z, BAUX[b + 1] * 0.1, want); } }
+    if (repLocked(x, y, z, f) == 0) { if (want != on) {
+      let pr = 0 - 1;
+      if (diodeFront(x, y, z, f) == 1) { pr = 0 - 3; } else { if (on == 1) { pr = 0 - 2; } }
+      rsSchedP(x, y, z, BAUX[b + 1] * 0.1, want, pr);
+    } }
   }
   if (rl == RS_COMPARATOR) {
     let out = cmpOut(x, y, z, b);
-    if (out != cmpLevel(x, y, z)) { rsSchedule(x, y, z, 0.1, out); }
+    if (out != cmpLevel(x, y, z)) { let pr = 0; if (diodeFront(x, y, z, f) == 1) { pr = 0 - 1; } rsSchedP(x, y, z, 0.1, out, pr); }
   }
   if (rl == RS_LAMP) {
     let p = powerIn(x, y, z, 0 - 1);
@@ -555,10 +627,11 @@ function rsEval(x, y, z, b) {
     // (v2.5: its arm on its way is there)
     if (on == 1 && BRS[hb + 1] != RS_MOVING && (BRS[hb + 1] != RS_HEAD || BFAC[hb + 1] != f)) { rsDrop(x, y, z, b); }
     else {
-      // (v2.5) it starts at once (the genre's block event, the same tick: the next frame here; it
-      // waited a tick, so a pulse of one tick was gone when it looked again and it never moved)
+      // (v2.6) as the genre's: powered and in, it asks to push out when it can; unpowered and out, to
+      // come back (without pulling when its block is still on its way); done at the tick's block events
       let want = pistonPowered(x, y, z, f);
-      if (want != on) { rsSchedule(x, y, z, 0.001, want); }
+      if (want == 1 && on == 0) { psPX = x; psPY = y; psPZ = z; if (psBuild(x + DX6[f + 1], y + DY6[f + 1], z + DZ6[f + 1], f) == 1) { bevAdd(x, y, z, 0); } }
+      if (want == 0 && on == 1) { bevAdd(x, y, z, pistonBack(x, y, z, f)); }
     }
   }
   // (v2.5) powered and activator rails: on with power by them or along their line
@@ -612,6 +685,12 @@ function cmpOut(x, y, z, b) {
   sd = Math.max(sideIn(x, y, z, s1), sideIn(x, y, z, s2));
   if (BAUX[b + 1] == 1) { out = Math.max(0, a - sd); } else { if (a >= sd) { out = a; } }
   return out;
+}
+// (v2.6) a repeater or comparator before this one's output, not pointing back into it (its tick first)
+function diodeFront(x, y, z, f) {
+  let nb = blockAt(x + DX6[f + 1], y, z + DZ6[f + 1]), r = 0;
+  if (BRS[nb + 1] == RS_REPEATER || BRS[nb + 1] == RS_COMPARATOR) { if (BFAC[nb + 1] != OP6[f + 1]) { r = 1; } }
+  return r;
 }
 // a repeater (or comparator) at (x, y, z) pointing the way d, on: it locks what it points into
 function rsLocks(x, y, z, d) {
@@ -734,12 +813,6 @@ function rsApply(x, y, z, w) {
     if (want != on) { setBlock(x, y, z, b + want - on); } else { rsNotify(x, y, z, 1); }
   }
   if (rl == RS_LAMP) { if (on == 1) { if (powerIn(x, y, z, 0 - 1) == 0) { setBlock(x, y, z, b - 1); } } }
-  if (rl == RS_PISTON) {
-    // (v2.4.4: the power now, not when it was asked)
-    let f = BFAC[b + 1], ww = pistonPowered(x, y, z, f);
-    if (ww == 1 && on == 0) { pistonOut(x, y, z, b, f); }
-    if (ww == 0 && on == 1) { pistonIn(x, y, z, b, f); }
-  }
 }
 // torches that switch too often burn out for a while (8 times in 3 s)
 let TBX = [], TBY = [], TBZ = [], TBT = [];
@@ -779,7 +852,6 @@ function pushHow(c) {
 // jelly and honey not each other. 12 blocks at most; a block that cannot move stops it when it is
 // in the way, and is left where it is when it only sticks on at a side. Blocks that break go.
 // PVX.. the blocks that move, PDX.. the ones that break; psMove the way (D6).
-let PSM = [];
 let PVX = [], PVY = [], PVZ = [], PVB = [], PDX = [], PDY = [], PDZ = [], PQX = [], PQY = [], PQZ = [], PQT = [];
 let psOk = 1, psMove = 0, psPX = 0, psPY = 0, psPZ = 0;
 function psSticky(b) { let r = 0; if (b == I_jellyBlock || b == I_honeyBlock) { r = 1; } return r; }
@@ -835,34 +907,31 @@ function psBuild(sx, sy, sz, d) {
 }
 // one cell written as a piston moves it (no falling or dropping on the way: that comes after)
 function psPut(x, y, z, b) {
+  let old = blockAt(x, y, z);
   logOn = 1; wput(x, y, z, b); logOn = 0;
   markDirty(x, y, z);
-  lbX0 = Math.min(lbX0, x - 14); lbX1 = Math.max(lbX1, x + 14); lbZ0 = Math.min(lbZ0, z - 14); lbZ1 = Math.max(lbZ1, z + 14);
+  // ((v2.6) the light from this cell alone, when it changes it)
+  psLight(x, y, z, old, b);
   rsNotify(x, y, z, 3);
+}
+function psLight(x, y, z, a, b) {
+  if (lightOn == 1) {
+    if (BLOP[a + 1] != BLOP[b + 1] || BHC[a + 1] != BHC[b + 1]) { lightCell(x, y, z); }
+    else { if (BLIT[a + 1] != BLIT[b + 1]) { blockLightSet(x, y, z, BLIT[b + 1]); } }
+  }
 }
 // the blocks found move one cell the way psMove; the cells left behind (not the head's) get their after-effects
 function psDo(hx, hy, hz, head) {
   let d = psMove, dx = DX6[d + 1], dy = DY6[d + 1], dz = DZ6[d + 1], i = 1;
   while (i <= PDX.length) { let c = blockAt(PDX[i], PDY[i], PDZ[i]); rsDrop(PDX[i], PDY[i], PDZ[i], c); partnerGone(PDX[i], PDY[i], PDZ[i], c, 0); i = i + 1; }
-  // (v2.4.3) an observer's waiting tick (its pulse to start or end) goes along with it: it was
-  // kept at the old cell, so one moved just after it saw a change never fired, and one moved
-  // while it fired stayed on for good (a flying machine or a fast clock stopped or ran wild)
-  PSM = [];
-  i = 1;
-  while (i <= SCX.length) {
-    if (SCT[i] >= 0) { if (SCD[i] == dim) { if (psHas(SCX[i], SCY[i], SCZ[i]) == 1) { if (BRS[blockAt(SCX[i], SCY[i], SCZ[i]) + 1] > 0) { PSM.push(i); } } } }
-    i = i + 1;
-  }
+  // ((v2.6) a part's waiting tick stays where it was, as the genre's (it is dropped there: another
+  // kind of block); an observer that lands fires, or goes off if it came on: mvPlace)
   i = 1;
   while (i <= PVX.length) { psPut(PVX[i], PVY[i], PVZ[i], 0); i = i + 1; }
+  psSrc = 0;
   i = 1;
   while (i <= PVX.length) { psPutMv(PVX[i] + dx, PVY[i] + dy, PVZ[i] + dz, PVB[i]); i = i + 1; }
-  i = 1;
-  while (i <= PSM.length) { let k = PSM[i]; SCX[k] = SCX[k] + dx; SCY[k] = SCY[k] + dy; SCZ[k] = SCZ[k] + dz; i = i + 1; }
-  // (and one that arrives on with no tick waiting goes off after its pulse)
-  i = 1;
-  while (i <= PVX.length) { if (BRS[PVB[i] + 1] == RS_OBSERVER) { if (BON[PVB[i] + 1] == 1) { rsSchedule(PVX[i] + dx, PVY[i] + dy, PVZ[i] + dz, 0.1, 0); } } i = i + 1; }
-  if (head > 0) { psPutMv(hx, hy, hz, head); }
+  if (head > 0) { psSrc = 1; psPutMv(hx, hy, hz, head); psSrc = 0; }
   i = 1;
   while (i <= PVX.length) {
     let x = PVX[i], y = PVY[i], z = PVZ[i];
@@ -880,20 +949,48 @@ function pistonOut(x, y, z, b, f) {
     sndPlay(1);
   }
 }
-function pistonIn(x, y, z, b, f) {
-  let hx = x + DX6[f + 1], hy = y + DY6[f + 1], hz = z + DZ6[f + 1], pk = hsKey(x, y, z), going = mvGoing(pk);
-  // (v2.5) still on its way out (a pulse shorter than the move): what it pushed lands at once,
-  // and a sticky one lets go of its block (it does not pull it back)
-  if (going == 1) { mvFinish(pk); }
-  setBlock(x, y, z, b - 1);
-  if (BRS[blockAt(hx, hy, hz) + 1] == RS_HEAD) { setBlock(hx, hy, hz, 0); }
-  psKey = pk; psExt = 0;
-  if (BAUX[b + 1] == 1 && going == 0) {
-    // a sticky one pulls the block before its arm (and what sticks to it) back
-    let tx = hx + DX6[f + 1], ty = hy + DY6[f + 1], tz = hz + DZ6[f + 1];
-    psPX = x; psPY = y; psPZ = z;
-    if (ty >= 0 && ty < WY) { if (pushHow(blockAt(tx, ty, tz)) == 1) { if (psBuild(tx, ty, tz, OP6[f + 1]) == 1) { psDo(0, 0 - 1, 0, 0); } } }
+// (v2.6) what a piston coming back will do: 1 pull, 2 not (the block before its arm still on its
+// way out the same way, as the genre: asked in a tick's work, or before that block's second tick)
+function pistonBack(x, y, z, f) {
+  let i = mvAt(x + DX6[f + 1] * 2, y + DY6[f + 1] * 2, z + DZ6[f + 1] * 2), r = 1;
+  if (i > 0) { if (MVF[i] == f && MVE[i] == 1) { if (rsPhase != 3 || gtNow - MVC[i] <= 1) { r = 2; } } }
+  return r;
+}
+// a block event: the power asked again (not powered now: no push; powered again: no pull)
+function pistonEvent(x, y, z, t) {
+  let b = blockAt(x, y, z);
+  if (BRS[b + 1] == RS_PISTON) {
+    let f = BFAC[b + 1], on = BON[b + 1], pw = pistonPowered(x, y, z, f);
+    if (t == 0) { if (pw == 1 && on == 0) { pistonOut(x, y, z, b, f); } }
+    else { if (pw == 0 && on == 1) { pistonIn(x, y, z, b, f, t); } }
   }
+}
+function pistonIn(x, y, z, b, f, t) {
+  let hx = x + DX6[f + 1], hy = y + DY6[f + 1], hz = z + DZ6[f + 1], pk = hsKey(x, y, z);
+  // its arm still on its way out: done at once (as the genre's: the arm is then gone)
+  let i = mvAt(hx, hy, hz);
+  if (i > 0) { mvFinal(i); }
+  // the piston itself is a moving block till its arm is in (two ticks)
+  psKey = pk; psExt = 0; psMove = f; psSrc = 1;
+  psPutMv(x, y, z, b - 1);
+  psSrc = 0;
+  let pulled = 0;
+  if (BAUX[b + 1] == 1) {
+    // a sticky one: the block before its arm still on its way out lands there (let go); else (a
+    // pull) that block and what sticks to it come back, unless it breaks or cannot move
+    let tx = hx + DX6[f + 1], ty = hy + DY6[f + 1], tz = hz + DZ6[f + 1], j = mvAt(tx, ty, tz), let2 = 0;
+    if (j > 0) { if (MVF[j] == f && MVE[j] == 1) { mvFinal(j); let2 = 1; } }
+    if (let2 == 0 && t == 1 && ty >= 0 && ty < WY) {
+      let c = blockAt(tx, ty, tz);
+      if (c != 0 && pushHow(c) == 1) {
+        if (BRS[blockAt(hx, hy, hz) + 1] == RS_HEAD) { setBlock(hx, hy, hz, 0); }
+        psPX = x; psPY = y; psPZ = z;
+        if (psBuild(tx, ty, tz, OP6[f + 1]) == 1) { psDo(0, 0 - 1, 0, 0); }
+        pulled = 1;
+      }
+    }
+  }
+  if (pulled == 0) { if (BRS[blockAt(hx, hy, hz) + 1] == RS_HEAD) { setBlock(hx, hy, hz, 0); } }
   sndPlay(1);
 }
 // the player, the mobs and (v2.5) the items in the cells moved into (and the arm's) go along, each
@@ -942,43 +1039,55 @@ function pushBodies(dx, dy, dz, hx, hy, hz, head) {
 }
 
 // ---------------------------------------------------------------- (v2.5) blocks on their way
-// MV*: where one lands, what it is, when (rsTime), the world, the way it goes (D6), the piston
-// (hsKey of it), 1 pushed out / 0 pulled back
-let MVX = [], MVY = [], MVZ = [], MVB = [], MVT = [], MVD = [], MVF = [], MVP = [], MVE = [];
-let psKey = 0, psExt = 1, mvPX = 0, mvPY = 0, mvPZ = 0;
+// MV*: where one lands, what it is, when it is drawn there (rsTime), the world, the way it goes (D6),
+// the piston (hsKey of it), 1 pushed out / 0 pulled back, (v2.6) the game tick it set out (it lands
+// two ticks after, at that tick's end), 1 the piston's own (its arm going out, or the piston coming in)
+let MVX = [], MVY = [], MVZ = [], MVB = [], MVT = [], MVD = [], MVF = [], MVP = [], MVE = [], MVC = [], MVS = [];
+let psKey = 0, psExt = 1, psSrc = 0, mvPX = 0, mvPY = 0, mvPZ = 0;
 // a block written as it lands (the log, and a world kept now, have it there), the cell meanwhile moving
 function psPutMv(x, y, z, b) {
+  let old = blockAt(x, y, z);
   logOn = 1; wput(x, y, z, b); logOn = 0;
   wput(x, y, z, I_moving);
   markDirty(x, y, z);
-  lbX0 = Math.min(lbX0, x - 14); lbX1 = Math.max(lbX1, x + 14); lbZ0 = Math.min(lbZ0, z - 14); lbZ1 = Math.max(lbZ1, z + 14);
+  psLight(x, y, z, old, I_moving);
   rsNotify(x, y, z, 3);
-  MVX.push(x); MVY.push(y); MVZ.push(z); MVB.push(b); MVT.push(rsTime + 0.1); MVD.push(dim); MVF.push(psMove); MVP.push(psKey); MVE.push(psExt);
+  MVX.push(x); MVY.push(y); MVZ.push(z); MVB.push(b); MVT.push(gtT + 0.1); MVD.push(dim); MVF.push(psMove); MVP.push(psKey); MVE.push(psExt); MVC.push(gtNow); MVS.push(psSrc);
 }
 function mvAt(x, y, z) {
   let i = 1, r = 0;
   while (i <= MVX.length) { if (MVX[i] == x && MVY[i] == y && MVZ[i] == z && MVD[i] == dim) { r = i; } i = i + 1; }
   return r;
 }
-// is the piston (its key) pushing out still
-function mvGoing(pk) {
-  let i = 1, r = 0;
-  while (i <= MVX.length) { if (MVP[i] == pk && MVE[i] == 1 && MVD[i] == dim) { r = 1; } i = i + 1; }
-  return r;
+function mvDel(i) {
+  MVX.removeAt(i); MVY.removeAt(i); MVZ.removeAt(i); MVB.removeAt(i); MVT.removeAt(i); MVD.removeAt(i); MVF.removeAt(i); MVP.removeAt(i); MVE.removeAt(i); MVC.removeAt(i); MVS.removeAt(i);
 }
+// it lands (its block put); (v2.6) an observer that lands fires (as the genre's: it sees its own
+// face put), one that was on comes off
 function mvLand(i) {
   let x = MVX[i], y = MVY[i], z = MVZ[i], b = MVB[i], d = MVD[i];
-  MVX.removeAt(i); MVY.removeAt(i); MVZ.removeAt(i); MVB.removeAt(i); MVT.removeAt(i); MVD.removeAt(i); MVF.removeAt(i); MVP.removeAt(i); MVE.removeAt(i);
-  if (d == dim) { if (blockAt(x, y, z) == I_moving) { setBlock(x, y, z, b); } }
+  mvDel(i);
+  if (d == dim) { if (blockAt(x, y, z) == I_moving) { mvPlace(x, y, z, b); } }
 }
+function mvPlace(x, y, z, b) {
+  if (BRS[b + 1] == RS_OBSERVER) {
+    if (BON[b + 1] == 1) { setBlock(x, y, z, b - 1); } else { setBlock(x, y, z, b); rsSchedule(x, y, z, 0.1, 1); }
+  } else { setBlock(x, y, z, b); }
+}
+// (v2.6) the genre's finalTick: done at once (a piston's own arm going out is then gone: air)
+function mvFinal(i) {
+  let x = MVX[i], y = MVY[i], z = MVZ[i], b = MVB[i], d = MVD[i], gone = 0;
+  if (MVS[i] == 1 && MVE[i] == 1) { gone = 1; }
+  mvDel(i);
+  if (d == dim) { if (blockAt(x, y, z) == I_moving) { if (gone == 1) { setBlock(x, y, z, 0); } else { mvPlace(x, y, z, b); } } }
+}
+// the tick's end: the ones two ticks old land (another world's are let go)
 function mvStep() {
   let i = 1;
-  while (i <= MVX.length) { if (MVT[i] <= rsTime + 0.001 || MVD[i] != dim) { mvLand(i); } else { i = i + 1; } }
-}
-// all of the piston's moves land now
-function mvFinish(pk) {
-  let i = 1;
-  while (i <= MVX.length) { if (MVP[i] == pk) { mvLand(i); } else { i = i + 1; } }
+  while (i <= MVX.length) {
+    if (MVD[i] != dim) { mvDel(i); }
+    else { if (gtNow - MVC[i] >= 2) { mvLand(i); rsFlush(3000); } else { i = i + 1; } }
+  }
 }
 // where one is drawn now (the middle of its bottom)
 function mvPos(i) {

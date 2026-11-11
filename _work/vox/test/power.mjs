@@ -87,7 +87,8 @@ for (let i = 0; i < 120; i++) { F(1); const t = on(X + 21, Y, Z); if (t !== last
 let dark = 1;
 for (let i = 0; i < 40; i++) { F(1); if (on(X + 21, Y, Z) === 1) dark = 0; }
 ok(flips >= 6 && dark === 1, `a torch clock: switched ${flips} times in 2 s, then burnt out`);
-wait(3.5); let back = 0; for (let i = 0; i < 40; i++) { F(1); if (on(X + 21, Y, Z) === 1) back = 1; }
+// ((v2.6) the ticks are whole game ticks now: it comes back a little later)
+wait(3.5); let back = 0; for (let i = 0; i < 240; i++) { F(1); if (on(X + 21, Y, Z) === 1) back = 1; }
 ok(back === 1, '... and lit again later');
 brk(X + 20, Y, Z + 1); settle(); wait(0.5);
 
@@ -189,18 +190,20 @@ for (const [yaw, dx] of [[90, 1], [270, -1]]) {
   for (let i = 0; i < 30; i++) { F(1); if (lit(ox - dx, Y, oz)) lit3 = 1; }
   ok(lit3 === 1, '/setblock before it is seen too');
 }
-// (v2.4.3) an observer moved by a piston just after it saw a change, or while it fired: the pulse
-// goes along with it (it never fired, or stayed on for good)
+// (v2.4.3) an observer moved by a piston just after it saw a change, or while it fired: it fires
+// (a lamp behind it lights) and does not stay on. ((v2.6) as the genre: its tick stays where it was;
+// moved before it fired, it fires where it lands; moved on, it lands off)
 for (const delay of [0, 1, 3, 5]) {
   const x0 = X - 20 + delay * 6, z0 = Z + 32;
   placeAs(x0, Y, z0, 'observer', 3, 0);
   placeAs(x0 - 1, Y, z0, 'piston', 3, 270);
+  put(x0, Y, z0 - 1, 'spark_lamp'); put(x0 + 1, Y, z0 - 1, 'spark_lamp');
   settle(); wait(0.5);
   placeAs(x0, Y, z0 + 1, 'stone');
   F(delay);
   put(x0 - 2, Y, z0, 'spark_block');
   let fired = 0;
-  for (let k = 0; k < 60; k++) { F(1); if (BON[B(x0, Y, z0)] === 1 || BON[B(x0 + 1, Y, z0)] === 1) fired = 1; }
+  for (let k = 0; k < 60; k++) { F(1); if (BON[B(x0, Y, z0)] === 1 || BON[B(x0 + 1, Y, z0)] === 1 || lit(x0, Y, z0 - 1) || lit(x0 + 1, Y, z0 - 1)) fired = 1; }
   ok(BFAC[B(x0 + 1, Y, z0)] === 5 && fired === 1 && BON[B(x0 + 1, Y, z0)] === 0, `pushed ${delay} frames after it saw a change: it fired once and went off (${K(B(x0 + 1, Y, z0))})`);
 }
 // shuttled back and forth fast by a sticky piston for 3 s while blocks come and go before it: after, all is still

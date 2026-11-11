@@ -17,6 +17,8 @@ let bTop = 0;
 let FOGL = [];
 let CT = [];
 let ctPos = 0, fogR = 170, fogG = 205, fogB = 250, fogHex = '#aaccff';
+// (v2.6) the settings: fog (off: the far blocks in their own colours to the edge)
+let fogOn = 1;
 let SVF = [], SIN = [], SQ = [], SFI = [];
 let skyHex = '#78a7ff', voidHex = '#101018';
 
@@ -37,7 +39,7 @@ function renderInit() {
 }
 // light (sky * 16 + block) and face direction -> brightness step x 8, for the darkness of now
 let LTK = [];
-let ltkDark = -1;
+let ltkDark = -1, ltkAmb = -1;
 function ltkBuild() {
   if (LTK.length == 0) { let i = 0; while (i < 2048) { LTK.push(0); i = i + 1; } }
   let lt = 0, d = 0, lv = 0, bl = 0;
@@ -49,7 +51,7 @@ function ltkBuild() {
     while (d < 8) { LTK[lt * 8 + d + 1] = BIDX[lv * 8 + d + 1] * 8; d = d + 1; }
     lt = lt + 1;
   }
-  ltkDark = dark;
+  ltkDark = dark; ltkAmb = dimAmb;
 }
 // the render distance: fog over its last 38 %
 function setView(r) {
@@ -59,6 +61,7 @@ function setView(r) {
   while (d2 <= viewR2 + 2) {
     f = Math.round((Math.sqrt(d2) / r - 0.62) / 0.38 * 7);
     if (f < 0) { f = 0; } if (f > 7) { f = 7; }
+    if (fogOn == 0) { f = 0; }
     FOGL.push(f);
     d2 = d2 + 1;
   }
@@ -686,7 +689,9 @@ function renderWorld() {
   drawSky();
   if (underWater == 0) { if (dim == 0) { drawClouds(); } }
   frustumSetup();
-  if (dark != ltkDark) { ltkBuild(); }
+  // ((v2.6) and when the world's least light changes: back from the void with the night as dark as
+  // it was there, the table of the void (its least light 8) stayed)
+  if (dark != ltkDark || dimAmb != ltkAmb) { ltkBuild(); }
   findSections();
   collectFaces();
   nFace = bTop;
