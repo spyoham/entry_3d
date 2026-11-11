@@ -309,7 +309,8 @@ function uiInput() {
     if (keyHit(80) == 1 || keyHit(27) == 1) { uiMode = 0; txClear(); lockReq(); }
     if (clickLatch == 1) {
       let right = 0;
-      if (mouseX() > 0) { right = 1; }
+      // ((v2.6.1) the right half of the button (the left column: -200 .. -10); it was x > 0, past it)
+      if (mouseX() > 0 - 105) { right = 1; }
       if (menuSel == 1) { uiMode = 0; txClear(); lockReq(); }
       if (menuSel == 2) { if (right == 1) { viewWant = viewWant + 4; if (viewWant > 48) { viewWant = 48; } } else { viewWant = viewWant - 4; if (viewWant < 8) { viewWant = 8; } } setView(viewWant); }
       if (menuSel == 3) { if (right == 1) { sens = Math.min(2, sens + 0.1); } else { sens = Math.max(0.1, sens - 0.1); } }

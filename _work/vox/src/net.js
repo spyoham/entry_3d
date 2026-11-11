@@ -102,6 +102,8 @@ function nsPut(k, s) {
 function slotLine() {
   let fl = 0;
   if (sneaking == 1) { fl = fl + 1; } if (swingT > 0) { fl = fl + 2; } if (hurtT > 0) { fl = fl + 4; } if (flying == 1) { fl = fl + 8; }
+  // ((v2.6.1) and the weather: 16 x it, so the host's is everyone's)
+  fl = fl + 16 * wthr;
   let s = `B${padN(netSid, 6)}${padN(netSeq, 5)}${padN(wallNow(), 5)}${netSt}${padN(netSrv, 2)}${dim}${padN(px * 10 + 5000000, 7)}${padN((py + 100) * 10, 4)}${padN(pz * 10 + 5000000, 7)}`;
   s = `${s}${padN(mod(yaw, 360), 3)}${padN(pitch + 90, 3)}${padN(INVI[hotSel], 4)}${padN(fl, 2)}${padN(hp, 2)}${gameMode}${padN(tday * 9999, 4)}|${netNick}|`;
   let i = 1;
@@ -502,7 +504,7 @@ function netInServer(dt) {
     netUserT = netUserT + dt;
     if (netUserT > 30) { netUserT = 0; evAdd('u', `${netSrv}^${netUserPack()}`); }
     // the day follows the host's
-    if (h > 0) { if (h != netMy) { if (Math.abs(NTD[h] - tday) > 0.01) { tday = NTD[h]; } } }
+    if (h > 0) { if (h != netMy) { if (Math.abs(NTD[h] - tday) > 0.01) { tday = NTD[h]; } if (idiv(NFLG[h], 16) != wthr) { wthr = idiv(NFLG[h], 16); } } }
     netEnts(dt);
     netChestWatch();
     if (netHost == 1) { hostStep(dt); }
@@ -517,6 +519,8 @@ function netEvent(k, t, f) {
   if (t == 'w') { splitBy(f, '^'); if (SPL.length >= 2) { if (SPL[1] == netNick) { chatAdd(`${NNICK[k]} 님의 귓속말: ${netDec(SPL[2])}`); } } }
   if (t == 'r') { splitBy(f, '^'); if (SPL.length >= 2 && k == srvHost(netSrv)) { if (SPL[1] == '*' || SPL[1] == netNick) { let cmd = netDec(SPL[2]); netQuiet = 1; netRunAs(cmd); netQuiet = 0; } } }
   if (t == 't') { titleS = netDec(f); titleT = 4; }
+  // ((v2.6.1) /time or /weather by someone: here too (the host's is followed after it))
+  if (t == 'y') { splitBy(f, '^'); if (SPL.length >= 3) { tday = SPL[1] * 1; wthr = SPL[2] * 1; wthrT = SPL[3] * 1; } }
   // (v2.3) a command for me from someone who may give it (cmdaim.js)
   if (t == 'a') { splitBy(f, '^'); if (SPL.length >= 2) { if (SPL[1] == netNick) { let cmd = netDec(SPL[2]); cmdSplit(substr(cmd, 2, strlen(cmd))); if (permOk(NNICK[k], lower(bare(cw(1)))) == 1) { netRunAs(cmd); } } } }
   if (t == 'k') { splitBy(f, '^'); if (SPL.length >= 2 && permOk(NNICK[k], 'kick') == 1) { if (SPL[1] == netNick && netNick != SUPER) { netDisconnect(netDec(SPL[2])); } } }

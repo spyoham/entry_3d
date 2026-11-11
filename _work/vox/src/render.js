@@ -54,7 +54,11 @@ function ltkBuild() {
   ltkDark = dark; ltkAmb = dimAmb;
 }
 // the render distance: fog over its last 38 %
+// (v2.6.1) the last gathering's eye and its buckets' heads (HDS); meshVer moves with every section
+// meshed or let go and every render distance
+let fcX = 0 - 99999, fcY = 0, fcZ = 0, fcYaw = 0, fcPit = 0, fcView = 0, fcVer = 0 - 1, fcDim = 0, fcTop = 0, meshVer = 0, HDS = [];
 function setView(r) {
+  meshVer = meshVer + 1;
   viewR = r; viewR2 = r * r; kMax = Math.floor(r * 1.45) + WY + 2;
   FOGL = [];
   let d2 = 0, f = 0;
@@ -574,27 +578,36 @@ function drawClouds() {
     let x0 = Math.floor((camX - r - cloudOff) / cs), x1 = Math.floor((camX + r - cloudOff) / cs);
     let z0 = Math.floor((camZ - r) / cs), z1 = Math.floor((camZ + r) / cs);
     let gx = x0, gz = 0, wx = 0, wz = 0, dd = 0, fog = 0, foc = FOC;
-    let p0 = 0, ok = 0;
+    let p0 = 0, ok = 0, cOne = 0;
     while (gx <= x1) {
       gz = z0;
       while (gz <= z1) {
         if (CLOUD[mod(gx, 32) * 32 + mod(gz, 32) + 1] == 1) {
+          // ((v2.6.1) up to four clouds in a row along z as one quad (one fill, four corners: a cloud
+          // cell each was 160 fills); its fog by its middle)
+          let run = 1, cb = mod(gx, 32) * 32 + 1;
+          if (cOne == 0) { while (run < 4 && gz + run <= z1 && CLOUD[cb + mod(gz + run, 32)] == 1) { run = run + 1; } }
+          cOne = 0;
           wx = gx * cs + cloudOff + cs / 2 - camX; wz = gz * cs + cs / 2 - camZ;
-          dd = wx * wx + wz * wz;
+          let wz2 = wz + (run - 1) * cs, wzm = (wz + wz2) / 2;
+          dd = wx * wx + wzm * wzm;
           if (dd < r * r) {
             fog = Math.min(7, Math.floor(Math.sqrt(dd) / r * 9));
             ok = 1;
             cloudPt(wx - 4, cy, wz - 4); let ax = dsx, ay = dsy; if (dirOn == 0) { ok = 0; }
             cloudPt(wx + 4, cy, wz - 4); let bx = dsx, by = dsy; if (dirOn == 0) { ok = 0; }
-            cloudPt(wx + 4, cy, wz + 4); let ccx = dsx, ccy = dsy; if (dirOn == 0) { ok = 0; }
-            cloudPt(wx - 4, cy, wz + 4); let ex = dsx, ey = dsy; if (dirOn == 0) { ok = 0; }
+            cloudPt(wx + 4, cy, wz2 + 4); let ccx = dsx, ccy = dsy; if (dirOn == 0) { ok = 0; }
+            cloudPt(wx - 4, cy, wz2 + 4); let ex = dsx, ey = dsy; if (dirOn == 0) { ok = 0; }
             if (ok == 1) {
               fillStop(); goto(ax, ay); fillColorHex(CT[CCLOUD + 22 * 8 + fog + 1]); fillStart(); goto(bx, by); goto(ccx, ccy); goto(ex, ey);
               nFill = nFill + 1;
+            } else {
+              // (a long one reaching behind the eye: its first cell alone, then on)
+              if (run > 1) { run = 0; cOne = 1; }
             }
-          }
-        }
-        gz = gz + 1;
+          } else { if (run > 1) { run = 0; cOne = 1; } }
+          gz = gz + run;
+        } else { gz = gz + 1; }
       }
       gx = gx + 1;
     }
@@ -692,8 +705,19 @@ function renderWorld() {
   // ((v2.6) and when the world's least light changes: back from the void with the night as dark as
   // it was there, the table of the void (its least light 8) stayed)
   if (dark != ltkDark || dimAmb != ltkAmb) { ltkBuild(); }
-  findSections();
-  collectFaces();
+  // ((v2.6.1) the eye not moved, nothing meshed again since: the faces found are the same - their
+  // buckets as they were (the sections' search and the faces' gathering were 11 % of a still frame)
+  if (camX == fcX && camY == fcY && camZ == fcZ && camYaw == fcYaw && camPitch == fcPit && viewR == fcView && meshVer == fcVer && dim == fcDim) {
+    let k = 1;
+    while (k <= kMax + 1) { HD[k] = HDS[k]; k = k + 1; }
+    bTop = fcTop;
+  } else {
+    findSections();
+    collectFaces();
+    fcX = camX; fcY = camY; fcZ = camZ; fcYaw = camYaw; fcPit = camPitch; fcView = viewR; fcVer = meshVer; fcDim = dim; fcTop = bTop;
+    let k = 1;
+    while (k <= kMax + 1) { if (k > HDS.length) { HDS.push(HD[k]); } else { HDS[k] = HD[k]; } k = k + 1; }
+  }
   nFace = bTop;
   bucketThings();
   drawBuckets();

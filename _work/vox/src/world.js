@@ -1071,6 +1071,7 @@ function nbRemesh(ncx, ncz, x, z, dx, dz, bit) {
   } } }
 }
 function chunkDrop(s) {
+  meshVer = meshVer + 1;
   let cx = CKX[s], cz = CKZ[s];
   CKST[s] = 0; CKSUB[s] = 0;
   let a = 0, c = 0, y = 0, k = 0;

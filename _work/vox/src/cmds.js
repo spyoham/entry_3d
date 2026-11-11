@@ -84,8 +84,9 @@ function isNum(w) {
 }
 // the name without its namespace (minecraft: / blockworld:)
 function bare(nm) {
-  let c = indexOf(nm, ':');
-  if (c > 0) { nm = substr(nm, c + 1, strlen(nm)); }
+  // ((v2.6.1) only a name's own minecraft: - the one in diamond_sword{Enchantments:[..]} cut the name off)
+  let c = indexOf(nm, ':'), b1 = indexOf(nm, '['), b2 = indexOf(nm, '{');
+  if (c > 0 && c < strlen(nm) && (b1 == 0 || c < b1) && (b2 == 0 || c < b2)) { nm = substr(nm, c + 1, strlen(nm)); }
   return nm;
 }
 // text in quotes or a {"text": ...} loses them
@@ -609,7 +610,7 @@ function runCmd(c) {
   else { if (c == 'me') { out = `* 플레이어 ${wordsFrom(2, CMW.length)}`; }
   else { if (c == 'tell' || c == 'msg' || c == 'w') { out = `플레이어이(가) 속삭입니다: ${wordsFrom(3, CMW.length)}`; }
   else { if (c == 'list') { out = '접속한 플레이어 1명 중 1명: 플레이어'; }
-  else { if (c == 'locate') { out = cmdLocate(bare(cw(2))); }
+  else { if (c == 'locate') { if (cw(2) == 'structure') { out = cmdLocate(bare(cw(3))); } else { if (cw(2) == 'biome') { out = cmdLocateBiome(bare(cw(3))); } else { out = cmdLocate(bare(cw(2))); } } }
   else { if (c == 'locatebiome') { out = cmdLocateBiome(bare(cw(2))); }
   else { if (c == 'title') { out = cmdTitle(); }
   else { if (c == 'xp' || c == 'experience') { out = cmdXp(); }
@@ -712,7 +713,10 @@ function setMode(m) {
 }
 function cmdGamerule() {
   let nm = lower(cw(2)), v = cw(3), k = grFind(nm), out = '';
-  if (k == 0) { out = `알 수 없는 게임 규칙입니다: ${cw(2)}`; }
+  if (CMW.length < 2) {
+    // ((v2.6.1) /gamerule alone: the rules there are; it said there was no rule called 0)
+    out = '게임 규칙:'; let j = 1; while (j <= GRS.length) { out = `${out} ${GRS[j]}`; j = j + 1; }
+  } else { if (k == 0) { out = `알 수 없는 게임 규칙입니다: ${cw(2)}`; }
   else {
     if (CMW.length < 3) { out = `게임 규칙 ${GRS[k]}의 현재 값: ${grText(k)}`; }
     else {
@@ -721,7 +725,7 @@ function cmdGamerule() {
       else { if (isNum(v) == 1) { val = Math.max(0, Math.floor(v * 1)); } }
       if (val < 0) { out = `잘못된 값입니다: ${v}`; } else { GRV[k] = val; grSync(); out = `게임 규칙 ${GRS[k]}이(가) ${grText(k)}(으)로 바뀌었습니다`; }
     }
-  }
+  } }
   return out;
 }
 function cmdEffect() {
@@ -743,7 +747,9 @@ function cmdEffect() {
   return out;
 }
 function ticksOf(w) {
-  let r = 0 - 1, last = charAt(w, strlen(w)), n = w;
+  let r = 0 - 1, last = ' ', n = w;
+  // ((v2.6.1) an empty word: none - charAt(w, 0) stopped the game)
+  if (strlen(w) > 0) { last = charAt(w, strlen(w)); }
   if (last == 'd' || last == 's' || last == 't') { n = substr(w, 1, strlen(w) - 1); }
   if (isNum(n) == 1) { r = n * 1; if (last == 'd') { r = r * 24000; } if (last == 's') { r = r * 20; } }
   return r;
@@ -755,34 +761,69 @@ function cmdTime() {
     if (w == 'gametime') { out = `게임 시간: ${Math.floor(gameTicks)}`; } else { if (w == 'day') { out = `날: ${dayN}`; } else { out = `시각: ${Math.floor(tday * 24000)}`; } }
   } else {
     if (w == 'day') { t = 1000; } if (w == 'noon') { t = 6000; } if (w == 'night') { t = 13000; } if (w == 'midnight') { t = 18000; }
+    if (w == 'sunrise') { t = 23000; } if (w == 'sunset') { t = 12000; }
     if (t < 0) { t = ticksOf(w); }
     if (s2 == 'add') { if (t >= 0) { dayN = dayN + Math.floor((tday * 24000 + t) / 24000); t = mod(tday * 24000 + t, 24000); } }
-    if (t >= 0) { tday = mod(t, 24000) / 24000; out = `시각을 ${Math.floor(mod(t, 24000))}(으)로 맞췄습니다`; } else { out = '/time set|add|query (/help time)'; }
+    if (t >= 0) { tday = mod(t, 24000) / 24000; out = `시각을 ${Math.floor(mod(t, 24000))}(으)로 맞췄습니다`; netSky(); } else { out = '/time set|add|query (/help time)'; }
   }
   return out;
 }
 function cmdWeather(w, d) {
-  let out = '', sec = 300 + rand(0, 600);
-  if (isNum(d) == 1) { sec = d * 1; }
+  // ((v2.6.1) as 1.16.5: 300 s when no time is given (it was 5 .. 15 min at random), the time in
+  // seconds, or with t / s / d (60s, 1d, 6000t: it was taken for no time); on a server everyone's)
+  let out = '', sec = 300;
+  if (isNum(d) == 1) { sec = d * 1; } else { if (d != '-') { let tk = ticksOf(d); if (tk >= 0) { sec = tk / 20; } } }
   if (w == 'clear') { wthr = 0; wthrT = sec; out = '날씨를 맑음으로 바꿨습니다'; }
   else { if (w == 'rain') { wthr = 1; wthrT = sec; out = '날씨를 비로 바꿨습니다'; }
-  else { if (w == 'thunder') { wthr = 2; wthrT = sec; out = '날씨를 뇌우로 바꿨습니다'; } else { out = '/weather clear|rain|thunder [초]'; } } }
+  else { if (w == 'thunder') { wthr = 2; wthrT = sec; out = '날씨를 뇌우로 바꿨습니다'; } else { out = '/weather clear|rain|thunder [초|60s|1d]'; } } }
+  if (strlen(out) > 0) { if (indexOf(out, '/weather') == 0) { netSky(); } }
   return out;
 }
+// ((v2.6.1) a time or weather set on a server: to everyone (the host's is followed after)
+function netSky() { if (netSrv > 0) { if (netSt == 2 && netQuiet == 0) { evAdd('y', `${tday}^${wthr}^${wthrT}`); } } }
+// a rotation of the genre's (yaw 90: west, pitch 90: down) as the game's (yaw 90: east, pitch 90: up)
+function yawArg(w, here) {
+  let r = here;
+  if (charAt(w, 1) == '~') { if (strlen(w) > 1) { r = here - substr(w, 2, strlen(w)) * 1; } } else { if (isNum(w) == 1) { r = 0 - w * 1; } }
+  return r;
+}
+function pitchArg(w, here) {
+  let r = here;
+  if (charAt(w, 1) == '~') { if (strlen(w) > 1) { r = here - substr(w, 2, strlen(w)) * 1; } } else { if (isNum(w) == 1) { r = 0 - w * 1; } }
+  return Math.max(0 - 89.5, Math.min(89.5, r));
+}
 let TPK = [];
+// the rotation from the word k on (yaw pitch | facing x y z | facing entity target), for a move to
+// (cX, cY, cZ): tpYw, tpPt (-999: none)
+let tpYw = 0, tpPt = 0;
+function tpRot(k) {
+  tpYw = 0 - 999; tpPt = 0 - 999;
+  let x0 = cX, y0 = cY, z0 = cZ;
+  if (CMW.length >= k) {
+    if (cw(k) == 'facing') {
+      let fx = 0, fy = 0, fz = 0, got = 0;
+      if (cw(k + 1) == 'entity') { selParse(cw(k + 2)); if (selN > 0) { let e = SEL[1]; got = 1; if (e > 0) { fx = EX[e]; fy = EY[e] + 1.5; fz = EZ[e]; } else { fx = px; fy = py + 1.62; fz = pz; } } }
+      else { coords(k + 1); if (cOk == 1) { got = 1; fx = cX; fy = cY; fz = cZ; } }
+      if (got == 1) { let hz = Math.sqrt((fx - x0) * (fx - x0) + (fz - z0) * (fz - z0)); tpYw = atan2d(fx - x0, fz - z0); tpPt = Math.max(0 - 89.5, Math.min(89.5, atan2d(fy - y0 - 1.62, hz + 0.0001))); }
+      cX = x0; cY = y0; cZ = z0; cOk = 1;
+    } else { if (CMW.length >= k + 1) { tpYw = yawArg(cw(k), cmdYaw); tpPt = pitchArg(cw(k + 1), cmdPitch); } }
+  }
+}
 function cmdTp() {
   let out = '', n = CMW.length, who = 0, tx2 = 0, ty2 = 0, tz2 = 0, ok = 0, yw = 0 - 999, pt = 0 - 999;
   // tp x y z [yaw pitch] | tp target | tp targets x y z | tp targets target
   coords(2);
   TPK = [];
-  if (cOk == 1) { ok = 1; tx2 = cX; ty2 = cY; tz2 = cZ; TPK.push(0); if (n >= 6) { yw = coordOf(cw(5), yaw); pt = coordOf(cw(6), pitch); } }
+  // ((v2.6.1) the rotation as the genre's: yaw 90 west, pitch 90 down (it was taken as the game's own
+  // turn: the other way), also after targets (it was left out there), or facing x y z / entity)
+  if (cOk == 1) { ok = 1; tx2 = cX; ty2 = cY; tz2 = cZ; TPK.push(0); tpRot(5); yw = tpYw; pt = tpPt; }
   else {
     selParse(cw(2));
     who = selN;
     let k = 1;
     while (k <= selN) { TPK.push(SEL[k]); k = k + 1; }
     coords(3);
-    if (cOk == 1) { ok = 1; tx2 = cX; ty2 = cY; tz2 = cZ; }
+    if (cOk == 1) { ok = 1; tx2 = cX; ty2 = cY; tz2 = cZ; tpRot(6); yw = tpYw; pt = tpPt; }
     else {
       if (n == 2) { if (who > 0) { let e = TPK[1]; ok = 1; if (e > 0) { tx2 = EX[e]; ty2 = EY[e]; tz2 = EZ[e]; } else { tx2 = px; ty2 = py; tz2 = pz; } TPK = []; TPK.push(0); } }
       else { selParse(cw(3)); if (selN > 0) { let e = SEL[1]; ok = 1; if (e > 0) { tx2 = EX[e]; ty2 = EY[e]; tz2 = EZ[e]; } else { tx2 = px; ty2 = py; tz2 = pz; } } }
@@ -793,7 +834,7 @@ function cmdTp() {
     let k = 1, m = 0;
     while (k <= TPK.length) {
       let e = TPK[k];
-      if (e == 0) { riding = 0; px = tx2; py = ty2; pz = tz2; pvx = 0; pvy = 0; pvz = 0; fallTop = py; if (yw > -999) { yaw = yw; pitch = Math.max(-89.5, Math.min(89.5, pt)); } } else { EX[e] = tx2; EY[e] = ty2; EZ[e] = tz2; }
+      if (e == 0) { riding = 0; px = tx2; py = ty2; pz = tz2; pvx = 0; pvy = 0; pvz = 0; fallTop = py; if (yw > -999) { yaw = yw; pitch = Math.max(-89.5, Math.min(89.5, pt)); } } else { EX[e] = tx2; EY[e] = ty2; EZ[e] = tz2; if (yw > -999) { EYAW[e] = yw; } }
       m = m + 1; k = k + 1;
     }
     out = `${m}개의 개체를 ${Math.floor(tx2 * 10) / 10}, ${Math.floor(ty2 * 10) / 10}, ${Math.floor(tz2 * 10) / 10}(으)로 옮겼습니다`;
@@ -1008,7 +1049,11 @@ function cmdExecute() {
       else { if (w == 'positioned') { coords(k + 1); if (cOk == 1) { cmdX = cX; cmdY = cY; cmdZ = cZ; } k = k + 4; }
       else { if (w == 'facing') { coords(k + 1); if (cOk == 1) { cmdYaw = atan2d(cX - cmdX, cZ - cmdZ); } k = k + 4; }
       else { if (w == 'align' || w == 'anchored' || w == 'in') { k = k + 2; }
-      else { if (w == 'rotated') { k = k + 3; }
+      else { if (w == 'rotated') {
+        // ((v2.6.1) rotated yaw pitch / rotated as target: it was let go)
+        if (cw(k + 1) == 'as') { selParse(cw(k + 2)); if (selN > 0) { let e = SEL[1]; if (e > 0) { cmdYaw = EYAW[e]; } else { cmdYaw = yaw; cmdPitch = pitch; } } }
+        else { cmdYaw = yawArg(cw(k + 1), cmdYaw); cmdPitch = pitchArg(cw(k + 2), cmdPitch); }
+        k = k + 3; }
       else { if (w == 'if' || w == 'unless') {
         let want = 1, got = 0;
         if (w == 'unless') { want = 0; }

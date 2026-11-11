@@ -1,7 +1,7 @@
-# 블록 월드 — 작업 인계 메모 (2026-11-11, v2.6)
+# 블록 월드 — 작업 인계 메모 (2026-11-12, v2.6.1)
 
-산출물(루트): `블록 월드 v2.6.ent`, `블록 월드 v2.6 설명서.txt`, `블록 월드 썸네일.png` (이전 판은 깃헙 `old/`)
-빌드: `node build.mjs "../../블록 월드 v2.6.ent"` (`K=V`로 상수 바꾸기: `AUTOSEED=n` 타이틀 없이 시드 n으로 시작, `AUTOMODE=1` 크리에이티브, `TESTRUN=1` test.js 포함, `BENCH=1` 시간 멈춤·몹 스폰 끔·k 고정, `ANIMALS=0`, `NOCAVE=1` 동굴 가리기 끔)
+산출물(루트): `블록 월드 v2.6.1.ent`, `블록 월드 v2.6.1 설명서.txt`, `블록 월드 썸네일.png` (이전 판은 깃헙 `old/`)
+빌드: `node build.mjs "../../블록 월드 v2.6.1.ent"` (`K=V`로 상수 바꾸기: `AUTOSEED=n` 타이틀 없이 시드 n으로 시작, `AUTOMODE=1` 크리에이티브, `TESTRUN=1` test.js 포함, `BENCH=1` 시간 멈춤·몹 스폰 끔·k 고정, `ANIMALS=0`, `NOCAVE=1` 동굴 가리기 끔)
 
 ## 요청
 - 2026-11-08 ".ent로 마인크래프트를 최대한 비슷하게 만들어줘.(심층암 추가되기 전 기준, tessvm전용)"
@@ -241,3 +241,9 @@
 - **레드스톤 최적화**: `rsEvalAt`이 부품인지 먼저(rsReady는 cOK 5번), `rsAround`의 두 칸 이웃 30번 → 18칸 한 번씩(장르의 W E D U N S 순서, 처음 만난 때), `rsSchedP` 찾으면 멈춤, 예약 틱이 없으면 건너뜀(scN).
 - **엔드 다녀온 뒤 밤에 멈춤**: sim·tessvm에서 혼자 하기·관문·죽기·수호자 처치 후 관문 모두 재현 안 됨. 방어로: 빛 표(LTK)를 dark뿐 아니라 dimAmb가 바뀔 때도 다시 만듦(공허의 최소 빛 8이 남는 일), tday가 숫자가 아니면 0.25로.
 - 시험: `test/pistonje.mjs`(관찰기 신호 떨어뜨림, 지연 1/3 반복기, 들어오는 피스톤 움직이는 블록, 밀린 관찰기 착지 신호, 횃불 준연결), `test/trapstuck.mjs`, `test/chathist.mjs`, `test/lightinc.mjs`, `test/railview.mjs`(그림), `test/tessrsbench.mjs`(tessvm 레드스톤 부하). `test/power.mjs`: 횃불 다시 켜짐 기다림 늘림, 밀린 관찰기는 등으로 신호 확인(장르 규칙).
+
+## v2.6.1 (2026-11-12, 사용자: "서버 설정에서 시야거리,마우스감도 증가가 안됨. 명령어중에 잘못된것들이있음(ex: weather에서 rain,clear) 기능은 제거하지 말고 최대한 tessvm에서 빠르게 돌아가게 최적화해줘.")
+- **메뉴(P) 시야·감도**: v2.6에서 왼쪽 열을 x -200..-10으로 옮겼는데 늘리기 판정이 `mouseX() > 0`이라 늘 줄이기만 됐다 → 버튼 가운데(-105) 기준(main.js). 시험 `test/pausemenu.mjs`.
+- **명령어**(1.16.5 기준으로 훑음, 임시 스크립트로 70여 개): `/weather` 시간 없으면 300초(5~15분 무작위였다), 초 또는 `60s/1d/600t`(단위가 붙으면 무시하고 무작위였다); `/tp`의 각도를 장르 기준으로(`yawArg`/`pitchArg`: 게임 yaw·pitch는 부호가 반대 - 가로 90이 동쪽이 되고 세로 45가 위를 봤다), `/tp 대상 x y z 가로 세로`의 각도가 빠져 있었다, `facing x y z / facing entity 대상`(`tpRot`); `/execute rotated 가로 세로 | as 대상`(넘기기만 했다); `/give 아이템{..}`이 `bare()`가 {..} 안의 `:`에서 이름을 잘라 오류(substring 범위)로 멈췄다 → `[`·`{` 앞의 `:`만; `/gamerule` 혼자 → 규칙 목록("알 수 없는 게임 규칙입니다: 0"이었다); `/time set sunrise|sunset`; `/locate structure|biome 이름`. 시험 `test/cmd261.mjs`. scoreboard/tag/particle/bossbar/data는 원래 없는 기능(그대로 "없는 기능" 안내).
+- **서버의 날씨·시간**: 날씨는 화면마다 따로 무작위였고, 호스트가 아닌 사람의 `/time`은 호스트 시간에 되돌려졌다. 호스트의 날씨를 슬롯 줄의 flags에 `16 × wthr`로(옛 비트 1/2/4/8은 그대로라 옛 판과 섞여도 됨) → 호스트 아니면 그것을 따르고 스스로 바꾸지 않음(extra.js weatherStep `mine`), `/time`·`/weather`를 쓰면 `y` 이벤트(`tday^wthr^wthrT`)로 모두에게(`netSky`). 시험 `test/netsky.mjs`.
+- **최적화**(위키 05쪽 16장의 효과 없던 것은 피함): (1) 눈이 그대로이고(camX/Y/Z, yaw, pitch, viewR, dim) 다시 메시한 구역이 없으면(`meshVer`: meshSection·chunkDrop·setView가 올림) 구역 찾기·면 모으기를 건너뛰고 통 머리(HDS)를 되살림 — 서 있을 때 11 %(render.js; 시험 `test/facecache.mjs`가 새로 모은 것과 같은지). (2) 구름: 한 줄로 이어진 구름 4칸까지 한 사각형(채우기 하나), 눈 뒤로 넘어가는 긴 것은 첫 칸만 따로. tessvm `test/tess.mjs`: 서 있기 13.57 → 약 11.0 ms/틱, 날기(FLY) 11.60 → 10.14 ms/틱(v2.6과 같은 기계에서). 남은 큰 몫은 그리기(drawBuckets·collectGroup·drawNear)와 날 때의 메싱(meshSection 7.5 %)으로 이미 위키 규칙대로 되어 있다.

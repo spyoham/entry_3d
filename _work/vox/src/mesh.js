@@ -81,6 +81,7 @@ function meshSectionAt(x0, y0, z0) {
 }
 // sec: a slot whose SOX / SOZ are set
 function meshSection(sec) {
+  meshVer = meshVer + 1;
   let x0 = SOX[sec], z0 = SOZ[sec], y0 = mod(sec - 1, NSY) * 8;
   let wx0 = mod(x0, WS), wz0 = mod(z0, WS);
   // the neighbours across the section's sides: the step to them in the window, and whether their

@@ -436,7 +436,7 @@ function pauseScreen() {
   button(10, 54, 200, 36, `시야 거리 ${optOn(1 - autoView, '고정', '자동 조절')}`, 29, 1); if (btnHot == 1) { menuSel = 8; }
   button(10, 32, 200, 14, `안개: ${optOn(fogOn, '켬', '끔')}`, 30, 1); if (btnHot == 1) { menuSel = 9; }
   button(10, 10, 200, -8, `빛 계산: ${optOn(lightOn, '켬', '끔(빠름)')}`, 31, 1); if (btnHot == 1) { menuSel = 10; }
-  tx(27, '시야·감도는 왼쪽(좌반)·오른쪽(우반)을 눌러 줄이기·늘리기 · 5분마다 저절로 저장', 0, -82, 7, '#c0c0c0', 0);
+  tx(27, '시야·감도는 버튼의 왼쪽 반·오른쪽 반을 눌러 줄이기·늘리기 · 5분마다 저절로 저장', 0, -82, 7, '#c0c0c0', 0);
 }
 function optOn(v, a, b) { let r = b; if (v == 1) { r = a; } return r; }
 function deathScreen() {

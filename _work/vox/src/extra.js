@@ -511,7 +511,10 @@ function nShell() {
 // wthr 0 clear, 1 rain (snow where it is cold), 2 thunder; wthrT seconds until it changes
 let wthr = 0, wthrT = 600, thunderT = 10;
 function weatherStep(dt) {
-  if (grWeather == 1) {
+  // ((v2.6.1) on a server only the host's weather turns; the others follow it)
+  let mine = 1;
+  if (netSrv > 0) { if (netSt == 2 && netHost == 0) { mine = 0; } }
+  if (grWeather == 1 && mine == 1) {
     wthrT = wthrT - dt;
     if (wthrT <= 0) {
       if (wthr == 0) { wthr = 1; if (rand(1, 10) <= 3) { wthr = 2; } wthrT = rand(120, 480); }
