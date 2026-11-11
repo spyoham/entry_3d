@@ -415,6 +415,14 @@ export const MOBS = [
         [-4, 24, -4, 4, 32, 4, 'd8b08a', 5], [-4, 30, -4.2, 4, 32.4, 4.2, '4a2e1a', 5], [-3, 27, 4, -1, 28.5, 4.5, '2a3a6a', 5], [1, 27, 4, 3, 28.5, 4.5, '2a3a6a', 5],
         [-8, 12, -2, -4, 24, 2, 'c8702a', 1], [4, 12, -2, 8, 24, 2, 'c8702a', 2], [-8, 12, -2.1, -4, 14, 2.1, 'd8b08a', 1], [4, 12, -2.1, 8, 14, 2.1, 'd8b08a', 2],
         [-4, 0, -2, 0, 12, 2, '3a4a6a', 3], [0, 0, -2, 4, 12, 2, '3a4a6a', 4], [-4, 0, -2.1, 0, 2, 2.1, '2a2a2a', 3], [0, 0, -2.1, 4, 2, 2.1, '2a2a2a', 4]] },
+    // (v2.5) minecarts (ridden, along the rails: src/rails.js); a TNT one goes off when an activator rail lights it
+    { n: 'minecart', ai: 9, ko: '광산 수레', hp: 4, w: 0.98, h: 0.7, speed: 0, still: 1, drop: ['minecart', 1, 1], boxes: [
+        [-7, 1, -10, 7, 2, 10, '5a5a5a', 0], [-8, 1, -10, -7, 10, 10, '7a7a7a', 0], [7, 1, -10, 8, 10, 10, '7a7a7a', 0], [-7, 1, 9, 7, 10, 10, '6a6a6a', 0], [-7, 1, -10, 7, 10, -9, '6a6a6a', 0],
+        [-8.5, 0, -7, -7.5, 2, -4, '2a2a2a', 0], [7.5, 0, -7, 8.5, 2, -4, '2a2a2a', 0], [-8.5, 0, 4, -7.5, 2, 7, '2a2a2a', 0], [7.5, 0, 4, 8.5, 2, 7, '2a2a2a', 0]] },
+    { n: 'tntCart', ai: 9, ko: '폭약 광산 수레', hp: 4, w: 0.98, h: 0.7, speed: 0, still: 1, drop: ['tntMinecart', 1, 1], boxes: [
+        [-7, 1, -10, 7, 2, 10, '5a5a5a', 0], [-8, 1, -10, -7, 10, 10, '7a7a7a', 0], [7, 1, -10, 8, 10, 10, '7a7a7a', 0], [-7, 1, 9, 7, 10, 10, '6a6a6a', 0], [-7, 1, -10, 7, 10, -9, '6a6a6a', 0],
+        [-6, 2, -8, 6, 12, 8, 'c02020', 0], [-6.2, 6, -8.2, 6.2, 8, 8.2, 'e8e8e0', 0],
+        [-8.5, 0, -7, -7.5, 2, -4, '2a2a2a', 0], [7.5, 0, -7, 8.5, 2, -4, '2a2a2a', 0], [-8.5, 0, 4, -7.5, 2, 7, '2a2a2a', 0], [7.5, 0, 4, 8.5, 2, 7, '2a2a2a', 0]] },
 ];
 
 // ------------------------------------------------------------------ v2.0: the families of blocks and items (content.mjs)
@@ -425,6 +433,11 @@ MOBS.forEach((m, i) => {
     const c = m.egg || [m.boxes[0][6], m.boxes[m.boxes.length - 1][6]];
     CONTENT.item({ n: 'egg_' + m.n, key: m.n + '_spawn_egg', ko: m.ko + ' 생성 알', cat: 7, icon: CONTENT.ICON.egg2, p: { a: c[0], b: c[1] }, spawn: i });
 });
+// (v2.5) the minecarts' items, after the eggs (the ids before them stay)
+CONTENT.item({ n: 'minecart', key: 'minecart', ko: '광산 수레', cat: 4, st: 1, icon: ['........', '........', '........', 'k......k', 'kaaaaaak', 'kaaaaaak', '.kkkkkk.', '.w....w.'], p: { a: '7a7a7a', k: '4a4a4a', w: '2a2a2a' } });
+CONTENT.item({ n: 'tntMinecart', key: 'tnt_minecart', ko: '폭약 광산 수레', cat: 4, st: 1, icon: ['........', '..rwwr..', '..rwwr..', 'krrrrrrk', 'kaaaaaak', 'kaaaaaak', '.kkkkkk.', '.w....w.'], p: { a: '7a7a7a', k: '4a4a4a', w: '2a2a2a', r: 'c02020' } });
+CONTENT.R(['ingotIron _ ingotIron', 'ingotIron ingotIron ingotIron'], 'minecart', 1);
+CONTENT.R(['tnt', 'minecart'], 'tntMinecart', 1, 1);
 NBLOCK = BLOCKS.length;
 NITEM = Math.max(...ITEMS.map(i => i.id)) + 1;
 

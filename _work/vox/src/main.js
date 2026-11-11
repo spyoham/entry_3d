@@ -76,9 +76,15 @@ on('click', 'pen', function () {
 });
 
 // ---------------------------------------------------------------- sound
-let sndN = 0, sndOn = 1;
+let sndN = 0, sndOn = 1, sndRate = 1;
+// (v2.5) the rate of a note 0 .. 24 (2 ^ ((p - 12) / 12)): Entry plays every sound at one rate, so
+// the others set it back
+let NOTER = [0.5, 0.529732, 0.561231, 0.594604, 0.629961, 0.66742, 0.707107, 0.749154, 0.793701, 0.840896, 0.890899, 0.943874, 1, 1.059463, 1.122462, 1.189207, 1.259921, 1.33484, 1.414214, 1.498307, 1.587401, 1.681793, 1.781797, 1.887749, 2];
 function sndPlay(n) {
-  if (sndOn == 1) { if (sndN < 3) { sound(`s${n}`); sndN = sndN + 1; } }
+  if (sndOn == 1) { if (sndN < 3) { if (sndRate != 1) { soundSpeed(1); sndRate = 1; } sound(`s${n}`); sndN = sndN + 1; } }
+}
+function sndNote(inst, p) {
+  if (sndOn == 1) { if (sndN < 3) { let r = NOTER[p + 1]; if (sndRate != r) { soundSpeed(r); sndRate = r; } sound(`n${inst}`); sndN = sndN + 1; } }
 }
 
 // ---------------------------------------------------------------- time of day: sky, fog, dark

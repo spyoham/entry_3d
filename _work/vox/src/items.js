@@ -268,7 +268,17 @@ function chestOpen(x, y, z) {
     let lt = lootAt(x, y, z);
     if (lt > 0) { lootTable(cFound, lt); } else { if (dim != 0 || lootUnder == 60) { chestLoot(cFound); } }
   }
-  if (cFound > 0) { curChest = cFound; uiOpen(4); } else { msgShow('상자가 너무 많습니다', 2); }
+  if (cFound > 0) { curChest = cFound; uiOpen(4); trapOpen(x, y, z); } else { msgShow('상자가 너무 많습니다', 2); }
+}
+// (v2.5) a trapped chest looked in gives power (1: the player here; the genre counts the players)
+let tcOn = 0, tcX = 0, tcY = 0, tcZ = 0, tcD = 0;
+function trapOpen(x, y, z) {
+  if (BRS[blockAt(x, y, z) + 1] == RS_TRAPPED) { tcOn = 1; tcX = x; tcY = y; tcZ = z; tcD = dim; powerAround(x, y, z); }
+}
+function trapLevel(x, y, z) {
+  let r = 0;
+  if (tcOn == 1) { if (tcX == x && tcY == y && tcZ == z && tcD == dim) { r = 1; } }
+  return r;
 }
 // a furnace or chest broken: what was in it falls out
 function chestOrFurnaceGone(x, y, z, b) {
@@ -420,6 +430,7 @@ function uiOpen(m) {
 }
 // closing: what is in the grid and on the cursor goes back (or falls)
 function uiClose() {
+  if (tcOn == 1) { tcOn = 0; if (tcD == dim) { powerAround(tcX, tcY, tcZ); } }
   let k = 1;
   while (k <= 9) {
     if (CGI[k] > 0) { addItem(CGI[k], CGN[k], 0); if (addLeft > 0) { dropItem(CGI[k], addLeft, 0, px, py + 1, pz, 1); } CGI[k] = 0; CGN[k] = 0; }

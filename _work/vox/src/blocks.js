@@ -46,7 +46,7 @@ function useKey() {
     }
     if (used == 0) { if (mobPick > 0) {
       let et = ET[mobPick];
-      if (et == 13) { riding = mobPick; used = 1; placeCool = 0.4; }
+      if (et == 13 || isCart(et) == 1) { riding = mobPick; used = 1; placeCool = 0.4; }
       if (et == 3) { if (ITTK[id + 1] == 5) { if (EST[mobPick] != 9) { EST[mobPick] = 9; dropItem(32, rand(1, 3), 0, EX[mobPick], EY[mobPick] + 1, EZ[mobPick], 0); wearHeld(1); sndPlay(6); used = 1; placeCool = 0.3; } } }
       if (et == M_VILLAGER) { tradeOpen(mobPick); used = 1; }
       if (et == 2) { if (id == I_bucket) { takeHeld(1); addItem(I_milkBucket, 1, 0); used = 1; placeCool = 0.3; } }
@@ -74,11 +74,11 @@ function useBlock(x, y, z, b, id) {
   else { if (u == U_BUTTON) { buttonPress(x, y, z); }
   else { if (u == U_BED) { bedUse(x, y, z, b); }
   else { if (u == U_SIGN) { signUse(x, y, z, id); }
-  else { if (u == U_NOTE) { sndPlay(6); msgShow('♪', 1); }
+  else { if (u == U_NOTE) { if (BKIND[b + 1] == I_noteBlock) { noteTune(x, y, z, b); } else { sndPlay(6); msgShow('♪', 1); } }
   else { if (u == U_CAKE) { cakeEat(x, y, z); }
   else { if (u == U_COMPOST) { used = composterUse(id); }
   else { if (u == U_REPAIR) { repairHeld(b); }
-  else { if (u == U_BELL) { sndPlay(7); msgShow('댕-', 1); }
+  else { if (u == U_BELL) { bellRing(x, y, z); msgShow('댕-', 1); }
   else { if (u == U_POT) { used = potUse(x, y, z, b, id); }
   else { if (u == U_COMMAND) { commandBlockEdit(x, y, z); }
   else { if (u == U_CAMPFIRE) { used = campfireCook(id); }
@@ -102,6 +102,8 @@ function useItem(id) {
   if (id == 125) { used = 1; shootBow(); }
   if (id == 171) { used = 1; let fr = 0; if (pickOn == 1) { if (pickB == 61) { fr = 1; } } if (fr == 1) { if (mod(gameMode, 2) == 0) { takeHeld(1); } placeCool = 0.3; frameEye(pickX, pickY, pickZ); } else { eyeThrow(); } }
   if (id == 174) { used = 1; boatPlace(); }
+  // (v2.5) a minecart onto the rail clicked
+  if (id == I_minecart || id == I_tntMinecart) { used = 1; if (pickOn == 1) { if (BRS[pickB + 1] == RS_RAIL) { let t = M_MINECART; if (id == I_tntMinecart) { t = M_TNTCART; } cartPlace(t, pickX, pickY, pickZ); if (mod(gameMode, 2) == 0) { takeHeld(1); } placeCool = 0.4; } } }
   if (id == I_compass) { used = 1; placeCool = 0.5; compassShow(); }
   if (id == I_clock) { used = 1; placeCool = 0.5; msgShow(`지금 ${timeText()} (${dayN + 1}일째)`, 2); }
   if (ITTHROW[id + 1] > 0) { used = 1; placeCool = 0.3; throwIt(ITTHROW[id + 1]); if (mod(gameMode, 2) == 0) { takeHeld(1); } }
@@ -208,6 +210,8 @@ function placeBlock(b, id) {
     // what it had: it does not sound or fire, as in the genre)
     if (BRS[put + 1] == RS_NOTE || BRS[put + 1] == RS_COMMAND || BRS[put + 1] == RS_DISPENSER) { let pw = 0; if (powerIn(x, y, z, 0 - 1) > 0) { pw = 1; } edgeSet(x, y, z, pw); }
     if (y2 >= 0) { setBlock(x2, y2, z2, put2); }
+    // (v2.5) the rails by a rail put turn to it
+    if (BRS[put + 1] == RS_RAIL) { railJoin(x, y, z); }
     sndPlay(2);
     swingT = 0.3;
     placeCool = 0.2;
@@ -315,6 +319,8 @@ function buttonPress(x, y, z) {
 // plate does not feel items)
 function plateHit(x, y, z, who) {
   let b = blockAt(x, y, z);
+  // (v2.5) string between tripwire hooks
+  if (BRS[b + 1] == RS_TRIP) { tripHit(x, y, z); }
   if (BSPEC[b + 1] == 5) {
     let k = BAUX[b + 1];
     if (who == 0 || k != 1) {
@@ -333,7 +339,15 @@ function pressStep(dt) {
   while (i <= PRX.length) {
     if (PRT[i] > 0) {
       PRT[i] = PRT[i] - dt;
-      if (PRT[i] <= 0) { PRT[i] = 0; PRL[i] = 0; PRC[i] = 0; if (PRD[i] == dim) { powerAround(PRX[i], PRY[i], PRZ[i]); } }
+      if (PRT[i] <= 0) {
+        PRT[i] = 0; PRL[i] = 0; PRC[i] = 0;
+        if (PRD[i] == dim) {
+          powerAround(PRX[i], PRY[i], PRZ[i]);
+          // (v2.5) a tripwire hook goes off
+          let hb = blockAt(PRX[i], PRY[i], PRZ[i]);
+          if (BRS[hb + 1] == RS_HOOK) { if (BON[hb + 1] == 1) { setBlock(PRX[i], PRY[i], PRZ[i], hookId(BATT[hb + 1], 0)); } }
+        }
+      }
       else {
         // (a plate: the weight now; fewer on it goes down at once, nothing on it waits for its time)
         if (PRC[i] > 0) {

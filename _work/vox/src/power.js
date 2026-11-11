@@ -12,7 +12,9 @@
 //   comparators (compare / subtract, reading chests behind them) face one way.
 // - Parts: lamps, pistons (push 12; sticky ones pull back), doors, trapdoors, gates, TNT, note
 //   blocks, command blocks, dispensers and droppers; observers give a pulse when the block before
-//   them changes.
+//   them changes. (v2.5) What a piston moves is on its way for 0.1 s (a moving block); a sticky one
+//   whose pulse is shorter lets go of its block; pistons, dispensers and droppers also take power
+//   that reaches the cell over them (quasi-connectivity), only when something by them changes.
 // Every setBlock tells rsNotify; rsFlush (each frame) looks at the cells round it (two steps when a
 // part changed) and each part there decides (rsEval), at once or after a delay (rsSchedule).
 // D6 directions: 0 -x, 1 +x, 2 -y, 3 +y, 4 -z, 5 +z (the face groups).
@@ -37,6 +39,9 @@ function emitTo(x, y, z, d) {
   if (rl == RS_REPEATER) { if (BON[b + 1] == 1) { if (d == BFAC[b + 1]) { r = 15; } } }
   if (rl == RS_COMPARATOR) { if (d == BFAC[b + 1]) { r = cmpLevel(x, y, z); } }
   if (rl == RS_OBSERVER) { if (BON[b + 1] == 1) { if (d == OP6[BFAC[b + 1] + 1]) { r = 15; } } }
+  if (rl == RS_TRAPPED) { r = trapLevel(x, y, z); }
+  if (rl == RS_HOOK) { r = pressLevel(x, y, z); }
+  if (rl == RS_RAIL) { if (BAUX[b + 1] == 2) { r = pressLevel(x, y, z); } }
   return r;
 }
 // the strong power into the block at (x, y, z) from the parts round it
@@ -48,12 +53,14 @@ function strongIn(x, y, z) {
     // (e: the way from the part to this block)
     if (rl > 0) {
       if (rl == RS_LEVER) { if (BON[b + 1] == 1) { if (BATT[b + 1] == e) { v = 15; } } }
-      if (rl == RS_BUTTON) { if (BATT[b + 1] == e) { v = pressLevel(nx, ny, nz); } }
+      if (rl == RS_BUTTON || rl == RS_HOOK) { if (BATT[b + 1] == e) { v = pressLevel(nx, ny, nz); } }
       if (rl == RS_TORCH) { if (BON[b + 1] == 1) { if (e == 3) { v = 15; } } }
       if (rl == RS_REPEATER) { if (BON[b + 1] == 1) { if (BFAC[b + 1] == e) { v = 15; } } }
       if (rl == RS_COMPARATOR) { if (BFAC[b + 1] == e) { v = cmpLevel(nx, ny, nz); } }
       if (rl == RS_OBSERVER) { if (BON[b + 1] == 1) { if (OP6[BFAC[b + 1] + 1] == e) { v = 15; } } }
       if (rl == RS_PLATE) { if (e == 2) { v = pressLevel(nx, ny, nz); } }
+      if (rl == RS_TRAPPED) { if (e == 2) { v = trapLevel(nx, ny, nz); } }
+      if (rl == RS_RAIL) { if (e == 2) { if (BAUX[b + 1] == 2) { v = pressLevel(nx, ny, nz); } } }
       if (v > r) { r = v; }
     }
     d = d + 1;
@@ -86,7 +93,8 @@ function wireMask(x, y, z) {
   let m = 0, s = 0, upCut = BCOND[blockAt(x, y + 1, z) + 1];
   while (s < 4) {
     let d = F2D[s + 1], nx = x + DX6[d + 1], nz = z + DZ6[d + 1], nb = blockAt(nx, y, nz), rl = BRS[nb + 1], j = 0;
-    if (rl == RS_WIRE || rl == RS_COMPARATOR || rl == RS_TORCH || rl == RS_LEVER || rl == RS_BUTTON || rl == RS_PLATE || rl == RS_BLOCK || rl == RS_SENSOR || rl == RS_TARGET) { j = 1; }
+    if (rl == RS_WIRE || rl == RS_COMPARATOR || rl == RS_TORCH || rl == RS_LEVER || rl == RS_BUTTON || rl == RS_PLATE || rl == RS_BLOCK || rl == RS_SENSOR || rl == RS_TARGET || rl == RS_TRAPPED || rl == RS_HOOK) { j = 1; }
+    if (rl == RS_RAIL) { if (BAUX[nb + 1] == 2) { j = 1; } }
     if (rl == RS_REPEATER) { if (BFAC[nb + 1] == d || BFAC[nb + 1] == OP6[d + 1]) { j = 1; } }
     if (rl == RS_OBSERVER) { if (BFAC[nb + 1] == d) { j = 1; } }
     if (j == 0) {
@@ -189,9 +197,9 @@ function sensorStep(dt) {
 }
 
 // ---------------------------------------------------------------- the wire's power
-// the cells of a wire net (NW*, up to 512), found by a hash of (x, y, z) -> its place in NW*
+// the cells of a wire net (NW*, up to 2048; v2.5, it was 512), found by a hash of (x, y, z) -> its place in NW*
 let NWX = [], NWY = [], NWZ = [], NWL = [], NWA = [], NWC = [], nwN = 0;
-let HSK = [], HSG = [], HSV = [], hsGen = 0, HSN = 2048;
+let HSK = [], HSG = [], HSV = [], hsGen = 0, HSN = 8192;
 let solveChg = 0 - 1, rsChg = 0;
 function hsKey(x, y, z) { return ((x + 60000) * 120000 + z + 60000) * 64 + y; }
 function hsFind(k) {
@@ -217,7 +225,7 @@ function hsInit() {
 function nwAdd(x, y, z) {
   let k = hsKey(x, y, z), r = hsFind(k);
   if (r == 0) {
-    if (nwN < 512) {
+    if (nwN < 2048) {
       nwN = nwN + 1;
       if (nwN > NWX.length) { NWX.push(x); NWY.push(y); NWZ.push(z); NWL.push(0); NWC.push(0); let q = 0; while (q < 8) { NWA.push(0); q = q + 1; } }
       else { NWX[nwN] = x; NWY[nwN] = y; NWZ[nwN] = z; NWL[nwN] = 0; NWC[nwN] = 0; }
@@ -306,6 +314,32 @@ function cmpSet(x, y, z, l) {
   while (i <= CMX.length) { if (CMX[i] == x && CMY[i] == y && CMZ[i] == z && CMD[i] == dim) { f = i; } i = i + 1; }
   if (f == 0) { CMX.push(x); CMY.push(y); CMZ.push(z); CMD.push(dim); CML.push(l); } else { CML[f] = l; }
 }
+// (v2.5) what a block gives a comparator reading it (-1: nothing to read): containers (chests,
+// hoppers, dispensers, furnaces) by how full, a cake by its slices (a whole one here: 14), a frame
+// with its eye 15, a respawn anchor by its charge; jukeboxes, lecterns, cauldrons, composters and
+// hives have nothing in them here: 0
+function cmpRead(x, y, z, b) {
+  let r = 0 - 1, u = BUSE[b + 1];
+  if (u == U_CHEST) { r = chestLevel(x, y, z); }
+  if (u == U_FURNACE) { r = furnaceLevel(x, y, z); }
+  if (b == I_cake) { r = 14; }
+  if (b == I_voidFrameEye) { r = 15; } if (b == I_voidFrame) { r = 0; }
+  if (u == U_ANCHOR) { r = Math.floor(anchorCh * 15 / 4); }
+  if (b == I_jukebox || b == I_lectern || b == I_cauldron || b == I_composter || b == I_beehive || b == I_beeNest) { r = 0; }
+  return r;
+}
+function furnaceLevel(x, y, z) {
+  let r = 0;
+  furnaceFind(x, y, z);
+  if (fFound > 0) {
+    let f = fFound, s = 0;
+    if (FII[f] > 0) { s = s + FIN[f] / Math.max(1, ITST[FII[f] + 1]); }
+    if (FFI[f] > 0) { s = s + FFN[f] / Math.max(1, ITST[FFI[f] + 1]); }
+    if (FOI[f] > 0) { s = s + FON[f] / Math.max(1, ITST[FOI[f] + 1]); }
+    if (s > 0) { r = Math.floor(1 + s / 3 * 14); }
+  }
+  return r;
+}
 // what a chest gives a comparator (0, or 1..15 by how full)
 function chestLevel(x, y, z) {
   let r = 0;
@@ -360,9 +394,13 @@ function powerCheck(x, y, z) { rsNotify(x, y, z, 1); }
 function rsStep(dt) {
   if (HSK.length == 0) { hsInit(); }
   rsTime = rsTime + dt;
+  // (v2.5) what pistons move lands first, then the parts due (as the genre: a moving block ends its
+  // move before the tick's block events, so a sticky piston given two ticks pulls its block back)
+  if (MVX.length > 0) { mvStep(); }
   let i = 1;
   while (i <= SCX.length) {
-    if (SCT[i] >= 0) { if (SCT[i] <= rsTime) { if (SCD[i] != dim) { SCT[i] = 0 - 1; } else { if (rsReady(SCX[i], SCZ[i]) == 1) { SCT[i] = 0 - 1; rsApply(SCX[i], SCY[i], SCZ[i], SCW[i]); } } } }
+    // (v2.5: a part on its way with a piston waits till it lands)
+    if (SCT[i] >= 0) { if (SCT[i] <= rsTime) { if (SCD[i] != dim) { SCT[i] = 0 - 1; } else { if (rsReady(SCX[i], SCZ[i]) == 1) { if (BRS[blockAt(SCX[i], SCY[i], SCZ[i]) + 1] != RS_MOVING) { SCT[i] = 0 - 1; rsApply(SCX[i], SCY[i], SCZ[i], SCW[i]); } } } } }
     i = i + 1;
   }
   if (RLX.length > 0) { rsLaterStep(); }
@@ -445,7 +483,7 @@ function rsPrune() {
   let i = 1;
   while (i <= EGX.length) {
     let gone = 0;
-    if (EGD[i] == dim) { if (cOK(EGX[i], EGZ[i]) == 1) { let q = BRS[blockAt(EGX[i], EGY[i], EGZ[i]) + 1]; if (q != RS_DOOR && q != RS_NOTE && q != RS_COMMAND && q != RS_DISPENSER) { gone = 1; } } }
+    if (EGD[i] == dim) { if (cOK(EGX[i], EGZ[i]) == 1) { let q = BRS[blockAt(EGX[i], EGY[i], EGZ[i]) + 1]; if (q != RS_DOOR && q != RS_NOTE && q != RS_COMMAND && q != RS_DISPENSER && q != RS_BELL) { gone = 1; } } }
     if (gone == 1) { EGX.removeAt(i); EGY.removeAt(i); EGZ.removeAt(i); EGD.removeAt(i); EGS.removeAt(i); } else { i = i + 1; }
   }
   i = 1;
@@ -485,7 +523,9 @@ function rsEval(x, y, z, b) {
   let rl = BRS[b + 1], on = BON[b + 1], f = BFAC[b + 1];
   if (rl == RS_WIRE) { wireCheck(x, y, z, b); }
   if (rl == RS_SENSOR) { sensorKeep(x, y, z); }
-  if (rl == RS_LEVER || rl == RS_BUTTON) { if (rsHangs(x, y, z, b) == 0) { rsDrop(x, y, z, b); } }
+  if (rl == RS_LEVER || rl == RS_BUTTON || rl == RS_HOOK) { if (rsHangs(x, y, z, b) == 0) { rsDrop(x, y, z, b); } }
+  // (v2.5) a hook on with nothing on its string any more (a world opened again): off
+  if (rl == RS_HOOK) { if (on == 1) { if (pressLevel(x, y, z) == 0) { setBlock(x, y, z, hookId(BATT[b + 1], 0)); } } }
   if (rl == RS_TORCH) {
     if (rsHangs(x, y, z, b) == 0) { rsDrop(x, y, z, b); }
     else {
@@ -512,13 +552,19 @@ function rsEval(x, y, z, b) {
   if (rl == RS_PISTON) {
     let hb = blockAt(x + DX6[f + 1], y + DY6[f + 1], z + DZ6[f + 1]);
     // (its arm broken off: the piston breaks too)
-    if (on == 1 && (BRS[hb + 1] != RS_HEAD || BFAC[hb + 1] != f)) { rsDrop(x, y, z, b); }
+    // (v2.5: its arm on its way is there)
+    if (on == 1 && BRS[hb + 1] != RS_MOVING && (BRS[hb + 1] != RS_HEAD || BFAC[hb + 1] != f)) { rsDrop(x, y, z, b); }
     else {
-      let want = 0;
-      if (powerIn(x, y, z, f) > 0) { want = 1; }
-      if (want != on) { rsSchedule(x, y, z, 0.05, want); }
+      // (v2.5) it starts at once (the genre's block event, the same tick: the next frame here; it
+      // waited a tick, so a pulse of one tick was gone when it looked again and it never moved)
+      let want = pistonPowered(x, y, z, f);
+      if (want != on) { rsSchedule(x, y, z, 0.001, want); }
     }
   }
+  // (v2.5) powered and activator rails: on with power by them or along their line
+  if (rl == RS_RAIL) { if (BAUX[b + 1] == 1 || BAUX[b + 1] == 3) { let want = railPowered(x, y, z, b); if (want != on) { setBlock(x, y, z, railId(BAUX[b + 1], BFAC[b + 1], want)); } } }
+  // (v2.5) a moving block nobody moves (a world kept in the middle of a move): air
+  if (rl == RS_MOVING) { if (mvAt(x, y, z) == 0) { setBlock(x, y, z, 0); } }
   // (v2.4.3) an observer on with no tick waiting (put on by a command, a world saved in its pulse)
   // stayed on for good: it goes off after its pulse (rsSchedule keeps a tick already waiting)
   if (rl == RS_OBSERVER) { if (on == 1) { rsSchedule(x, y, z, 0.1, 0); } }
@@ -527,9 +573,11 @@ function rsEval(x, y, z, b) {
     if (BRS[bb + 1] != RS_PISTON || BON[bb + 1] != 1 || BFAC[bb + 1] != f) { setBlock(x, y, z, 0); }
   }
   if (rl == RS_TNT) { if (rsReplay == 0) { if (powerIn(x, y, z, 0 - 1) > 0) { tntPrime(x, y, z); } } }
-  if (rl == RS_DOOR || rl == RS_NOTE || rl == RS_COMMAND || rl == RS_DISPENSER) {
+  if (rl == RS_DOOR || rl == RS_NOTE || rl == RS_COMMAND || rl == RS_DISPENSER || rl == RS_BELL) {
     let p = 0;
     if (powerIn(x, y, z, 0 - 1) > 0) { p = 1; }
+    // (v2.5) dispensers and droppers, as pistons: power reaching the cell over them
+    if (rl == RS_DISPENSER) { if (y + 1 < WY) { if (powerIn(x, y + 1, z, 2) > 0) { p = 1; } } }
     if (BPLC[b + 1] == P_DOOR) {
       // the two halves are one door: written down at the lower one
       let h0 = mod(idiv(BVAR[b + 1], 4), 2);
@@ -557,9 +605,9 @@ function repLocked(x, y, z, f) {
 }
 function cmpOut(x, y, z, b) {
   let f = BFAC[b + 1], bk = OP6[f + 1], bx = x + DX6[bk + 1], bz = z + DZ6[bk + 1], a = backIn(x, y, z, bk), s1 = 0, s2 = 1, sd = 0, out = 0;
-  let cb = blockAt(bx, y, bz);
-  if (BUSE[cb + 1] == U_CHEST) { a = chestLevel(bx, y, bz); }
-  else { if (BCOND[cb + 1] == 1) { let c2 = blockAt(bx + DX6[bk + 1], y, bz + DZ6[bk + 1]); if (BUSE[c2 + 1] == U_CHEST) { let cl = chestLevel(bx + DX6[bk + 1], y, bz + DZ6[bk + 1]); if (cl > a) { a = cl; } } } }
+  let cb = blockAt(bx, y, bz), rd = cmpRead(bx, y, bz, cb);
+  if (rd >= 0) { a = rd; }
+  else { if (BCOND[cb + 1] == 1) { if (a < 15) { let c2 = blockAt(bx + DX6[bk + 1], y, bz + DZ6[bk + 1]); let cl = cmpRead(bx + DX6[bk + 1], y, bz + DZ6[bk + 1], c2); if (cl > a) { a = cl; } } } }
   if (f == 0 || f == 1) { s1 = 4; s2 = 5; }
   sd = Math.max(sideIn(x, y, z, s1), sideIn(x, y, z, s2));
   if (BAUX[b + 1] == 1) { out = Math.max(0, a - sd); } else { if (a >= sd) { out = a; } }
@@ -579,10 +627,82 @@ function rsSwitch(x, y, z, b, on) {
   if (BPLC[b + 1] == P_TRAPDOOR) { let v = BVAR[b + 1]; if (on == 1 && v < 2) { setBlock(x, y, z, k + 2 + v * 4 + trapSide(x, y, z)); } if (on == 0 && v >= 2) { setBlock(x, y, z, k + idiv(v - 2, 4)); } }
   if (BPLC[b + 1] == P_GATE) { let v = BVAR[b + 1]; if (on == 1 && v < 2) { setBlock(x, y, z, b + 2); } if (on == 0 && v >= 2) { setBlock(x, y, z, b - 2); } }
   if (on == 1) {
-    if (BRS[b + 1] == RS_NOTE) { sndPlay(6); }
+    if (BRS[b + 1] == RS_NOTE) { notePlay(x, y, z, b); }
+    if (BRS[b + 1] == RS_BELL) { bellRing(x, y, z); }
     if (BRS[b + 1] == RS_COMMAND) { commandBlockRun(x, y, z); }
     if (BRS[b + 1] == RS_DISPENSER) { dispense(x, y, z, b); }
   }
+}
+// (v2.5) note blocks: the note (0 .. 24) is the block's aux, the instrument the block under it (BINST);
+// heard within 48 blocks, and only with air over it, as the genre
+let NOTEID = [];
+let NOTEN = ['파#', '솔', '솔#', '라', '라#', '시', '도', '도#', '레', '레#', '미', '파'];
+function noteId(p) {
+  if (NOTEID.length == 0) {
+    let i = 0;
+    while (i < 25) { NOTEID.push(I_noteBlock); i = i + 1; }
+    let b = 1;
+    while (b < NBLOCK) { if (BKIND[b + 1] == I_noteBlock) { NOTEID[BAUX[b + 1] + 1] = b; } b = b + 1; }
+  }
+  return NOTEID[p + 1];
+}
+function noteTune(x, y, z, b) {
+  let p = mod(BAUX[b + 1] + 1, 25), nb = noteId(p);
+  setBlock(x, y, z, nb);
+  notePlay(x, y, z, nb);
+  msgShow(`♪ ${NOTEN[mod(p, 12) + 1]} (${p})`, 1);
+}
+function notePlay(x, y, z, b) {
+  if (blockAt(x, y + 1, z) == 0) {
+    let dx = x + 0.5 - px, dy = y + 0.5 - py, dz = z + 0.5 - pz;
+    if (dx * dx + dy * dy + dz * dz < 2304) { sndNote(BINST[blockAt(x, y - 1, z) + 1], BAUX[b + 1]); }
+  }
+}
+function bellRing(x, y, z) {
+  let dx = x + 0.5 - px, dy = y + 0.5 - py, dz = z + 0.5 - pz;
+  if (dx * dx + dy * dy + dz * dz < 2304) { sndPlay(7); }
+}
+// ---------------------------------------------------------------- (v2.5) tripwire hooks and their string
+// Two hooks facing each other with string between them (up to 40): something on the string (the
+// player, a mob, an item, an arrow), or string broken without shears, puts both on, till 0.5 s after.
+let HOOKID = [], teOk = 0, teX = 0, teY = 0, teZ = 0;
+function hookId(a, on) {
+  if (HOOKID.length == 0) {
+    let i = 0;
+    while (i < 12) { HOOKID.push(I_tripwireHook); i = i + 1; }
+    let b = 1;
+    while (b < NBLOCK) { if (BKIND[b + 1] == I_tripwireHook) { HOOKID[BATT[b + 1] * 2 + BON[b + 1] + 1] = b; } b = b + 1; }
+  }
+  return HOOKID[a * 2 + on + 1];
+}
+// from the string at (x, y, z) the way d: the hook at the end of it (teOk 1, teX ..)
+function tripEnd(x, y, z, d) {
+  teOk = 0;
+  let k = 1, go = 1;
+  while (k <= 41 && go == 1) {
+    let cx = x + DX6[d + 1] * k, cz = z + DZ6[d + 1] * k, c = blockAt(cx, y, cz);
+    if (BRS[c + 1] != RS_TRIP) {
+      if (BRS[c + 1] == RS_HOOK) { if (BATT[c + 1] == d) { teOk = 1; teX = cx; teY = y; teZ = cz; } }
+      go = 0;
+    }
+    k = k + 1;
+  }
+}
+function tripHit(x, y, z) {
+  let b = blockAt(x, y, z);
+  if (BRS[b + 1] == RS_TRIP) {
+    let d1 = 5, d2 = 4;
+    if (BAUX[b + 1] == 1) { d1 = 1; d2 = 0; }
+    tripEnd(x, y, z, d1);
+    let ok1 = teOk, ax = teX, ay = teY, az = teZ;
+    tripEnd(x, y, z, d2);
+    if (ok1 == 1 && teOk == 1) { hookOn(ax, ay, az); hookOn(teX, teY, teZ); }
+  }
+}
+function hookOn(x, y, z) {
+  pressAddL(x, y, z, 0.5, 15);
+  let b = blockAt(x, y, z);
+  if (BON[b + 1] == 0) { setBlock(x, y, z, hookId(BATT[b + 1], 1)); sndPlay(1); }
 }
 // a delay is over
 function rsApply(x, y, z, w) {
@@ -616,8 +736,7 @@ function rsApply(x, y, z, w) {
   if (rl == RS_LAMP) { if (on == 1) { if (powerIn(x, y, z, 0 - 1) == 0) { setBlock(x, y, z, b - 1); } } }
   if (rl == RS_PISTON) {
     // (v2.4.4: the power now, not when it was asked)
-    let f = BFAC[b + 1], ww = 0;
-    if (powerIn(x, y, z, f) > 0) { ww = 1; }
+    let f = BFAC[b + 1], ww = pistonPowered(x, y, z, f);
     if (ww == 1 && on == 0) { pistonOut(x, y, z, b, f); }
     if (ww == 0 && on == 1) { pistonIn(x, y, z, b, f); }
   }
@@ -647,6 +766,11 @@ function pushHow(c) {
     if (BHARD[c + 1] < 0 || c == 34 || BUSE[c + 1] == U_CHEST || BUSE[c + 1] == U_FURNACE || BUSE[c + 1] == U_SHELL || BUSE[c + 1] == U_VOIDCHEST || BUSE[c + 1] == U_ENCHANT || BUSE[c + 1] == U_ANCHOR || BSPEC[c + 1] == 6 || BRS[c + 1] == RS_HEAD) { r = 3; }
     if (BRS[c + 1] == RS_PISTON) { if (BON[c + 1] == 1) { r = 3; } }
     if (BRS[c + 1] == RS_REPEATER || BRS[c + 1] == RS_COMPARATOR) { r = 2; }
+    // (v2.5) as the genre: what keeps things in it stays (a jukebox, a lectern, a hive, a command
+    // block, a light sensor, glinting obsidian); a bell and a cake break
+    if (c == I_jukebox || c == I_lectern || c == I_beehive || c == I_beeNest || c == I_glintObsidian || BUSE[c + 1] == U_COMMAND || BSPEC[c + 1] == 9 || BRS[c + 1] == RS_MOVING) { r = 3; }
+    if (c == I_bell || c == I_cake) { r = 2; }
+    if (BRS[c + 1] == RS_RAIL) { r = 1; }
   }
   return r;
 }
@@ -732,13 +856,13 @@ function psDo(hx, hy, hz, head) {
   i = 1;
   while (i <= PVX.length) { psPut(PVX[i], PVY[i], PVZ[i], 0); i = i + 1; }
   i = 1;
-  while (i <= PVX.length) { psPut(PVX[i] + dx, PVY[i] + dy, PVZ[i] + dz, PVB[i]); i = i + 1; }
+  while (i <= PVX.length) { psPutMv(PVX[i] + dx, PVY[i] + dy, PVZ[i] + dz, PVB[i]); i = i + 1; }
   i = 1;
   while (i <= PSM.length) { let k = PSM[i]; SCX[k] = SCX[k] + dx; SCY[k] = SCY[k] + dy; SCZ[k] = SCZ[k] + dz; i = i + 1; }
   // (and one that arrives on with no tick waiting goes off after its pulse)
   i = 1;
   while (i <= PVX.length) { if (BRS[PVB[i] + 1] == RS_OBSERVER) { if (BON[PVB[i] + 1] == 1) { rsSchedule(PVX[i] + dx, PVY[i] + dy, PVZ[i] + dz, 0.1, 0); } } i = i + 1; }
-  if (head > 0) { setBlock(hx, hy, hz, head); }
+  if (head > 0) { psPutMv(hx, hy, hz, head); }
   i = 1;
   while (i <= PVX.length) {
     let x = PVX[i], y = PVY[i], z = PVZ[i];
@@ -749,7 +873,7 @@ function psDo(hx, hy, hz, head) {
 }
 function pistonOut(x, y, z, b, f) {
   let dx = DX6[f + 1], dy = DY6[f + 1], dz = DZ6[f + 1];
-  psPX = x; psPY = y; psPZ = z;
+  psPX = x; psPY = y; psPZ = z; psKey = hsKey(x, y, z); psExt = 1;
   if (psBuild(x + dx, y + dy, z + dz, f) == 1) {
     setBlock(x, y, z, b + 1);
     psDo(x + dx, y + dy, z + dz, I_pistonHead + mod(f + 3, 6) * 2 + BAUX[b + 1]);
@@ -757,10 +881,14 @@ function pistonOut(x, y, z, b, f) {
   }
 }
 function pistonIn(x, y, z, b, f) {
-  let hx = x + DX6[f + 1], hy = y + DY6[f + 1], hz = z + DZ6[f + 1];
+  let hx = x + DX6[f + 1], hy = y + DY6[f + 1], hz = z + DZ6[f + 1], pk = hsKey(x, y, z), going = mvGoing(pk);
+  // (v2.5) still on its way out (a pulse shorter than the move): what it pushed lands at once,
+  // and a sticky one lets go of its block (it does not pull it back)
+  if (going == 1) { mvFinish(pk); }
   setBlock(x, y, z, b - 1);
   if (BRS[blockAt(hx, hy, hz) + 1] == RS_HEAD) { setBlock(hx, hy, hz, 0); }
-  if (BAUX[b + 1] == 1) {
+  psKey = pk; psExt = 0;
+  if (BAUX[b + 1] == 1 && going == 0) {
     // a sticky one pulls the block before its arm (and what sticks to it) back
     let tx = hx + DX6[f + 1], ty = hy + DY6[f + 1], tz = hz + DZ6[f + 1];
     psPX = x; psPY = y; psPZ = z;
@@ -768,29 +896,101 @@ function pistonIn(x, y, z, b, f) {
   }
   sndPlay(1);
 }
-// the player and the mobs in the cells moved into (and the arm's) go along, once each
-function pushBodies(dx, dy, dz, hx, hy, hz, head) {
-  let moved = 0, i = 0;
+// the player, the mobs and (v2.5) the items in the cells moved into (and the arm's) go along, each
+// once (a mob was moved again by each cell of a row it came into); one pushed by a jelly block flies
+let pbJelly = 0;
+let psHX = 0, psHY = 0, psHZ = 0, psHead = 0, psDX = 0, psDY = 0, psDZ = 0;
+function pbIn(x0, y0, z0, w, h) {
+  let i = 0, r = 0;
+  pbJelly = 0;
   while (i <= PVX.length) {
-    let cx = hx, cy = hy, cz = hz, go = 1;
-    if (i == 0) { if (head == 0) { go = 0; } } else { cx = PVX[i] + dx; cy = PVY[i] + dy; cz = PVZ[i] + dz; }
-    if (go == 1) {
-      if (moved == 0) {
-        if (cx + 1 > px - 0.3 && cx < px + 0.3 && cz + 1 > pz - 0.3 && cz < pz + 0.3 && cy + 1 > py && cy < py + 1.8) {
-          px = px + dx; py = py + dy; pz = pz + dz; if (dy > 0) { pvy = Math.max(pvy, 0); } moved = 1;
-        }
-      }
-      let e = 1;
-      while (e <= NMOB) {
-        if (ET[e] > 0) {
-          let w = MW[ET[e]] / 2;
-          if (cx + 1 > EX[e] - w && cx < EX[e] + w && cz + 1 > EZ[e] - w && cz < EZ[e] + w && cy + 1 > EY[e] && cy < EY[e] + MH[ET[e]]) { EX[e] = EX[e] + dx; EY[e] = EY[e] + dy; EZ[e] = EZ[e] + dz; }
-        }
-        e = e + 1;
-      }
-    }
+    let cx = psHX, cy = psHY, cz = psHZ, go = 1;
+    if (i == 0) { if (psHead == 0) { go = 0; } } else { cx = PVX[i] + psDX; cy = PVY[i] + psDY; cz = PVZ[i] + psDZ; }
+    if (go == 1) { if (cx + 1 > x0 - w && cx < x0 + w && cz + 1 > z0 - w && cz < z0 + w && cy + 1 > y0 && cy < y0 + h) { r = 1; if (i > 0) { if (PVB[i] == I_jellyBlock) { pbJelly = 1; } } } }
+    // (one on a jelly block's face, the way it goes, is thrown)
+    if (go == 1 && i > 0) { if (PVB[i] == I_jellyBlock) { let fx = cx + psDX, fy = cy + psDY, fz = cz + psDZ; if (fx + 1 > x0 - w && fx < x0 + w && fz + 1 > z0 - w && fz < z0 + w && fy + 1 > y0 && fy < y0 + h) { r = 1; pbJelly = 1; } } }
     i = i + 1;
   }
+  return r;
+}
+function pushBodies(dx, dy, dz, hx, hy, hz, head) {
+  psHX = hx; psHY = hy; psHZ = hz; psHead = head; psDX = dx; psDY = dy; psDZ = dz;
+  if (pbIn(px, py, pz, 0.3, 1.8) == 1) {
+    px = px + dx; py = py + dy; pz = pz + dz; if (dy > 0) { pvy = Math.max(pvy, 0); }
+    if (pbJelly == 1) { pvx = pvx + dx * 16; pvy = pvy + dy * 16; pvz = pvz + dz * 16; fallTop = py; }
+  }
+  let e = 1;
+  while (e <= NMOB) {
+    if (ET[e] > 0) {
+      if (pbIn(EX[e], EY[e], EZ[e], MW[ET[e]] / 2, MH[ET[e]]) == 1) {
+        EX[e] = EX[e] + dx; EY[e] = EY[e] + dy; EZ[e] = EZ[e] + dz;
+        if (pbJelly == 1) { EVX[e] = EVX[e] + dx * 16; EVY[e] = EVY[e] + dy * 16; EVZ[e] = EVZ[e] + dz * 16; }
+      }
+    }
+    e = e + 1;
+  }
+  let it = 1;
+  while (it <= NITM) {
+    if (IID[it] > 0) {
+      if (pbIn(IXX[it], IYY[it], IZZ[it], 0.12, 0.25) == 1) {
+        IXX[it] = IXX[it] + dx; IYY[it] = IYY[it] + dy; IZZ[it] = IZZ[it] + dz;
+        if (pbJelly == 1) { IVX[it] = IVX[it] + dx * 16; IVY[it] = IVY[it] + dy * 16; IVZ[it] = IVZ[it] + dz * 16; }
+      }
+    }
+    it = it + 1;
+  }
+}
+
+// ---------------------------------------------------------------- (v2.5) blocks on their way
+// MV*: where one lands, what it is, when (rsTime), the world, the way it goes (D6), the piston
+// (hsKey of it), 1 pushed out / 0 pulled back
+let MVX = [], MVY = [], MVZ = [], MVB = [], MVT = [], MVD = [], MVF = [], MVP = [], MVE = [];
+let psKey = 0, psExt = 1, mvPX = 0, mvPY = 0, mvPZ = 0;
+// a block written as it lands (the log, and a world kept now, have it there), the cell meanwhile moving
+function psPutMv(x, y, z, b) {
+  logOn = 1; wput(x, y, z, b); logOn = 0;
+  wput(x, y, z, I_moving);
+  markDirty(x, y, z);
+  lbX0 = Math.min(lbX0, x - 14); lbX1 = Math.max(lbX1, x + 14); lbZ0 = Math.min(lbZ0, z - 14); lbZ1 = Math.max(lbZ1, z + 14);
+  rsNotify(x, y, z, 3);
+  MVX.push(x); MVY.push(y); MVZ.push(z); MVB.push(b); MVT.push(rsTime + 0.1); MVD.push(dim); MVF.push(psMove); MVP.push(psKey); MVE.push(psExt);
+}
+function mvAt(x, y, z) {
+  let i = 1, r = 0;
+  while (i <= MVX.length) { if (MVX[i] == x && MVY[i] == y && MVZ[i] == z && MVD[i] == dim) { r = i; } i = i + 1; }
+  return r;
+}
+// is the piston (its key) pushing out still
+function mvGoing(pk) {
+  let i = 1, r = 0;
+  while (i <= MVX.length) { if (MVP[i] == pk && MVE[i] == 1 && MVD[i] == dim) { r = 1; } i = i + 1; }
+  return r;
+}
+function mvLand(i) {
+  let x = MVX[i], y = MVY[i], z = MVZ[i], b = MVB[i], d = MVD[i];
+  MVX.removeAt(i); MVY.removeAt(i); MVZ.removeAt(i); MVB.removeAt(i); MVT.removeAt(i); MVD.removeAt(i); MVF.removeAt(i); MVP.removeAt(i); MVE.removeAt(i);
+  if (d == dim) { if (blockAt(x, y, z) == I_moving) { setBlock(x, y, z, b); } }
+}
+function mvStep() {
+  let i = 1;
+  while (i <= MVX.length) { if (MVT[i] <= rsTime + 0.001 || MVD[i] != dim) { mvLand(i); } else { i = i + 1; } }
+}
+// all of the piston's moves land now
+function mvFinish(pk) {
+  let i = 1;
+  while (i <= MVX.length) { if (MVP[i] == pk) { mvLand(i); } else { i = i + 1; } }
+}
+// where one is drawn now (the middle of its bottom)
+function mvPos(i) {
+  let t = Math.max(0, Math.min(1, (MVT[i] - rsTime) / 0.1)), d = MVF[i];
+  mvPX = MVX[i] + 0.5 - DX6[d + 1] * t; mvPY = MVY[i] - DY6[d + 1] * t; mvPZ = MVZ[i] + 0.5 - DZ6[d + 1] * t;
+}
+// (v2.5) a piston's power: from its sides and back, or (quasi-connectivity) reaching the cell over it
+function pistonPowered(x, y, z, f) {
+  let r = 0;
+  if (powerIn(x, y, z, f) > 0) { r = 1; }
+  else { if (y + 1 < WY) { if (powerIn(x, y + 1, z, 2) > 0) { r = 1; } } }
+  return r;
 }
 
 // ---------------------------------------------------------------- dispensers and droppers
@@ -833,6 +1033,20 @@ function rsPut(b) {
   if (rl == RS_BUTTON) { r = b + ATTI[a + 1]; }
   if (rl == RS_TORCH) { if (a == 3) { r = 0 - 1; } else { r = b + ATTI[a + 1] * 2; } }
   if (rl == RS_LEVER || rl == RS_BUTTON || rl == RS_TORCH) { if (a != 2) { if (BSOL[pickB + 1] == 0) { r = 0 - 1; } } }
+  // (v2.5) a tripwire hook on a wall; string along the hook or string by it, else the way one looks
+  if (rl == RS_HOOK) { if (a == 2 || a == 3 || BSOL[pickB + 1] == 0) { r = 0 - 1; } else { r = hookId(a, 0); } }
+  if (rl == RS_TRIP) {
+    let ax = mod(f4, 2), q = 0;
+    while (q < 4) {
+      let d = F2D[q + 1], nb = blockAt(nbX + DX6[d + 1], nbY, nbZ + DZ6[d + 1]), dax = 0;
+      if (d == 0 || d == 1) { dax = 1; }
+      if (BRS[nb + 1] == RS_HOOK) { if (BATT[nb + 1] == d) { ax = dax; } }
+      if (BRS[nb + 1] == RS_TRIP) { if (BAUX[nb + 1] == dax) { ax = dax; } }
+      q = q + 1;
+    }
+    r = I_tripwire; if (ax == 1) { r = I_tripwire_x; }
+  }
+  if (rl == RS_RAIL) { r = railId(BAUX[b + 1], railPick(nbX, nbY, nbZ, BAUX[b + 1], f4), 0); }
   if (rl == RS_REPEATER) { r = b + f4 * 8; }
   if (rl == RS_COMPARATOR) { r = b + f4 * 4; }
   if (rl == RS_PISTON || rl == RS_OBSERVER || rl == RS_DISPENSER) {

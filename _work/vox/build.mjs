@@ -11,7 +11,7 @@ import { TEX, CRACK, BLOCKS, NBLOCK, ITEMS, TIERS, KINDS, SMITH, toolId, NITEM, 
 import { MODELS, ARMS, ARMCOL, pottedModel } from './models.mjs';
 import { makeSounds } from './sounds.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '2.4.4';
+export const VERSION = '2.5';
 // how many servers Entry Sync holds (each one two ?! lists; the slot line carries the number in two digits)
 export const NSRV = 99;
 export const NAME = '블록 월드';
@@ -35,7 +35,7 @@ export const consts = {
 // what F does on a block, how it is put down, what it must stand on, how it moves a body
 const USE = { rs: 25, none: 0, craft: 1, furnace: 2, chest: 3, smith: 4, shell: 5, door: 6, trapdoor: 7, gate: 8, lever: 9, button: 10, bed: 11, sign: 12, note: 13, cake: 14, compost: 15, repair: 16, bell: 17, pot: 18, command: 19, campfire: 20, enchant: 21, lodestone: 22, anchor: 23, voidchest: 24 };
 const PLACE = { none: 0, axis: 1, stairs: 2, slab: 3, door: 4, trapdoor: 5, gate: 6, bed: 7, ladder: 8, rail: 9 };
-const RS = { none: 0, wire: 1, repeater: 2, comparator: 3, torch: 4, lever: 5, button: 6, plate: 7, block: 8, sensor: 9, observer: 10, piston: 11, head: 12, lamp: 13, tnt: 14, door: 15, note: 16, command: 17, target: 18, dispenser: 19 };
+const RS = { none: 0, wire: 1, repeater: 2, comparator: 3, torch: 4, lever: 5, button: 6, plate: 7, block: 8, sensor: 9, observer: 10, piston: 11, head: 12, lamp: 13, tnt: 14, door: 15, note: 16, command: 17, target: 18, dispenser: 19, moving: 20, bell: 21, trapped: 22, hook: 23, trip: 24, rail: 25 };
 const NEED = { none: 0, soil: 1, floor: 2, below: 3, torch: 4, ashen: 5, farm: 6, reed: 7, water: 8, any: 9, dark: 10 };
 const TAGS = { planks: 1, logs: 2, wool: 3, stonecraft: 4 };
 
@@ -211,6 +211,20 @@ export function makeData() {
         B.BRS.push(rs); B.BFAC.push(b.fac ?? -1); B.BON.push(b.on || 0); B.BAUX.push(b.aux || 0); B.BATT.push(b.att ?? -1);
         B.BCOND.push(shape === 0 && sol === 1 && (b.hide ?? 1) === 1 && !b.leaf && (!rs || rs === RS.lamp || rs === RS.tnt || rs === RS.note || rs === RS.command || rs === RS.target) && id > 0 ? 1 : 0);
     }
+    // (v2.5) the note block's instrument by the block under it (BINST: 0 harp .. 15 pling, as the genre)
+    B.BINST = [];
+    for (let id = 0; id < NBLOCK; id++) {
+        const b = BLOCKS[id]; let r = 0;
+        if (b) {
+            const k = b.key || b.n || '', t = b.tool || 0;
+            if (t === 2) r = 1; if (t === 1) r = 4; if (b.fall || /gravel|concrete_powder/.test(k) || k === 'sand') r = 2;
+            if (/glass|aqua_lantern/.test(k)) r = 3;
+            if (k === 'gold_block') r = 5; if (k === 'clay') r = 6; if (k === 'packed_ice') r = 7; if (/_wool$/.test(k)) r = 8;
+            if (k === 'bone_block') r = 9; if (k === 'iron_block') r = 10; if (k === 'ash_sand') r = 11; if (/pumpkin/.test(k)) r = 12;
+            if (k === 'jade_block') r = 13; if (k === 'hay_block') r = 14; if (k === 'glow_crystal') r = 15;
+        }
+        B.BINST.push(r);
+    }
     // (v2.3.2) liquids: BLQ 7 water / 35 lava / 0 none, BLV 0 source, 1..7 flowing, 8 falling
     B.BLQ = []; B.BLV = [];
     for (let id = 0; id < NBLOCK; id++) {
@@ -272,6 +286,8 @@ export function makeData() {
             if (it.n === 'voidPearl') thr = 3;
             // (v2.3.2) the boat with the tools, where one looks for it (it was among the materials)
             if (it.n === 'boat') cat = 6;
+            // (v2.5) shears are tool kind 5 (sheep, cobwebs, leaves, string): tool5 was never read, so they were none
+            if (it.tool5) { tk = 5; tt = 0; k = 3; }
             if (it.n === 'waterBucket') plb = 7; if (it.n === 'lavaBucket') plb = 35;
             if (it.drink) k = 2, food = 0;
             ic = iconOf(it.icon, it.p); c1 = c2 = iconCol(it.icon, it.p);
@@ -416,7 +432,7 @@ export function makeData() {
 }
 
 // ------------------------------------------------------------------ sources
-export const FILES = ['world.js', 'flat.js', 'fluid.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'save.js', 'net.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'items.js', 'hud.js', 'extra.js', 'cmds.js', 'keyin.js', 'main.js', 'test.js'];
+export const FILES = ['world.js', 'flat.js', 'fluid.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'rails.js', 'save.js', 'net.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'items.js', 'hud.js', 'extra.js', 'cmds.js', 'keyin.js', 'main.js', 'test.js'];
 export function allConsts(more = {}) {
     const { C } = makeData();
     return { ...consts, ...C, ...more };

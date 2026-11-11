@@ -134,33 +134,33 @@ ok(lvl(CX + 6, Y, Z - 8) === 8, 'a chest half full: 8 (' + lvl(CX + 6, Y, Z - 8)
 // 8 pistons: face the player, push, pull, the limit, what stops them
 placeAs(X, Y, Z - 12, 'piston', 3, 0);
 ok(BFAC[B(X, Y, Z - 12)] === 4, 'a piston put looking +z faces -z (to the player): ' + BFAC[B(X, Y, Z - 12)]);
-put(X, Y, Z - 13, 'oak_planks'); placeAs(X + 1, Y, Z - 12, 'lever'); useAt(X + 1, Y, Z - 12); settle(); wait(0.1);
+put(X, Y, Z - 13, 'oak_planks'); placeAs(X + 1, Y, Z - 12, 'lever'); useAt(X + 1, Y, Z - 12); settle(); wait(0.2);
 ok(K(B(X, Y, Z - 14)) === 'oak_planks' && BRS[B(X, Y, Z - 13)] === 12 && on(X, Y, Z - 12) === 1, 'pushed: planks one on, the arm out');
-useAt(X + 1, Y, Z - 12); settle(); wait(0.1);
+useAt(X + 1, Y, Z - 12); settle(); wait(0.2);
 ok(B(X, Y, Z - 13) === 0 && K(B(X, Y, Z - 14)) === 'oak_planks' && on(X, Y, Z - 12) === 0, 'back: the arm gone, the planks stay');
-placeAs(X + 4, Y, Z - 12, 'sticky_piston', 3, 0); put(X + 4, Y, Z - 13, 'oak_planks'); placeAs(X + 5, Y, Z - 12, 'lever'); useAt(X + 5, Y, Z - 12); settle(); wait(0.1);
-useAt(X + 5, Y, Z - 12); settle(); wait(0.1);
+placeAs(X + 4, Y, Z - 12, 'sticky_piston', 3, 0); put(X + 4, Y, Z - 13, 'oak_planks'); placeAs(X + 5, Y, Z - 12, 'lever'); useAt(X + 5, Y, Z - 12); settle(); wait(0.2);
+useAt(X + 5, Y, Z - 12); settle(); wait(0.2);
 ok(K(B(X + 4, Y, Z - 13)) === 'oak_planks' && B(X + 4, Y, Z - 14) === 0, 'a sticky piston pulls the planks back');
-placeAs(X + 8, Y, Z - 12, 'piston', 3, 0); put(X + 8, Y, Z - 13, 'obsidian'); placeAs(X + 9, Y, Z - 12, 'lever'); useAt(X + 9, Y, Z - 12); settle(); wait(0.1);
+placeAs(X + 8, Y, Z - 12, 'piston', 3, 0); put(X + 8, Y, Z - 13, 'obsidian'); placeAs(X + 9, Y, Z - 12, 'lever'); useAt(X + 9, Y, Z - 12); settle(); wait(0.2);
 ok(on(X + 8, Y, Z - 12) === 0 && K(B(X + 8, Y, Z - 13)) === 'obsidian', 'obsidian stops it');
 cmd(`/fill ${X + 12} ${Y} ${Z - 24} ${X + 12} ${Y} ${Z - 13} oak_planks`);
-placeAs(X + 12, Y, Z - 12, 'piston', 3, 0); placeAs(X + 13, Y, Z - 12, 'lever'); useAt(X + 13, Y, Z - 12); settle(); wait(0.1);
+placeAs(X + 12, Y, Z - 12, 'piston', 3, 0); placeAs(X + 13, Y, Z - 12, 'lever'); useAt(X + 13, Y, Z - 12); settle(); wait(0.2);
 ok(on(X + 12, Y, Z - 12) === 1, '12 blocks: pushed');
-useAt(X + 13, Y, Z - 12); settle(); wait(0.1);
-put(X + 12, Y, Z - 13, 'oak_planks'); put(X + 12, Y, Z - 25, 'stone'); useAt(X + 13, Y, Z - 12); settle(); wait(0.1);
+useAt(X + 13, Y, Z - 12); settle(); wait(0.2);
+put(X + 12, Y, Z - 13, 'oak_planks'); put(X + 12, Y, Z - 25, 'stone'); useAt(X + 13, Y, Z - 12); settle(); wait(0.2);
 ok(on(X + 12, Y, Z - 12) === 0, '13 blocks: not pushed');
-placeAs(X + 16, Y, Z - 12, 'piston', 3, 0); placeAs(X + 16, Y, Z - 13, 'spark_dust'); placeAs(X + 17, Y, Z - 12, 'lever'); useAt(X + 17, Y, Z - 12); settle(); wait(0.1);
+placeAs(X + 16, Y, Z - 12, 'piston', 3, 0); placeAs(X + 16, Y, Z - 13, 'spark_dust'); placeAs(X + 17, Y, Z - 12, 'lever'); useAt(X + 17, Y, Z - 12); settle(); wait(0.2);
 ok(BRS[B(X + 16, Y, Z - 13)] === 12, 'wire in front is broken by the arm');
 placeAs(X + 20, Y + 1, Z - 12, 'piston', 3, 0, -60); put(X + 20, Y + 2, Z - 12, 'oak_planks'); placeAs(X + 21, Y + 1, Z - 12, 'stone'); brk(X + 21, Y + 1, Z - 12);
 ok(BFAC[B(X + 20, Y + 1, Z - 12)] === 3, 'looking down: the piston faces up');
-placeAs(X + 20, Y, Z - 11, 'spark_block'); brk(X + 20, Y, Z - 11); placeAs(X + 21, Y + 1, Z - 12, 'spark_block'); settle(); wait(0.1);
+placeAs(X + 20, Y, Z - 11, 'spark_block'); brk(X + 20, Y, Z - 11); placeAs(X + 21, Y + 1, Z - 12, 'spark_block'); settle(); wait(0.2);
 ok(K(B(X + 20, Y + 3, Z - 12)) === 'oak_planks', 'up: the planks pushed up');
-brk(X + 20, Y + 2, Z - 12); settle(); wait(0.1); ok(B(X + 20, Y + 1, Z - 12) === 0, 'the arm broken: the piston breaks too');
-brk(X + 21, Y + 1, Z - 12); settle(); wait(0.1);
+brk(X + 20, Y + 2, Z - 12); settle(); wait(0.2); ok(B(X + 20, Y + 1, Z - 12) === 0, 'the arm broken: the piston breaks too');
+brk(X + 21, Y + 1, Z - 12); settle(); wait(0.2);
 // the player stands where the planks go
 placeAs(X + 4, Y, Z + 18, 'piston', 3, 0); put(X + 4, Y, Z + 17, 'oak_planks'); placeAs(X + 5, Y, Z + 18, 'lever');
 s.poke('flying', 0); s.poke('px', X + 4.5); s.poke('py', Y); s.poke('pz', Z + 16.5); s.poke('pvy', 0);
-useAt(X + 5, Y, Z + 18); settle(); wait(0.1);
+useAt(X + 5, Y, Z + 18); settle(); wait(0.2);
 ok(s.peek('pz') < Z + 16, 'the player pushed along (pz ' + s.peek('pz').toFixed(2) + ')');
 s.poke('flying', 1); s.poke('px', X + 0.5); s.poke('py', Y + 12); s.poke('pz', Z - 22);
 

@@ -166,12 +166,12 @@ function bodyIn(x, y, z, w, h) {
 
 // ---------------------------------------------------------------- moving
 function playerMove(dt) {
-  if (riding > 0) { if (ET[riding] != 13) { riding = 0; } }
+  if (riding > 0) { if (ET[riding] != 13 && isCart(ET[riding]) == 0) { riding = 0; } }
   if (gameMode == 3) { riding = 0; spectatorMove(dt); }
   else {
     if (riding > 0) {
       if (key(16)) { if (uiMode == 0) { riding = 0; py = py + 0.9; pvy = 2; } }
-      else { px = EX[riding]; py = EY[riding] + 0.25; pz = EZ[riding]; pvx = 0; pvy = 0; pvz = 0; fallTop = py; onGround = 1; }
+      else { px = EX[riding]; py = EY[riding] + 0.25; if (isCart(ET[riding]) == 1) { py = EY[riding] + 0.1; } pz = EZ[riding]; pvx = 0; pvy = 0; pvz = 0; fallTop = py; onGround = 1; }
     } else {
       if (cOK(Math.floor(px), Math.floor(pz)) == 0) { pvx = 0; pvy = 0; pvz = 0; fallTop = py; }
       else { playerMove2(dt); }
@@ -474,7 +474,11 @@ function breaking(dt) {
   breakCool = breakCool - dt;
   breakStage = 0;
   if (pickOn == 1 && clickHeld == 1 && uiMode == 0 && gameMode != 2) {
-    if (pickX != breakX || pickY != breakY || pickZ != breakZ) { breakX = pickX; breakY = pickY; breakZ = pickZ; breakT = 0; }
+    if (pickX != breakX || pickY != breakY || pickZ != breakZ) {
+      breakX = pickX; breakY = pickY; breakZ = pickZ; breakT = 0;
+      // (v2.5) a note block hit plays its note
+      if (BKIND[pickB + 1] == I_noteBlock) { notePlay(pickX, pickY, pickZ, pickB); }
+    }
     swingT = Math.max(swingT, 0.25);
     if (breakCool <= 0) {
       let bt = breakTime(pickB);
@@ -494,6 +498,8 @@ function breaking(dt) {
 // take a block away (by the player when byP 1: drops and wears the tool)
 function breakBlock(x, y, z, byP) {
   let b = blockAt(x, y, z);
+  // (v2.5) string broken but by shears: its hooks go on
+  if (BRS[b + 1] == RS_TRIP) { if (ITTK[INVI[hotSel] + 1] != 5) { tripHit(x, y, z); } }
   if (netSrv > 0) { if (byP == 1) { plugRun('break', ITKEY[b + 1], netNick); } }
   if (byP == 1) {
     let bt0 = breakTime(b);
@@ -578,7 +584,12 @@ function setBlock(x, y, z, b) {
     if (BWET[b + 1] > 0) { if (BFALL[b + 1] == 1) { if (waterNear(x, y, z) == 1) { logOn = 1; wput(x, y, z, BWET[b + 1]); logOn = 0; } } }
     if (BLQ[b + 1] == 7) { wetAround(x, y, z); }
     // spark power: the cells round look again (two steps out when a part came or went)
-    if (BRS[old + 1] > 0 || BRS[b + 1] > 0) { rsNotify(x, y, z, 3); } else { rsNotify(x, y, z, 2); }
+    // (v2.5) but a spark block, as the genre's, tells only the cells by it: a piston that takes power
+    // reaching the cell over it does not notice one put there (a BUD switch) until something by it changes
+    let two = 0;
+    if (BRS[old + 1] > 0 && BRS[old + 1] != RS_BLOCK) { two = 1; }
+    if (BRS[b + 1] > 0 && BRS[b + 1] != RS_BLOCK) { two = 1; }
+    if (two == 1) { rsNotify(x, y, z, 3); } else { rsNotify(x, y, z, 2); }
     // (v2.3.2) liquid by the change looks again: it runs into a hole, goes back when its source went
     fluidNotify(x, y, z);
   }

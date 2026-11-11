@@ -149,6 +149,12 @@ function stateOf(b, st) {
   if (BCROP[b + 1] >= 0) { if (age >= 0) { v = age; } }
   if (BSPEC[b + 1] == 2) { v = 0; if (lit == 1) { v = I_sparkLampOn - b; } }
   if (BRS[b + 1] == RS_WIRE || BRS[b + 1] == RS_REPEATER || BRS[b + 1] == RS_COMPARATOR || BRS[b + 1] == RS_TORCH || BRS[b + 1] == RS_LEVER || BRS[b + 1] == RS_BUTTON || BRS[b + 1] == RS_OBSERVER || BRS[b + 1] == RS_PISTON || BRS[b + 1] == RS_DISPENSER) { v = rsState(b, st); }
+  // (v2.5) the ones whose states are not right after them: tripwire hooks (facing: the way the hook
+  // points, away from its wall), note blocks (note=0..24), rails (shape=..., powered=)
+  if (BRS[b + 1] == RS_HOOK) { v = hookId(OP6[F2D[f + 1] + 1], lit) - b; }
+  if (BRS[b + 1] == RS_RAIL) { v = railState(b, st) - b; }
+  if (BRS[b + 1] == RS_TRIP) { if (indexOf(st, 'east=true') > 0 || indexOf(st, 'west=true') > 0) { v = I_tripwire_x - b; } }
+  if (BRS[b + 1] == RS_NOTE) { let nt = indexOf(st, 'note='); if (nt > 0) { let p = substr(st, nt + 5, nt + 5) * 1; if (strlen(st) >= nt + 6) { let c2 = indexOf('0123456789', substr(st, nt + 6, nt + 6)); if (c2 > 0) { p = p * 10 + c2 - 1; } } v = noteId(Math.max(0, Math.min(24, p))) - b; } }
   return v;
 }
 function effectByName(nm) {
@@ -273,6 +279,12 @@ function selParse(w) {
       if (netSrv > 0 && cmdFromBlock != 2) {
         if (w == netNick) { selAdd(0); selPlayer = 1; }
         else { let j = 1; while (j <= NSLOT) { if (j != netMy) { if (NLIVE[j] == 1) { if (NSRVk[j] == netSrv) { if (NNICK[j] == w) { SELR.push(j); } } } } j = j + 1; } }
+        // (v2.4.5) none by the very name: the one whose name it is but for capitals (as the genre)
+        if (selPlayer == 0 && SELR.length == 0) {
+          let lw = lower(w);
+          if (lower(netNick) == lw) { selAdd(0); selPlayer = 1; }
+          else { let j = 1; while (j <= NSLOT) { if (j != netMy) { if (NLIVE[j] == 1) { if (NSRVk[j] == netSrv) { if (lower(NNICK[j]) == lw) { if (SELR.length == 0) { SELR.push(j); } } } } } j = j + 1; } }
+        }
       } else { selAdd(0); selPlayer = 1; }
     }
   }
@@ -522,7 +534,9 @@ function runCommand(s) {
   CMW[1] = c;
   // (the words but the texts in lower case)
   let i = 2;
-  while (i <= CMW.length) { if (c != 'say' && c != 'tell' && c != 'msg' && c != 'w' && c != 'me' && c != 'title' && c != 'plugin' && c != 'pl' && c != 'plugins' && c != 'server' && c != 'kick' && c != 'ban' && c != 'op' && c != 'deop' && c != 'pardon' && c != 'unban' && c != 'whitelist') { CMW[i] = lower(CMW[i]); } i = i + 1; }
+  // (v2.4.5) but not a player's name: a nickname with capitals (/tp Bob, /gamemode creative Bob,
+  // /give Bob ...) became 'bob' and found nobody; /perm allow kept the name in lower case too
+  while (i <= CMW.length) { if (c != 'say' && c != 'tell' && c != 'msg' && c != 'w' && c != 'me' && c != 'title' && c != 'plugin' && c != 'pl' && c != 'plugins' && c != 'server' && c != 'kick' && c != 'ban' && c != 'op' && c != 'deop' && c != 'pardon' && c != 'unban' && c != 'whitelist' && c != 'perm' && c != 'permission' && c != 'perms') { if (isNickWord(CMW[i]) == 0) { CMW[i] = lower(CMW[i]); } } i = i + 1; }
   // on a server: the rights, the server's own commands, the plugins' (netcmd.js)
   netCmdHit = 0;
   if (netSrv > 0) { netCmd(c); }
@@ -531,6 +545,17 @@ function runCommand(s) {
   else { if (cmdAim(c) == 1) { out = runCmd(c); if (strlen(aimSent) > 0) { if (strlen(out) > 0) { out = `${out} (+ ${aimSent})`; } } } else { out = cmdAimOut; } }
   // (a text local starts as 0 in Entry: no message is 0)
   if (strlen(out) > 0) { if (out != 0) { cmdOut(out); } }
+}
+// (v2.4.5) a word that is a player's name as it is written (Entry's = tells capitals apart)
+function isNickWord(w) {
+  let r = 0;
+  if (w == netNick || w == SUPER) { r = 1; }
+  if (netSrv > 0) {
+    if (w == shOwner) { r = 1; }
+    let j = 1;
+    while (j <= NSLOT) { if (NLIVE[j] == 1) { if (NNICK[j] == w) { r = 1; } } j = j + 1; }
+  }
+  return r;
 }
 function runCmd(c) {
   let out = '', a = 2;
@@ -776,7 +801,8 @@ function boxPut(x, y, z, b) {
       markDirty(x, y, z);
       if (BUSE[b + 1] == U_CHEST) { chestAt(x, y, z); } if (BUSE[b + 1] == U_FURNACE) { furnaceAt(x, y, z); }
       if (BSPEC[b + 1] == 6) { spawnerNote(x, y, z); }
-      if (BRS[b + 1] > 0 || BRS[o + 1] > 0) { rsNotify(x, y, z, 3); } else { rsTell(x, y, z); }
+      // (v2.5: a spark block tells only the cells by it, as setBlock)
+      if ((BRS[b + 1] > 0 && BRS[b + 1] != RS_BLOCK) || (BRS[o + 1] > 0 && BRS[o + 1] != RS_BLOCK)) { rsNotify(x, y, z, 3); } else { if (BRS[b + 1] > 0 || BRS[o + 1] > 0) { rsNotify(x, y, z, 2); } else { rsTell(x, y, z); } }
       // (v2.3.2) water or lava put by a command flows; a hole made by one fills
       fluidNotify(x, y, z);
       bxN = bxN + 1;

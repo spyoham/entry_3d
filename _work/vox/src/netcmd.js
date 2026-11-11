@@ -2,9 +2,18 @@
 // netCmd sets netCmdHit (1: answered here) and netCmdOut. Everybody may use help, list, tell
 // (msg, w), me and the commands of the plugins; the rest is for the server's ops (and the owner).
 let netCmdHit = 0, netCmdOut = '';
+// (v2.4.5) a name typed with other capitals than a player here has: that player's own name
+function nickFix(w) {
+  let r = w;
+  if (isNickWord(w) == 0) {
+    let lw = lower(w), j = 1;
+    while (j <= NSLOT) { if (NLIVE[j] == 1) { if (NSRVk[j] == netSrv) { if (lower(NNICK[j]) == lw) { r = NNICK[j]; } } } j = j + 1; }
+  }
+  return r;
+}
 function netCmd(c) {
   netCmdHit = 1; netCmdOut = '';
-  let n = cw(2), sub = lower(cw(2));
+  let n = nickFix(cw(2)), sub = lower(cw(2));
   if (plugCommand(c, ' ') == 1) { netCmdOut = ''; }
   else {
     if (cmdFromBlock == 0 && permOk(netNick, c) == 0) {

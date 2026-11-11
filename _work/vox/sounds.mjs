@@ -42,5 +42,30 @@ export function makeSounds() {
     { const a = buf(0.1); sweep(a, 900, 1500, 0.08, 0.8, 0, 3); add('s6', norm(a, 0.3)); }
     // s7 a tool breaks: a snap
     { const a = buf(0.35); noise(a, 9, 0, a.length, 1, (t) => Math.exp(-t * 18)); hp(a, 1500); sweep(a, 1200, 500, 0.3, 0.6, 0, 4); add('s7', norm(a, 0.6)); }
+    // (v2.5) the note block's sixteen instruments (n0 .. n15), each at its pitch 12 (F#; the game
+    // plays it 0.5 .. 2 times as fast for the notes 0 .. 24, as the genre does)
+    const F4 = 369.99;
+    // a plucked string (Karplus-Strong): f, length, brightness (0..1), decay
+    const pluck = (f, sec, bright, seed) => { const a = buf(sec), n = Math.max(2, Math.round(SR / f)), R = rng(seed); const d = new Float32Array(n); for (let i = 0; i < n; i++) d[i] = R() * 2 - 1; let p = 0; for (let i = 0; i < a.length; i++) { const j = (p + 1) % n; const v = d[p]; d[p] = (v * bright + d[j] * (1 - bright)) * 0.996; a[i] = v; p = j; } return a; };
+    const bellTone = (f, sec, parts, decay) => { const a = buf(sec); for (const [m, g] of parts) tone(a, f * m, sec, g, 0, decay * Math.sqrt(m)); return a; };
+    const sq = (f, sec, amp, decay) => { const a = buf(sec); for (let i = 0; i < a.length; i++) { const t = i / SR; a[i] = (Math.sin(2 * Math.PI * f * t) >= 0 ? 1 : -1) * amp * Math.exp(-t * decay) * Math.min(1, t * 400); } return a; };
+    const I = [];
+    I[0] = pluck(F4, 0.8, 0.5, 11);                                                   // harp
+    I[1] = lp(pluck(F4 / 4, 0.8, 0.5, 12), 900);                                      // bass (wood)
+    { const a = buf(0.25); noise(a, 13, 0, a.length, 1, (t) => Math.exp(-t * 22)); hp(a, 900); tone(a, 220, 0.2, 0.6, 0, 25); I[2] = a; }       // snare (sand)
+    { const a = buf(0.08); noise(a, 14, 0, a.length, 1, (t) => Math.exp(-t * 90)); hp(a, 3500); I[3] = a; }                                  // click (glass)
+    { const a = buf(0.35); sweep(a, 150, 45, 0.3, 1, 0, 5); noise(a, 15, 0, 400, 0.4, (t) => Math.exp(-t * 200)); lp(a, 400); I[4] = a; }   // bass drum (stone)
+    I[5] = bellTone(F4 * 4, 1.0, [[1, 1], [2.76, 0.35], [5.4, 0.15]], 3);            // bell (gold)
+    { const a = buf(0.8); for (let i = 0; i < a.length; i++) { const t = i / SR, v = 1 + 0.004 * Math.sin(2 * Math.PI * 5 * t); a[i] = (Math.sin(2 * Math.PI * F4 * 2 * v * t) + 0.25 * Math.sin(4 * Math.PI * F4 * 2 * v * t)) * Math.min(1, t * 20) * Math.exp(-t * 2.5); } noise(a, 16, 0, a.length, 0.03, (t) => Math.exp(-t * 4)); I[6] = a; }   // flute (clay)
+    I[7] = bellTone(F4 * 4, 1.2, [[1, 1], [2.0, 0.2], [3.0, 0.3], [4.2, 0.1]], 1.6);  // chime (packed ice)
+    I[8] = lp(pluck(F4 / 2, 0.8, 0.6, 17), 2500);                                     // guitar (wool)
+    I[9] = bellTone(F4 * 4, 0.35, [[1, 1], [3.9, 0.3]], 12);                          // xylophone (bone)
+    I[10] = bellTone(F4, 0.8, [[1, 1], [2.0, 0.5], [3.0, 0.3], [4.0, 0.2]], 4);       // iron xylophone (iron)
+    { const a = sq(F4 * 2, 0.4, 0.5, 9); const b = sq(F4 * 2 * 1.48, 0.4, 0.35, 9); for (let i = 0; i < a.length; i++) a[i] += b[i]; lp(a, 2800); hp(a, 500); I[11] = a; }   // cow bell (ash sand)
+    { const a = buf(0.9); let ph = 0; for (let i = 0; i < a.length; i++) { const t = i / SR; ph += F4 / 4 / SR; a[i] = ((ph % 1) * 2 - 1) * Math.min(1, t * 15) * Math.exp(-t * 1.5); } lp(a, 300 + 0); I[12] = a; }   // didgeridoo (pumpkin)
+    I[13] = sq(F4, 0.5, 0.6, 3);                                                      // bit (jade)
+    I[14] = hp(pluck(F4, 0.6, 0.85, 18), 300);                                        // banjo (hay)
+    { const a = bellTone(F4, 0.9, [[1, 1], [2, 0.6], [4, 0.2]], 2.5); for (let i = 0; i < a.length; i++) a[i] *= 1 + 0.25 * Math.sin(2 * Math.PI * 6 * i / SR); I[15] = a; }   // pling (glow crystal)
+    I.forEach((a, k) => add('n' + k, norm(a, 0.5)));
     return S;
 }

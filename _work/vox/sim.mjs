@@ -22,6 +22,7 @@ export function createSim({ consts = {}, listMax = 1e8 } = {}) {
     const js = Object.entries(C).map(([k, v]) => `const ${k}=${JSON.stringify(v)};`).join('\n') + '\n' + compileToJS([src]);
     const keys = new Set();
     const mouse = { x: 0, y: 0, down: false };
+    const sounds = []; let soundRate = 1;
     const answers = [];
     let simTime = 0, wall = 0, lastAnswer = '';
     const ovDefaults = {};
@@ -79,7 +80,7 @@ export function createSim({ consts = {}, listMax = 1e8 } = {}) {
         replace: (s, a, b) => str(s).split(str(a)).join(str(b)),
         hideAnswer: () => { },
         rgb: (r, g, b) => '#' + [r, g, b].map(v => { v = Math.round(+v); if (!(v >= 0 && v <= 255)) throw new Error('rgb ' + v); return v.toString(16).padStart(2, '0'); }).join(''),
-        sound: () => { }, volume: () => { }, setSize: () => { }, frac: (v) => v - Math.floor(v), rand: (a, b) => { a = +a; b = +b; if (Number.isInteger(a) && Number.isInteger(b)) return a + Math.floor(Math.random() * (b - a + 1)); return a + Math.random() * (b - a); },
+        sound: (n) => { sounds.push([String(n), soundRate]); if (sounds.length > 200) sounds.shift(); }, soundSpeed: (v) => { soundRate = Math.max(0.5, Math.min(2, +v)); }, volume: () => { }, setSize: () => { }, frac: (v) => v - Math.floor(v), rand: (a, b) => { a = +a; b = +b; if (Number.isInteger(a) && Number.isInteger(b)) return a + Math.floor(Math.random() * (b - a + 1)); return a + Math.random() * (b - a); },
         asind: (v) => Math.asin(v) * 180 / Math.PI, acosd: (v) => Math.acos(v) * 180 / Math.PI,
         str: (...a) => a.join(''),
         key: (c) => keys.has(c), mouseX: () => mouse.x, mouseY: () => mouse.y, mouseDown: () => mouse.down,
@@ -165,7 +166,7 @@ export function createSim({ consts = {}, listMax = 1e8 } = {}) {
         return px;
     }
     const sim = {
-        R, js, keys, mouse, answers, stats, entities, base,
+        R, js, keys, mouse, answers, stats, entities, base, sounds,
         fn: R.fn,
         get time() { return simTime; },
         click() { for (const h of R.handlers) if (h.ev === 'click') threads.push({ ent: base[h.obj], g: h.gen() }); },

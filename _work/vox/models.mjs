@@ -75,6 +75,11 @@ M('pot', [[5, 0, 5, 11, 6, 11]]);
 M('head', [[4, 0, 4, 12, 8, 12]]);
 M('rod', [[6, 0, 6, 10, 1, 10], [7, 1, 7, 9, 16, 9]]);
 M('rail', [[0, 0, 0, 16, 1, 16]], 'none');
+// (v2.5) rails going up (shape 2 to +x, 3 to -x, 4 to -z, 5 to +z): four steps
+const RUP = { 2: (i) => [i * 4, i * 4, 0, i * 4 + 4, i * 4 + 1, 16], 3: (i) => [12 - i * 4, i * 4, 0, 16 - i * 4, i * 4 + 1, 16], 4: (i) => [0, i * 4, 12 - i * 4, 16, i * 4 + 1, 16 - i * 4], 5: (i) => [0, i * 4, i * 4, 16, i * 4 + 1, i * 4 + 4] };
+for (const s of [2, 3, 4, 5]) M(`railup_${s}`, [0, 1, 2, 3].map(RUP[s]), 'none');
+// (v2.5) a block on its way (pistons): nothing drawn, a whole cell hit
+M('empty', [], [[0, 0, 0, 16, 16, 16]]);
 // spark power. The wire: a dot, its arms (ARMS[4]) toward what it joins
 M('dust', [[5, 0, 5, 11, 1, 11]], 'none');
 // a box of the canonical model turned by g(x, y, z) -> [x, y, z] (the corners, then sorted)
@@ -103,6 +108,10 @@ for (let f = 0; f < 4; f++) for (const on of [0, 1]) {
     for (let d = 1; d <= 4; d++) M(`rep_${f}_${d}_${on}`, [[0, 0, 0, 16, 2, 16], rsTorch(f, 2 + (d - 1) * 2, 7, on), rsTorch(f, 11, 7, on)], [[0, 0, 0, 16, 2, 16]]);
     for (const m of [0, 1]) M(`cmp_${f}_${m}_${on}`, [[0, 0, 0, 16, 2, 16], rsTorch(f, 2, 3, on), rsTorch(f, 2, 11, on), rsTorch(f, 12, 7, m)], [[0, 0, 0, 16, 2, 16]]);
 }
+// (v2.5) tripwire hooks on a wall a (the plate on it, the hook out from it; down a little when on), the string
+for (const a of [0, 1, 4, 5]) for (const on of [0, 1]) M(`hook_${a}_${on}`, [turnBox([6, 0, 3, 10, 2, 13, 'planks'], ATTACH[a]), turnBox([7, 2, on ? 5 : 7, 9, 9, on ? 7 : 9, 'cobble'], ATTACH[a])], 'none');
+M('trip_0', [[7, 1, 0, 9, 2, 16]], 'none');
+M('trip_1', [[0, 1, 7, 16, 2, 9]], 'none');
 M('pickle', [[6, 0, 6, 10, 6, 10], [9, 0, 3, 12, 4, 6]], 'none');
 M('scaffold', [[0, 0, 0, 2, 16, 2], [14, 0, 0, 16, 16, 2], [0, 0, 14, 2, 16, 16], [14, 0, 14, 16, 16, 16], [0, 14, 0, 16, 16, 16]], 'none');
 M('bamboo', [[6, 0, 6, 10, 16, 10]]);

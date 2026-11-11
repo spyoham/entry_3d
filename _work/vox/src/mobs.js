@@ -124,7 +124,8 @@ function mobsStep(dt) {
       if (cOK(Math.floor(EX[e]), Math.floor(EZ[e])) == 0) { ET[e] = 0; }
       else {
         // (v2.4.3) mobs and the other players press plates too
-        if (ET[e] != 13) { plateHit(Math.floor(EX[e]), Math.floor(EY[e] + 0.05), Math.floor(EZ[e]), 0); } if (ET[e] != 10 && ET[e] != M_NETPLAYER) { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 1600) { mobStep(e, dt); } } }
+        // (v2.5: a minecart presses as an item does: wooden plates, not stone ones; string)
+        if (ET[e] != 13) { let wh = 0; if (isCart(ET[e]) == 1) { wh = 1; } plateHit(Math.floor(EX[e]), Math.floor(EY[e] + 0.05), Math.floor(EZ[e]), wh); } if (ET[e] != 10 && ET[e] != M_NETPLAYER) { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 1600) { mobStep(e, dt); } } }
     }
     e = e + 1;
   }
@@ -132,7 +133,7 @@ function mobsStep(dt) {
 function mobStep(e, dt) {
   let t = ET[e];
   if (t == 12) { shellStep(e, dt); }
-  else { if (t == 13) { boatStep(e, dt); } else { if (t == 11) { wanderStep(e, dt); } mobStep0(e, dt); } }
+  else { if (t == 13) { boatStep(e, dt); } else { if (isCart(t) == 1) { cartStep(e, dt); } else { if (t == 11) { wanderStep(e, dt); } mobStep0(e, dt); } } }
 }
 function mobStep0(e, dt) {
   let t = ET[e];
@@ -271,7 +272,7 @@ function mobHurt(e, n, fx, fz) {
     EHP[e] = EHP[e] - n; EHURT[e] = 0.5;
     sndPlay(4);
     // (a boat is not knocked away: it went out of reach after one hit)
-    if ((fx != 0 || fz != 0) && ET[e] != M_BOAT) {
+    if ((fx != 0 || fz != 0) && ET[e] != M_BOAT && isCart(ET[e]) == 0) {
       let l = Math.sqrt(fx * fx + fz * fz) + 0.001;
       EVX[e] = fx / l * 6; EVZ[e] = fz / l * 6; EVY[e] = 5;
     }
@@ -502,11 +503,17 @@ function bucketThings() {
     if (AON[a] > 0) { inView(AXX[a], AYY[a], AZZ[a], 0.6); if (inV == 1) { bucketThing(0 - 200 - a, AXX[a], AYY[a], AZZ[a]); } }
     a = a + 1;
   }
+  // (v2.5) blocks a piston moves, sliding
+  let m = 1;
+  while (m <= MVX.length) {
+    if (MVD[m] == dim) { mvPos(m); inView(mvPX, mvPY + 0.5, mvPZ, 1); if (inV == 1) { bucketThing(0 - 300 - m, mvPX, mvPY + 0.5, mvPZ); } }
+    m = m + 1;
+  }
 }
 function drawThing(id, d2) {
   let fog = FOGL[d2 + 1];
   if (id < 100) { drawMob(id, fog); }
-  else { if (id < 200) { drawItemThing(id - 100, fog); } else { drawArrow(id - 200, fog); } }
+  else { if (id < 200) { drawItemThing(id - 100, fog); } else { if (id < 300) { drawArrow(id - 200, fog); } else { drawMoving(id - 300, fog); } } }
 }
 // the light where a thing stands (0..15 with the night)
 function lightAt(x, y, z) {
@@ -621,6 +628,34 @@ function drawItemThing(i, fog) {
     boxFace(1, 2, 4, 3, cs, 0); boxFace(5, 7, 8, 6, cs, 1);
     boxFace(1, 5, 6, 2, cs, 2); boxFace(3, 4, 8, 7, ct, 3);
     boxFace(1, 3, 7, 5, cs, 4); boxFace(2, 6, 8, 4, cs, 5);
+  }
+}
+// (v2.5) a block on its way with a piston: a whole block in its colours
+function drawMoving(m, fog) {
+  if (m <= MVX.length) {
+    mvPos(m);
+    let id = BKIND[MVB[m] + 1];
+    mdX = mvPX; mdY = mvPY; mdZ = mvPZ;
+    mdSy = 0; mdCy = 1024; mdTint = 0;
+    mdOX = Math.round((mdX - camX) * MK); mdOY = Math.round((mdY - camY) * MK); mdOZ = Math.round((mdZ - camZ) * MK);
+    mdLv = lightAt(mdX, mdY + 0.5, mdZ); mdFog = fog;
+    let s = 80, k = 0, lx = 0, ly = 0, lz = 0, wx = 0, wy = 0, wz = 0, vz = 0, behind = 0, foc = FOC;
+    while (k < 8) {
+      if (k >= 4) { lx = s; } else { lx = 0 - s; }
+      if (mod(k, 4) >= 2) { ly = 160; } else { ly = 0; }
+      if (mod(k, 2) == 1) { lz = s; } else { lz = 0 - s; }
+      wx = mdOX + lx * 1048576; wy = mdOY + ly * 1048576; wz = mdOZ + lz * 1048576;
+      vz = r31 * wx + r32 * wy + r33 * wz;
+      if (vz < 40000000000) { behind = 1; vz = 40000000000; }
+      PSX[k + 1] = (r11 * wx + r13 * wz) * foc / vz; PSY[k + 1] = (r21 * wx + r22 * wy + r23 * wz) * foc / vz;
+      k = k + 1;
+    }
+    if (behind == 0) {
+      let ct = ITC1[id + 1], cs = ITC2[id + 1];
+      boxFace(1, 2, 4, 3, cs, 0); boxFace(5, 7, 8, 6, cs, 1);
+      boxFace(1, 5, 6, 2, cs, 2); boxFace(3, 4, 8, 7, ct, 3);
+      boxFace(1, 3, 7, 5, cs, 4); boxFace(2, 6, 8, 4, cs, 5);
+    }
   }
 }
 function drawArrow(a, fog) {

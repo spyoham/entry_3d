@@ -63,17 +63,21 @@ function menuFrame(dt) {
   eraseAll();
   if (scr == 0) { panoStep(dt); if (panoReady == 0) { dirtBack(14); } }
   else { if (panoReady == 1) { panoStep(dt); penAlpha(45); box(-245, 140, 245, -140, '#000000'); fillStop(); penAlpha(0); } else { panoStep(dt); dirtBack(14); } }
-  if (scr == 0) { scrTitle(dt); }
-  if (scr == 1) { scrWorlds(); }
-  if (scr == 2) { scrNewWorld(); }
-  if (scr == 3) { scrDelWorld(); }
-  if (scr == 4) { scrServers(); }
-  if (scr == 5) { scrServerEdit(); }
-  if (scr == 6) { scrDirect(); }
-  if (scr == 7) { scrOptions(); }
-  if (scr == 8) { scrMessage(); }
-  if (scr == 9) { scrHelp(); }
-  if (scr == 10) { scrDelServer(); }
+  // (v2.4.5) one screen a frame: a button that opened another screen let the same click go on into
+  // it (the servers' 편집 hit the edit screen's 완료 at once, 다시 만들기 its 취소, 작품 정보 the
+  // message's button, 싱글플레이 / 멀티플레이 a row of the list)
+  let sc = scr;
+  if (sc == 0) { scrTitle(dt); }
+  if (sc == 1) { scrWorlds(); }
+  if (sc == 2) { scrNewWorld(); }
+  if (sc == 3) { scrDelWorld(); }
+  if (sc == 4) { scrServers(); }
+  if (sc == 5) { scrServerEdit(); }
+  if (sc == 6) { scrDirect(); }
+  if (sc == 7) { scrOptions(); }
+  if (sc == 8) { scrMessage(); }
+  if (sc == 9) { scrHelp(); }
+  if (sc == 10) { scrDelServer(); }
   clickLatch = 0;
   fillStop();
 }

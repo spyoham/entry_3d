@@ -586,7 +586,7 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     cube('anvilChipped', 'chipped_anvil', '금 간 모루', tc('anvilCT', P.cracked, { a: '4a4a4a', b: '2a2a2a', c: '5e5e5e' }), { hard: 5, tool: 1, tier: 0, shape: 5, model: 'anvil', hide: 0, lop: 0, cat: 3, use: 'repair', fall: 1 });
     cube('anvilDamaged', 'damaged_anvil', '부서져 가는 모루', tc('anvilDT', ['aaacaaab', 'aaabaaab', 'aacbaaab', 'bbbbbbbb', 'aabbbbaa', 'acbbaabc', 'aaabaaba', 'bbbbbbbb'], { a: '4a4a4a', b: '1e1e1e', c: '5e5e5e' }), { hard: 5, tool: 1, tier: 0, shape: 5, model: 'anvil', hide: 0, lop: 0, cat: 3, use: 'repair', fall: 1 });
     R(['blockIron blockIron blockIron', '_ ingotIron _', 'ingotIron ingotIron ingotIron'], 'anvil', 1);
-    cube('bell', 'bell', '종', tc('bellT', P.block, { a: 'e8c030', b: 'b08a18', c: 'f8e080' }), { hard: 5, tool: 1, shape: 5, model: 'bell', hide: 0, lop: 0, cat: 3, use: 'bell' });
+    cube('bell', 'bell', '종', tc('bellT', P.block, { a: 'e8c030', b: 'b08a18', c: 'f8e080' }), { hard: 5, tool: 1, shape: 5, model: 'bell', hide: 0, lop: 0, cat: 3, use: 'bell', rs: 'bell' });
     const lanT = tc('lanternT', ['kkkkkkkk', 'kyyyyyyk', 'kyoooyyk', 'kyoyoyyk', 'kyoooyyk', 'kyyyyyyk', 'kkkkkkkk', 'kkkkkkkk'], { k: '3a3a40', y: 'ffd060', o: 'ffa020' });
     const wlanT = tc('wailLanternT', ['kkkkkkkk', 'kyyyyyyk', 'kyoooyyk', 'kyoyoyyk', 'kyoooyyk', 'kyyyyyyk', 'kkkkkkkk', 'kkkkkkkk'], { k: '3a3a40', y: '80f0f0', o: '30c0d0' });
     add({ n: 'lantern', key: 'lantern', ko: '랜턴', t: [lanT], hard: 3.5, tool: 1, shape: 5, model: 'lantern', hide: 0, lop: 0, light: 15, cat: 1 });
@@ -637,7 +637,7 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     ATT.forEach((a, i) => { for (const on of [0, 1]) LV.push({ v: i || on ? `a${a}${on ? 'on' : ''}` : undefined, model: `lever_${a}_${on}`, att: a, on, need: a === 2 ? 'floor' : 'none' }); });
     variants({ n: 'lever', key: 'lever', ko: '레버', t: ['cobble'], hard: 0.5, shape: 5, hide: 0, lop: 0, solid: 0, cat: 4, use: 'lever', rs: 'lever' }, LV);
     R(['stick', 'cobble'], 'lever', 1);
-    cube('noteBlock', 'note_block', '소리 블록', tc('noteT', ['bbbbbbbb', 'baaaaaab', 'baakkaab', 'baakaaab', 'bakkaaab', 'bakkaaab', 'baaaaaab', 'bbbbbbbb'], { a: '6a4a2a', b: '4a3218', k: '1a1a1a' }), { hard: 0.8, tool: 2, cat: 4, use: 'note', fuel: 15, rs: 'note' });
+    const noteB = cube('noteBlock', 'note_block', '소리 블록', tc('noteT', ['bbbbbbbb', 'baaaaaab', 'baakkaab', 'baakaaab', 'bakkaaab', 'bakkaaab', 'baaaaaab', 'bbbbbbbb'], { a: '6a4a2a', b: '4a3218', k: '1a1a1a' }), { hard: 0.8, tool: 2, cat: 4, use: 'note', fuel: 15, rs: 'note' });
     R(['#planks #planks #planks', '#planks sparkDust #planks', '#planks #planks #planks'], 'noteBlock', 1);
     cube('jukebox', 'jukebox', '전축', [tc('jukeTop', ['bbbbbbbb', 'baaaaaab', 'bakkkkab', 'bakaakab', 'bakaakab', 'bakkkkab', 'baaaaaab', 'bbbbbbbb'], { a: '6a4a2a', b: '4a3218', k: '1a1a1a' }), 'noteT', 'noteT'], { hard: 2, tool: 2, cat: 4, use: 'note', fuel: 15 });
     R(['#planks #planks #planks', '#planks diamond #planks', '#planks #planks #planks'], 'jukebox', 1);
@@ -728,19 +728,28 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     variants({ n: 'pistonHead', key: 'piston_head', ko: '피스톤 팔', t: ['planks'], hard: 1.5, shape: 5, hide: 0, lop: 0, cat: 4, hidden: 1, drop: 'none', rs: 'head', nokind: 1 }, HD);
     R(['#planks #planks #planks', 'cobble ingotIron cobble', 'cobble sparkDust cobble'], 'piston', 1); R(['jellyBall', 'piston'], 'stickyPiston', 1);
     const railT = tc('railT', ['b.b..b.b', 'kkkkkkkk', 'b.b..b.b', 'b.b..b.b', 'b.b..b.b', 'kkkkkkkk', 'b.b..b.b', 'b.b..b.b'].map(r => r), { b: 'a0a0a0', k: '6a4a2a' });
-    for (const [n, key, ko, col] of [['rail', 'rail', '레일', 'a0a0a0'], ['poweredRail', 'powered_rail', '전동 레일', 'e8c030'], ['detectorRail', 'detector_rail', '감지 레일', 'a02020'], ['activatorRail', 'activator_rail', '작동 레일', 'c04040']]) {
+    // (v2.5) rails in the circuit (rs rail, aux the kind, fac the shape: 0 along z, 1 along x; the
+    // slopes, curves and the powered ones on come at the end); their textures kept for them
+    const RAILS = [['rail', 'rail', '레일', 'a0a0a0', ''], ['poweredRail', 'powered_rail', '전동 레일', 'e8c030', 'f8e870'], ['detectorRail', 'detector_rail', '감지 레일', 'a02020', ''], ['activatorRail', 'activator_rail', '작동 레일', 'c04040', 'f87070']];
+    const RTX = {};
+    RAILS.forEach(([n, key, ko, col, oncol], ti) => {
         const t = n === 'rail' ? railT : tc(n + 'T', ['b.b..b.b', 'kkkkkkkk', 'b.b..b.b', 'b.bccb.b', 'b.bccb.b', 'kkkkkkkk', 'b.b..b.b', 'b.b..b.b'], { b: col, k: '6a4a2a', c: 'e02020' });
         const tx = tc(n + 'Tx', tr(TEX[t].g), TEX[t].p);
-        variants({ n, key, ko, t: [t], hard: 0.7, tool: 1, shape: 5, model: 'rail', hide: 0, lop: 0, solid: 0, cat: 4, place: 'rail', need: 'floor' }, [{}, { v: 'x', t: [tx] }]);
+        RTX[n] = { t, tx };
+        if (oncol) { RTX[n].ton = tc(n + 'OnT', TEX[t].g, { ...TEX[t].p, b: oncol, c: 'ff6060' }); RTX[n].txon = tc(n + 'OnTx', tr(TEX[t].g), { ...TEX[t].p, b: oncol, c: 'ff6060' }); }
+        variants({ n, key, ko, t: [t], hard: 0.7, tool: 1, shape: 5, model: 'rail', hide: 0, lop: 0, solid: 0, cat: 4, place: 'rail', need: 'floor', rs: 'rail', aux: ti, fac: 0 }, [{}, { v: 'x', t: [tx], fac: 1 }]);
         byKey.get(n + '_x').drop = n;
-    }
+    });
     R(['ingotIron _ ingotIron', 'ingotIron stick ingotIron', 'ingotIron _ ingotIron'], 'rail', 16);
     R(['ingotGold _ ingotGold', 'ingotGold stick ingotGold', 'ingotGold sparkDust ingotGold'], 'poweredRail', 6);
     R(['ingotIron _ ingotIron', 'ingotIron stonePlate ingotIron', 'ingotIron sparkDust ingotIron'], 'detectorRail', 6);
     R(['ingotIron stick ingotIron', 'ingotIron sparkTorch ingotIron', 'ingotIron stick ingotIron'], 'activatorRail', 6);
-    add({ n: 'tripwireHook', key: 'tripwire_hook', ko: '덫 고리', t: ['planks'], hard: 0, shape: 5, model: 'button', hide: 0, lop: 0, solid: 0, cat: 4, need: 'floor' });
+    // (v2.5) a tripwire hook hangs on a wall (att: that side, D6); the hooks at the ends of a string are
+    // on while something is on it (the first one hangs on -z; the others come at the end)
+    const hookBase = { ko: '덫 고리', t: ['planks'], hard: 0, shape: 5, hide: 0, lop: 0, solid: 0, cat: 4, rs: 'hook' };
+    add({ n: 'tripwireHook', key: 'tripwire_hook', ...hookBase, model: 'hook_4_0', att: 4, on: 0 });
     R(['ingotIron', 'stick', '#planks'], 'tripwireHook', 2);
-    cube('trappedChest', 'trapped_chest', '덫 상자', ['chestTop', tc('trappedSide', ['bbbbbbbb', 'baaaaaab', 'baaaaaab', 'kkkrrkkk', 'baarraab', 'baaaaaab', 'baaaaaab', 'bbbbbbbb'], { a: '9c6a2c', b: '6b4518', k: '3a2810', r: 'c02020' }), 'chestTop'], { hard: 2.5, tool: 2, cat: 4, use: 'chest', shape: 5, model: 'chestm', hide: 0, lop: 0 });
+    cube('trappedChest', 'trapped_chest', '덫 상자', ['chestTop', tc('trappedSide', ['bbbbbbbb', 'baaaaaab', 'baaaaaab', 'kkkrrkkk', 'baarraab', 'baaaaaab', 'baaaaaab', 'bbbbbbbb'], { a: '9c6a2c', b: '6b4518', k: '3a2810', r: 'c02020' }), 'chestTop'], { hard: 2.5, tool: 2, cat: 4, use: 'chest', shape: 5, model: 'chestm', hide: 0, lop: 0, rs: 'trapped' });
     R(['chest tripwireHook'], 'trappedChest', 1, 1);
     cube('commandBlock', 'command_block', '명령 블록', tc('cmdT', ['kkkkkkkk', 'kaaaaaak', 'kaccccak', 'kacbbcak', 'kacbbcak', 'kaccccak', 'kaaaaaak', 'kkkkkkkk'], { a: 'c88a4a', b: 'e8c890', c: 'a86a2a', k: '6a4a2a' }), { hard: -1, cat: 4, use: 'command', drop: 'none', rs: 'command' });
     cube('beacon', 'beacon', '신호기', tc('beaconT', ['wwwwwwww', 'w.cccc.w', 'w.cbbc.w', 'w.cbbc.w', 'w.cccc.w', 'wkkkkkkw', 'wkkkkkkw', 'wwwwwwww'], { w: 'c8f0f8', c: '80f0f0', b: 'f0ffff', k: '2a2a3a' }), { hard: 3, shape: 4, hide: 0, lop: 0, light: 15, cat: 3 });
@@ -866,5 +875,31 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     }
     // (v2.4.4) the light sensor turned (F): power at night, 15 less the day's light
     add({ n: 'daylightInv', key: 'daylight_detector_inverted', ko: '햇빛 감지기', t: [tc('daylightInvT', ['bbbbbbbb', 'bgggggab', 'bgaagaab', 'bgggggab', 'bgaagaab', 'bgggggab', 'baaaaaab', 'bbbbbbbb'], { a: 'c0c8d0', b: '8a6a3a', g: '6a2a3a' }), 'planks', 'planks'], hard: 0.2, tool: 2, shape: 5, model: 'slab6', hide: 0, lop: 0, cat: 4, sensor: 1, rs: 'sensor', use: 'rs', drop: 'daylight', hidden: 1, nokind: 1, item: 'daylight' });
+    // (v2.5) a block a piston moves, on its way for 0.1 s (the genre's two ticks): drawn sliding,
+    // it carries no power, cannot be moved or broken, and is the block it carries when it lands
+    // (v2.5) the note block's notes 1 .. 24 (its aux; the block itself is note 0): F on it goes up one
+    for (let p = 1; p <= 24; p++) add({ n: 'noteBlock_p' + p, key: 'note_block_' + p, ko: '소리 블록', t: ['noteT'], hard: 0.8, tool: 2, cat: 4, use: 'note', fuel: 15, rs: 'note', aux: p, item: 'noteBlock', drop: 'noteBlock', hidden: 1, nokind: 1 });
+    // (v2.5) the other tripwire hooks (by the wall and on), and the string between them (put with string: aux 0 along z, 1 along x)
+    for (const a of [0, 1, 4, 5]) for (const on of [0, 1]) if (a !== 4 || on) add({ n: `tripwireHook_${a}${on}`, key: `tripwire_hook_${a}${on}`, ...hookBase, model: `hook_${a}_${on}`, att: a, on, item: 'tripwireHook', drop: 'tripwireHook', hidden: 1, nokind: 1 });
+    const tripT = tc('tripT', P.flat, { a: 'e8e8e8', b: 'd0d0d0' });
+    add({ n: 'tripwire', key: 'tripwire', ko: '덫 줄', t: [tripT], hard: 0, shape: 5, model: 'trip_0', hide: 0, lop: 0, solid: 0, cat: 4, rs: 'trip', aux: 0, drop: 'string', hidden: 1, nokind: 1 });
+    add({ n: 'tripwire_x', key: 'tripwire_x', ko: '덫 줄', t: [tripT], hard: 0, shape: 5, model: 'trip_1', hide: 0, lop: 0, solid: 0, cat: 4, rs: 'trip', aux: 1, drop: 'string', item: 'tripwire', hidden: 1, nokind: 1 });
+    ITEMS.find((it) => it.n === 'string').placeBlock = 'tripwire';
+    // (v2.5) the rails' slopes (2 .. 5), the curves of plain rails (6 .. 9), powered and activator rails on (0 .. 5)
+    const curveG = (cx, cz) => { const g = []; for (let r = 0; r < 8; r++) { let row = ''; for (let c = 0; c < 8; c++) { const d = Math.hypot(c + 0.5 - cx, r + 0.5 - cz), a = Math.atan2(r + 0.5 - cz, c + 0.5 - cx); let ch = '.'; if (d > 1.5 && d < 6.5 && Math.abs(Math.sin(a * 5)) < 0.5) ch = 'k'; if (Math.abs(d - 2.3) < 0.5 || Math.abs(d - 5.7) < 0.5) ch = 'b'; row += ch; } g.push(row); } return g; };
+    const CURVE = { 6: [8, 8], 7: [0, 8], 8: [0, 0], 9: [8, 0] };
+    RAILS.forEach(([n, key, ko, col, oncol], ti) => {
+        const L = [];
+        for (let s = 2; s <= 5; s++) L.push([s, 0]);
+        if (ti === 0) for (let s = 6; s <= 9; s++) L.push([s, 0]);
+        if (oncol) for (let s = 0; s <= 5; s++) L.push([s, 1]);
+        for (const [s, on] of L) {
+            const alongX = s === 1 || s === 2 || s === 3;
+            let t = on ? (alongX ? RTX[n].txon : RTX[n].ton) : (alongX ? RTX[n].tx : RTX[n].t);
+            if (s >= 6) t = tc(`railCurve${s}`, curveG(...CURVE[s]), { ...TEX[railT].p, b: 'c8c8c8' });
+            add({ n: `${n}_s${s}${on ? 'on' : ''}`, key: `${key}_${s}${on ? '_on' : ''}`, ko, t: [t], hard: 0.7, tool: 1, shape: 5, model: s >= 2 && s <= 5 ? `railup_${s}` : 'rail', hide: 0, lop: 0, solid: 0, cat: 4, need: 'floor', rs: 'rail', aux: ti, fac: s, on, item: n, drop: n, hidden: 1, nokind: 1 });
+        }
+    });
+    add({ n: 'moving', key: 'moving_piston', ko: '움직이는 블록', t: ['stone'], hard: -1, shape: 5, model: 'empty', hide: 0, lop: 0, drop: 'none', hidden: 1, nokind: 1, rs: 'moving', cat: 4 });
     return { item, I, R, S, ICON, kinds, byKey };
 }
