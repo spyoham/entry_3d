@@ -540,6 +540,8 @@ function chatRun(s) {
     CHH.push(s); if (CHH.length > 30) { CHH.removeAt(1); }
     if (charAt(s, 1) == '/') { cmdFromBlock = 0; cmdX = px; cmdY = py; cmdZ = pz; cmdYaw = yaw; cmdPitch = pitch; runCommand(s); }
     else {
+      // ((v2.7.3) swear words as *: swear.js)
+      s = swFilter(s);
       if (netSrv > 0) { let t = `<${netNick}> ${netClean(s)}`; chatAdd(t); evAdd('c', t); plugRun('chat', s, netNick); }
       else { chatAdd(`<플레이어> ${s}`); }
     }
