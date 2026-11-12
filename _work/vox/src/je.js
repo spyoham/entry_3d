@@ -280,9 +280,10 @@ function leafStep(dt) {
     if (ldP > LDX.length) { ldP = 1; }
     let i = ldP, drop = 0;
     if (LDT[i] <= ldTime) {
-      let x = LDX[i], y = LDY[i], z = LDZ[i], b = 0 - 1;
-      if (cOK(x, z) == 1) { b = blockAt(x, y, z); }
-      if (BLEAF[b + 1] == 1 && b >= 0 && grLeaf == 1) {
+      let x = LDX[i], y = LDY[i], z = LDZ[i], b = 0;
+      // ((v2.7.2) a chunk not here: as air - out of the list; -1 read BLEAF[0])
+      if (cOK(x, z) == 1) { b = Math.max(0, blockAt(x, y, z)); }
+      if (BLEAF[b + 1] == 1 && grLeaf == 1) {
         if (leafHeld(x, y, z) == 1 || leafKeptByPlayer(x, y, z) == 1) { drop = 1; }
         else {
           if (LDM[i] == 0) { LDM[i] = 1; LDT[i] = ldTime + rand(10, 600) / 10; ldP = ldP + 1; }

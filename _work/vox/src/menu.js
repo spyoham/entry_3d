@@ -3,11 +3,12 @@
 // make, rename, delete, make again), a new world, the servers (join, by name, add, edit, delete,
 // look again), a server's settings, the settings, and a message (thrown out of a server ...).
 // scr: 0 title, 1 worlds, 2 new world, 3 delete a world?, 4 servers, 5 a server's settings,
-// 6 a server by name, 7 settings, 8 a message, 9 help.
+// 6 a server by name, 7 settings, 8 a message, 9 help, 10 delete a server?, 11 the nicknames banned
+// from every server, 12 who poured lava on the servers (v2.7.2: both SUPER's alone, from the title).
 let scr = 0, menuTick = 0 - 9, panoReady = 0, panoGen = 0, panoYaw = 30, panoY = 50, splash = '', splashT = 0;
 let selW = 0, selS = 0, listTop = 0, cwName = '새 세계', cwMode = 0, cwSeedText = '', cwSeed = 0, cwFlat = 0, cwFlatSpec = 'bedrock,2*dirt,grass_block';
 let esLava = 1, esTnt = 1, esName = '', esMotd = '', esSeedText = '', esSeed = 0, esMode = 0, esEdit = 0, dcName = '', esFlat = 0, esFlatSpec = 'bedrock,2*dirt,grass_block';
-let msgTitle = '', msgBody = '', msgBody2 = '', msgBack = 0, menuKeep = 0;
+let msgTitle = '', msgBody = '', msgBody2 = '', msgBack = 0, menuKeep = 0, gbSel = 0, gbMsg = '', gbNick = '';
 const PANOSEED = 1234;
 let SPLASHES = ['엔트리로 만들었습니다!', '블록이 1784가지!', '이제 함께 놉니다!', '플러그인을 만들어 보세요!', '세 개의 세계!', '불꽃가루로 움직여요!', '저장도 됩니다!', 'tessvm 덕분에!', '닉네임이 곧 계정!', '탄성 블록 비행기!', '구조물이 20가지!', '심연과 공허!', '마을 사람과 거래!', '피스톤이 여섯 방향!', '네모난 세상!', '오늘도 캐러 갑니다!'];
 let HELPL = ['W A S D 걷기 · 스페이스 점프 · Shift 웅크리기 · R 달리기', '클릭 부수기·공격 · F 놓기·쓰기 · Q 버리기 · E 소지품', '1~9·휠 손에 들 칸 · G 시야 · F3 정보 · P 메뉴 · C 블록 복사(크리에이티브)', 'T 채팅 · / 명령어 (한/영 한글 · Tab 자동완성 · ↑↓ 지난 줄)', '멀티플레이: Tab을 누르고 있으면 접속한 사람들', '서버 관리자는 /op /ban /kick /whitelist /server /plugin /perm', '플러그인: /plugin add 이름 이벤트 조건 대상 명령', '자세한 것은 설명서를 보세요'];
@@ -78,6 +79,8 @@ function menuFrame(dt) {
   if (sc == 8) { scrMessage(); }
   if (sc == 9) { scrHelp(); }
   if (sc == 10) { scrDelServer(); }
+  if (sc == 11) { scrGlobalBans(); }
+  if (sc == 12) { scrLavaLog(); }
   clickLatch = 0;
   fillStop();
 }
@@ -107,6 +110,11 @@ function scrTitle(dt) {
   button(-100, -22, 100, -42, '도움말', 7, 1); if (btnHot == 1) { if (clickLatch == 1) { menuGo(9); } }
   button(-100, -54, -2, -74, '설정...', 8, 1); if (btnHot == 1) { if (clickLatch == 1) { menuGo(7); } }
   button(2, -54, 100, -74, '작품 정보', 9, 1); if (btnHot == 1) { if (clickLatch == 1) { menuMsg('블록 월드', `블록 ${NKINDS}종 · 생물 군계 26 · 구조물 20 · 몹 20 · 멀티플레이와 플러그인`); msgBack = 0; } }
+  // ((v2.7.2) SUPER alone: the nicknames banned from every server)
+  if (iAmSuper() == 1) {
+    button(-100, -80, -2, -100, '전체 차단 목록', 12, 1); if (btnHot == 1) { if (clickLatch == 1) { netEnter(); gbSel = 0; gbMsg = ''; menuGo(11); } }
+    button(2, -80, 100, -100, '용암 기록', 13, 1); if (btnHot == 1) { if (clickLatch == 1) { netEnter(); lgT = 99; menuGo(12); } }
+  }
   tx(10, `블록 월드 v${VERSION}`, -236, -128, 7, '#ffffff', 1);
   tx(11, '엔트리 · tessvm · Entry Sync', 236, -128, 7, '#ffffff', 2);
 }
@@ -346,8 +354,10 @@ function serverSave() {
     if (strlen(esSeedText) > 0) { s = seedOf(esSeedText); }
     let fl = '-';
     if (esFlat == 1) { if (flatParse(esFlatSpec) == 0) { fl = esFlatSpec; } }
-    let k = srvCreate(esName, esMotd, s, esMode, fl);
-    if (k == 0) { menuMsg('서버를 만들 수 없습니다', `서버 자리 ${NSRV}개가 모두 찼습니다. 주인이 지우면 자리가 납니다`); } else { selS = k; menuGo(4); }
+    let k = 0 - 1, g = gbanOf(netNick);
+    if (g > 0) { menuMsg('서버를 만들 수 없습니다', `모든 서버에서 차단되었습니다: ${gbanWhy(g)}`); } else { k = srvCreate(esName, esMotd, s, esMode, fl); }
+    if (k == 0) { menuMsg('서버를 만들 수 없습니다', `서버 자리 ${NSRV}개가 모두 찼습니다. 주인이 지우면 자리가 납니다`); }
+    if (k > 0) { selS = k; menuGo(4); }
   } else { srvEdit(esEdit, esName, esMotd); menuGo(4); }
 }
 
@@ -393,4 +403,106 @@ function scrHelp() {
   let i = 1;
   while (i <= HELPL.length) { tx(10 + i, HELPL[i], -196, 96 - i * 18, 8, '#e0e0e0', 1); i = i + 1; }
   button(-100, -102, 100, -122, '완료', 2, 1); if (btnHot == 1) { if (clickLatch == 1) { menuGo(0); } }
+}
+
+// ---------------------------------------------------------------- 11 banned from every server (v2.7.2)
+// The nicknames in SY_gb can join no server and make none, and one on a server is put out. Only
+// SUPER sees the title's button and may change the list (it waits 3 s for Entry Sync's copy first,
+// so an empty list here never writes over the kept one).
+function scrGlobalBans() {
+  title2('전체 차단 목록');
+  let on = 0;
+  if (SY_ == 1) { if (netClock - netStartT >= 3) { if (iAmSuper() == 1) { on = 1; } } }
+  if (SY_ == 1) { tx(20, `모든 서버에 들어올 수 없는 닉네임 ${SY_gb.length}개 · ${SUPER} 님만 고칠 수 있습니다`, 0, 106, 7, '#a0ffa0', 0); }
+  else { if (netClock - netStartT < 5) { tx(20, 'Entry Sync에 연결하는 중...', 0, 106, 7, '#ffff80', 0); } else { tx(20, 'Entry Sync 확장에 연결되지 않았습니다 (설명서의 멀티플레이를 보세요)', 0, 106, 7, '#ff8080', 0); } }
+  box(-200, 100, 200, -66, '#000000');
+  if (gbSel > SY_gb.length) { gbSel = 0; }
+  let i = 1, shown = 0, ti = 30;
+  while (i <= SY_gb.length) {
+    if (i - 1 >= listTop && shown < 6) {
+      let y0 = 98 - shown * 27, y1 = y0 - 25;
+      if (gbSel == i) { box(-162, y0 + 1, 162, y1 - 1, '#a0a0a0'); box(-161, y0, 161, y1, '#000000'); }
+      splitBy(SY_gb[i], '^');
+      gS = netDec(SPL[1]); gS2 = '운영자의 결정'; if (SPL.length >= 2) { gS2 = netDec(SPL[2]); }
+      tx(ti, gS, -150, y0 - 6, 8, '#ffffff', 1);
+      tx(ti + 1, `사유: ${gS2}`, -150, y0 - 17, 7, '#a0a0a0', 1);
+      ti = ti + 2;
+      if (inBox(-160, y0, 160, y1) == 1) { if (clickLatch == 1) { gbSel = i; } }
+      shown = shown + 1;
+    }
+    i = i + 1;
+  }
+  while (ti < 44) { txOff(ti); ti = ti + 1; }
+  if (SY_gb.length == 0) { tx(29, '차단된 닉네임이 없습니다', 0, 40, 9, '#c0c0c0', 0); } else { txOff(29); }
+  if (wheelAcc != 0) { listTop = Math.max(0, Math.min(Math.max(0, SY_gb.length - 6), listTop + wheelAcc)); wheelAcc = 0; }
+  if (gbMsg != '') { tx(28, gbMsg, 0, -58, 7, '#ffff80', 0); } else { txOff(28); }
+  button(-154, -76, -4, -96, '닉네임 추가', 2, on); if (btnHot == 1) { if (clickLatch == 1) {
+    ask('모든 서버에서 차단할 닉네임'); ansS = answer(); hideAnswer();
+    if (strlen(ansS) > 0) {
+      gbNick = netClean(ansS);
+      if (gbNick == SUPER) { gbMsg = `${SUPER} 님은 차단할 수 없습니다`; }
+      else { if (gbanOf(gbNick) > 0) { gbMsg = `${gbNick} 님은 이미 차단되어 있습니다`; }
+      else {
+        ask('사유 (비우면 운영자의 결정)'); ansS = answer(); hideAnswer();
+        gS = '운영자의 결정'; if (strlen(ansS) > 0) { gS = ansS; }
+        gbanAdd(gbNick, gS); gbMsg = `${gbNick} 님을 모든 서버에서 차단했습니다`;
+      } }
+    }
+  } }
+  let sel = 0; if (gbSel > 0) { sel = on; }
+  button(4, -76, 154, -96, '차단 풀기', 3, sel); if (btnHot == 1) { if (clickLatch == 1) { splitBy(SY_gb[gbSel], '^'); gbMsg = `${netDec(SPL[1])} 님의 차단을 풀었습니다`; gbanDel(gbSel); gbSel = 0; } }
+  button(-100, -102, 100, -122, '완료', 4, 1); if (btnHot == 1) { if (clickLatch == 1) { netLeaveAll(); menuGo(0); } }
+}
+
+// ---------------------------------------------------------------- 12 who poured lava (v2.7.2, SUPER alone)
+// Each server's host keeps L lines (nick, times, the day last, the place last: hostKeepLava); here
+// those of every server, gathered again every 3 s, the latest day first.
+let LGN = [], LGS = [], LGC = [], LGD = [], LGP = [], lgT = 0;
+function lavaGather() {
+  LGN = []; LGS = []; LGC = []; LGD = []; LGP = [];
+  let k = 1;
+  while (k <= NSRV) {
+    if (srvHas(k) == 1) {
+      let i = 2, n = metaLen(k);
+      while (i <= n) {
+        let s = metaItem(k, i);
+        if (charAt(s, 1) == 'L') { splitBy(s, '^'); if (SPL.length >= 5) {
+          // (in by the day, the latest first)
+          let d = SPL[4] * 1, j = 1, at = LGN.length + 1;
+          while (j <= LGN.length) { if (at > LGN.length) { if (d > LGD[j]) { at = j; } } j = j + 1; }
+          if (at > LGN.length) { LGN.push(SPL[2]); LGS.push(shName); LGC.push(SPL[3] * 1); LGD.push(d); LGP.push(SPL[5]); }
+          else { LGN.insertAt(at, SPL[2]); LGS.insertAt(at, shName); LGC.insertAt(at, SPL[3] * 1); LGD.insertAt(at, d); LGP.insertAt(at, SPL[5]); }
+        } }
+        i = i + 1;
+      }
+    }
+    k = k + 1;
+  }
+  // (srvHas read every place into the sh* globals: back to the server I am on)
+  if (netSrv > 0) { srvHead(netSrv); }
+}
+function scrLavaLog() {
+  title2('용암 기록');
+  let ok = 0;
+  if (SY_ == 1) { if (iAmSuper() == 1) { ok = 1; } }
+  lgT = lgT + 1;
+  if (ok == 1) { if (lgT >= 180) { lgT = 0; lavaGather(); } }
+  if (iAmSuper() == 0) { tx(20, `${SUPER} 님만 볼 수 있습니다`, 0, 106, 7, '#ff8080', 0); LGN = []; }
+  else { if (SY_ == 1) { tx(20, `모든 서버에서 용암을 쓴 기록 ${LGN.length}줄 (최근 순)`, 0, 106, 7, '#a0ffa0', 0); }
+  else { tx(20, 'Entry Sync에 연결하는 중...', 0, 106, 7, '#ffff80', 0); } }
+  box(-200, 100, 200, -96, '#000000');
+  let i = 1, shown = 0, ti = 30;
+  while (i <= LGN.length) {
+    if (i - 1 >= listTop && shown < 7) {
+      let y0 = 98 - shown * 27;
+      tx(ti, `${LGN[i]} · ${LGC[i]}번 · ${lavaAgo(LGD[i])}`, -190, y0 - 6, 8, '#ffffff', 1);
+      tx(ti + 1, `서버 '${LGS[i]}' · 마지막 ${lavaPlace(LGP[i])}`, -190, y0 - 17, 7, '#a0a0a0', 1);
+      ti = ti + 2; shown = shown + 1;
+    }
+    i = i + 1;
+  }
+  while (ti < 46) { txOff(ti); ti = ti + 1; }
+  if (LGN.length == 0) { tx(29, '아직 기록이 없습니다', 0, 40, 9, '#c0c0c0', 0); } else { txOff(29); }
+  if (wheelAcc != 0) { listTop = Math.max(0, Math.min(Math.max(0, LGN.length - 7), listTop + wheelAcc)); wheelAcc = 0; }
+  button(-100, -102, 100, -122, '완료', 4, 1); if (btnHot == 1) { if (clickLatch == 1) { netLeaveAll(); menuGo(0); } }
 }

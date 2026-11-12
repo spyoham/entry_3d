@@ -21,7 +21,8 @@ function netCmd(c) {
       if (cmdLevel(c) == 2) { netCmdOut = '이 명령어는 서버 주인만 쓸 수 있습니다'; }
     }
     else {
-      if ((c == 'ban' || c == 'kick' || c == 'deop') && n == SUPER) { netCmdOut = `${SUPER} 님은 모든 서버의 관리자입니다`; }
+      if (c == 'lavalog') { netCmdOut = lavaLogCmd(); }
+      else { if ((c == 'ban' || c == 'kick' || c == 'deop') && n == SUPER) { netCmdOut = `${SUPER} 님은 모든 서버의 관리자입니다`; }
       else { if (c == 'perm' || c == 'permission' || c == 'perms') { netCmdOut = netPermCmd(sub); }
       else { if (c == 'list') { netCmdOut = netListText(); }
       else { if (c == 'tell' || c == 'msg' || c == 'w') { let t = netClean(wordsFrom(3, CMW.length)); evAdd('w', `${n}^${t}`); netCmdOut = `${n} 님에게 속삭임: ${t}`; }
@@ -35,7 +36,7 @@ function netCmd(c) {
       else { if (c == 'whitelist') { netCmdOut = netWhitelist(sub, cw(3)); }
       else { if (c == 'server') { netCmdOut = netServerCmd(sub); }
       else { if (c == 'plugin' || c == 'plugins' || c == 'pl') { netCmdOut = netPluginCmd(sub); }
-      else { netCmdHit = 0; } } } } } } } } } } } } } }
+      else { netCmdHit = 0; } } } } } } } } } } } } } } }
     }
   }
 }
@@ -134,6 +135,20 @@ function netWhitelist(sub, n) {
   if (gS == '-') { let i = 1; gS = '화이트리스트:'; while (i <= MWL.length) { gS = `${gS} ${MWL[i]}`; i = i + 1; } }
   return gS;
 }
+// ((v2.7.2) /lavalog: who poured lava on this server - for SUPER alone; a line each in the chat)
+let DIMKO = ['지상', '네더', '엔드'];
+function lavaLogCmd() {
+  gS = '-';
+  if (netNick != SUPER) { gS = `${SUPER} 님만 쓸 수 있습니다`; }
+  else {
+    let i = 1;
+    while (i <= MLN.length) { chatAdd(`${MLN[i]} · ${MLC[i]}번 · ${lavaAgo(MLD[i])} · 마지막 ${lavaPlace(MLP[i])}`); i = i + 1; }
+    gS = `이 서버에서 용암을 쓴 사람 ${MLN.length}명`;
+  }
+  return gS;
+}
+function lavaAgo(d) { gS2 = '오늘'; let a = dayNow() - d; if (a >= 1) { gS2 = `${a}일 전`; } return gS2; }
+function lavaPlace(p) { splitBy(p, ','); gS2 = p; if (SPL.length >= 4) { gS2 = `${SPL[1]} ${SPL[2]} ${SPL[3]} (${DIMKO[mod(SPL[4] * 1, 3) + 1]})`; } return gS2; }
 function netServerCmd(sub) {
   gS = '-'; let v = cw(3);
   if (sub == 'motd') { let t = netClean(wordsFrom(3, CMW.length)); netWish(`set^motd^${t}`); gS = `서버 설명을 바꿨습니다: ${t}`; }

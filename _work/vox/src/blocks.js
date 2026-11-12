@@ -626,7 +626,7 @@ function bucketUse(id) {
       if (lq == 35 && srvForbids(1) == 1) { msgShow('이 서버에서는 용암을 놓을 수 없습니다', 2); }
       else { if (freeAt(nbX, nbY, nbZ) == 1) {
         if (dim == 1 && lq == 7) { msgShow('물이 금세 증발했습니다', 2); }
-        else { setBlock(nbX, nbY, nbZ, lq); }
+        else { setBlock(nbX, nbY, nbZ, lq); if (lq == 35) { lavaNote(nbX, nbY, nbZ); } }
         if (mod(gameMode, 2) == 0) { INVI[hotSel] = I_bucket; }
         sndPlay(5);
       } }

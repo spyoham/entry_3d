@@ -16,6 +16,9 @@
 let SY_ = 0;
 let SY_p1 = '', SY_p2 = '', SY_p3 = '', SY_p4 = '', SY_p5 = '', SY_p6 = '', SY_p7 = '', SY_p8 = '';
 let SY_p9 = '', SY_p10 = '', SY_p11 = '', SY_p12 = '', SY_p13 = '', SY_p14 = '', SY_p15 = '', SY_p16 = '';
+// (v2.7.2) SY_gb: the nicknames banned from every server, 'nick^why' each - written by SUPER alone
+// (the title's 전체 차단 목록), read by everyone joining, making a server or playing on one
+let SY_gb = [];
 const NSLOT = 16;
 const NSTALE = 8;
 const NHDR = 59;
@@ -229,16 +232,18 @@ function srvHost(k) {
 let MOP = [], MBAN = [], MBANR = [], MWL = [], PLN = [], PLO = [], PLE = [], PLC = [], PLT = [], PLX = [], MUN = [], MUD = [], MCK = [], MCD = [], MSK = [], MST = [];
 // (v2.3) command rights: MPC command, MPL level; MGN nick, MGC command let to them
 let MPC = [], MPL = [], MGN = [], MGC = [];
+// (v2.7.2) who poured lava here: MLN nick, MLC how many times, MLD the day last, MLP the place last (x,y,z,world)
+let MLN = [], MLC = [], MLD = [], MLP = [];
 let NMW = [], NEW = [], metaRev = 0 - 1, metaDirty = 0, metaT = 0, editDirty = 0, editT = 0, plugT = 0;
 function metaRead(k) {
   srvHead(k);
   metaRev = shRev;
   MOP = []; MBAN = []; MBANR = []; MWL = []; PLN = []; PLO = []; PLE = []; PLC = []; PLT = []; PLX = []; MUN = []; MUD = []; MCK = []; MCD = []; MSK = []; MST = [];
-  MPC = []; MPL = []; MGN = []; MGC = [];
+  MPC = []; MPL = []; MGN = []; MGC = []; MLN = []; MLC = []; MLD = []; MLP = [];
   let i = 2, n = metaLen(k);
   while (i <= n) {
     let s = metaItem(k, i), t = charAt(s, 1);
-    if (t == 'O' || t == 'W' || t == 'B' || t == 'P' || t == 'U' || t == 'C' || t == 'S' || t == 'R' || t == 'G') {
+    if (t == 'O' || t == 'W' || t == 'B' || t == 'P' || t == 'U' || t == 'C' || t == 'S' || t == 'R' || t == 'G' || t == 'L') {
       splitBy(s, '^');
       if (t == 'O') { MOP.push(SPL[2]); }
       if (t == 'W') { MWL.push(SPL[2]); }
@@ -249,6 +254,7 @@ function metaRead(k) {
       if (t == 'S') { MSK.push(SPL[2]); MST.push(SPL[3]); }
       if (t == 'R') { if (SPL.length >= 3) { MPC.push(SPL[2]); MPL.push(SPL[3] * 1); } }
       if (t == 'G') { if (SPL.length >= 3) { MGN.push(SPL[2]); MGC.push(SPL[3]); } }
+      if (t == 'L') { if (SPL.length >= 5) { MLN.push(SPL[2]); MLC.push(SPL[3] * 1); MLD.push(SPL[4] * 1); MLP.push(SPL[5]); } }
     }
     i = i + 1;
   }
@@ -269,6 +275,7 @@ function metaWrite(k) {
   i = 1; while (i <= MSK.length) { NMW.push(`S^${MSK[i]}^${MST[i]}`); i = i + 1; }
   i = 1; while (i <= MPC.length) { NMW.push(`R^${MPC[i]}^${MPL[i]}`); i = i + 1; }
   i = 1; while (i <= MGN.length) { NMW.push(`G^${MGN[i]}^${MGC[i]}`); i = i + 1; }
+  i = 1; while (i <= MLN.length) { NMW.push(`L^${MLN[i]}^${MLC[i]}^${MLD[i]}^${MLP[i]}`); i = i + 1; }
   metaPut(k);
   metaDirty = 0; metaT = 0;
 }
@@ -291,6 +298,35 @@ function onWhitelist(n) {
   return r;
 }
 function iAmOp() { let r = 0; if (netSrv > 0) { r = isOp(netNick); } return r; }
+// ---------------------------------------------------------------- (v2.7.2) banned from every server
+let GBT = [], gbT = 0;
+function iAmSuper() { let r = 0; if (netClean(`${nickname()}`) == SUPER) { r = 1; } return r; }
+// the place of n in SY_gb (0: not banned; SUPER never is)
+function gbanOf(n) {
+  let r = 0, i = 1, p = `${n}^`, L = strlen(p);
+  if (n != SUPER) { while (i <= SY_gb.length) { if (substr(`${SY_gb[i]}`, 1, L) == p) { r = i; } i = i + 1; } }
+  return r;
+}
+function gbanWhy(i) {
+  let w = '운영자의 결정';
+  if (i >= 1 && i <= SY_gb.length) { splitBy(SY_gb[i], '^'); if (SPL.length >= 2) { w = netDec(SPL[2]); } }
+  return w;
+}
+function gbanAdd(n, why) {
+  n = netClean(n);
+  let w = netClean(why);
+  if (strlen(w) < 1 || w == '0' || w == ' ') { w = '운영자의 결정'; }
+  if (iAmSuper() == 1 && strlen(n) > 0 && n != ' ' && n != SUPER && SY_gb.length < 500) { if (gbanOf(n) == 0) { SY_gb.push(`${n}^${w}`); } }
+}
+// (written again whole, as the servers' lists: one change sent)
+function gbanDel(k) {
+  if (iAmSuper() == 1 && k >= 1 && k <= SY_gb.length) {
+    GBT = []; let i = 1;
+    while (i <= SY_gb.length) { if (i != k) { GBT.push(SY_gb[i]); } i = i + 1; }
+    SY_gb = []; i = 1;
+    while (i <= GBT.length) { SY_gb.push(GBT[i]); i = i + 1; }
+  }
+}
 
 // ---------------------------------------------------------------- making, changing, ending a server
 // a new server in the first free place: 0 none free, else its number (its header written by me)
@@ -300,7 +336,7 @@ function srvCreate(name, motd, seedv, mode, flat) {
   if (r > 0) {
     shName = netClean(name); shOwner = netNick; shMotd = netClean(motd); shSeed = seedv; shMode = mode; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shLava = 1; shTnt = 1; shFlat = netClean(flat); shId = `${rand(100000, 999999)}${rand(100000, 999999)}`; shDay = dayNow();
     MOP = []; MBAN = []; MBANR = []; MWL = []; PLN = []; PLO = []; PLE = []; PLC = []; PLT = []; PLX = []; MUN = []; MUD = []; MCK = []; MCD = []; MSK = []; MST = [];
-    MPC = []; MPL = []; MGN = []; MGC = [];
+    MPC = []; MPL = []; MGN = []; MGC = []; MLN = []; MLC = []; MLD = []; MLP = [];
     // a plugin to start from: a greeting
     PLN.push('환영'); PLO.push(1); PLE.push('join'); PLC.push('*'); PLT.push('me'); PLX.push('/title @s title {server}');
     metaWrite(r);
@@ -386,6 +422,8 @@ function netJoinCheck(k) {
       if (srvCount(k) >= shMax && netNick != SUPER) { joinErr = '서버가 가득 찼습니다'; }
       let j = 1;
       while (j <= NSLOT) { if (j != netMy) { if (NLIVE[j] == 1) { if (NSRVk[j] == k) { if (NNICK[j] == netNick) { joinErr = '같은 닉네임이 이미 접속해 있습니다'; } } } } j = j + 1; }
+      let g = gbanOf(netNick);
+      if (g > 0) { joinErr = `모든 서버에서 차단되었습니다: ${gbanWhy(g)}`; }
     }
   }
   return joinErr;
@@ -511,6 +549,9 @@ function netInServer(dt) {
     netChestWatch();
     if (netHost == 1) { hostStep(dt); }
   }
+  // ((v2.7.2) banned from every server while on one: out, within a second)
+  gbT = gbT + dt;
+  if (gbT >= 1) { gbT = 0; let g = gbanOf(netNick); if (g > 0) { if (netSt >= 1) { netDisconnect(`모든 서버에서 차단되었습니다: ${gbanWhy(g)}`); } } }
 }
 
 // ---------------------------------------------------------------- events heard
@@ -612,6 +653,16 @@ function hostKeepUser(nick, d) {
   if (f == 0) { MUN.push(nick); MUD.push(d); } else { MUD[f] = d; }
   metaDirty = 1;
 }
+// ((v2.7.2) who poured lava: one line a nickname, its count, the day and the place of the last)
+function hostKeepLava(nick, p) {
+  let i = 1, f = 0;
+  while (i <= MLN.length) { if (MLN[i] == nick) { f = i; } i = i + 1; }
+  if (f == 0) { if (MLN.length < 300) { MLN.push(nick); MLC.push(1); MLD.push(dayNow()); MLP.push(p); } }
+  else { MLC[f] = MLC[f] + 1; MLD[f] = dayNow(); MLP[f] = p; }
+  metaDirty = 1;
+}
+// lava poured by me on a server: told to the host
+function lavaNote(x, y, z) { if (netSrv > 0) { if (netSt == 2) { if (netApplying == 0) { netWish(`lava^${x}^${y}^${z}^${dim}`); } } } }
 function hostKeepSign(key, t) {
   let i = 1, f = 0;
   while (i <= MSK.length) { if (MSK[i] == key) { f = i; } i = i + 1; }
@@ -672,6 +723,7 @@ function hostEditsCompact() {
 }
 // a wish to change the server from player `who` (they must be an op)
 function hostWish(who, f) {
+  if (substr(f, 1, 5) == 'lava^') { splitBy(f, '^'); if (SPL.length >= 5) { hostKeepLava(who, `${SPL[2]},${SPL[3]},${SPL[4]},${SPL[5]}`); } }
   if (isOp(who) == 1) {
     splitBy(f, '^');
     let a = SPL[1], b = ' ';

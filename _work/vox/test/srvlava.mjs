@@ -106,5 +106,21 @@ H.call((fn) => fn.runCommand(`/setblock 19 ${Y} 8 air`)); cmd(A, '/server tnt of
 r = cmd(A, '/server lava on'); r = cmd(A, '/server tnt on'); run(4);
 ok(tryPut(B, 12, 4, 'lava') === 'lava' && tryPut(B, 14, 4, 'tnt') === 'tnt', 'allowed again: bob can');
 r = cmd(A, '/server'); ok(r.includes('용암 1') && r.includes('TNT 1'), r);
+// (v2.7.2) forbidden, then the owner goes (the game shut): it stays forbidden for bob, now the host,
+// and for carol coming in after
+cmd(A, '/server lava off'); cmd(A, '/server tnt off'); run(4);
+A.on = false; run(14);
+ok(B.g('netHost') === 1 && B.g('gState') === 2, `alice gone, bob is the host (${B.g('netHost')})`);
+ok(B.g('shLava') === 0 && B.g('shTnt') === 0 && B.g('shOwner') === 'alice', `still forbidden (lava ${B.g('shLava')}, tnt ${B.g('shTnt')}, owner ${B.g('shOwner')})`);
+ok(tryPut(B, 4, 8, 'lava') !== 'lava' && tryPut(B, 6, 8, 'tnt') !== 'tnt', 'bob, the host now, still cannot pour lava or put TNT');
+const C = new Client(srv, 'carol'); cs.push(C);
+run(1); C.call((fn) => { fn.netEnter(); fn.menuGo(4); }); run(6);
+C.call((fn) => fn.serverJoin(K)); ok(run(60, () => C.g('gState') === 2), 'carol in');
+run(2);
+ok(C.g('shLava') === 0 && tryPut(C, 8, 8, 'lava') !== 'lava' && tryPut(C, 10, 8, 'tnt') !== 'tnt', 'carol, come in after the owner went, cannot either');
+// everyone gone and back: kept in the server's header
+B.call((fn) => { fn.netLeave(); }); C.call((fn) => { fn.netLeave(); }); run(3);
+C.sim.poke('gState', 0); C.call((fn) => fn.serverJoin(K)); run(60, () => C.g('gState') === 2); run(2);
+ok(C.g('shLava') === 0 && C.g('shTnt') === 0, `the server empty and joined again: still forbidden (${C.g('shLava')}, ${C.g('shTnt')})`);
 console.log(fails ? fails + ' FAILED' : 'all ok');
 process.exit(0);
