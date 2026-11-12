@@ -51,11 +51,24 @@ function useKey() {
       if (et == 13 || isCart(et) == 1) { riding = mobPick; used = 1; placeCool = 0.4; }
       if (et == 3) { if (ITTK[id + 1] == 5) { if (EST[mobPick] != 9) { EST[mobPick] = 9; dropItem(32, rand(1, 3), 0, EX[mobPick], EY[mobPick] + 1, EZ[mobPick], 0); wearHeld(1); sndPlay(6); used = 1; placeCool = 0.3; } } }
       if (et == M_VILLAGER) { tradeOpen(mobPick); used = 1; }
-      if (et == 2) { if (id == I_bucket) { takeHeld(1); addItem(I_milkBucket, 1, 0); used = 1; placeCool = 0.3; } }
+      // ((v2.7.4) milking: in creative the bucket stays and a milk bucket comes if there is none; a cow
+      // clicked with a milk bucket keeps it (it was drunk at once: the milk seemed to go))
+      if (et == 2) {
+        if (id == I_bucket) { used = 1; placeCool = 0.3; if (mod(gameMode, 2) == 0) { takeHeld(1); addItem(I_milkBucket, 1, 0); } else { if (invHas(I_milkBucket) == 0) { addItem(I_milkBucket, 1, 0); } } sndPlay(5); }
+        if (id == I_milkBucket) { used = 1; placeCool = 0.3; }
+      }
     } }
     if (pickOn == 1 && used == 0) {
       if (sneaking == 0 || id == 0) { used = useBlock(pickX, pickY, pickZ, pickB, id); }
     }
+    // ((v2.7.4) food that is planted - carrot, potato, sweet berries - is planted where it may be, and
+    // eaten only when it may not (it was always eaten: they could not be planted)
+    if (used == 0) { if (id > 0) { if (ITFOOD[id + 1] > 0 && ITPLB[id + 1] > 0 && pickOn == 1 && gameMode != 2) {
+      pickNeighbour();
+      let o1 = blockAt(nbX, nbY, nbZ), o2 = pickB, n0 = INVN[hotSel];
+      placeBlock(ITPLB[id + 1], id);
+      if (blockAt(nbX, nbY, nbZ) != o1 || blockAt(pickX, pickY, pickZ) != o2 || INVN[hotSel] != n0) { used = 1; placeCool = 0.25; }
+    } } }
     if (used == 0) { if (id > 0) { used = useItem(id); } }
     if (used == 0) { if (id > 0) {
       if (gameMode != 2) { if (ITPLB[id + 1] > 0) { if (pickOn == 1) { placeBlock(ITPLB[id + 1], id); } } }
@@ -94,10 +107,13 @@ function useBlock(x, y, z, b, id) {
   return used;
 }
 // F with an item in hand (not on a block that answers)
+// is item id anywhere in the inventory (the 36 slots)
+function invHas(id) { let r = 0, i = 1; while (i <= 36) { if (INVI[i] == id) { r = 1; } i = i + 1; } return r; }
 function useItem(id) {
   let used = 0;
   if (ITFOOD[id + 1] > 0) { eatStart(id); used = 1; }
-  if (id == I_milkBucket) { effectsInit(); INVI[hotSel] = I_bucket; used = 1; placeCool = 0.4; sndPlay(5); }
+  // ((v2.7.4) in creative the milk bucket stays full)
+  if (id == I_milkBucket) { effectsInit(); if (mod(gameMode, 2) == 0) { INVI[hotSel] = I_bucket; } used = 1; placeCool = 0.4; sndPlay(5); }
   if (id == 122) { used = 1; placeCool = 0.3; if (pickOn == 1) { ignite(); } }
   if (id == I_fireCharge) { used = 1; placeCool = 0.3; if (pickOn == 1) { ignite(); if (mod(gameMode, 2) == 0) { takeHeld(1); } } }
   if (id == 124) { used = 1; placeCool = 0.5; useVoidKey(); }

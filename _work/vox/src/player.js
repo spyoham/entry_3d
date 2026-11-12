@@ -282,6 +282,8 @@ function playerMove2(dt) {
     let vy = 0;
     if (spc) { vy = 7.5; }
     if (sneaking == 1) { vy = 0 - 7.5; }
+    // ((v2.7.4) Space and Shift together: held still in the air, as for placing blocks there)
+    if (spc) { if (sneaking == 1) { vy = 0; } }
     pvy = pvy + (vy - pvy) * Math.min(1, 10 * dt);
   } else {
     if (inWater == 1 || inLava == 1) {

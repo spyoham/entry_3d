@@ -126,7 +126,7 @@ function svBackStep(dt) {
     bkT = bkT + dt;
     if (netSrv > 0 && netSt == 2 && bkT > 60) { bkT = 0; bkKeep(netSrv); AT_비동기저장(); }
     bkChkT = bkChkT + dt;
-    if (syOnT >= 0 && netClock - syOnT > 20 && bkChkT > 10) { bkChkT = 0; if (AT_서버백업.length > 0) { bkCheck(); } }
+    if (syOnT >= 0 && netClock - syOnT > 20 && bkChkT > 10) { bkChkT = 0; if (AT_서버백업.length > 0) { bkCheck(); } gbCheck(); }
   }
   ageT = ageT + dt;
   if (syOnT >= 0 && netClock - syOnT > 20 && ageT > 30) { ageT = 0; srvAgeCheck(); }
@@ -174,4 +174,46 @@ function srvAgeCheck() {
 // leaving a server: its copy as it is then
 function svBackLeave() {
   if (canSave() == 1) { if (netSrv > 0 && netSt == 2) { bkKeep(netSrv); AT_비동기저장(); } }
+}
+
+// ---------------------------------------------------------------- the nicknames banned from every server, kept too (v2.7.4)
+// Each player's tessvm keeps a copy of ?!gb (@전체차단: its revision ?!gbr, then the lines). 20 s after
+// Entry Sync is on and every 10 s: a newer shared list is copied; one that is older than the copy, or
+// emptied with the same revision (Entry Sync's lists wiped), is written back from the copy. A ban
+// lifted by SUPER raises the revision, so an older copy never brings it back.
+let AT_전체차단 = [];
+let gbChkN = 0;
+function gbKeep() {
+  if (canSave() == 1) {
+    AT_전체차단 = [];
+    AT_전체차단.push(SY_gbr * 1);
+    let i = 1;
+    while (i <= SY_gb.length) { AT_전체차단.push(SY_gb[i]); i = i + 1; }
+    AT_비동기저장();
+  }
+}
+// is the copy the shared list
+function gbSame() {
+  let r = 1, i = 1;
+  if (AT_전체차단.length != SY_gb.length + 1) { r = 0; }
+  else { while (i <= SY_gb.length) { if (AT_전체차단[i + 1] != SY_gb[i]) { r = 0; } i = i + 1; } }
+  return r;
+}
+function gbCheck() {
+  let sr = SY_gbr * 1, B = 0 - 1;
+  if (AT_전체차단.length > 0) { B = AT_전체차단[1] * 1; }
+  if (B < 0) { if (SY_gb.length > 0 || sr > 0) { gbKeep(); } }
+  else {
+    let back = 0;
+    if (sr < B) { back = 1; }
+    if (sr == B) { if (SY_gb.length == 0) { if (AT_전체차단.length > 1) { back = 1; } } }
+    if (back == 1) {
+      SY_gb = [];
+      let i = 2;
+      while (i <= AT_전체차단.length) { SY_gb.push(AT_전체차단[i]); i = i + 1; }
+      SY_gbr = B;
+      gbChkN = gbChkN + 1;
+    }
+    else { if (gbSame() == 0) { gbKeep(); } }
+  }
 }

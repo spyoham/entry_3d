@@ -19,6 +19,8 @@ let SY_p9 = '', SY_p10 = '', SY_p11 = '', SY_p12 = '', SY_p13 = '', SY_p14 = '',
 // (v2.7.2) SY_gb: the nicknames banned from every server, 'nick^why' each - written by SUPER alone
 // (the title's 전체 차단 목록), read by everyone joining, making a server or playing on one
 let SY_gb = [];
+// (v2.7.4) its revision, one up with each change SUPER makes: the copies kept in tessvm (@전체차단, svback.js) go by it
+let SY_gbr = 0;
 const NSLOT = 16;
 const NSTALE = 8;
 const NHDR = 59;
@@ -316,7 +318,7 @@ function gbanAdd(n, why) {
   n = netClean(n);
   let w = netClean(why);
   if (strlen(w) < 1 || w == '0' || w == ' ') { w = '운영자의 결정'; }
-  if (iAmSuper() == 1 && strlen(n) > 0 && n != ' ' && n != SUPER && SY_gb.length < 500) { if (gbanOf(n) == 0) { SY_gb.push(`${n}^${w}`); } }
+  if (iAmSuper() == 1 && strlen(n) > 0 && n != ' ' && n != SUPER && SY_gb.length < 500) { if (gbanOf(n) == 0) { SY_gb.push(`${n}^${w}`); SY_gbr = SY_gbr * 1 + 1; gbKeep(); } }
 }
 // (written again whole, as the servers' lists: one change sent)
 function gbanDel(k) {
@@ -325,6 +327,7 @@ function gbanDel(k) {
     while (i <= SY_gb.length) { if (i != k) { GBT.push(SY_gb[i]); } i = i + 1; }
     SY_gb = []; i = 1;
     while (i <= GBT.length) { SY_gb.push(GBT[i]); i = i + 1; }
+    SY_gbr = SY_gbr * 1 + 1; gbKeep();
   }
 }
 
