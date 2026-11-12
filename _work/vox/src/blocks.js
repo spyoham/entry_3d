@@ -105,8 +105,11 @@ function useItem(id) {
   if (id == 171) { used = 1; let fr = 0; if (pickOn == 1) { if (pickB == 61) { fr = 1; } } if (fr == 1) { if (mod(gameMode, 2) == 0) { takeHeld(1); } placeCool = 0.3; frameEye(pickX, pickY, pickZ); } else { eyeThrow(); } }
   if (id == 174) { used = 1; boatPlace(); }
   // (v2.5) a minecart onto the rail clicked
-  if (id == I_tntMinecart && srvForbids(2) == 1) { used = 1; placeCool = 0.3; msgShow('이 서버에서는 TNT를 놓을 수 없습니다', 2); id = 0; }
-  if (id == I_minecart || id == I_tntMinecart) { used = 1; if (pickOn == 1) { if (BRS[pickB + 1] == RS_RAIL) { let t = M_MINECART; if (id == I_tntMinecart) { t = M_TNTCART; } cartPlace(t, pickX, pickY, pickZ); if (mod(gameMode, 2) == 0) { takeHeld(1); } placeCool = 0.4; } } }
+  // ((v2.7) a TNT cart where the owner forbade TNT: not put (a parameter given a new value keeps its
+  // old one here, so a flag)
+  let noCart = 0;
+  if (id == I_tntMinecart) { if (srvForbids(2) == 1) { noCart = 1; used = 1; placeCool = 0.3; msgShow('이 서버에서는 TNT를 놓을 수 없습니다', 2); } }
+  if ((id == I_minecart || id == I_tntMinecart) && noCart == 0) { used = 1; if (pickOn == 1) { if (BRS[pickB + 1] == RS_RAIL) { let t = M_MINECART; if (id == I_tntMinecart) { t = M_TNTCART; } cartPlace(t, pickX, pickY, pickZ); if (mod(gameMode, 2) == 0) { takeHeld(1); } placeCool = 0.4; } } }
   if (id == I_compass) { used = 1; placeCool = 0.5; compassShow(); }
   if (id == I_clock) { used = 1; placeCool = 0.5; msgShow(`지금 ${timeText()} (${dayN + 1}일째)`, 2); }
   if (ITTHROW[id + 1] > 0) { used = 1; placeCool = 0.3; throwIt(ITTHROW[id + 1]); if (mod(gameMode, 2) == 0) { takeHeld(1); } }

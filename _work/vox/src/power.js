@@ -820,17 +820,20 @@ function rsApply(x, y, z, w) {
   if (rl == RS_COMMAND) { if (w == 1) { commandBlockRun(x, y, z); } }
   if (rl == RS_DISPENSER) { if (w == 1) { dispense(x, y, z, b); } }
 }
-// torches that switch too often burn out for a while (8 times in 3 s)
+// torches that go out too often burn out for a while: 8 goings-out within 60 game ticks, as the
+// genre. ((v2.7) counted in game ticks (gtNow): it was the seconds of the frame, and the 2 .. 4 ticks
+// tessvm runs in one frame all got that frame's time, so a going-out 61 .. 63 ticks old still
+// counted and a clock the genre keeps running (8 in 63 ticks) burnt out here and started again)
 let TBX = [], TBY = [], TBZ = [], TBT = [];
 function torchToggled(x, y, z) {
   let i = 1, f = 0;
-  while (i <= TBX.length) { if (f == 0) { if (TBT[i] < rsTime - 3) { f = i; } } i = i + 1; }
+  while (i <= TBX.length) { if (f == 0) { if (gtNow - TBT[i] > 60) { f = i; } } i = i + 1; }
   if (f == 0) { TBX.push(0); TBY.push(0); TBZ.push(0); TBT.push(0); f = TBX.length; }
-  TBX[f] = x; TBY[f] = y; TBZ[f] = z; TBT[f] = rsTime;
+  TBX[f] = x; TBY[f] = y + dim * 1000; TBZ[f] = z; TBT[f] = gtNow;
 }
 function torchBurnt(x, y, z) {
-  let i = 1, n = 0, r = 0;
-  while (i <= TBX.length) { if (TBT[i] >= rsTime - 3) { if (TBX[i] == x && TBY[i] == y && TBZ[i] == z) { n = n + 1; } } i = i + 1; }
+  let i = 1, n = 0, r = 0, yd = y + dim * 1000;
+  while (i <= TBX.length) { if (gtNow - TBT[i] <= 60) { if (TBX[i] == x && TBY[i] == yd && TBZ[i] == z) { n = n + 1; } } i = i + 1; }
   if (n >= 8) { r = 1; }
   return r;
 }
@@ -1127,7 +1130,7 @@ function dispense(x, y, z, b) {
       } else {
         if (id == I_arrow) { arrowShoot(x + 0.5 + DX6[f + 1] * 0.6, y + 0.5 + DY6[f + 1] * 0.6, z + 0.5 + DZ6[f + 1] * 0.6, x + 0.5 + DX6[f + 1] * 10, y + 0.5 + DY6[f + 1] * 10, z + 0.5 + DZ6[f + 1] * 10, 1); how = 1; }
         if (id == I_lavaBucket && netSrv > 0 && shLava == 0) { how = 3; id = 0; }
-        if (id == I_tnt && netSrv > 0 && shTnt == 0) { how = 3; id = 0; }
+        if ((id == I_tnt || id == I_tntMinecart) && netSrv > 0 && shTnt == 0) { how = 3; id = 0; }
         if (id == I_waterBucket || id == I_lavaBucket) { if (fb == 0 || (BLQ[fb + 1] > 0 && BLV[fb + 1] > 0)) { let lq = 7; if (id == I_lavaBucket) { lq = 35; } setBlock(fx, fy, fz, lq); CHI[s] = I_bucket; how = 2; } }
         if (id == I_bucket) { if (BLQ[fb + 1] > 0 && BLV[fb + 1] == 0) { let full = I_waterBucket; if (BLQ[fb + 1] == 35) { full = I_lavaBucket; } setBlock(fx, fy, fz, 0); if (CHN[s] == 1) { CHI[s] = full; how = 2; } else { if (chestTake(c, full, 1, 0) == 1) { how = 1; } else { how = 3; } } } }
         if (id == I_tnt) { if (fb == 0 || BLQ[fb + 1] > 0) { setBlock(fx, fy, fz, I_tnt); tntLight(fx, fy, fz, worldDrops(), 4); how = 1; } }

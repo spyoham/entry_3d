@@ -91,6 +91,18 @@ ok(tryPut(B, 4, 4, 'lava') !== 'lava', 'bob cannot pour lava');
 ok(tryPut(B, 6, 4, 'tnt') !== 'tnt', 'bob cannot put TNT');
 ok(tryPut(A, 8, 4, 'lava') === 'lava', 'the owner still can (lava)');
 ok(tryPut(A, 10, 4, 'tnt') === 'tnt', 'the owner still can (TNT)');
+// a dispenser (on the host's screen, where they work) does not put a TNT cart either
+const H = A.g('netHost') === 1 ? A : B;
+H.call((fn) => { fn.runCommand(`/fill 18 ${Y - 1} 8 24 ${Y + 2} 8 air`); fn.runCommand(`/fill 18 ${Y - 1} 8 24 ${Y - 1} 8 stone`); fn.runCommand(`/setblock 20 ${Y} 8 dispenser[facing=east]`); fn.runCommand(`/setblock 21 ${Y} 8 rail`); }); run(1);
+const carts = () => H.call((fn) => H.g('ET').filter((t) => t > 0 && fn.isCart(t) === 1).length);
+const c0 = carts();
+H.call((fn) => { fn.chestAt(20, Y, 8); const c = H.g('cFound'); H.g('CHI')[(c - 1) * 27] = id('tnt_minecart'); H.g('CHN')[(c - 1) * 27] = 1; fn.runCommand(`/setblock 19 ${Y} 8 spark_block`); }); run(2);
+ok(carts() === c0, `TNT forbidden: the dispenser keeps its TNT cart (${carts() - c0} put)`);
+H.call((fn) => fn.runCommand(`/setblock 19 ${Y} 8 air`)); run(1);
+cmd(A, '/server tnt on'); run(4);
+H.call((fn) => fn.runCommand(`/setblock 19 ${Y} 8 spark_block`)); run(2);
+ok(carts() === c0 + 1, `TNT allowed: it puts it on the rail (${carts() - c0})`);
+H.call((fn) => fn.runCommand(`/setblock 19 ${Y} 8 air`)); cmd(A, '/server tnt off'); run(4);
 r = cmd(A, '/server lava on'); r = cmd(A, '/server tnt on'); run(4);
 ok(tryPut(B, 12, 4, 'lava') === 'lava' && tryPut(B, 14, 4, 'tnt') === 'tnt', 'allowed again: bob can');
 r = cmd(A, '/server'); ok(r.includes('용암 1') && r.includes('TNT 1'), r);
