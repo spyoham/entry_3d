@@ -465,7 +465,7 @@ export function makeData() {
     L.OFFX = chunkOffsets(CR).map(o => o[0]); L.OFFZ = chunkOffsets(CR).map(o => o[1]);
     L.KIT = [2, 3, 1, 4, 5, 13, 15, 27, 39].map(Number);
     L.BNAMES = ['바다', '해변', '평원', '숲', '사막', '타이가', '설원', '산', '얼어붙은 바다', '잿빛 심연', '공허의 섬',
-        '밀림', '사바나', '늪', '붉은 협곡', '흑단 숲', '버섯 섬', '자작나무 숲', '꽃 숲', '얼음 가시 벌판', '따뜻한 바다', '깊은 바다',
+        '밀림', '사바나', '늪', '붉은 협곡', '흑단 숲', '버섯 섬', '자작나무 숲', '꽃 숲', '얼음 가시 들판', '따뜻한 바다', '깊은 바다',
         '잉걸 숲', '쪽빛 숲', '흐느낌 골짜기', '현무암 삼각주'];
     L.BKEYS = ['ocean', 'beach', 'plains', 'forest', 'desert', 'taiga', 'snowy_tundra', 'mountains', 'frozen_ocean', 'ashen_wastes', 'void_islands',
         'jungle', 'savanna', 'swamp', 'badlands', 'ebony_forest', 'mushroom_fields', 'birch_forest', 'flower_forest', 'ice_spikes', 'warm_ocean', 'deep_ocean',
