@@ -387,7 +387,7 @@ function arrowsStep(dt) {
   while (a <= NARR) {
     if (AON[a] > 0) {
       AAGE[a] = AAGE[a] + dt;
-      if (AON[a] >= 7) { thrownStep(a, dt); } else { if (AON[a] >= 5) { boltStep(a, dt); } else {
+      if (AON[a] >= 10) { fireworkStep(a, dt); } else { if (AON[a] >= 7) { thrownStep(a, dt); } else { if (AON[a] >= 5) { boltStep(a, dt); } else {
       if (ASTK[a] == 0) {
         if (AON[a] != 3) { AVY[a] = AVY[a] - 20 * dt; }
         let nx = AXX[a] + AVX[a] * dt, ny = AYY[a] + AVY[a] * dt, nz = AZZ[a] + AVZ[a] * dt;
@@ -426,7 +426,7 @@ function arrowsStep(dt) {
         // a stuck arrow can be picked up
         if (Math.abs(AXX[a] - px) < 1 && Math.abs(AZZ[a] - pz) < 1 && Math.abs(AYY[a] - py - 0.5) < 1.5) { if (AON[a] <= 2) { if (mod(gameMode, 2) == 0) { if (rand(1, 2) == 1 || AON[a] == 2) { addItem(115, 1, 0); } } } AON[a] = 0; }
       }
-      } }
+      } } }
       if (AAGE[a] > 20) { AON[a] = 0; }
     }
     a = a + 1;
@@ -500,7 +500,8 @@ function bucketThings() {
   }
   let a = 1;
   while (a <= NARR) {
-    if (AON[a] > 0) { inView(AXX[a], AYY[a], AZZ[a], 0.6); if (inV == 1) { bucketThing(0 - 200 - a, AXX[a], AYY[a], AZZ[a]); } }
+    // ((v2.8) a firework's burst reaches 7 blocks round)
+    if (AON[a] > 0) { let rr = 0.6; if (AON[a] == 11) { rr = 8; } inView(AXX[a], AYY[a], AZZ[a], rr); if (inV == 1) { bucketThing(0 - 200 - a, AXX[a], AYY[a], AZZ[a]); } }
     a = a + 1;
   }
   // (v2.5) blocks a piston moves, sliding
@@ -719,7 +720,42 @@ function drawMoving1(m, fog) {
     }
   }
 }
-function drawArrow(a, fog) {
+function drawArrow(a, fog) { if (AON[a] >= 10) { drawFirework(a, fog); } else { drawArrow0(a, fog); } }
+// ((v2.8) a firework rocket: its red stick and the flame under it; its burst: 32 sparks flying out
+// from where it burst, slowing and falling, fading)
+function drawFirework(a, fog) {
+  let x = AXX[a], y = AYY[a], z = AZZ[a];
+  if (AON[a] == 10) {
+    fwSeg(x, y, z, x, y - 0.45, z, 0.05, CFWR, 20, fog);
+    fwSeg(x, y - 0.45, z, x, y - 0.75, z, 0.07, CFLAME, 23, fog);
+  } else {
+    let t = AAGE[a], rad = 7 * t / (t + 0.35), sag = 1.4 * t * t, col = fwCol(AVX[a]), kb = Math.max(4, Math.round(23 - t * 11));
+    let i = 1;
+    while (i <= 32) {
+      let yy = 1 - (i - 0.5) / 16, rr = Math.sqrt(Math.max(0, 1 - yy * yy)), th = i * 137.5;
+      let dx = rr * cosd(th), dz = rr * sind(th);
+      let sx = x + dx * rad, sy = y + yy * rad - sag, sz = z + dz * rad;
+      fwSeg(sx, sy, sz, sx - dx * 0.4, sy - yy * 0.4 + 0.1, sz - dz * 0.4, 0.06, col, kb, fog);
+      i = i + 1;
+    }
+  }
+}
+// a thin piece from (hx, hy, hz) to (tx, ty, tz), w wide, of colour col at brightness kb
+function fwSeg(hx, hy, hz, tx, ty, tz, w0, col, kb, fog) {
+  let dx = hx - camX, dy = hy - camY, dz = hz - camZ, vz = r31 * dx + r32 * dy + r33 * dz;
+  let ex = tx - camX, ey = ty - camY, ez = tz - camZ, wz = r31 * ex + r32 * ey + r33 * ez;
+  if (vz > 2000 && wz > 2000) {
+    let ax = (r11 * dx + r13 * dz) * FOC / vz, ay = (r21 * dx + r22 * dy + r23 * dz) * FOC / vz;
+    let bx = (r11 * ex + r13 * ez) * FOC / wz, by = (r21 * ex + r22 * ey + r23 * ez) * FOC / wz;
+    let w = w0 * 16384 * FOC / vz + 0.5;
+    let ux = bx - ax, uy = by - ay, ul = Math.sqrt(ux * ux + uy * uy) + 0.001;
+    let nx = 0 - uy / ul * w, ny = ux / ul * w;
+    if (ul < 0.6) { nx = w; ny = 0; ux = 0; bx = ax; by = ay - w; }
+    fillStop(); goto(ax + nx, ay + ny); fillColorHex(CT[col + kb * 8 + fog + 1]); fillStart(); goto(bx + nx, by + ny); goto(bx - nx, by - ny); goto(ax - nx, ay - ny);
+    nFill = nFill + 1;
+  }
+}
+function drawArrow0(a, fog) {
   let l = Math.sqrt(AVX[a] * AVX[a] + AVY[a] * AVY[a] + AVZ[a] * AVZ[a]) + 0.001;
   let hx = AXX[a] + AVX[a] / l * 0.25, hy = AYY[a] + AVY[a] / l * 0.25, hz = AZZ[a] + AVZ[a] / l * 0.25;
   let tx = AXX[a] - AVX[a] / l * 0.25, ty = AYY[a] - AVY[a] / l * 0.25, tz = AZZ[a] - AVZ[a] / l * 0.25;

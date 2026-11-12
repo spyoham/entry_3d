@@ -15,6 +15,11 @@ let viewR = 32, viewR2 = 1024, kMax = 80, dark = 0, underWater = 0;
 let HD = [], BF = [], BN = [], BD2 = [];
 let bTop = 0;
 let FOGL = [];
+// ((v2.8) how far faces show their textures (the rest their average colour): TXDS in blocks, chosen
+// by texI in the settings, texD2 its square as the faces' d2 (-1: none; 4.5 -> 20 was the old DEC2)
+let TXDS = [0, 2, 3, 4.5, 6, 8, 12, 16, 24], texI = 4, texD2 = 20;
+function texSet(i) { texI = Math.max(1, Math.min(TXDS.length, i)); texD2 = Math.round(TXDS[texI] * TXDS[texI]); if (TXDS[texI] == 0) { texD2 = 0 - 1; } }
+function texName() { gS2 = '끔'; if (TXDS[texI] > 0) { gS2 = `${TXDS[texI]} 블록`; } return gS2; }
 let CT = [];
 let ctPos = 0, fogR = 170, fogG = 205, fogB = 250, fogHex = '#aaccff';
 // (v2.6) the settings: fog (off: the far blocks in their own colours to the edge)
@@ -298,7 +303,7 @@ function drawBuckets() {
   let bx = 0, by = 0, bz = 0, ex = 0, ey = 0, ez = 0;
   let a0x = 0, a0y = 0, a0z = 0, a1x = 0, a1y = 0, a1z = 0, a2x = 0, a2y = 0, a2z = 0, a3x = 0, a3y = 0, a3z = 0;
   let p0x = 0, p0y = 0, p1x = 0, p1y = 0, p2x = 0, p2y = 0, p3x = 0, p3y = 0, on = 0;
-  let foc = FOC, nz = NEARZ, sw = 250, sh = 145, nsw = 0 - 250, nsh = 0 - 145, dec2 = DEC2;
+  let foc = FOC, nz = NEARZ, sw = 250, sh = 145, nsw = 0 - 250, nsh = 0 - 145, dec2 = texD2;
   let c11 = r11, c13 = 0 - r13, c21 = r21, c22 = 0 - r22, c23 = 0 - r23, c31 = r31, c32 = 0 - r32, c33 = 0 - r33;
   let mx1 = 0 - ux1, mx2 = 0 - ux2, mx3 = 0 - ux3, my2 = 0 - uy2, my3 = 0 - uy3, mz1 = 0 - uz1, mz2 = 0 - uz2, mz3 = 0 - uz3;
   let hx = cx256, hy = cy256, hz = cz256;
@@ -410,7 +415,7 @@ function drawNear(t, kb, fog, d2) {
     nFill = nFill + 1;
   }
   let r = TR0[t], re = r + TRN[t];
-  if (d2 > DEC2) { if (re > r + TRF[t]) { re = r + TRF[t]; } }
+  if (d2 > texD2) { if (re > r + TRF[t]) { re = r + TRF[t]; } }
   let u0 = 0, v0 = 0, u1 = 0, v1 = 0, px = 0, py = 0, pz = 0, nk = 0 - kb - fog - 1;
   let nfx = 0 - fx, nfy = 0 - fy, nfz = 0 - fz;
   while (r < re) {
@@ -625,17 +630,19 @@ let EDGA = [1, 2, 3, 4, 1, 5, 2, 6, 3, 7, 4, 8, 5, 6, 7, 8, 1, 2, 5, 6, 3, 4, 7,
 function drawPick() {
   if (pickOn == 1) {
     let x = pickX, y = pickY, z = pickZ;
-    // the 8 corners: 1 (x,y,z) 2 (x+1,y,z) 3 (x,y,z+1) 4 (x+1,y,z+1), 5..8 the same one up
-    pkCorner(1, x, y, z); pkCorner(2, x + 1, y, z); pkCorner(3, x, y, z + 1); pkCorner(4, x + 1, y, z + 1);
-    pkCorner(5, x, y + 1, z); pkCorner(6, x + 1, y + 1, z); pkCorner(7, x, y + 1, z + 1); pkCorner(8, x + 1, y + 1, z + 1);
+    // ((v2.8) the box of the block's shape: pkB0X .. pkB1Z in the cell, from pickRay)
+    let x0 = x + pkB0X, y0 = y + pkB0Y, z0 = z + pkB0Z, x1 = x + pkB1X, y1 = y + pkB1Y, z1 = z + pkB1Z;
+    // the 8 corners: 1 (x0,y0,z0) 2 (x1,y0,z0) 3 (x0,y0,z1) 4 (x1,y0,z1), 5..8 the same one up
+    pkCorner(1, x0, y0, z0); pkCorner(2, x1, y0, z0); pkCorner(3, x0, y0, z1); pkCorner(4, x1, y0, z1);
+    pkCorner(5, x0, y1, z0); pkCorner(6, x1, y1, z0); pkCorner(7, x0, y1, z1); pkCorner(8, x1, y1, z1);
     let vxm = 0, vxp = 0, vym = 0, vyp = 0, vzm = 0, vzp = 0;
-    // a side counts when it faces the eye and nothing solid covers it
-    if (camX < x) { if (BHC[blockAt(x - 1, y, z) + 1] != 1) { vxm = 1; } }
-    if (camX > x + 1) { if (BHC[blockAt(x + 1, y, z) + 1] != 1) { vxp = 1; } }
-    if (camY < y) { if (BHC[blockAt(x, y - 1, z) + 1] != 1) { vym = 1; } }
-    if (camY > y + 1) { if (BHC[blockAt(x, y + 1, z) + 1] != 1) { vyp = 1; } }
-    if (camZ < z) { if (BHC[blockAt(x, y, z - 1) + 1] != 1) { vzm = 1; } }
-    if (camZ > z + 1) { if (BHC[blockAt(x, y, z + 1) + 1] != 1) { vzp = 1; } }
+    // a side counts when it faces the eye and nothing solid covers it (a side inside the cell: nothing does)
+    if (camX < x0) { if (pkB0X > 0 || BHC[blockAt(x - 1, y, z) + 1] != 1) { vxm = 1; } }
+    if (camX > x1) { if (pkB1X < 1 || BHC[blockAt(x + 1, y, z) + 1] != 1) { vxp = 1; } }
+    if (camY < y0) { if (pkB0Y > 0 || BHC[blockAt(x, y - 1, z) + 1] != 1) { vym = 1; } }
+    if (camY > y1) { if (pkB1Y < 1 || BHC[blockAt(x, y + 1, z) + 1] != 1) { vyp = 1; } }
+    if (camZ < z0) { if (pkB0Z > 0 || BHC[blockAt(x, y, z - 1) + 1] != 1) { vzm = 1; } }
+    if (camZ > z1) { if (pkB1Z < 1 || BHC[blockAt(x, y, z + 1) + 1] != 1) { vzp = 1; } }
     // edges along x: (1,2) y- z-, (3,4) y- z+, (5,6) y+ z-, (7,8) y+ z+
     if (vym + vzm > 0) { pkEdge(1, 2); } if (vym + vzp > 0) { pkEdge(3, 4); } if (vyp + vzm > 0) { pkEdge(5, 6); } if (vyp + vzp > 0) { pkEdge(7, 8); }
     // along y: (1,5) x- z-, (2,6) x+ z-, (3,7) x- z+, (4,8) x+ z+
@@ -722,4 +729,5 @@ function renderWorld() {
   bucketThings();
   drawBuckets();
   drawPick();
+  weDrawSel();
 }

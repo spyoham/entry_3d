@@ -166,7 +166,9 @@ function netServerCmd(sub) {
       if (p == 1) { gS = `${nm} 놓기: 허용`; } else { gS = `${nm} 놓기: 금지 (서버 주인만 놓을 수 있습니다)`; }
     }
   }
-  if (gS == '-') { let wk = '기본 지형'; if (shFlat != '-') { wk = `평지 ${shFlat}`; } gS = `${shName} · 주인 ${shOwner} · ${wk} · 시드 ${shSeed} · 싸움 ${shPvp} · 용암 ${shLava} · TNT ${shTnt} · 모드 ${MODEKO[shMode + 1]} · 최대 ${shMax} · 화이트리스트 ${shWl} (/server motd|name|pvp|mode|max|lava|tnt)`; }
+  // ((v2.8) world edit for the admins: the owner only)
+  if (sub == 'worldedit' || sub == 'we') { gS = weToggle(v); }
+  if (gS == '-') { let wk = '기본 지형'; if (shFlat != '-') { wk = `평지 ${shFlat}`; } gS = `${shName} · 주인 ${shOwner} · ${wk} · 시드 ${shSeed} · 싸움 ${shPvp} · 용암 ${shLava} · TNT ${shTnt} · 월드에딧 ${shWe} · 모드 ${MODEKO[shMode + 1]} · 최대 ${shMax} · 화이트리스트 ${shWl} (/server motd|name|pvp|mode|max|lava|tnt|worldedit)`; }
   return gS;
 }
 // /plugin add 이름 이벤트[:조건] me|all 명령 ...   /plugin list   /plugin rules 이름   /plugin del 이름 [번호]   /plugin on|off 이름

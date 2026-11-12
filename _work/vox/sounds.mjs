@@ -42,6 +42,9 @@ export function makeSounds() {
     { const a = buf(0.1); sweep(a, 900, 1500, 0.08, 0.8, 0, 3); add('s6', norm(a, 0.3)); }
     // s7 a tool breaks: a snap
     { const a = buf(0.35); noise(a, 9, 0, a.length, 1, (t) => Math.exp(-t * 18)); hp(a, 1500); sweep(a, 1200, 500, 0.3, 0.6, 0, 4); add('s7', norm(a, 0.6)); }
+    // (v2.8) s8 a firework rocket going up: a rising hiss; s9 its burst: a crack and a rumble
+    { const a = buf(0.7); noise(a, 21, 0, a.length, 1, (t) => Math.min(1, t * 25) * Math.exp(-t * 4)); hp(a, 2500); add('s8', norm(a, 0.35)); }
+    { const a = buf(1.1); noise(a, 22, 0, a.length, 1, (t) => Math.exp(-t * 5)); lp(a, 2400); sweep(a, 110, 40, 0.4, 1, 0, 6); add('s9', norm(a, 0.7)); }
     // (v2.5) the note block's sixteen instruments (n0 .. n15), each at its pitch 12 (F#; the game
     // plays it 0.5 .. 2 times as fast for the notes 0 .. 24, as the genre does)
     const F4 = 369.99;

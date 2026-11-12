@@ -28,7 +28,8 @@ use();
 let st = B(X, Y, Z - 1); ok(K(st) === 'oak_stairs', 'stairs facing +z: ' + K(st));
 // a slab on a slab is a double slab
 stand(X + 3, Z - 3, 0, -40); hold('stone_slab', 4); use(); const sl = B(X + 3, Y, Z - 1); ok(K(sl) === 'stone_slab', 'bottom slab: ' + K(sl));
-s.poke('pitch', -20); F(1); use(); ok(K(B(X + 3, Y, Z - 1)) === 'stone_slab_double', 'double slab: ' + K(B(X + 3, Y, Z - 1)));
+// ((v2.8) aimed at the slab's own top now: at -20 the look goes over the half block, as in the genre)
+s.poke('pitch', -30); F(1); use(); ok(K(B(X + 3, Y, Z - 1)) === 'stone_slab_double', 'double slab: ' + K(B(X + 3, Y, Z - 1)));
 // walking up onto a slab (step up), not onto a full block
 cmd(`/setblock ${X - 3} ${Y} ${Z + 2} stone_slab`);
 stand(X - 3, Z, 0, 0);

@@ -37,7 +37,7 @@ function standsOn(b, under, x, y, z) {
 }
 
 // ---------------------------------------------------------------- F
-function useKey() {
+function useKey0() {
   if (placeCool <= 0) {
     let id = INVI[hotSel];
     let used = 0;
@@ -127,6 +127,7 @@ function useItem(id) {
   if (id == I_tntMinecart) { if (srvForbids(2) == 1) { noCart = 1; used = 1; placeCool = 0.3; msgShow('이 서버에서는 TNT를 놓을 수 없습니다', 2); } }
   if ((id == I_minecart || id == I_tntMinecart) && noCart == 0) { used = 1; if (pickOn == 1) { if (BRS[pickB + 1] == RS_RAIL) { let t = M_MINECART; if (id == I_tntMinecart) { t = M_TNTCART; } cartPlace(t, pickX, pickY, pickZ); if (mod(gameMode, 2) == 0) { takeHeld(1); } placeCool = 0.4; } } }
   if (id == I_compass) { used = 1; placeCool = 0.5; compassShow(); }
+  if (id == I_fireworkRocket) { used = 1; placeCool = 0.3; fireworkUse(); }
   if (id == I_clock) { used = 1; placeCool = 0.5; msgShow(`지금 ${timeText()} (${dayN + 1}일째)`, 2); }
   if (ITTHROW[id + 1] > 0) { used = 1; placeCool = 0.3; throwIt(ITTHROW[id + 1]); if (mod(gameMode, 2) == 0) { takeHeld(1); } }
   if (ITSPAWN[id + 1] > 0) { used = 1; placeCool = 0.3; if (pickOn == 1) { pickNeighbour(); mobAdd(ITSPAWN[id + 1], nbX + 0.5, nbY, nbZ + 0.5); if (lastMob > 0) { EST[lastMob] = 0; } if (mod(gameMode, 2) == 0) { takeHeld(1); } } }

@@ -11,6 +11,8 @@ function testStep() {
   if (testCmd == 12) { testCmd = 0; netEnter(); if (netMy == 0) { netClaim(); } let k = 1, f = 0; while (k <= NSRV) { if (srvHas(k) == 1) { if (shName == tCmd) { f = k; } } k = k + 1; } if (f > 0) { serverJoin(f); } else { tCmd = '없음'; } }
   // 14: the block at (tX, tY, tZ) into tStage
   if (testCmd == 14) { testCmd = 0; tStage = blockAt(tX, tY, tZ); }
+  // ((v2.8) a firework rocket 3 blocks ahead of the player)
+  if (testCmd == 16) { testCmd = 0; tStage = fireworkAdd(px + sind(yaw) * 3, py + 1, pz + cosd(yaw) * 3); }
   if (testCmd == 15) { testCmd = 0; netLeave(); gState = 0; txClear(); menuGo(4); }
   if (testCmd == 13) { testCmd = 0; netUserAct = 1; chatRun(tCmd); netUserAct = 0; }
   // 9: the kept world again (as 이어하기 on the title)

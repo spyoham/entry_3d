@@ -3,6 +3,8 @@
 // everything, nothing touched)
 let px = 64, py = 40, pz = 64, pvx = 0, pvy = 0, pvz = 0, yaw = 0, pitch = 0;
 let onGround = 0, inWater = 0, inLava = 0, headWater = 0, flying = 0, sneaking = 0, sprinting = 0;
+// ((v2.8) swimming: the body lying down, 0.6 high (also crawling where there is no room to stand up))
+let swimming = 0;
 let gameMode = 0, hp = 20, food = 20, sat = 5, exhaust = 0, air = 300, regenT = 0, starveT = 0, hurtT = 0, hurtFlash = 0;
 let fallTop = 0, lavaT = 0, cactusT = 0, drownT = 0, dead = 0, deathMsg = '';
 let jumpWas = 0, spaceTapT = 0, wTapT = 0, wWas = 0, bob = 0, walkDist = 0;
@@ -237,6 +239,14 @@ function playerMove2(dt) {
   wasSneak = sneaking;
   bodyIn(px, py, pz, 0.3, 1.8);
   inWater = inW; inLava = inL;
+  // ((v2.8) as the genre: sprinting with the head under water lies the body down and swims the way of
+  // the eye (up and down too); out of the water or no longer sprinting it stands up where there is
+  // room, else it crawls on (through a gap 1 high)
+  if (flying == 0 && riding == 0 && gliding == 0 && dead == 0) {
+    if (swimming == 0) { if (sprinting == 1 && headWater == 1 && inWater == 1) { swimming = 1; } }
+    else { if (sprinting == 0 || inWater == 0) { solidBox(px - 0.29, px + 0.29, py + 0.05, py + 1.8, pz - 0.29, pz + 0.29); if (solidHit == 0) { swimming = 0; } } }
+  } else { swimming = 0; }
+  if (swimming == 1) { sneaking = 0; }
   // (v2.3.2) flowing water carries the player along
   if (inW == 1 || inL == 1) { flowAt(Math.floor(px), Math.floor(py + 0.3), Math.floor(pz)); let cs = 2.6; if (inL == 1) { cs = 0.9; } if (flying == 0) { pvx = pvx + flX * cs * dt * 3; pvz = pvz + flZ * cs * dt * 3; } }
   let sp = 4.3;
@@ -244,8 +254,11 @@ function playerMove2(dt) {
   if (sneaking == 1) { if (flying == 0) { sp = 1.3; } }
   if (flying == 1) { sp = 10.9; if (sprinting == 1) { sp = 21.6; } }
   // ((v2.7) lava holds back far more than water (0.8 m/s); sprinting stops in water and at a wall)
-  if (inWater == 1 || inLava == 1) { if (flying == 0) { sp = sp * 0.45; if (inLava == 1) { sp = sp * 0.42; } } }
-  if (inWater == 1 && flying == 0) { sprinting = 0; }
+  if (inWater == 1 || inLava == 1) { if (flying == 0) { if (swimming == 0 || sprinting == 0 || inLava == 1) { sp = sp * 0.45; } if (inLava == 1) { sp = sp * 0.42; } } }
+  // (sprinting goes on in water only to swim: with the head under water, or swimming)
+  if (inWater == 1 && flying == 0) { if (swimming == 0 && headWater == 0) { sprinting = 0; } }
+  // (crawling out of the water: as slow as sneaking)
+  if (swimming == 1 && inWater == 0) { sp = 1.3; }
   if (wasHitX == 1) { sprinting = 0; }
   if (eatId > 0) { if (flying == 0) { sp = sp * 0.2; } sprinting = 0; }
   // what is under the feet or round the body: sand that holds, honey, a web
@@ -263,6 +276,8 @@ function playerMove2(dt) {
   if (l > 0) {
     let sy = sind(yaw), cy = cosd(yaw);
     wx = (fw * sy + st * cy) / l * sp; wz = (fw * cy - st * sy) / l * sp;
+    // (swimming: as much of it along the ground as the eye looks along it)
+    if (swimming == 1 && inWater == 1) { let cp = cosd(pitch); wx = wx * cp; wz = wz * cp; }
   }
   // ((v2.7) in the air the speed is kept as the genre (0.91 a tick: 1.9 a second; it was 3.5), ice
   // 0.98 (2.3), blue ice 0.989 (2.1; it was 0.8), the elastic block 0.8 (6.35))
@@ -291,6 +306,8 @@ function playerMove2(dt) {
       let vt = 0 - 0.4, rk = 4.5;
       if (spc) { vt = 2.8; }
       if (inLava == 1) { rk = 13.9; vt = 0 - 0.8; if (spc) { vt = 0.8; } }
+      // ((v2.8) swimming: up and down the way of the eye, held still when not going on; Space up, Shift down)
+      if (swimming == 1 && inLava == 0) { vt = 0; rk = 6; if (fw > 0 && sprinting == 1) { vt = sind(pitch) * sp; } if (spc) { vt = Math.max(vt, 2.8); } if (key(16)) { vt = Math.min(vt, 0 - 2.8); } }
       pvy = pvy + (vt - pvy) * Math.min(1, rk * dt);
       fallTop = py;
     } else {
@@ -326,6 +343,7 @@ function playerMove2(dt) {
   let ox = px, oz = pz;
   bmX = px; bmY = py; bmZ = pz; bmW = 0.3; bmH = 1.8; bmStep = 0;
   if (sneaking == 1 && flying == 0) { bmH = 1.5; }
+  if (swimming == 1) { bmH = 0.6; }
   if (onGround == 1 && flying == 0) { bmStep = 0.6; }
   let mx = pvx * dt, mz = pvz * dt;
   if (sneaking == 1) { if (onGround == 1) { if (flying == 0) {
@@ -376,7 +394,8 @@ function playerMove2(dt) {
   // ((v2.7) as 1.16.5: walking costs nothing, sprinting on the ground 0.1 a metre, swimming 0.01)
   if (sprinting == 1 && onGround == 1) { exhaust = exhaust + moved * 0.1; } else { if (inWater == 1) { exhaust = exhaust + moved * 0.01; } }
   headWater = 0;
-  let hb = blockAt(Math.floor(px), Math.floor(py + 1.62), Math.floor(pz));
+  // ((v2.8) at the eye: lower when swimming)
+  let hb = blockAt(Math.floor(px), Math.floor(py + Math.min(1.62, eyeH)), Math.floor(pz));
   if (BLQ[hb + 1] == 7 || BWATER[hb + 1] == 1) { headWater = 1; }
 }
 
@@ -543,6 +562,8 @@ function pickRay() {
   if (dz > 0) { tmz = (z + 1 - ez) * tdz; } if (dz < 0) { tmz = (ez - z) * tdz; }
   let t = 0, face = 0, b = 0, found = 0, k = 0;
   pickOn = 0; pickT = 99;
+  // ((v2.8) a block not a whole cube is picked by its boxes: the rest of its cell lets the look go on)
+  pbFace = 0 - 1;
   while (found == 0 && t <= reach && k < 20) {
     if (tmx < tmy && tmx < tmz) { x = x + stx; t = tmx; tmx = tmx + tdx; face = 0; if (stx < 0) { face = 1; } }
     else { if (tmy < tmz) { y = y + sty; t = tmy; tmy = tmy + tdy; face = 2; if (sty < 0) { face = 3; } }
@@ -552,15 +573,93 @@ function pickRay() {
       if (y >= WY) { b = 0; }
       if (b != 0 && BLQ[b + 1] == 0) { found = 1; }
       if (b == I_barrier) { if (gameMode != 1) { found = 0; } }
+      if (found == 1) { if (pbWhole(b) == 0) { pbBoxes(x, y, z, b); if (pbRay(x, y, z, ex, ey, ez, dx, dy, dz) == 0) { found = 0; } else { if (pbT <= reach) { t = pbT; face = pbFace; } else { found = 0; } } } }
     }
     k = k + 1;
   }
   if (found == 1) {
-    if (y >= 0 && y < WY && cOK(x, z) == 1) { pickOn = 1; pickX = x; pickY = y; pickZ = z; pickF = face; pickB = b; pickT = t; pickHY = frac(ey + dy * t); }
+    if (y >= 0 && y < WY && cOK(x, z) == 1) { pickOn = 1; pickX = x; pickY = y; pickZ = z; pickF = face; pickB = b; pickT = t; pickHY = frac(ey + dy * t); pbBounds(b); }
   }
   mobPick = mobRay(ex, ey, ez, dx, dy, dz, Math.min(reach - 1.5, pickT));
   if (mobPick > 0) { pickOn = 0; }
   if (gameMode == 3) { pickOn = 0; }
+}
+// ---------------------------------------------------------------- (v2.8) the shapes blocks are picked by
+// PBX0 .. PBZ1 the boxes of a block in 1/16 of its cell (pbN of them): a cross plant 2..14 wide and
+// 13 high (cane 16), a torch its stick and flame (leaning on its wall), a shaped block its model's
+// boxes with the arms to the sides it joins and a stair's corner; pbRay the nearest box the look
+// enters (pbT, pbFace), pbBounds what is outlined (pkB0X .. pkB1Z, the cell's 0..1).
+let PBX0 = [], PBY0 = [], PBZ0 = [], PBX1 = [], PBY1 = [], PBZ1 = [], pbN = 0, pbT = 0, pbFace = 0;
+let pkB0X = 0, pkB0Y = 0, pkB0Z = 0, pkB1X = 1, pkB1Y = 1, pkB1Z = 1;
+function pbWhole(b) { let r = 1, sh = BSHP[b + 1]; if (sh == 1 || sh == 2 || sh == 5) { r = 0; } return r; }
+function pbAdd(a, b, c, d, e, f) {
+  pbN = pbN + 1;
+  if (pbN > PBX0.length) { PBX0.push(0); PBY0.push(0); PBZ0.push(0); PBX1.push(0); PBY1.push(0); PBZ1.push(0); }
+  PBX0[pbN] = Math.max(0, a); PBY0[pbN] = Math.max(0, b); PBZ0[pbN] = Math.max(0, c); PBX1[pbN] = Math.min(16, d); PBY1[pbN] = Math.min(16, e); PBZ1[pbN] = Math.min(16, f);
+}
+function pbBoxes(x, y, z, b) {
+  pbN = 0;
+  let sh = BSHP[b + 1];
+  if (sh == 5) {
+    let m = BMDL[b + 1];
+    if (BPLC[b + 1] == P_STAIRS) { m = stairShape(x, y, z, b, m); }
+    let k = MD0[m], ke = k + MDN[m];
+    while (k < ke) { pbAdd(MBX0[k], MBY0[k], MBZ0[k], MBX1[k], MBY1[k], MBZ1[k]); k = k + 1; }
+    let c = BCONN[b + 1];
+    if (c > 0) {
+      let a = connOf(x, y, z, b), s = 0;
+      while (s < 4) {
+        if (mod(a, 2) == 1) { let am = ARMM[(c - 1) * 4 + s + 1]; k = MD0[am]; ke = k + MDN[am]; while (k < ke) { pbAdd(MBX0[k], MBY0[k], MBZ0[k], MBX1[k], MBY1[k], MBZ1[k]); k = k + 1; } }
+        a = idiv(a, 2); s = s + 1;
+      }
+    }
+  } else {
+    if (sh == 1) { if (b == I_reed) { pbAdd(2, 0, 2, 14, 16, 14); } else { pbAdd(2, 0, 2, 14, 13, 14); } }
+    else {
+      if (sh == 2) {
+        let a = BATT[b + 1], ox = 0, oy = 0, oz = 0;
+        if (a >= 0) { if (a != 2) { ox = DX6[a + 1] * 5; oz = DZ6[a + 1] * 5; oy = 3; } }
+        pbAdd(6 + ox, oy, 6 + oz, 10 + ox, 12.5 + oy, 10 + oz);
+      } else { pbAdd(0, 0, 0, 16, 16, 16); }
+    }
+  }
+}
+// the nearest of the boxes the look from (ex, ey, ez) the way (dx, dy, dz) enters (from outside): 1 if one
+function pbRay(x, y, z, ex, ey, ez, dx, dy, dz) {
+  let r = 0, i = 1;
+  pbT = 99999; pbFace = 0 - 1;
+  while (i <= pbN) {
+    let t0 = 0 - 99999, t1 = 99999, f = 0 - 1, ok = 1;
+    // (each axis: where the look is between the box's two planes)
+    let a0 = x + PBX0[i] / 16, a1 = x + PBX1[i] / 16;
+    if (Math.abs(dx) < 0.000001) { if (ex < a0 || ex > a1) { ok = 0; } }
+    else { let u = (a0 - ex) / dx, v = (a1 - ex) / dx, g = 0; if (dx < 0) { u = (a1 - ex) / dx; v = (a0 - ex) / dx; g = 1; } if (u > t0) { t0 = u; f = g; } if (v < t1) { t1 = v; } }
+    a0 = y + PBY0[i] / 16; a1 = y + PBY1[i] / 16;
+    if (Math.abs(dy) < 0.000001) { if (ey < a0 || ey > a1) { ok = 0; } }
+    else { let u = (a0 - ey) / dy, v = (a1 - ey) / dy, g = 2; if (dy < 0) { u = (a1 - ey) / dy; v = (a0 - ey) / dy; g = 3; } if (u > t0) { t0 = u; f = g; } if (v < t1) { t1 = v; } }
+    a0 = z + PBZ0[i] / 16; a1 = z + PBZ1[i] / 16;
+    if (Math.abs(dz) < 0.000001) { if (ez < a0 || ez > a1) { ok = 0; } }
+    else { let u = (a0 - ez) / dz, v = (a1 - ez) / dz, g = 4; if (dz < 0) { u = (a1 - ez) / dz; v = (a0 - ez) / dz; g = 5; } if (u > t0) { t0 = u; f = g; } if (v < t1) { t1 = v; } }
+    if (ok == 1 && t0 <= t1 && t0 >= 0 && f >= 0) { if (t0 < pbT) { pbT = t0; pbFace = f; r = 1; } }
+    i = i + 1;
+  }
+  return r;
+}
+// what is outlined: the boxes' bounds (a whole cube: the cell)
+function pbBounds(b) {
+  pkB0X = 0; pkB0Y = 0; pkB0Z = 0; pkB1X = 1; pkB1Y = 1; pkB1Z = 1;
+  if (pbWhole(b) == 0) {
+    if (pbN > 0) {
+      pkB0X = 16; pkB0Y = 16; pkB0Z = 16; pkB1X = 0; pkB1Y = 0; pkB1Z = 0;
+      let i = 1;
+      while (i <= pbN) {
+        pkB0X = Math.min(pkB0X, PBX0[i]); pkB0Y = Math.min(pkB0Y, PBY0[i]); pkB0Z = Math.min(pkB0Z, PBZ0[i]);
+        pkB1X = Math.max(pkB1X, PBX1[i]); pkB1Y = Math.max(pkB1Y, PBY1[i]); pkB1Z = Math.max(pkB1Z, PBZ1[i]);
+        i = i + 1;
+      }
+      pkB0X = pkB0X / 16; pkB0Y = pkB0Y / 16; pkB0Z = pkB0Z / 16; pkB1X = pkB1X / 16; pkB1Y = pkB1Y / 16; pkB1Z = pkB1Z / 16;
+    }
+  }
 }
 let nbX = 0, nbY = 0, nbZ = 0;
 function pickNeighbour() {
@@ -590,7 +689,7 @@ function breakTime(b) {
   if (h < 0) { t = 99999; }
   return t;
 }
-function breaking(dt) {
+function breaking0(dt) {
   breakCool = breakCool - dt;
   breakStage = 0;
   if (pickOn == 1 && clickHeld == 1 && uiMode == 0 && gameMode != 2) {

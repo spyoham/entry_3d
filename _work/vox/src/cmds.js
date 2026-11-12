@@ -571,8 +571,10 @@ function runCommand(s) {
   while (i <= CMW.length) { if (c != 'say' && c != 'tell' && c != 'msg' && c != 'w' && c != 'me' && c != 'title' && c != 'plugin' && c != 'pl' && c != 'plugins' && c != 'server' && c != 'kick' && c != 'ban' && c != 'op' && c != 'deop' && c != 'pardon' && c != 'unban' && c != 'whitelist' && c != 'perm' && c != 'permission' && c != 'perms') { if (isNickWord(CMW[i]) == 0) { CMW[i] = lower(CMW[i]); } } i = i + 1; }
   // on a server: the rights, the server's own commands, the plugins' (netcmd.js)
   netCmdHit = 0;
-  if (netSrv > 0) { netCmd(c); }
-  else { if (cheatsOn == 0 && cmdFromBlock == 0 && cmdLvDefault(cmdCanon(c)) > 0) { netCmdHit = 1; netCmdOut = '이 세계는 명령어를 쓸 수 없게 만들어졌습니다 (새 세계의 "명령어 허용")'; } }
+  // ((v2.8) //set, //copy ...: world edit, by its own rights (wedit.js))
+  if (charAt(c, 1) == '/' || c == 'worldedit') { netCmdHit = 1; if (c == 'worldedit') { netCmdOut = weCmd('worldedit'); } else { netCmdOut = weCmd(substr(c, 2, strlen(c))); } }
+  else { if (netSrv > 0) { netCmd(c); }
+  else { if (cheatsOn == 0 && cmdFromBlock == 0 && cmdLvDefault(cmdCanon(c)) > 0) { netCmdHit = 1; netCmdOut = '이 세계는 명령어를 쓸 수 없게 만들어졌습니다 (새 세계의 "명령어 허용")'; } } }
   if (netCmdHit == 1) { out = netCmdOut; }
   else { if (cmdAim(c) == 1) { out = runCmd(c); if (strlen(aimSent) > 0) { if (strlen(out) > 0) { out = `${out} (+ ${aimSent})`; } } } else { out = cmdAimOut; } }
   // (a text local starts as 0 in Entry: no message is 0)
@@ -784,7 +786,10 @@ function cmdWeather(w, d) {
   return out;
 }
 // ((v2.6.1) a time or weather set on a server: to everyone (the host's is followed after)
-function netSky() { if (netSrv > 0) { if (netSt == 2 && netQuiet == 0) { evAdd('y', `${tday}^${wthr}^${wthrT}`); } } }
+// ((v2.8) and held here until the host's has come back to it (up to 6 s): it was followed back to the
+// host's old one at once, so /weather rain showed clear a while and /weather clear rain - as if swapped)
+let skyHoldT = 0, skyHoldW = 0, skyHoldD = 0;
+function netSky() { if (netSrv > 0) { if (netSt == 2 && netQuiet == 0) { evAdd('y', `${tday}^${wthr}^${wthrT}`); skyHoldT = 6; skyHoldW = wthr; skyHoldD = tday; } } }
 // a rotation of the genre's (yaw 90: west, pitch 90: down) as the game's (yaw 90: east, pitch 90: up)
 function yawArg(w, here) {
   let r = here;

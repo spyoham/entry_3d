@@ -438,6 +438,9 @@ CONTENT.item({ n: 'minecart', key: 'minecart', ko: '광산 수레', cat: 4, st: 
 CONTENT.item({ n: 'tntMinecart', key: 'tnt_minecart', ko: '폭약 광산 수레', cat: 4, st: 1, icon: ['........', '..rwwr..', '..rwwr..', 'krrrrrrk', 'kaaaaaak', 'kaaaaaak', '.kkkkkk.', '.w....w.'], p: { a: '7a7a7a', k: '4a4a4a', w: '2a2a2a', r: 'c02020' } });
 CONTENT.R(['ingotIron _ ingotIron', 'ingotIron ingotIron ingotIron'], 'minecart', 1);
 CONTENT.R(['tnt', 'minecart'], 'tntMinecart', 1, 1);
+// (v2.8) the firework rocket, after them (the ids before stay): paper and gunpowder make three
+CONTENT.item({ n: 'fireworkRocket', key: 'firework_rocket', ko: '폭죽 로켓', cat: 6, st: 64, icon: ['.....ww.', '....wrrw', '....rrr.', '...rrr..', '..krr...', '.k......', 'k.......', '........'], p: { r: 'd03030', w: 'f0f0f0', k: '8a6a3a' } });
+CONTENT.R(['paper gunpowder'], 'fireworkRocket', 3, 1);
 NBLOCK = BLOCKS.length;
 NITEM = Math.max(...ITEMS.map(i => i.id)) + 1;
 

@@ -227,6 +227,8 @@ function svWrite() {
   // worlds reads from the end)
   svN('JE27'); M_svL(KVX); M_svL(KVY); M_svL(KVZ); M_svL(KVK); M_svL(KVV); M_svL(LPX); M_svL(LPY); M_svL(LPZ);
   // (v2.3: the kind of world; read from the end for the list)
+  // ((v2.8) world edit on or off in this world)
+  svN('WEDIT'); svN(weSingle);
   svN('CHEAT'); svN(cheatsOn);
   svN('FLAT'); svN(flatKept());
   worldPut(worldCur);
@@ -290,9 +292,10 @@ function loadGame(k) {
     while (k <= 27) { let q = (c - 1) * 27 + k; CHI[q] = rdN(); CHN[q] = rdN(); CHD[q] = rdN(); k = k + 1; }
     j = j + 1;
   }
-  flatOn = 0; cheatsOn = 1;
+  flatOn = 0; cheatsOn = 1; weSingle = 1;
   KVX = []; KVY = []; KVZ = []; KVK = []; KVV = []; LPX = []; LPY = []; LPZ = [];
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'JE27') { svP = svP + 2; M_rdL(KVX); M_rdL(KVY); M_rdL(KVZ); M_rdL(KVK); M_rdL(KVV); M_rdL(LPX); M_rdL(LPY); M_rdL(LPZ); svP = svP - 1; } }
+  if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'WEDIT') { svP = svP + 2; weSingle = rdN(); svP = svP - 1; } }
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'CHEAT') { svP = svP + 2; cheatsOn = rdN(); svP = svP - 1; } }
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'FLAT') { svP = svP + 2; let fbad = flatSet(rdN()); } }
   curI = 0; curN = 0; curD = 0;

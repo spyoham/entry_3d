@@ -225,6 +225,7 @@ function playEye(dt) {
   // the eye
   let eh = 1.62;
   if (sneaking == 1) { if (flying == 0) { eh = 1.27; } }
+  if (swimming == 1) { eh = 0.4; }
   eyeH = eyeH + (eh - eyeH) * Math.min(1, 12 * dt);
   camX = px; camY = py + eyeH + Math.abs(sind(bob * 57)) * 0.06; camZ = pz; camYaw = yaw; camPitch = pitch;
   if (dead == 1) { camY = py + 0.3; }
@@ -321,6 +322,8 @@ function uiInput() {
       if (menuSel == 8) { autoView = 1 - autoView; setView(viewWant); }
       if (menuSel == 9) { fogOn = 1 - fogOn; setView(viewR); }
       if (menuSel == 10) { lightSet(1 - lightOn); }
+      // ((v2.8) the texture distance: the right column's halves (x 10 .. 200)
+      if (menuSel == 11) { if (mouseX() > 105) { texSet(texI + 1); } else { texSet(texI - 1); } }
       if (menuSel == 7) { if (netSrv == 0) { saveGame(1); } }
       if (menuSel == 6) { if (netSrv > 0) { netLeave(); } else { if (canSave() == 1) { saveGame(1); } } uiMode = 0; gState = 0; txClear(); }
     }

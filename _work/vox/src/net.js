@@ -194,10 +194,10 @@ function slotEvents(k, evs, first) {
 // dayNow; v2.7: lava and TNT may be put, 1 / 0 - the owner's choice)
 // (metaLen metaItem metaPut editLen editItem editsPut: written by build.mjs, one branch per place)
 // a server's header read into SH*: does it exist
-let shName = '', shOwner = '', shMotd = '', shSeed = 0, shMode = 0, shPvp = 1, shMax = 16, shWl = 0, shRev = 0, shFlat = '-', shId = '', shDay = 0, shLava = 1, shTnt = 1;
+let shName = '', shOwner = '', shMotd = '', shSeed = 0, shMode = 0, shPvp = 1, shMax = 16, shWl = 0, shRev = 0, shFlat = '-', shId = '', shDay = 0, shLava = 1, shTnt = 1, shWe = 1;
 function srvHas(k) {
   let h = metaItem(k, 1), r = 0;
-  shName = ''; shOwner = ''; shMotd = ''; shSeed = 0; shMode = 0; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shFlat = '-'; shId = ''; shDay = 0; shLava = 1; shTnt = 1;
+  shName = ''; shOwner = ''; shMotd = ''; shSeed = 0; shMode = 0; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shFlat = '-'; shId = ''; shDay = 0; shLava = 1; shTnt = 1; shWe = 1;
   if (strlen(h) > 3) { if (charAt(h, 1) == 'H') {
     splitBy(h, '^');
     if (SPL.length >= 10) {
@@ -208,6 +208,8 @@ function srvHas(k) {
       if (SPL.length >= 12) { shId = SPL[12]; }
       if (SPL.length >= 13) { shDay = SPL[13] * 1; }
       if (SPL.length >= 15) { shLava = SPL[14] * 1; shTnt = SPL[15] * 1; }
+      // ((v2.8) may the admins use world edit here)
+      if (SPL.length >= 16) { shWe = SPL[16] * 1; }
       r = 1;
     }
   } }
@@ -261,7 +263,7 @@ function metaRead(k) {
     i = i + 1;
   }
 }
-function headLine() { return `H^${shName}^${shOwner}^${shMotd}^${shSeed}^${shMode}^${shPvp}^${shMax}^${shWl}^${shRev}^${shFlat}^${shId}^${shDay}^${shLava}^${shTnt}`; }
+function headLine() { return `H^${shName}^${shOwner}^${shMotd}^${shSeed}^${shMode}^${shPvp}^${shMax}^${shWl}^${shRev}^${shFlat}^${shId}^${shDay}^${shLava}^${shTnt}^${shWe}`; }
 // the host writes them back (after a change)
 function metaWrite(k) {
   shRev = shRev + 1; metaRev = shRev;
@@ -351,7 +353,7 @@ function srvCreate(name, motd, seedv, mode, flat) {
 function srvEdit(k, name, motd) {
   if (srvHas(k) == 1) { if (shOwner == netNick || netNick == SUPER) {
     metaRead(k); srvHead(k);
-    shName = netClean(name); shMotd = netClean(motd); shLava = esLava; shTnt = esTnt;
+    shName = netClean(name); shMotd = netClean(motd); shLava = esLava; shTnt = esTnt; shWe = esWe;
     metaWrite(k);
   } }
 }
@@ -363,6 +365,7 @@ function srvDelete(k) {
 function netStep(dt) {
   netClock = netClock + dt;
   svBackStep(dt);
+  if (netSrv > 0) { weStep(dt); }
   if (netOn == 1) {
     netInit();
     if (netMy == 0) { netClaim(); }
@@ -547,7 +550,8 @@ function netInServer(dt) {
     netUserT = netUserT + dt;
     if (netUserT > 30) { netUserT = 0; evAdd('u', `${netSrv}^${netUserPack()}`); }
     // the day follows the host's
-    if (h > 0) { if (h != netMy) { if (Math.abs(NTD[h] - tday) > 0.01) { tday = NTD[h]; } if (idiv(NFLG[h], 16) != wthr) { wthr = idiv(NFLG[h], 16); } } }
+    if (skyHoldT > 0) { skyHoldT = skyHoldT - dt; if (h > 0) { if (idiv(NFLG[h], 16) == skyHoldW && Math.abs(NTD[h] - skyHoldD) < 0.02) { skyHoldT = 0; } } }
+    if (h > 0) { if (h != netMy) { if (skyHoldT <= 0) { if (Math.abs(NTD[h] - tday) > 0.01) { tday = NTD[h]; } if (idiv(NFLG[h], 16) != wthr) { wthr = idiv(NFLG[h], 16); } } } }
     netEnts(dt);
     netChestWatch();
     if (netHost == 1) { hostStep(dt); }
@@ -737,7 +741,7 @@ function hostWish(who, f) {
     if (a == 'pardon') { let i = 1; while (i <= MBAN.length) { if (MBAN[i] == b) { MBAN.removeAt(i); MBANR.removeAt(i); } else { i = i + 1; } } }
     if (a == 'wladd') { MWL.push(b); }
     if (a == 'wldel') { let i = 1; while (i <= MWL.length) { if (MWL[i] == b) { MWL.removeAt(i); } else { i = i + 1; } } }
-    if (a == 'set') { let v = ' '; if (SPL.length >= 3) { v = SPL[3]; } if (b == 'motd') { shMotd = v; } if (b == 'pvp') { shPvp = v * 1; } if (b == 'lava') { shLava = v * 1; } if (b == 'tnt') { shTnt = v * 1; } if (b == 'mode') { shMode = v * 1; } if (b == 'wl') { shWl = v * 1; } if (b == 'max') { shMax = Math.max(1, Math.min(NSLOT, v * 1)); } if (b == 'name') { shName = v; } }
+    if (a == 'set') { let v = ' '; if (SPL.length >= 3) { v = SPL[3]; } if (b == 'motd') { shMotd = v; } if (b == 'pvp') { shPvp = v * 1; } if (b == 'lava') { shLava = v * 1; } if (b == 'tnt') { shTnt = v * 1; } if (b == 'we') { shWe = v * 1; } if (b == 'mode') { shMode = v * 1; } if (b == 'wl') { shWl = v * 1; } if (b == 'max') { shMax = Math.max(1, Math.min(NSLOT, v * 1)); } if (b == 'name') { shName = v; } }
     if (a == 'padd') { if (SPL.length >= 6) { PLN.push(b); PLO.push(1); PLE.push(SPL[3]); PLC.push(SPL[4]); PLT.push(SPL[5]); PLX.push(SPL[6]); } }
     if (a == 'pdel') { let n = 0; if (SPL.length >= 3) { n = SPL[3] * 1; } let i = 1, m = 0; while (i <= PLN.length) { if (PLN[i] == b) { m = m + 1; if (n == 0 || m == n) { PLN.removeAt(i); PLO.removeAt(i); PLE.removeAt(i); PLC.removeAt(i); PLT.removeAt(i); PLX.removeAt(i); } else { i = i + 1; } } else { i = i + 1; } } }
     if (a == 'pset') { let lv = 1; if (SPL.length >= 3) { lv = SPL[3] * 1; } let i = 1; while (i <= MPC.length) { if (MPC[i] == b) { MPC.removeAt(i); MPL.removeAt(i); } else { i = i + 1; } } if (lv != cmdLvDefault(b)) { MPC.push(b); MPL.push(lv); } }

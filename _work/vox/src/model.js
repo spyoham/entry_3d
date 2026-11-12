@@ -132,7 +132,7 @@ function mFace(t, d, tu0, tv0, tu1, tv1) {
   let nz = NEARZ;
   if (q0z > nz && q1z > nz && q2z > nz && q3z > nz) {
     let kb = LTK[mdlLT * 8 + d + 1], fog = mdlFog, foc = FOC, ca = TAVG[t];
-    if (mdlD2 <= DEC2 || ca < 0) {
+    if (mdlD2 <= texD2 || ca < 0) {
       winRects(t, kb, fog, tu0, tv0, tu1, tv1);
     } else {
       fillStop(); goto(q0x * foc / q0z, q0y * foc / q0z); fillColorHex(CT[ca + kb + fog + 1]); fillStart();

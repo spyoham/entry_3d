@@ -11,7 +11,7 @@ import { TEX, CRACK, BLOCKS, NBLOCK, ITEMS, TIERS, KINDS, SMITH, toolId, NITEM, 
 import { MODELS, ARMS, ARMCOL, pottedModel } from './models.mjs';
 import { makeSounds } from './sounds.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '2.7.4';
+export const VERSION = '2.8';
 // how many servers Entry Sync holds (each one two ?! lists; the slot line carries the number in two digits)
 export const NSRV = 99;
 export const NAME = '블록 월드';
@@ -472,7 +472,7 @@ export function makeData() {
         'ember_forest', 'indigo_forest', 'wail_valley', 'basalt_deltas'];
     L.TITLEB = [2, 13, 4, 16, 17];
 
-    const extra = { CTORCH: col('7a5a30'), CFLAME: col('ffc830'), CCLOUD: col('ffffff'), CHURT: col('e83a3a'), CARROW: col('8a7a5a'), CSKIN: col('c8a080'), CRAIN: col('8ab0e0'), CSNOW: col('f4f8ff'), CXP: col('80ff20'), CSHIRT: col('2a8ac8'), CPANTS: col('3a3a8a') };
+    const extra = { CTORCH: col('7a5a30'), CFLAME: col('ffc830'), CCLOUD: col('ffffff'), CHURT: col('e83a3a'), CARROW: col('8a7a5a'), CSKIN: col('c8a080'), CRAIN: col('8ab0e0'), CSNOW: col('f4f8ff'), CXP: col('80ff20'), CSHIRT: col('2a8ac8'), CPANTS: col('3a3a8a'), CFWR: col('ff4a4a'), CFWY: col('ffd84a'), CFWB: col('4ac8ff'), CFWG: col('6aff6a'), CFWP: col('ff6aff'), CFWW: col('ffffff') };
     L.COLR = cols.map(h => rgbOf(h)[0]); L.COLG = cols.map(h => rgbOf(h)[1]); L.COLB = cols.map(h => rgbOf(h)[2]);
     Object.assign(L, R);
     // the ids the code names (I_<name> for every block and item)
@@ -491,7 +491,7 @@ export function makeData() {
 }
 
 // ------------------------------------------------------------------ sources
-export const FILES = ['world.js', 'flat.js', 'fluid.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'rails.js', 'save.js', 'net.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'items.js', 'hud.js', 'extra.js', 'cmds.js', 'keyin.js', 'swear.js', 'je.js', 'main.js', 'test.js'];
+export const FILES = ['world.js', 'flat.js', 'fluid.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'rails.js', 'save.js', 'net.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'items.js', 'hud.js', 'extra.js', 'cmds.js', 'wedit.js', 'keyin.js', 'swear.js', 'je.js', 'main.js', 'test.js'];
 export function allConsts(more = {}) {
     const { C } = makeData();
     return { ...consts, ...C, ...more };

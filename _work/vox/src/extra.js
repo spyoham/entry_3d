@@ -332,10 +332,49 @@ function glideStep(dt) {
   if (f < 0) { if (hl > 0.001) { let d = hv * (0 - sind(f)) * 0.04 * k; vy = vy + d * 3.2; vx = vx - lx / hl * d; vz = vz - lz / hl * d; } }
   if (hl > 0.001) { vx = vx + (lx / hl * hv - vx) * 0.1 * k; vz = vz + (lz / hl * hv - vz) * 0.1 * k; }
   vx = vx * (1 - 0.01 * k); vy = vy * (1 - 0.02 * k); vz = vz * (1 - 0.01 * k);
+  // ((v2.8) a firework rocket's push, as the genre's each tick: + look x 0.1, and toward look x 1.5 by half)
+  if (fwBoostT > 0) {
+    fwBoostT = fwBoostT - dt;
+    let ly = sind(pitch), h = Math.min(1, 0.5 * k);
+    vx = vx + lx * 0.1 * k + (lx * 1.5 - vx) * h; vy = vy + ly * 0.1 * k + (ly * 1.5 - vy) * h; vz = vz + lz * 0.1 * k + (lz * 1.5 - vz) * h;
+  }
   pvx = vx * 20; pvy = vy * 20; pvz = vz * 20;
   fallTop = py;
   glideWearT = glideWearT + dt;
   if (glideWearT >= 1) { glideWearT = 0; if (mod(gameMode, 2) == 0) { INVD[38] = INVD[38] + 1; } }
+}
+
+// ---------------------------------------------------------------- (v2.8) firework rockets
+// Used gliding: a push the way of the eye for 1.6 s. Used on a block: a rocket goes up from it (an
+// arrow slot, AON 10, its life in ASTK) and bursts (AON 11, its colour in AVX) into sparks drawn
+// round where it burst (drawFirework).
+let fwBoostT = 0;
+function fwCol(k) { let r = CFWW; if (k == 1) { r = CFWR; } if (k == 2) { r = CFWY; } if (k == 3) { r = CFWB; } if (k == 4) { r = CFWG; } if (k == 5) { r = CFWP; } return r; }
+function fireworkUse() {
+  let ok = 0;
+  if (gliding == 1) { fwBoostT = 1.6; ok = 1; sndPlay(8); }
+  else { if (pickOn == 1) { pickNeighbour(); if (fireworkAdd(nbX + 0.5, nbY + 0.15, nbZ + 0.5) == 1) { ok = 1; } } }
+  if (ok == 1) { if (mod(gameMode, 2) == 0) { takeHeld(1); } swingT = 0.3; }
+}
+function fireworkAdd(x, y, z) {
+  let a = 1, s = 0;
+  while (a <= NARR) { if (s == 0) { if (AON[a] == 0) { s = a; } } a = a + 1; }
+  if (s > 0) {
+    AXX[s] = x; AYY[s] = y; AZZ[s] = z; AVX[s] = rand(-10, 10) / 20; AVY[s] = 4; AVZ[s] = rand(-10, 10) / 20;
+    AAGE[s] = 0; ASTK[s] = 1.1 + rand(0, 6) / 10; AON[s] = 10;
+    sndPlay(8);
+  }
+  return s;
+}
+function fireworkStep(a, dt) {
+  if (AON[a] == 10) {
+    AVY[a] = Math.min(30, AVY[a] + 18 * dt);
+    let nx = AXX[a] + AVX[a] * dt, ny = AYY[a] + AVY[a] * dt, nz = AZZ[a] + AVZ[a] * dt;
+    let hb = blockAt(Math.floor(nx), Math.floor(ny), Math.floor(nz)), up = 1;
+    if (ny >= WY) { hb = 0; }
+    if (BSOL[hb + 1] > 0) { up = 0; } else { AXX[a] = nx; AYY[a] = ny; AZZ[a] = nz; }
+    if (AAGE[a] >= ASTK[a] || up == 0) { AON[a] = 11; AAGE[a] = 0; AVX[a] = rand(1, 6); AVY[a] = 0; AVZ[a] = 0; sndPlay(9); }
+  } else { if (AAGE[a] > 1.8) { AON[a] = 0; } }
 }
 
 // ---------------------------------------------------------------- boats
