@@ -63,7 +63,7 @@ const items = () => { const I = s.peek('IID'); return I.filter((q) => q > 0).len
   ok(BFAC[B(x0, Y, z0)] === 1, 'a dispenser facing +x');
   putIn(c, 1, ID('arrow'), 3);
   const a0 = s.peek('AON').filter((q) => q > 0).length;
-  call(() => fn.buttonPress(x0, Y, z0 - 1)); F(3);
+  call(() => fn.buttonPress(x0, Y, z0 - 1)); F(16);
   const a1 = s.peek('AON').filter((q) => q > 0).length;
   ok(a1 === a0 + 1 && slots(c) === 'arrowx2', `it shoots an arrow (${a0} -> ${a1} arrows, left ${slots(c)})`);
   F(70);
@@ -84,7 +84,7 @@ const items = () => { const I = s.peek('IID'); return I.filter((q) => q > 0).len
   placeAs(x0, Y, z0, 'dropper', 3, 270); put(x0 + 1, Y, z0, 'chest');
   const c = chestOf(x0, Y, z0), c2 = chestOf(x0 + 1, Y, z0);
   putIn(c, 1, ID('cobblestone'), 5);
-  placeAs(x0, Y, z0 - 1, 'stone_button', 3, 0); call(() => fn.buttonPress(x0, Y, z0 - 1)); F(10);
+  placeAs(x0, Y, z0 - 1, 'stone_button', 3, 0); call(() => fn.buttonPress(x0, Y, z0 - 1)); F(20);
   ok(slots(c2) === 'cobblestonex1' && slots(c) === 'cobblestonex4', `the dropper put one into the chest (${slots(c)} -> ${slots(c2)})`);
   const hx = X + 4, hz = Z - 20;
   put(hx, Y + 2, hz, 'chest'); put(hx, Y + 1, hz, 'hopper'); put(hx, Y, hz, 'chest');

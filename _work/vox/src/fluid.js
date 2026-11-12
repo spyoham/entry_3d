@@ -42,7 +42,13 @@ function fluidNotify(x, y, z) {
 }
 function M_fn(X, Y, Z) {
   let fb = blockAt(X, Y, Z);
-  if (BLQ[fb + 1] > 0) { fluidAt(X, Y, Z, lqDelay(BLQ[fb + 1])); }
+  // ((v2.7) lava that water came by turns at once, as the genre: it waited its 1.5 s)
+  if (BLQ[fb + 1] > 0) { let dl = lqDelay(BLQ[fb + 1]); if (BLQ[fb + 1] == 35) { if (lavaWet(X, Y, Z) == 1) { dl = 0; } } fluidAt(X, Y, Z, dl); }
+}
+function lavaWet(x, y, z) {
+  let r = 0;
+  if (BLQ[blockAt(x + 1, y, z) + 1] == 7 || BLQ[blockAt(x - 1, y, z) + 1] == 7 || BLQ[blockAt(x, y, z + 1) + 1] == 7 || BLQ[blockAt(x, y, z - 1) + 1] == 7 || BLQ[blockAt(x, y + 1, z) + 1] == 7) { r = 1; }
+  return r;
 }
 // a cell of a chunk being made again from the log (save.js edReplay): blockAt says nothing there
 // yet, so the window is read itself for that chunk's cells (a neighbour in another chunk: blockAt)
@@ -61,7 +67,7 @@ function lqInto(b, q, lv) {
   let r = 0;
   if (b == 0) { r = 1; }
   if (BLQ[b + 1] == q) { if (BLV[b + 1] != 0 && BLV[b + 1] != 8 && BLV[b + 1] > lv) { r = 1; } }
-  if (BLQ[b + 1] == 0 && b != 0) { if ((BSHP[b + 1] == 1 || BSHP[b + 1] == 2) && BWATER[b + 1] == 0) { r = 1; } if (BSPEC[b + 1] == 10 || b == I_snowLayer) { r = 1; } }
+  if (BLQ[b + 1] == 0 && b != 0) { if ((BSHP[b + 1] == 1 || BSHP[b + 1] == 2) && BWATER[b + 1] == 0 && b != I_reed) { r = 1; } if (BSPEC[b + 1] == 10 || b == I_snowLayer) { r = 1; } if (mod(idiv(BJE[b + 1], 4), 2) == 1) { r = 1; } }
   return r;
 }
 // can it fall from here (into the cell below)
@@ -73,7 +79,8 @@ function lqHole(x, y, z, q) {
 // put liquid (or what it made) at a cell: a plant or a torch is washed out (and drops)
 function lqPut(x, y, z, b, logged) {
   let o = blockAt(x, y, z);
-  if (BLQ[o + 1] == 0 && o != 0) { if (worldDrops() == 1) { blockDrops(o, x, y, z); } }
+  // ((v2.7) lava burns what it takes: nothing drops)
+  if (BLQ[o + 1] == 0 && o != 0) { if (worldDrops() == 1 && BLQ[b + 1] != 35) { blockDrops(o, x, y, z); } }
   lqLog = logged;
   setBlock(x, y, z, b);
   lqLog = 1;
@@ -136,6 +143,8 @@ function fluidTick(x, y, z) {
         let w = 0;
         if (BLQ[blockAt(x + 1, y, z) + 1] == 7 || BLQ[blockAt(x - 1, y, z) + 1] == 7 || BLQ[blockAt(x, y, z + 1) + 1] == 7 || BLQ[blockAt(x, y, z - 1) + 1] == 7 || BLQ[blockAt(x, y + 1, z) + 1] == 7) { w = 1; }
         if (w == 1) { if (lv == 0) { lqPut(x, y, z, 34, 1); } else { lqPut(x, y, z, 4, 1); } sndPlay(5); q = 0; }
+        // ((v2.7) over soul soil by blue ice: basalt)
+        else { if (blockAt(x, y - 1, z) == I_wailSoil) { if (blockAt(x + 1, y, z) == I_blueIce || blockAt(x - 1, y, z) == I_blueIce || blockAt(x, y, z + 1) == I_blueIce || blockAt(x, y, z - 1) == I_blueIce || blockAt(x, y + 1, z) == I_blueIce) { lqPut(x, y, z, 53, 1); sndPlay(5); q = 0; } } }
       }
       // a flowing cell: its level from what feeds it
       if (q > 0 && lv != 0) {

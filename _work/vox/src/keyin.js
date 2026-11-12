@@ -81,7 +81,7 @@ let ACS = ['#p #i', '#p #i', '#p', 'survival|creative|adventure|spectator #p', '
   '-', '-', '-', '#p', '#p', '#p', '-', '#s', '#v', '#p title|subtitle|actionbar|clear|reset|times',
   'add|set|query #p', 'add|set|query #p', '#X', '#p #p', 'entity #p weapon.mainhand|hotbar.0|hotbar.1|hotbar.2|hotbar.3|hotbar.4|hotbar.5|hotbar.6|hotbar.7|hotbar.8|armor.head|armor.chest|armor.legs|armor.feet #i', 'replace entity #p weapon.mainhand|hotbar.0|armor.head|armor.chest|armor.legs|armor.feet with #i', '-', '#p', '#c'];
 let ACNET = ['op', 'deop', 'ban', 'pardon', 'unban', 'kick', 'whitelist', 'server', 'plugin', 'perm'];
-let ACSNET = ['#p', '#o', '#p', '#n', '#n', '#p', 'add|remove|on|off|list #W', 'motd|name|pvp|mode|max on|off|survival|creative|adventure', '-', '#Q'];
+let ACSNET = ['#p', '#o', '#p', '#n', '#n', '#p', 'add|remove|on|off|list #W', 'motd|name|pvp|mode|max|lava|tnt on|off|survival|creative|adventure', '-', '#Q'];
 let ACL = [], ACW = [];
 let acI = 0, acCyc = 0, acDirty = 1, acBase = '', acPart = '', acLow = '', acT = '', acCmd = '';
 

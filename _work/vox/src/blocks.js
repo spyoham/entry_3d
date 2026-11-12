@@ -9,7 +9,9 @@ function dirX(f) { let r = 0; if (f == 1) { r = 1; } if (f == 3) { r = 0 - 1; } 
 function dirZ(f) { let r = 0; if (f == 0) { r = 1; } if (f == 2) { r = 0 - 1; } return r; }
 function freeAt(x, y, z) {
   let o = blockAt(x, y, z), r = 0;
-  if (o == 0 || BLQ[o + 1] > 0 || (BSHP[o + 1] == 1 && BCROP[o + 1] < 0 && BWATER[o + 1] == 0) || BSPEC[o + 1] == 10 || o == I_snowLayer) { r = 1; }
+  // ((v2.7) as 1.16.5 only grass, ferns, dead bushes, seagrass, vines, roots, fire and snow are
+  // taken over: flowers, saplings and mushrooms were too)
+  if (o == 0 || BLQ[o + 1] > 0 || mod(idiv(BJE[o + 1], 2), 2) == 1 || BSPEC[o + 1] == 10 || o == I_snowLayer) { r = 1; }
   if (y < 0 || y >= WY) { r = 0; }
   return r;
 }
@@ -26,10 +28,10 @@ function standsOn(b, under, x, y, z) {
   if (n == N_BELOW) { if (under == 0 || BSHP[under + 1] == 1 || BLQ[under + 1] > 0) { r = 0; } }
   if (n == N_ASHEN) { r = 0; if (under == 48 || under == I_emberMoss || under == I_indigoMoss || under == I_wailSoil || under == I_wailSand) { r = 1; } }
   if (n == N_FARM) { r = 0; if (under == I_farmland || under == I_farmlandWet) { r = 1; } }
-  if (n == N_REED) { r = 0; if (soilAt(under) == 1 || under == 8 || under == I_redSand || under == b) { r = 1; } }
+  if (n == N_REED) { r = 0; if (soilAt(under) == 1 || under == 8 || under == I_redSand || under == b) { r = 1; } if (b == I_reed && under != b) { if (reedWater(x, y - 1, z) == 0) { r = 0; } } }
   if (n == N_DARK) { if (BSOL[under + 1] == 0) { r = 0; } }
   if (n == N_WATER) { r = 0; if (BLQ[under + 1] == 7 || BSOL[under + 1] > 0) { r = 1; } }
-  if (b == 19) { r = 0; if (under == 8 || under == I_redSand || under == 19) { r = 1; } }
+  if (b == 19) { r = 0; if (under == 8 || under == I_redSand || under == 19) { r = cactusOk(x, y, z); } }
   if (BWATER[b + 1] == 1) { if (BLQ[blockAt(x, y, z) + 1] != 7) { if (BLQ[blockAt(x, y + 1, z) + 1] != 7) { r = 0; } } }
   return r;
 }
@@ -76,12 +78,12 @@ function useBlock(x, y, z, b, id) {
   else { if (u == U_SIGN) { signUse(x, y, z, id); }
   else { if (u == U_NOTE) { if (BKIND[b + 1] == I_noteBlock) { noteTune(x, y, z, b); } else { sndPlay(6); msgShow('♪', 1); } }
   else { if (u == U_CAKE) { cakeEat(x, y, z); }
-  else { if (u == U_COMPOST) { used = composterUse(id); }
+  else { if (u == U_COMPOST) { used = composterUse(x, y, z, id); }
   else { if (u == U_REPAIR) { repairHeld(b); }
   else { if (u == U_BELL) { bellRing(x, y, z); msgShow('댕-', 1); }
   else { if (u == U_POT) { used = potUse(x, y, z, b, id); }
   else { if (u == U_COMMAND) { commandBlockEdit(x, y, z); }
-  else { if (u == U_CAMPFIRE) { used = campfireCook(id); }
+  else { if (u == U_CAMPFIRE) { used = campfireUse(x, y, z, b, id); }
   else { if (u == U_ENCHANT) { enchantHeld(); }
   else { if (u == U_LODESTONE) { used = 0; if (id == I_compass) { lodeX = x; lodeZ = z; lodeOn = 1; msgShow('나침반이 이 자석석을 가리킵니다', 2); used = 1; } }
   else { if (u == U_ANCHOR) { anchorUse(x, y, z, id); }
@@ -94,7 +96,7 @@ function useBlock(x, y, z, b, id) {
 // F with an item in hand (not on a block that answers)
 function useItem(id) {
   let used = 0;
-  if (ITFOOD[id + 1] > 0) { eat(id); used = 1; placeCool = 0.4; }
+  if (ITFOOD[id + 1] > 0) { eatStart(id); used = 1; }
   if (id == I_milkBucket) { effectsInit(); INVI[hotSel] = I_bucket; used = 1; placeCool = 0.4; sndPlay(5); }
   if (id == 122) { used = 1; placeCool = 0.3; if (pickOn == 1) { ignite(); } }
   if (id == I_fireCharge) { used = 1; placeCool = 0.3; if (pickOn == 1) { ignite(); if (mod(gameMode, 2) == 0) { takeHeld(1); } } }
@@ -103,6 +105,7 @@ function useItem(id) {
   if (id == 171) { used = 1; let fr = 0; if (pickOn == 1) { if (pickB == 61) { fr = 1; } } if (fr == 1) { if (mod(gameMode, 2) == 0) { takeHeld(1); } placeCool = 0.3; frameEye(pickX, pickY, pickZ); } else { eyeThrow(); } }
   if (id == 174) { used = 1; boatPlace(); }
   // (v2.5) a minecart onto the rail clicked
+  if (id == I_tntMinecart && srvForbids(2) == 1) { used = 1; placeCool = 0.3; msgShow('이 서버에서는 TNT를 놓을 수 없습니다', 2); id = 0; }
   if (id == I_minecart || id == I_tntMinecart) { used = 1; if (pickOn == 1) { if (BRS[pickB + 1] == RS_RAIL) { let t = M_MINECART; if (id == I_tntMinecart) { t = M_TNTCART; } cartPlace(t, pickX, pickY, pickZ); if (mod(gameMode, 2) == 0) { takeHeld(1); } placeCool = 0.4; } } }
   if (id == I_compass) { used = 1; placeCool = 0.5; compassShow(); }
   if (id == I_clock) { used = 1; placeCool = 0.5; msgShow(`지금 ${timeText()} (${dayN + 1}일째)`, 2); }
@@ -186,11 +189,15 @@ function placeBlock(b, id) {
   if (pl == P_TRAPDOOR) { if (pickF == 2 || (pickF != 3 && pickHY > 0.5)) { put = b + 1; } trapKeep(x, y, z, mod(f + 2, 4)); }
   if (pl == P_GATE) { if (mod(f, 2) == 1) { put = b + 1; } }
   if (pl == P_RAIL) { if (mod(f, 2) == 1) { put = b + 1; } }
+  // ((v2.7) a hopper points into the block clicked (down when clicked from above or below))
+  if (b == I_hopper) { let hf = OP6[pickF + 1], k = 1; if (hf != 2 && hf != 3) { while (k < BSOL.length) { if (BKIND[k + 1] == b && BFAC[k + 1] == hf) { put = k; k = BSOL.length; } k = k + 1; } } }
   if (pl == P_BED) { x2 = x + dirX(f); y2 = y; z2 = z + dirZ(f); put = b + f; put2 = b + 4 + f; if (freeAt(x2, y2, z2) == 0) { ok = 0; } }
   if (pl == P_LADDER) {
     let s = mod(f + 2, 4);
     if (pickF == 0) { s = 1; } if (pickF == 1) { s = 3; } if (pickF == 4) { s = 0; } if (pickF == 5) { s = 2; }
     put = b + s;
+    // ((v2.7) on the side of a full block only, as the genre)
+    if (pickF == 2 || pickF == 3 || BSOL[pickB + 1] != 1 || BSHP[pickB + 1] != 0) { ok = 0; }
   }
   // not into the player or a mob
   if (BSOL[put + 1] > 0) {
@@ -202,9 +209,19 @@ function placeBlock(b, id) {
   // spark parts: the variant by the face clicked and the look (a wall lever needs no floor)
   if (BRS[b + 1] > 0) { let rp = rsPut(b); if (rp < 0) { ok = 0; } else { put = rp; sb = rp; } }
   if (standsOn(sb, under, x, y, z) == 0) { ok = 0; }
-  if (b == 27 || BNEED[sb + 1] == N_TORCH) { ok = 1; if (freeAt(x, y, z) == 0) { ok = 0; } if (BSOL[under + 1] == 0) { if (pickF == 2 || BSOL[pickB + 1] == 0) { ok = 0; } } }
+  // ((v2.7) a torch clicked onto the side of a full block leans on it (a wall torch); on a floor it
+  // stands; nowhere else (it stood up in the air beside a wall))
+  if (b == 27 || BNEED[sb + 1] == N_TORCH) {
+    ok = 1; if (freeAt(x, y, z) == 0) { ok = 0; }
+    let wt = 0 - 1;
+    if (pickF != 2 && pickF != 3) { if (BSOL[pickB + 1] == 1 && BSHP[pickB + 1] == 0) { wt = wallTorch(b, OP6[pickF + 1]); } }
+    if (wt > 0) { put = wt; } else { if (BSOL[under + 1] == 0) { ok = 0; } }
+  }
+  // ((v2.7) a server's owner may forbid TNT)
+  if (b == I_tnt) { if (srvForbids(2) == 1) { ok = 0; msgShow('이 서버에서는 TNT를 놓을 수 없습니다', 2); } }
   if (ok == 1) {
     if (netSrv > 0) { plugRun('place', ITKEY[b + 1], netNick); }
+    if (BLEAF[put + 1] == 1) { leafPlaced(x, y, z); }
     setBlock(x, y, z, put);
     // (v2.4.4: a note block, command block or dispenser put next to power already on takes it as
     // what it had: it does not sound or fire, as in the genre)
@@ -328,7 +345,8 @@ function plateHit(x, y, z, who) {
       let f = prF;
       PRC[f] = PRC[f] + 1;
       let l = plateLevel(k, PRC[f]);
-      PRT[f] = Math.max(PRT[f], 0.6);
+      let hold = 1; if (k >= 2) { hold = 0.5; }
+      PRT[f] = Math.max(PRT[f], hold);
       if (l > PRL[f]) { PRL[f] = l; powerAround(x, y, z); }
     }
   }
@@ -421,62 +439,134 @@ function exRoll(x, y, z, n) { return mod(Math.abs(x * 7919 + y * 104729 + z * 12
 let exDrops = 1, exSeed = 0;
 // a blast of radius r at a point: blocks broken (some fall as items), TNT near set off, bodies hurt
 function explode(cx, cy, cz, r, breakIt) {
+  // ((v2.7) r carries what made it: + 100 a mob's (only that heeds mobGriefing; TNT and beds did
+  // too), + 1000 one that sets fire (beds, anchors))
+  let fl = idiv(r, 100), byMob = 0, withFire = 0;
+  r = mod(r, 100); byMob = mod(fl, 10); withFire = idiv(fl, 10);
   sndPlay(7);
-  if (grGrief == 0) { breakIt = 0; }
+  if (grGrief == 0 && byMob == 1) { breakIt = 0; }
   if (breakIt == 1) {
     exSeed = Math.floor(cx * 31 + cy * 57 + cz * 101);
-    let x0 = Math.floor(cx - r), x1 = Math.floor(cx + r), y0 = Math.max(1, Math.floor(cy - r)), y1 = Math.min(WY - 1, Math.floor(cy + r)), z0 = Math.floor(cz - r), z1 = Math.floor(cz + r);
-    let x = x0, y = 0, z = 0, d = 0, b = 0;
-    logOn = 1;
-    while (x <= x1) {
-      z = z0;
-      while (z <= z1) {
-        if (cOK(x, z) == 1) {
-          y = y0;
-          while (y <= y1) {
-            d = (x + 0.5 - cx) * (x + 0.5 - cx) + (y + 0.5 - cy) * (y + 0.5 - cy) + (z + 0.5 - cz) * (z + 0.5 - cz);
-            if (d < r * r * (0.7 + exRoll(x, y, z, 31) / 100)) {
-              b = W[wi(x, y, z)];
-              if (b != 0 && BHARD[b + 1] >= 0 && BHARD[b + 1] < 40 && BLQ[b + 1] == 0) {
-                if (b == I_tnt) { tntLight(x, y, z, exDrops, 0.5 + exRoll(x, y, z, 11) / 10); }
-                else {
-                  if (exRoll(z, x, y, 3) == 0) { if (grTileDrops == 1 && exDrops == 1) { if (BDROP[b + 1] > 0) { dropItem(BDROP[b + 1], 1, 0, x + 0.5, y + 0.5, z + 0.5, 0); } } }
-                  if (BUSE[b + 1] == U_CHEST || BUSE[b + 1] == U_FURNACE) { chestOrFurnaceGone(x, y, z, b); }
-                  if (BRS[b + 1] > 0) { if (XPW.length < 96) { XPW.push(x); XPW.push(y); XPW.push(z); } }
-                  wput(x, y, z, 0); markDirty(x, y, z); rsTell(x, y, z);
-                  if (netSrv > 0) { if (netHost == 1) { hostKeepEdit(x, y, z, 0, dim); } }
-                }
+    // ((v2.7) the genre's blast: 16 x 16 x 16 rays from the middle, each starting at r x (0.7 .. 1.3)
+    // and losing (the block's blast resistance + 0.3) x 0.3 at each step of 0.3 in a block and 0.225
+    // a step: stone holds it (a small hole in stone, a big one in dirt), water stops it all (TNT
+    // under water breaks nothing), obsidian and ancient debris stand. It was a ball by hardness.)
+    lhGen = lhGen + 1;
+    XBX = []; XBY = []; XBZ = []; XBB = [];
+    let i = 0;
+    while (i < 16) {
+      let j = 0;
+      while (j < 16) {
+        let k = 0;
+        while (k < 16) {
+          if (i == 0 || i == 15 || j == 0 || j == 15 || k == 0 || k == 15) {
+            let dx = i / 15 * 2 - 1, dy = j / 15 * 2 - 1, dz = k / 15 * 2 - 1;
+            let l = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            dx = dx / l * 0.3; dy = dy / l * 0.3; dz = dz / l * 0.3;
+            let f = r * (0.7 + exRoll(i, j, k, 61) / 100), x = cx, y = cy, z = cz, lx = 0 - 99999, ly = 0, lz = 0, b = 0, res = 0;
+            while (f > 0) {
+              let bx = Math.floor(x), by = Math.floor(y), bz = Math.floor(z);
+              if (bx != lx || by != ly || bz != lz) {
+                lx = bx; ly = by; lz = bz; b = 0;
+                if (by >= 0 && by < WY) { b = blockAt(bx, by, bz); } else { f = 0; }
+                res = BRES[b + 1];
               }
+              if (b != 0) {
+                f = f - (res + 0.3) * 0.3;
+                if (f > 0) { if (BLQ[b + 1] == 0 && BHARD[b + 1] >= 0) { if (lhSeen(bx, by, bz) == 0) { if (XBX.length < 4000) { XBX.push(bx); XBY.push(by); XBZ.push(bz); XBB.push(b); } } } }
+              }
+              x = x + dx; y = y + dy; z = z + dz; f = f - 0.225;
             }
-            y = y + 1;
+          }
+          k = k + 1;
+        }
+        j = j + 1;
+      }
+      i = i + 1;
+    }
+    let dropN = Math.max(1, Math.round(r));
+    let q = 1;
+    logOn = 1;
+    while (q <= XBX.length) {
+      let x = XBX[q], y = XBY[q], z = XBZ[q];
+      if (cOK(x, z) == 1) {
+        let b = W[wi(x, y, z)];
+        if (b != 0 && BHARD[b + 1] >= 0 && BLQ[b + 1] == 0) {
+          if (b == I_tnt) { tntLight(x, y, z, exDrops, 0.5 + exRoll(x, y, z, 11) / 10); }
+          else {
+            // (a block drops by 1 in the blast's power, as the genre: TNT 1 in 4; it was 1 in 3)
+            if (exRoll(z, x, y, dropN) == 0) { if (grTileDrops == 1 && exDrops == 1) { if (BDROP[b + 1] > 0) { dropItem(BDROP[b + 1], 1, 0, x + 0.5, y + 0.5, z + 0.5, 0); } } }
+            if (BUSE[b + 1] == U_CHEST || BUSE[b + 1] == U_FURNACE) { chestOrFurnaceGone(x, y, z, b); }
+            if (BRS[b + 1] > 0) { if (XPW.length < 96) { XPW.push(x); XPW.push(y); XPW.push(z); } }
+            wput(x, y, z, 0); markDirty(x, y, z); rsTell(x, y, z);
+            if (netSrv > 0) { if (netHost == 1) { hostKeepEdit(x, y, z, 0, dim); } }
           }
         }
-        z = z + 1;
       }
-      x = x + 1;
+      q = q + 1;
     }
     logOn = 0;
-    let q = 1;
+    // ((v2.7) the world round the hole answers: water and lava run in, what stood on a broken block
+    // comes off, sand falls, leaves of a broken tree fall away; fire on a third of the floor)
+    q = 1;
+    while (q <= XBX.length) {
+      let x = XBX[q], y = XBY[q], z = XBZ[q];
+      if (cOK(x, z) == 1) { if (W[wi(x, y, z)] == 0) {
+        fluidNotify(x, y, z);
+        if (mod(BJE[XBB[q] + 1], 2) == 1) { leafNear(x, y, z); }
+        if (y + 1 < WY) {
+          let up = W[wi(x, y + 1, z)];
+          if (up != 0) {
+            if (BSHP[up + 1] == 1 || BSHP[up + 1] == 2 || up == 19 || (BNEED[up + 1] > 0 && BNEED[up + 1] != N_ANY)) { if (BLQ[up + 1] == 0 && BPLC[up + 1] != P_DOOR) { if (worldDrops() == 1 && exDrops == 1) { blockDrops(up, x, y + 1, z); } setBlock(x, y + 1, z, 0); } }
+            if (BFALL[up + 1] == 1) { fallBlock(x, y + 1, z); }
+          }
+        }
+        if (withFire == 1) { if (y > 0) { if (BSOL[W[wi(x, y - 1, z)] + 1] == 1) { if (exRoll(x, z, y, 3) == 0) { fireSet(x, y, z, 0); } } } }
+      } }
+      q = q + 1;
+    }
+    q = 1;
     while (q < XPW.length) { powerAround(XPW[q], XPW[q + 1], XPW[q + 2]); q = q + 3; }
     XPW = [];
+    let x0 = Math.floor(cx - r * 2), x1 = Math.floor(cx + r * 2), z0 = Math.floor(cz - r * 2), z1 = Math.floor(cz + r * 2);
     lbX0 = Math.min(lbX0, x0 - 14); lbX1 = Math.max(lbX1, x1 + 14); lbZ0 = Math.min(lbZ0, z0 - 14); lbZ1 = Math.max(lbZ1, z1 + 14);
+    XBX = []; XBY = []; XBZ = []; XBB = [];
   }
-  // the player and the mobs
+  // ((v2.7) bodies as the genre: impact = (1 - distance / 2r) x the share of rays from the blast that
+  // reach the body (a wall shields), hurt = (impact^2 + impact) / 2 x 7 x 2r + 1 (TNT up to 57;
+  // it was up to 25 through any wall), pushed impact x 20 m/s away)
   let dd = Math.sqrt((px - cx) * (px - cx) + (py + 0.9 - cy) * (py + 0.9 - cy) + (pz - cz) * (pz - cz));
   if (dd < r * 2) {
-    let f = 1 - dd / (r * 2);
-    hurtT = 0; hurt(Math.round(f * f * r * 6 + f), '폭발했습니다');
-    pvx = pvx + (px - cx) / (dd + 0.1) * f * 14; pvz = pvz + (pz - cz) / (dd + 0.1) * f * 14; pvy = pvy + f * 9;
+    let seen = (exSeen(cx, cy, cz, px, py + 0.2, pz) + exSeen(cx, cy, cz, px, py + 0.9, pz) + exSeen(cx, cy, cz, px, py + 1.6, pz)) / 3;
+    let im = (1 - dd / (r * 2)) * seen;
+    if (im > 0) {
+      hurtT = 0; hurtM(Math.round((im * im + im) / 2 * 7 * r * 2 + 1), '폭발했습니다');
+      let ed = Math.sqrt((px - cx) * (px - cx) + (py + 1.62 - cy) * (py + 1.62 - cy) + (pz - cz) * (pz - cz)) + 0.01;
+      pvx = pvx + (px - cx) / ed * im * 20; pvz = pvz + (pz - cz) / ed * im * 20; pvy = pvy + (py + 1.62 - cy) / ed * im * 20;
+      fallTop = py;
+    }
   }
   let e = 1;
   while (e <= NMOB) {
     if (ET[e] > 0) {
       let md = Math.sqrt((EX[e] - cx) * (EX[e] - cx) + (EY[e] + 0.5 - cy) * (EY[e] + 0.5 - cy) + (EZ[e] - cz) * (EZ[e] - cz));
-      if (md < r * 2) { let f2 = 1 - md / (r * 2); mobHurt(e, Math.round(f2 * f2 * r * 6 + f2), EX[e] - cx, EZ[e] - cz); }
+      if (md < r * 2) { let im2 = (1 - md / (r * 2)) * exSeen(cx, cy, cz, EX[e], EY[e] + 0.5, EZ[e]); if (im2 > 0) { mobHurt(e, Math.round((im2 * im2 + im2) / 2 * 7 * r * 2 + 1), EX[e] - cx, EZ[e] - cz); } }
     }
     e = e + 1;
   }
   flashT = 0.15;
+}
+let XBX = [], XBY = [], XBZ = [], XBB = [];
+// 1 when nothing solid lies between the blast and a point (steps of 0.3)
+function exSeen(cx, cy, cz, x, y, z) {
+  let dx = x - cx, dy = y - cy, dz = z - cz, l = Math.sqrt(dx * dx + dy * dy + dz * dz), r = 1;
+  let n = Math.floor(l / 0.3), s = 1;
+  while (s < n && r == 1) {
+    let t = s / n, bx = Math.floor(cx + dx * t), by = Math.floor(cy + dy * t), bz = Math.floor(cz + dz * t);
+    if (by >= 0 && by < WY) { let b = blockAt(bx, by, bz); if (BSOL[b + 1] == 1 && BSHP[b + 1] == 0) { r = 0; } }
+    s = s + 1;
+  }
+  return r;
 }
 let flashT = 0;
 let XPW = [];
@@ -485,7 +575,7 @@ let XPW = [];
 function ignite() {
   if (pickB == I_tnt) { tntLight(pickX, pickY, pickZ, 1, 4); netSay('n', `${pickX}^${pickY}^${pickZ}^${dim}`); wearHeld(1); }
   else {
-    if (pickB == I_anchor) { setBlock(pickX, pickY, pickZ, 0); explodeShared(pickX + 0.5, pickY + 0.5, pickZ + 0.5, 5); }
+    if (pickB == I_anchor) { setBlock(pickX, pickY, pickZ, 0); explodeShared(pickX + 0.5, pickY + 0.5, pickZ + 0.5, 1005); }
     else {
       pickNeighbour();
       lightGate(nbX, nbY, nbZ);
@@ -530,12 +620,13 @@ function bucketUse(id) {
       pickNeighbour();
       let lq = 7;
       if (id == I_lavaBucket) { lq = 35; }
-      if (freeAt(nbX, nbY, nbZ) == 1) {
+      if (lq == 35 && srvForbids(1) == 1) { msgShow('이 서버에서는 용암을 놓을 수 없습니다', 2); }
+      else { if (freeAt(nbX, nbY, nbZ) == 1) {
         if (dim == 1 && lq == 7) { msgShow('물이 금세 증발했습니다', 2); }
         else { setBlock(nbX, nbY, nbZ, lq); }
         if (mod(gameMode, 2) == 0) { INVI[hotSel] = I_bucket; }
         sndPlay(5);
-      }
+      } }
     }
   }
 }
@@ -559,12 +650,15 @@ function boneMeal(x, y, z, b) {
     }
     used = 1;
   }
-  if (used == 1) { if (mod(gameMode, 2) == 0) { takeHeld(1); } sndPlay(5); }
+  if (used == 1) { if (mod(gameMode, 2) == 0 && bmFree == 0) { takeHeld(1); } sndPlay(5); }
   return used;
 }
 // a sapling (or fungus) grows into its tree
 function treeFrom(x, y, z, b) {
   let kind = BTREE[b + 1];
+  if (treeRoom(x, y, z) == 1) { treeFrom2(x, y, z, kind); }
+}
+function treeFrom2(x, y, z, kind) {
   logOn = 1;
   wput(x, y, z, 0);
   growTreeKind(x, y - 1, z, kind);
@@ -573,46 +667,7 @@ function treeFrom(x, y, z, b) {
   while (a <= x + 4) { let c = z - 4; while (c <= z + 4) { let yy = y - 1; while (yy <= y + 20) { if (yy < WY) { markDirty(a, yy, c); } yy = yy + 4; } c = c + 4; } a = a + 4; }
   lbX0 = Math.min(lbX0, x - 16); lbX1 = Math.max(lbX1, x + 16); lbZ0 = Math.min(lbZ0, z - 16); lbZ1 = Math.max(lbZ1, z + 16);
 }
-// the world near the player lives a little each half second: saplings, grass, crops, cane,
-// fire, farmland, coral out of water
-let growT = 0;
-function randomTicks(dt) {
-  growT = growT + dt;
-  if (growT > 0.5) {
-    growT = 0;
-    let k = 0, n = 30 * grTick / 3;
-    while (k < n) {
-      let x = Math.floor(px) + rand(-24, 24), z = Math.floor(pz) + rand(-24, 24), y = rand(1, WY - 12);
-      if (cOK(x, z) == 1) {
-        let i = wi(x, y, z);
-        let b = W[i];
-        if (BTREE[b + 1] >= 0) {
-          if (idiv(LT[i], 16) >= 9 || mod(LT[i], 16) >= 9 || dim == 1) { if (rand(1, 6) == 1) { treeFrom(x, y, z, b); } }
-        }
-        if (b == 3) {
-          if (W[i + 1] == 0) { if (idiv(LT[i + 1], 16) >= 9) {
-            if (blockAt(x + 1, y, z) == 2 || blockAt(x - 1, y, z) == 2 || blockAt(x, y, z + 1) == 2 || blockAt(x, y, z - 1) == 2) { setBlock(x, y, z, 2); }
-          } }
-        }
-        if (b == 2) { if (BHC[W[i + 1] + 1] == 1) { setBlock(x, y, z, 3); } }
-        // crops grow in the light, faster on wet farmland
-        if (BCROP[b + 1] >= 0 && BCROP[b + 1] < 3) {
-          if (idiv(LT[i], 16) >= 9 || mod(LT[i], 16) >= 9) { let ch = 4; if (W[i - 1] == I_farmlandWet) { ch = 2; } if (rand(1, ch) == 1) { setBlock(x, y, z, b + 1); } }
-        }
-        if (b == I_farmland) { if (waterWithin(x, y, z) == 1) { setBlock(x, y, z, I_farmlandWet); } else { if (BCROP[W[i + 1] + 1] < 0) { if (rand(1, 4) == 1) { setBlock(x, y, z, 3); } } } }
-        if (b == I_farmlandWet) { if (waterWithin(x, y, z) == 0) { setBlock(x, y, z, I_farmland); } }
-        // reeds, bamboo and cactus grow taller
-        if (b == I_reed || b == I_bamboo || b == 19) {
-          if (W[i + 1] == 0) { if (W[i - 1] != b || W[i - 2] != b) { if (rand(1, 4) == 1) { setBlock(x, y + 1, z, b); } } }
-        }
-        if (BSPEC[b + 1] == 10) { if (rand(1, 3) == 1) { let ub = W[i - 1]; if (ub != 48 && ub != I_wailSand && ub != I_wailSoil && ub != I_magma) { setBlock(x, y, z, 0); } } }
-        if (BWET[b + 1] > 0 && BFALL[b + 1] == 0) { if (waterNear(x, y, z) == 0) { setBlock(x, y, z, BWET[b + 1]); } }
-        if (b == I_wetSponge) { if (dim == 1) { setBlock(x, y, z, I_sponge); } }
-      }
-      k = k + 1;
-    }
-  }
-}
+// ((v2.7) the random ticks are in je.js now)
 function waterWithin(x, y, z) {
   let r = 0, a = x - 4;
   while (a <= x + 4 && r == 0) { let c = z - 4; while (c <= z + 4) { if (BLQ[blockAt(a, y, c) + 1] == 7) { r = 1; } c = c + 1; } a = a + 1; }
@@ -622,10 +677,10 @@ function waterWithin(x, y, z) {
 // ---------------------------------------------------------------- beds, signs, pots, cake, ...
 let spawnDim = 0, dayN = 0, spawnSet = 0;
 function bedUse(x, y, z, b) {
-  if (dim != 0) { msgShow('여기서는 잘 수 없습니다! 침대가 터집니다', 2); setBlock(x, y, z, 0); partnerGone(x, y, z, b, 0); explodeShared(x + 0.5, y + 0.5, z + 0.5, 4); }
+  if (dim != 0) { msgShow('여기서는 잘 수 없습니다! 침대가 터집니다', 2); setBlock(x, y, z, 0); partnerGone(x, y, z, b, 0); explodeShared(x + 0.5, y + 0.5, z + 0.5, 1005); }
   else {
     spawnX = x + 0.5; spawnY = y + 1; spawnZ = z + 0.5; spawnDim = 0; spawnSet = 1;
-    if (dark >= 7) {
+    if (dark >= 7 || wthr == 2) {
       if (nearHostile(8) == 0) { tday = 0.0; dayN = dayN + 1; weatherClear(); msgShow('잠을 자고 아침이 되었습니다 (되살아날 곳을 정했습니다)', 3); }
       else { msgShow('근처에 몬스터가 있어 잘 수 없습니다', 2); }
     } else { msgShow('되살아날 곳을 정했습니다 (밤에만 잘 수 있습니다)', 2); }
@@ -668,14 +723,39 @@ function potUse(x, y, z, b, id) {
   return used;
 }
 function cakeEat(x, y, z) {
-  if (food < 20 || mod(gameMode, 2) == 1) { food = Math.min(20, food + 2); sat = Math.min(food, sat + 0.4); sndPlay(5); if (rand(1, 7) == 1) { setBlock(x, y, z, 0); } }
+  // ((v2.7) seven bites, as the genre (it went at random, 1 in 7 a bite))
+  if (food < 20 || mod(gameMode, 2) == 1) {
+    food = Math.min(20, food + 2); sat = Math.min(food, sat + 0.4); sndPlay(5);
+    let n = pvGet(1, x, y, z) + 1;
+    if (n >= 7) { pvSet(1, x, y, z, 0); setBlock(x, y, z, 0); } else { pvSet(1, x, y, z, n); msgShow(`케이크 ${7 - n} / 7 조각`, 1.5); powerAround(x, y, z); }
+  }
 }
-function composterUse(id) {
-  let used = 0;
-  if (id > 0) { if (ITK[id + 1] == 0 && (BSHP[id + 1] == 1 || BLEAF[id + 1] == 1) || id == I_wheatSeeds || id == I_wheat || id == I_beetSeeds || id == I_carrot || id == I_potato || id == I_melonSlice || id == 105) {
-    takeHeld(1); used = 1; sndPlay(5);
-    if (rand(1, 7) == 1) { dropItem(I_boneMeal, 1, 0, px, py + 1, pz, 0); msgShow('뼛가루가 나왔습니다', 1.5); }
-  } }
+// ((v2.7) as the genre: each item has its chance to raise the level (seeds and leaves 30 %, cane and
+// melon 50 %, crops and flowers 65 %, bread 85 %, pie and cake 100 %; the first always), 7 levels,
+// then F takes the bone meal out (it was 1 in 7 for a bone meal at once))
+function compostChance(id) {
+  let r = 0;
+  // (the block tables only for block ids: items are 2000 on)
+  let blk = 0; if (id < BSOL.length) { blk = id; }
+  if (id == I_wheatSeeds || id == I_beetSeeds || id == I_berries || id == I_kelpItem || id == 28 || BLEAF[blk + 1] == 1 || BTREE[blk + 1] >= 0) { r = 30; }
+  if (id == I_melonSlice || id == I_reed || id == 19 || id == I_vines || id == I_driedKelp) { r = 50; }
+  if (id == I_wheat || id == I_carrot || id == I_potato || id == I_beetroot || id == 105 || id == I_melon || id == I_pumpkin || (r == 0 && blk > 0 && BSHP[blk + 1] == 1)) { r = 65; }
+  if (id == I_bread || id == I_bakedPotato || id == I_cookie || id == I_hayBale) { r = 85; }
+  if (id == I_cake || id == I_pumpkinPie) { r = 100; }
+  return r;
+}
+function composterUse(x, y, z, id) {
+  let used = 0, lv = pvGet(2, x, y, z);
+  if (lv >= 7) {
+    pvSet(2, x, y, z, 0); dropItem(I_boneMeal, 1, 0, x + 0.5, y + 1.1, z + 0.5, 0); sndPlay(5); used = 1; powerAround(x, y, z);
+  } else {
+    let ch = 0; if (id > 0) { ch = compostChance(id); }
+    if (ch > 0) {
+      if (mod(gameMode, 2) == 0) { takeHeld(1); }
+      used = 1; sndPlay(5);
+      if (lv == 0 || rand(1, 100) <= ch) { lv = lv + 1; pvSet(2, x, y, z, lv); powerAround(x, y, z); if (lv >= 7) { msgShow('퇴비통이 찼습니다: F로 뼛가루를 꺼내세요', 2); } else { msgShow(`퇴비통 ${lv} / 7`, 1.2); } }
+    }
+  }
   return used;
 }
 // the anvil mends the tool in hand (a level, if there is one), the grindstone a quarter of it
@@ -702,11 +782,45 @@ function enchantHeld() {
     } else { msgShow('경험치 3레벨과 청금석 1개가 필요합니다', 2); }
   } else { msgShow('도구나 무기를 들고 쓰세요', 2); }
 }
-function campfireCook(id) {
-  let used = 0;
-  smeltOf(id);
-  if (smeltOut > 0) { if (ITFOOD[smeltOut + 1] > 0) { takeHeld(1); addItem(smeltOut, 1, 0); used = 1; sndPlay(5); } }
+// ((v2.7) as the genre: a shovel or a water bucket puts a campfire out, flint and steel or a fire
+// charge lights it again; raw food is put on it (4 at most) and comes off cooked 30 s on while it
+// burns (it was cooked in the hand at once; a campfire never went out). Put out it neither hurts
+// nor lights.)
+let CFX = [], CFY = [], CFZ = [], CFI = [], CFT = [];
+function campfireUse(x, y, z, b, id) {
+  let used = 0, lit = 1, onB = I_campfire, offB = I_campfireOff;
+  if (BKIND[b + 1] == I_wailCampfire) { onB = I_wailCampfire; offB = I_wailCampfireOff; }
+  if (b == offB) { lit = 0; }
+  if (lit == 1 && (ITTK[id + 1] == 2 || id == I_waterBucket)) {
+    setBlock(x, y, z, offB); used = 1; sndPlay(5); msgShow('모닥불을 껐습니다', 1.5);
+    if (id == I_waterBucket) { if (mod(gameMode, 2) == 0) { INVI[hotSel] = I_bucket; } } else { wearHeld(1); }
+  } else {
+    if (lit == 0 && (id == 122 || id == I_fireCharge)) {
+      setBlock(x, y, z, onB); used = 1; sndPlay(2);
+      if (id == 122) { wearHeld(1); } else { if (mod(gameMode, 2) == 0) { takeHeld(1); } }
+    } else {
+      smeltOf(id);
+      if (smeltOut > 0) { if (ITFOOD[smeltOut + 1] > 0) {
+        let k = 1, n = 0, yd = y + dim * 1000;
+        while (k <= CFX.length) { if (CFX[k] == x && CFY[k] == yd && CFZ[k] == z) { n = n + 1; } k = k + 1; }
+        if (n < 4) { takeHeld(1); CFX.push(x); CFY.push(yd); CFZ.push(z); CFI.push(id); CFT.push(30); used = 1; sndPlay(5); msgShow(`모닥불에 올렸습니다 (${n + 1} / 4, 30초)`, 1.5); }
+        else { msgShow('모닥불이 꽉 찼습니다', 1.5); }
+      } }
+    }
+  }
   return used;
+}
+function campfireStep(dt) {
+  let k = 1;
+  while (k <= CFX.length) {
+    let gone = 0, x = CFX[k], y = CFY[k] - dim * 1000, z = CFZ[k];
+    if (y >= 0 && y < WY) { if (cOK(x, z) == 1) {
+      let b = blockAt(x, y, z);
+      if (BKIND[b + 1] != I_campfire && BKIND[b + 1] != I_wailCampfire) { if (worldDrops() == 1 || mod(gameMode, 2) == 1) { dropItem(CFI[k], 1, 0, x + 0.5, y + 0.5, z + 0.5, 0); } gone = 1; }
+      else { if (b == I_campfire || b == I_wailCampfire) { CFT[k] = CFT[k] - dt; if (CFT[k] <= 0) { smeltOf(CFI[k]); dropItem(smeltOut, 1, 0, x + 0.5, y + 1, z + 0.5, 0); gone = 1; } } }
+    } }
+    if (gone == 1) { CFX.removeAt(k); CFY.removeAt(k); CFZ.removeAt(k); CFI.removeAt(k); CFT.removeAt(k); } else { k = k + 1; }
+  }
 }
 let lodeOn = 0, lodeX = 0, lodeZ = 0;
 function compassShow() {
@@ -720,14 +834,42 @@ function compassShow() {
 // the anchor of the depths: glow crystal charges it, then it is where you come back (in the depths)
 let anchorCh = 0;
 function anchorUse(x, y, z, id) {
-  if (id == I_glowCrystal) { anchorCh = Math.min(4, anchorCh + 1); if (mod(gameMode, 2) == 0) { takeHeld(1); } msgShow(`되살아남 닻 충전 ${anchorCh} / 4`, 2); }
+  // ((v2.7) each anchor its own charge (it was one for all), glow crystal not taken when full)
+  anchorCh = pvGet(3, x, y, z);
+  if (id == I_glowCrystal && anchorCh < 4) { anchorCh = anchorCh + 1; pvSet(3, x, y, z, anchorCh); powerAround(x, y, z); if (mod(gameMode, 2) == 0) { takeHeld(1); } msgShow(`되살아남 닻 충전 ${anchorCh} / 4`, 2); }
   else {
     if (dim == 1) { if (anchorCh > 0) { spawnX = x + 0.5; spawnY = y + 1; spawnZ = z + 0.5; spawnDim = 1; spawnSet = 1; msgShow('잿빛 심연에서 되살아납니다', 2); } else { msgShow('빛수정으로 충전하세요', 2); } }
-    else { msgShow('닻이 터집니다!', 2); setBlock(x, y, z, 0); explodeShared(x + 0.5, y + 0.5, z + 0.5, 5); }
+    else { msgShow('닻이 터집니다!', 2); setBlock(x, y, z, 0); explodeShared(x + 0.5, y + 0.5, z + 0.5, 1005); }
   }
 }
+// ((v2.7) on a server whose owner forbade it (1 lava, 2 TNT): 1 (the owner may still)
+function srvForbids(k) {
+  let r = 0;
+  if (netSrv > 0 && netSt == 2) { if (netNick != shOwner && netNick != SUPER) { if (k == 1 && shLava == 0) { r = 1; } if (k == 2 && shTnt == 0) { r = 1; } } }
+  return r;
+}
+// ((v2.7) the wall torch of torch b against the block at side a (D6)
+function wallTorch(b, a) {
+  let r = 0 - 1, k = 1;
+  while (k < BSOL.length) { if (BKIND[k + 1] == b && BATT[k + 1] == a && k != b) { r = k; k = BSOL.length; } k = k + 1; }
+  return r;
+}
+// ((v2.7) a value kept for a block at a place (KVK: 1 a cake's bites, 2 a composter's level, 3 an
+// anchor's charge), kept with the world
+let KVX = [], KVY = [], KVZ = [], KVK = [], KVV = [];
+function pvFind(k, x, y, z) {
+  let r = 0, i = 1, yd = y + dim * 1000;
+  while (i <= KVX.length) { if (KVX[i] == x) { if (KVZ[i] == z) { if (KVY[i] == yd) { if (KVK[i] == k) { r = i; i = KVX.length; } } } } i = i + 1; }
+  return r;
+}
+function pvGet(k, x, y, z) { let i = pvFind(k, x, y, z), r = 0; if (i > 0) { r = KVV[i]; } return r; }
+function pvSet(k, x, y, z, v) {
+  let i = pvFind(k, x, y, z);
+  if (i == 0) { if (v != 0) { if (KVX.length >= 1024) { KVX.removeAt(1); KVY.removeAt(1); KVZ.removeAt(1); KVK.removeAt(1); KVV.removeAt(1); } KVX.push(x); KVY.push(y + dim * 1000); KVZ.push(z); KVK.push(k); KVV.push(v); } }
+  else { if (v == 0) { KVX.removeAt(i); KVY.removeAt(i); KVZ.removeAt(i); KVK.removeAt(i); KVV.removeAt(i); } else { KVV[i] = v; } }
+}
 // the void chest: one store for all of them
-function voidChestOpen() { curChest = NCHEST; CHON[NCHEST] = 3; uiOpen(4); }
+function voidChestOpen() { curChest = NCHEST; curCap = 27; CHON[NCHEST] = 3; uiOpen(4); }
 // command blocks: their commands, run when they get power
 let CBX = [], CBY = [], CBZ = [], CBT = [], CBD = [];
 function commandBlockEdit(x, y, z) {
@@ -777,6 +919,13 @@ function throwIt(k) {
     AON[s] = 6 + k;
     swingT = 0.3; sndPlay(1);
   }
+}
+// ((v2.7) a thing thrown by a dispenser: from (x, y, z) the way (dx, dy, dz))
+let bmFree = 0;
+function throwFrom(k, x, y, z, dx, dy, dz) {
+  let a = 1, s = 0;
+  while (a <= NARR) { if (s == 0) { if (AON[a] == 0) { s = a; } } a = a + 1; }
+  if (s > 0) { AXX[s] = x; AYY[s] = y; AZZ[s] = z; AVX[s] = dx * 22; AVY[s] = dy * 22 + 2; AVZ[s] = dz * 22; AAGE[s] = 0; ASTK[s] = 0; AON[s] = 6 + k; }
 }
 // where a thrown thing lands (AON 7 snowball, 8 egg, 9 void pearl)
 function thrownHit(a) {
@@ -866,6 +1015,8 @@ function worldExtraInit() {
   PRX = []; PRY = []; PRZ = []; PRT = []; PRL = []; PRD = []; PRC = []; TNX = []; TNY = []; TNZ = []; TNT_T = []; TND = []; TNO = []; EGX = []; EGY = []; EGZ = []; EGD = []; EGS = []; XPW = [];
   CHT = []; CHTT = []; CHL = []; chScroll = 0;
   xpPts = 0; xpLevel = 0; dayN = 0; spawnDim = 0; spawnSet = 0; lodeOn = 0; anchorCh = 0; specMob = 0; difficulty = 2; gameTicks = 0;
+  KVX = []; KVY = []; KVZ = []; KVK = []; KVV = []; LPX = []; LPY = []; LPZ = []; LDX = []; LDY = []; LDZ = []; LDT = []; LDM = []; LRX = []; LRY = []; LRZ = [];
+  FRX = []; FRY = []; FRZ = []; FRA = []; FRT = []; fireT = 0; eatId = 0; CFX = []; CFY = []; CFZ = []; CFI = []; CFT = [];
   weatherClear(); gamerulesInit();
 }
 

@@ -573,7 +573,7 @@ function bossStep(dt) {
         if (hx * hx + hy * hy + hz * hz < 9) { if (EATK[e] <= 0) {
           EATK[e] = 1.2;
           if (bossPh == 2) { EATK[e] = 2; }
-          hurt(MDMG[10], '공허의 수호자에게 당했습니다');
+          hurtM(MDMG[10], '공허의 수호자에게 당했습니다');
           let hl = Math.sqrt(hx * hx + hz * hz) + 0.01;
           pvx = pvx + hx / hl * 4; pvz = pvz + hz / hl * 4;
           if (bossPh == 1) { bossPh = 0; bossT = 0; }

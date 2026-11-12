@@ -337,7 +337,7 @@ function slotIn(s) {
   if (s == 50) { if (uiMode == 1 || uiMode == 2) { r = 1; } }
   if (s >= 51 && s <= 53) { if (uiMode == 3) { r = 1; } }
   if (s >= 54 && s <= 56) { if (uiMode == 8) { r = 1; } }
-  if (s >= 61 && s <= 87) { if (uiMode == 4) { r = 1; } }
+  if (s >= 61 && s <= 87) { if (uiMode == 4) { if (s - 60 <= curCap) { r = 1; } } }
   if (s >= 101 && s <= 136) { if (uiMode == 5) { r = 1; } }
   return r;
 }
@@ -357,7 +357,7 @@ function invScreen() {
   let top = 92, title = '제작';
   if (uiMode == 2) { title = '작업대'; }
   if (uiMode == 3) { title = '화로'; }
-  if (uiMode == 4) { title = '상자'; }
+  if (uiMode == 4) { title = '상자'; if (curCap == 5) { title = '깔때기'; } if (curCap == 9) { title = '발사기'; } }
   if (uiMode == 8) { title = '대장장이 작업대: 다이아몬드 장비 + 심연철 주괴'; }
   if (uiMode == 5) {
     let tn = '검색';

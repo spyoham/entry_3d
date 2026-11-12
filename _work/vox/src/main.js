@@ -224,7 +224,7 @@ function playWorld(dt) {
 function playEye(dt) {
   // the eye
   let eh = 1.62;
-  if (sneaking == 1) { if (flying == 0) { eh = 1.5; } }
+  if (sneaking == 1) { if (flying == 0) { eh = 1.27; } }
   eyeH = eyeH + (eh - eyeH) * Math.min(1, 12 * dt);
   camX = px; camY = py + eyeH + Math.abs(sind(bob * 57)) * 0.06; camZ = pz; camYaw = yaw; camPitch = pitch;
   if (dead == 1) { camY = py + 0.3; }
@@ -244,6 +244,8 @@ function drawView() {
   if (headWater == 1) { penAlpha(55); box(-245, 140, 245, -140, '#1a3a90'); fillStop(); penAlpha(0); }
   if (flashT > 0) { penAlpha(40); box(-245, 140, 245, -140, '#ffffff'); fillStop(); penAlpha(0); }
   if (hurtFlash > 0) { penAlpha(70); box(-245, 140, 245, -140, '#c00000'); fillStop(); penAlpha(0); }
+  // ((v2.7) on fire: flames at the bottom of the view)
+  if (fireT > 0) { if (dead == 0) { penAlpha(45); box(-245, -70 + Math.round(sind(frameNo * 40) * 6), 245, -140, '#ff6a10'); fillStop(); penAlpha(0); } }
   if (uiMode == 0) { if (dead == 0) { if (gameMode != 3) { drawHand(); } } }
   fillStop();
 }

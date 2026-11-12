@@ -89,7 +89,7 @@ function shellBoxBroken(x, y, z, b) {
 }
 function shellBoxOpen(x, y, z) {
   chestAt(x, y, z);
-  if (cFound > 0) { curChest = cFound; uiOpen(4); } else { msgShow('상자가 너무 많습니다', 2); }
+  if (cFound > 0) { curChest = cFound; curCap = 27; uiOpen(4); } else { msgShow('상자가 너무 많습니다', 2); }
 }
 
 // ---------------------------------------------------------------- the old ruins (three, round the world's middle)
@@ -456,7 +456,7 @@ function boltStep(a, dt) {
     AXX[a] = AXX[a] + AVX[a] * dt; AYY[a] = AYY[a] + AVY[a] * dt; AZZ[a] = AZZ[a] + AVZ[a] * dt;
     if (BSOL[blockAt(Math.floor(AXX[a]), Math.floor(AYY[a]), Math.floor(AZZ[a])) + 1] == 1) { AON[a] = 0; }
     if (Math.abs(AXX[a] - px) < 0.5 && Math.abs(AZZ[a] - pz) < 0.5 && AYY[a] > py && AYY[a] < py + 1.8) {
-      hurt(4, '껍질벌레의 탄환에 맞았습니다'); effectAdd(10, 5, 1); AON[a] = 0;
+      hurtM(4, '껍질벌레의 탄환에 맞았습니다'); effectAdd(10, 5, 1); AON[a] = 0;
     }
     if (AAGE[a] > 10) { AON[a] = 0; }
   }
@@ -539,6 +539,15 @@ function lightning(x, y, z) {
     let e = 1;
     while (e <= NMOB) { if (ET[e] > 0) { if ((EX[e] - x) * (EX[e] - x) + (EZ[e] - z) * (EZ[e] - z) < 9) { EHURT[e] = 0; mobHurt(e, 5, 0, 0); } } e = e + 1; }
   }
+}
+// ((v2.7) is it raining on this cell (the sky open over it)?
+function rainOn(x, y, z) {
+  let r = 0;
+  if (wthr > 0 && dim == 0) {
+    if (y >= WY) { r = 1; } else { if (y >= 0 && cOK(x, z) == 1) { if (idiv(LT[wi(x, y, z)], 16) >= 15) { r = 1; } } }
+    let bi = BIOM[wcol(x, z)]; if (bi == 4 || bi == 14 || bi == 12) { r = 0; }
+  }
+  return r;
 }
 // rain or snow over the picture (where the sky is over the player)
 function drawWeather() {

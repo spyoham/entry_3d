@@ -11,7 +11,7 @@ import { TEX, CRACK, BLOCKS, NBLOCK, ITEMS, TIERS, KINDS, SMITH, toolId, NITEM, 
 import { MODELS, ARMS, ARMCOL, pottedModel } from './models.mjs';
 import { makeSounds } from './sounds.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '2.6.1';
+export const VERSION = '2.7';
 // how many servers Entry Sync holds (each one two ?! lists; the slot line carries the number in two digits)
 export const NSRV = 99;
 export const NAME = '블록 월드';
@@ -132,11 +132,27 @@ export function makeData() {
     // the arms: model index ARMM[conn * 4 + side]
     L.ARMM = []; L.ARMC = [];
     for (let c = 1; c <= 4; c++) for (let s = 0; s < 4; s++) { L.ARMM.push(putModel({ boxes: ARMS[c][s] })); L.ARMC.push(putCol([ARMCOL[c][s]])[0]); }
+    // (v2.7) stairs' corners as the genre's: STRM[((half * 4 + f) * 4 + f2) * 2 + inner + 1] the model
+    // (outer: a quarter on top toward f and f2; inner: the half toward f and the quarter toward f2 on
+    // the low side), 0 when f2 is not across f
+    {
+        const STEP = [[0, 8, 16, 16], [8, 0, 16, 16], [0, 0, 16, 8], [0, 0, 8, 16]];
+        const quarter = (a, b) => [Math.max(STEP[a][0], STEP[b][0]), Math.max(STEP[a][1], STEP[b][1]), Math.min(STEP[a][2], STEP[b][2]), Math.min(STEP[a][3], STEP[b][3])];
+        L.STRM = [];
+        for (let h = 0; h < 2; h++) for (let f = 0; f < 4; f++) for (let f2 = 0; f2 < 4; f2++) for (let inner = 0; inner < 2; inner++) {
+            if (f % 2 === f2 % 2) { L.STRM.push(0); continue; }
+            const base = h ? [0, 8, 0, 16, 16, 16] : [0, 0, 0, 16, 8, 16], y0 = h ? 0 : 8, y1 = h ? 8 : 16;
+            const boxes = [base];
+            if (inner) { const s = STEP[f], q = quarter((f + 2) % 4, f2); boxes.push([s[0], y0, s[1], s[2], y1, s[3]], [q[0], y0, q[1], q[2], y1, q[3]]); }
+            else { const q = quarter(f, f2); boxes.push([q[0], y0, q[1], q[2], y1, q[3]]); }
+            L.STRM.push(putModel({ boxes }));
+        }
+    }
 
     // blocks
     const B = {};
     const BL = ['BSOL', 'BHC', 'BLOP', 'BSHP', 'BHARD', 'BTOOL', 'BTIER', 'BDROP', 'BDROPN', 'BLIT', 'BTT', 'BTS', 'BTB', 'BLEAF', 'BMDL', 'BCONN', 'BCB0', 'BCBN', 'BTALL',
-        'BKIND', 'BVAR', 'BUSE', 'BPLC', 'BNEED', 'BMOVE', 'BHURT', 'BFALL', 'BFLAME', 'BCROP', 'BSPEC', 'BWET', 'BSTRIP', 'BTREE', 'BSAP', 'BXP', 'BHALF', 'BSIDE', 'BFACE', 'BSPAWN', 'BPOT', 'BWATER', 'BSTATE', 'BXT', 'BRS', 'BFAC', 'BON', 'BAUX', 'BATT', 'BCOND'];
+        'BKIND', 'BVAR', 'BUSE', 'BPLC', 'BNEED', 'BMOVE', 'BHURT', 'BFALL', 'BFLAME', 'BCROP', 'BSPEC', 'BWET', 'BSTRIP', 'BTREE', 'BSAP', 'BXP', 'BHALF', 'BSIDE', 'BFACE', 'BSPAWN', 'BPOT', 'BWATER', 'BSTATE', 'BXT', 'BRS', 'BFAC', 'BON', 'BAUX', 'BATT', 'BJE', 'BRES', 'BFLAM', 'BCOND'];
     for (const k of BL) B[k] = [];
     B.BT6 = [];
     const spawnOf = { zombie: 5, skeleton: 6, spider: 7, wraith: 8 };
@@ -165,9 +181,15 @@ export function makeData() {
         B.BHC.push(b.hide ?? (flat ? 0 : 1));
         B.BLOP.push(b.lop ?? (flat ? 0 : 1));
         B.BSHP.push(shape);
-        B.BHARD.push(b.hard);
+        // (v2.7) as 1.16.5: these need a pickaxe to drop; wooden doors and trapdoors 3, smooth stone 2
+        const nm0 = (BLOCKS[b.item ? idOf(b.item) : id] || b).n || '';
+        let hard = b.hard, tier = b.tier ?? -1;
+        if (b.tool === 2 && /Door$|Trapdoor$/.test(nm0)) hard = 3;
+        if (nm0 === 'smoothStone' || nm0 === 'smoothStoneSlab') hard = 2;
+        if (tier < 0 && ['grindstone', 'stonecutter', 'cauldron', 'bell', 'lantern', 'wailLantern', 'ironBars', 'chain', 'ironDoor', 'ironTrapdoor', 'spawner', 'hopper', 'brewingStand', 'blastFurnace', 'furnace'].includes(nm0)) tier = 0;
+        B.BHARD.push(hard);
         B.BTOOL.push(b.tool || 0);
-        B.BTIER.push(b.tier ?? -1);
+        B.BTIER.push(tier);
         B.BDROP.push(b.drop === 'none' ? 0 : b.drop ? idOf(b.drop) : (b.item ? idOf(b.item) : id));
         B.BDROPN.push(b.dropN || 1);
         B.BLIT.push(b.light || 0);
@@ -209,7 +231,44 @@ export function makeData() {
         if (!rs && b.plate) rs = RS.plate;
         if (!rs && (b.place === 'door' || b.place === 'trapdoor' || b.place === 'gate')) rs = RS.door;
         B.BRS.push(rs); B.BFAC.push(b.fac ?? -1); B.BON.push(b.on || 0); B.BAUX.push(b.aux || 0); B.BATT.push(b.att ?? -1);
-        B.BCOND.push(shape === 0 && sol === 1 && (b.hide ?? 1) === 1 && !b.leaf && (!rs || rs === RS.lamp || rs === RS.tnt || rs === RS.note || rs === RS.command || rs === RS.target) && id > 0 ? 1 : 0);
+        B.BCOND.push(shape === 0 && sol === 1 && (b.hide ?? 1) === 1 && !b.leaf && (!rs || rs === RS.lamp || rs === RS.tnt || rs === RS.note || rs === RS.command || rs === RS.target || rs === RS.dispenser) && id > 0 ? 1 : 0);
+        // (v2.7) as 1.16.5: BJE 1 a log (keeps leaves), 2 replaceable (a block put takes its place),
+        // 4 washed away by water and lava; BRES blast resistance; BFLAM catch x 1000 + burn
+        const kb = BLOCKS[kind] || b, nm = kb.n || '', key = kb.key || '';
+        let je = 0;
+        if (b.tool === 2 && /(^log|Log$|Wood$)/.test(nm)) je |= 1;
+        if (['tallGrass', 'fern', 'deadBush', 'seagrass', 'vines', 'fire', 'wailFire', 'emberRoots', 'indigoRoots', 'ashSprouts'].includes(nm)) je |= 2;
+        if ([RS.wire, RS.repeater, RS.comparator, RS.torch, RS.lever, RS.button, RS.rail, RS.hook, RS.trip].includes(rs)) je |= 4;
+        B.BJE.push(je);
+        let res = b.hard;
+        if (b.hard < 0) res = 3600000;
+        else if (b.liquid || nm === 'water' || nm === 'lava') res = 100;
+        else if (['obsidian', 'glintObsidian', 'debris', 'anvil', 'anvilChipped', 'anvilDamaged', 'enchantTable', 'anchor', 'blockAbyss'].includes(nm)) res = 1200;
+        else if (nm === 'voidChest') res = 600;
+        else if (nm === 'voidStone' || /^voidBricks/.test(nm)) res = 9;
+        else if (/_ore$/.test(key)) res = 3;
+        else if (b.tool === 1 && b.hard >= 1.5 && b.hard <= 2.5) res = 6;
+        else if (b.tool === 1 && b.hard === 5) res = 6;
+        else if (/Terracotta$|^terracotta$/.test(nm)) res = 4.2;
+        else if (b.tool === 2 && /Planks$|^planks$|Slab$|Stairs$|Fence$|Gate$/.test(nm)) res = 3;
+        B.BRES.push(res);
+        // flammability as the genre (catch: how readily fire comes to it, burn: how readily it burns away)
+        let fl = [0, 0];
+        const wood = b.tool === 2 && !/^ember|^indigo/.test(nm) && !b.bed;
+        if (wood && /(^log|Log$|Wood$)/.test(nm)) fl = [5, 5];
+        else if (wood && /Planks$|^planks$|Slab$|Stairs$|Fence$|Gate$/.test(nm)) fl = [5, 20];
+        else if (b.leaf) fl = [30, 60];
+        else if (/Wool$|^wool$/.test(nm)) fl = [30, 60];
+        else if (/Carpet$/.test(nm)) fl = [60, 20];
+        else if (nm === 'bookshelf' || nm === 'lectern') fl = [30, 20];
+        else if (nm === 'tnt') fl = [15, 100];
+        else if (nm === 'hayBale' || nm === 'bamboo' || nm === 'scaffolding') fl = [60, 60];
+        else if (nm === 'vines') fl = [15, 100];
+        else if (nm === 'target' || nm === 'composter' || nm === 'beehive' || nm === 'beeNest') fl = [5, 20];
+        else if (nm === 'blockCoal') fl = [5, 5];
+        else if (nm === 'kelpBlock') fl = [30, 60];
+        else if (shape === 1 && !b.crop && !/Coral|Fan|Sapling|^sapling|^mush|reed|kelp|seagrass|cobweb|fire|Fire|Roots|Sprouts|Vines|ember|indigo/.test(nm)) fl = [60, 100];
+        B.BFLAM.push(fl[0] * 1000 + fl[1]);
     }
     // (v2.5) the note block's instrument by the block under it (BINST: 0 harp .. 15 pling, as the genre)
     B.BINST = [];
@@ -299,7 +358,7 @@ export function makeData() {
             ic = iconOf(K.icon, { h: T.col, d: '7a5a30' }); c1 = c2 = col(T.col); cat = 6;
         } else if (arm) {
             const T = ARMT[arm.tier], P = ARMP[arm.piece];
-            name = `${T.ko} ${P.ko}`; k = 4; st = 1; dur = T.dur; def = T.def[arm.piece]; slot = arm.piece + 1;
+            name = `${T.ko} ${P.ko}`; k = 4; st = 1; dur = T.dur; def = T.def[arm.piece] + 100 * (T.tough || 0); slot = arm.piece + 1;
             key = `${['leather', 'iron', 'diamond', 'abyss', 'golden', 'chain'][arm.tier]}_${['helmet', 'chestplate', 'leggings', 'boots'][arm.piece]}`;
             ic = iconOf(P.icon, { h: T.dark, d: T.col }); c1 = c2 = col(T.col); cat = 6;
         }
@@ -432,7 +491,7 @@ export function makeData() {
 }
 
 // ------------------------------------------------------------------ sources
-export const FILES = ['world.js', 'flat.js', 'fluid.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'rails.js', 'save.js', 'net.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'items.js', 'hud.js', 'extra.js', 'cmds.js', 'keyin.js', 'main.js', 'test.js'];
+export const FILES = ['world.js', 'flat.js', 'fluid.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'rails.js', 'save.js', 'net.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'items.js', 'hud.js', 'extra.js', 'cmds.js', 'keyin.js', 'je.js', 'main.js', 'test.js'];
 export function allConsts(more = {}) {
     const { C } = makeData();
     return { ...consts, ...C, ...more };

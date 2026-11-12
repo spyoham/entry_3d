@@ -86,9 +86,11 @@ let flips = 0, last = on(X + 21, Y, Z);
 for (let i = 0; i < 120; i++) { F(1); const t = on(X + 21, Y, Z); if (t !== last) { flips++; last = t; } }
 let dark = 1;
 for (let i = 0; i < 40; i++) { F(1); if (on(X + 21, Y, Z) === 1) dark = 0; }
-ok(flips >= 6 && dark === 1, `a torch clock: switched ${flips} times in 2 s, then burnt out`);
+// ((v2.7) as the genre only going out counts, 8 within 3 s: this clock (an 8-tick round) goes on)
+// ((v2.7) as the genre only going out counts (8 within 60 ticks), and it looks again 160 ticks on)
+ok(flips >= 6, `a torch clock: switched ${flips} times in 2 s`);
 // ((v2.6) the ticks are whole game ticks now: it comes back a little later)
-wait(3.5); let back = 0; for (let i = 0; i < 240; i++) { F(1); if (on(X + 21, Y, Z) === 1) back = 1; }
+wait(3.5); let back = 0; for (let i = 0; i < 600; i++) { F(1); if (on(X + 21, Y, Z) === 1) back = 1; }
 ok(back === 1, '... and lit again later');
 brk(X + 20, Y, Z + 1); settle(); wait(0.5);
 
@@ -234,7 +236,7 @@ useAt(X - 5, Y, Z); settle(); ok(B(X - 6, Y, Z) === d0, 'lever off -> it shuts')
 placeAs(X - 10, Y, Z, 'dispenser', 3, 270);
 ok(BFAC[B(X - 10, Y, Z)] === 1, 'a dispenser put looking -x faces +x: ' + BFAC[B(X - 10, Y, Z)]);
 call(() => { fn.chestFind(X - 10, Y, Z); const c = s.peek('cFound'); s.peek('CHI')[(c - 1) * 27 + 1] = ID('diamond'); s.peek('CHN')[(c - 1) * 27 + 1] = 2; });
-placeAs(X - 10, Y, Z + 1, 'lever', 5); useAt(X - 10, Y, Z + 1); settle();
+placeAs(X - 10, Y, Z + 1, 'lever', 5); useAt(X - 10, Y, Z + 1); settle(); wait(0.3);
 call(() => { fn.chestFind(X - 10, Y, Z); }); ok(s.peek('CHN')[(s.peek('cFound') - 1) * 27 + 1] === 1, 'the dispenser gave one diamond out');
 placeAs(X - 14, Y, Z, 'tnt'); placeAs(X - 15, Y, Z, 'lever'); useAt(X - 15, Y, Z); F(260); ok(B(X - 14, Y, Z) === 0, 'lever -> TNT went off (4 s)');
 

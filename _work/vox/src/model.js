@@ -6,19 +6,36 @@
 // block are drawn far to near.
 let MSB = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], MSD = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 let mdlN = 0, mdlX = 0, mdlY = 0, mdlZ = 0, mdlBX = 0, mdlBY = 0, mdlBZ = 0, mdlB = 0, mdlLT = 0, mdlFog = 0, mdlD2 = 0;
-// a box into the sorted list (far first)
+// a box into the sorted list (far first). ((v2.7) Two boxes apart along an axis with the eye on one's
+// side of the gap: the other first, whatever their middles' distances (a banner's cloth by its pole,
+// a thin box by a big one were drawn over each other from some sides); else by the distance.)
+let mcx = 0, mcy = 0, mcz = 0;
 function mdlAdd(k) {
   let cxm = mdlX + (MBX0[k] + MBX1[k]) / 32 - camX, cym = mdlY + (MBY0[k] + MBY1[k]) / 32 - camY, czm = mdlZ + (MBZ0[k] + MBZ1[k]) / 32 - camZ;
   let dd = cxm * cxm + cym * cym + czm * czm;
   mdlN = mdlN + 1;
   let j = mdlN;
-  while (j > 1) { if (MSD[j - 1] < dd) { MSB[j] = MSB[j - 1]; MSD[j] = MSD[j - 1]; j = j - 1; } else { break; } }
+  while (j > 1) { if (mdlBefore(k, MSB[j - 1], dd, MSD[j - 1]) == 1) { MSB[j] = MSB[j - 1]; MSD[j] = MSD[j - 1]; j = j - 1; } else { break; } }
   MSB[j] = k; MSD[j] = dd;
+}
+// 1 when box a is to be drawn before box b
+function mdlBefore(a, b, da, db) {
+  let r = 0 - 1;
+  if (MBX1[a] <= MBX0[b]) { if (mcx >= MBX0[b]) { r = 1; } else { if (mcx <= MBX1[a]) { r = 0; } } }
+  if (r < 0) { if (MBX1[b] <= MBX0[a]) { if (mcx >= MBX0[a]) { r = 0; } else { if (mcx <= MBX1[b]) { r = 1; } } } }
+  if (r < 0) { if (MBY1[a] <= MBY0[b]) { if (mcy >= MBY0[b]) { r = 1; } else { if (mcy <= MBY1[a]) { r = 0; } } } }
+  if (r < 0) { if (MBY1[b] <= MBY0[a]) { if (mcy >= MBY0[a]) { r = 0; } else { if (mcy <= MBY1[b]) { r = 1; } } } }
+  if (r < 0) { if (MBZ1[a] <= MBZ0[b]) { if (mcz >= MBZ0[b]) { r = 1; } else { if (mcz <= MBZ1[a]) { r = 0; } } } }
+  if (r < 0) { if (MBZ1[b] <= MBZ0[a]) { if (mcz >= MBZ0[a]) { r = 0; } else { if (mcz <= MBZ1[b]) { r = 1; } } } }
+  if (r < 0) { r = 0; if (db < da) { r = 1; } }
+  return r;
 }
 function drawModel(f, x, y, z, bx, by, bz, ni, fog, d2) {
   let b = FT[f], m = BMDL[b + 1];
+  if (BPLC[b + 1] == P_STAIRS) { m = stairShape(x, y, z, b, m); }
   mdlX = x; mdlY = y; mdlZ = z; mdlBX = bx; mdlBY = by; mdlBZ = bz; mdlB = b; mdlLT = LT[ni]; mdlFog = fog; mdlD2 = d2;
   mdlN = 0;
+  mcx = (camX - x) * 16; mcy = (camY - y) * 16; mcz = (camZ - z) * 16;
   let k = MD0[m], ke = k + MDN[m];
   while (k < ke) { mdlAdd(k); k = k + 1; }
   let c = BCONN[b + 1];
@@ -32,6 +49,23 @@ function drawModel(f, x, y, z, bx, by, bz, ni, fog, d2) {
   k = 1;
   while (k <= mdlN) { drawMBox(MSB[k]); k = k + 1; }
 }
+// ((v2.7) a stair's corner as the genre's: a stair across it behind (the high side) makes an outer
+// corner, one across it in front an inner one - unless a stair like this one stands on that side)
+function stairShape(x, y, z, b, m) {
+  let v = BVAR[b + 1], f = mod(v, 4), h = idiv(v, 4), r = m;
+  let bb = blockAt(x + dirX(f), y, z + dirZ(f)), done = 0;
+  if (BPLC[bb + 1] == P_STAIRS) { let v2 = BVAR[bb + 1]; if (idiv(v2, 4) == h) { let f2 = mod(v2, 4); if (mod(f2, 2) != mod(f, 2)) {
+    if (stairSame(x - dirX(f2), y, z - dirZ(f2), f, h) == 0) { r = STRM[((h * 4 + f) * 4 + f2) * 2 + 1]; done = 1; }
+  } } }
+  if (done == 0) {
+    bb = blockAt(x - dirX(f), y, z - dirZ(f));
+    if (BPLC[bb + 1] == P_STAIRS) { let v3 = BVAR[bb + 1]; if (idiv(v3, 4) == h) { let f3 = mod(v3, 4); if (mod(f3, 2) != mod(f, 2)) {
+      if (stairSame(x + dirX(f3), y, z + dirZ(f3), f, h) == 0) { r = STRM[((h * 4 + f) * 4 + f3) * 2 + 2]; }
+    } } }
+  }
+  return r;
+}
+function stairSame(x, y, z, f, h) { let sb = blockAt(x, y, z), r = 0; if (BPLC[sb + 1] == P_STAIRS) { if (BVAR[sb + 1] == h * 4 + f) { r = 1; } } return r; }
 // the camera-space point (u, v, w) / 16 into the cell: mpx, mpy, mpz
 let mpx = 0, mpy = 0, mpz = 0;
 function M_mp(U, V, W) {

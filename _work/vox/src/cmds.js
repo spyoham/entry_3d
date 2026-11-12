@@ -515,15 +515,17 @@ function chatType(dt) {
     tx(123, `> ${line}${cur}   [${md}] 한/영: 한글·영어  Tab: 자동완성  휠: 지난 대화`, -236, -42, 8, '#ffff80', 1);
   }
 }
+// ((v2.7) put on as text: `${tline}${..}` - entry's + adds two that look like numbers, so typing
+// 1 then 2 gave 3)
 function typeKey(c, sh) {
-  if (c >= 65 && c <= 90) { if (sh == 1) { tline = tline + charAt('ABCDEFGHIJKLMNOPQRSTUVWXYZ', c - 64); } else { tline = tline + charAt('abcdefghijklmnopqrstuvwxyz', c - 64); } }
-  if (c >= 48 && c <= 57) { if (sh == 1) { tline = tline + charAt(')!@#$%^&*(', c - 47); } else { tline = tline + charAt('0123456789', c - 47); } }
-  if (c >= 96 && c <= 105) { tline = tline + charAt('0123456789', c - 95); }
-  if (c == 106) { tline = tline + '*'; } if (c == 107) { tline = tline + '+'; } if (c == 109) { tline = tline + '-'; } if (c == 110) { tline = tline + '.'; } if (c == 111) { tline = tline + '/'; }
-  if (c == 32) { tline = tline + ' '; }
+  if (c >= 65 && c <= 90) { if (sh == 1) { tline = `${tline}${charAt('ABCDEFGHIJKLMNOPQRSTUVWXYZ', c - 64)}`; } else { tline = `${tline}${charAt('abcdefghijklmnopqrstuvwxyz', c - 64)}`; } }
+  if (c >= 48 && c <= 57) { if (sh == 1) { tline = `${tline}${charAt(')!@#$%^&*(', c - 47)}`; } else { tline = `${tline}${charAt('0123456789', c - 47)}`; } }
+  if (c >= 96 && c <= 105) { tline = `${tline}${charAt('0123456789', c - 95)}`; }
+  if (c == 106) { tline = `${tline}*`; } if (c == 107) { tline = `${tline}+`; } if (c == 109) { tline = `${tline}-`; } if (c == 110) { tline = `${tline}.`; } if (c == 111) { tline = `${tline}/`; }
+  if (c == 32) { tline = `${tline} `; }
   let k = 1;
   while (k <= 11) {
-    if (c == SYK[k]) { if (sh == 1) { tline = tline + charAt('_+{}:"<>?~|', k); } else { tline = tline + charAt("-=[];',./`\\", k); } }
+    if (c == SYK[k]) { if (sh == 1) { tline = `${tline}${charAt('_+{}:"<>?~|', k)}`; } else { let sc = charAt("-=[];',./`\\", k); tline = `${tline}${sc}`; } }
     k = k + 1;
   }
 }

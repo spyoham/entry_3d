@@ -77,10 +77,10 @@ ok(names(B).length === 12 && names(B)[11] === '서버12', 'bob sees them all: ' 
 // a server made from before v2.4.1 (no day in its header): its day starts when somebody sees it
 A.call((fn) => { fn.srvHead(3); fn.metaRead(3); fn.srvHead(3); });
 A.sim.poke('shDay', 0); A.call((fn) => fn.metaWrite(3)); run(1);
-ok(String(B.g('SY_m3')[0]).endsWith('^0'), 'server 3 with no day: ' + B.g('SY_m3')[0].split('^').slice(-1));
+ok(String(B.g('SY_m3')[0]).split('^')[12] === '0', 'server 3 with no day: ' + B.g('SY_m3')[0].split('^')[12]);
 run(40);
 const day0 = A.call((fn) => fn.dayNow());
-ok(String(B.g('SY_m3')[0]).endsWith('^' + day0), 'its day set by the check: ' + String(B.g('SY_m3')[0]).split('^').slice(-1) + ' today ' + day0);
+ok(String(B.g('SY_m3')[0]).split('^')[12] === String(day0), 'its day set by the check: ' + String(B.g('SY_m3')[0]).split('^')[12] + ' today ' + day0);
 // two players on server 12 (a two-digit place in the slot line)
 A.call((fn) => fn.serverJoin(12)); run(60, () => A.g('gState') === 2);
 B.call((fn) => fn.serverJoin(12)); run(60, () => B.g('gState') === 2);
@@ -99,7 +99,7 @@ ok(names(B).length === 12, 'after 40 days, nobody played: all 12 kept (' + names
 // alice plays server 12 that day: the others (unplayed for 40 days) go, 12 stays
 A.call((fn) => fn.serverJoin(12)); run(60, () => A.g('gState') === 2);
 run(10);
-ok(String(B.g('SY_m12')[0]).endsWith('^' + (day0 + 40)), 'server 12 played today: ' + String(B.g('SY_m12')[0]).split('^').slice(-1));
+ok(String(B.g('SY_m12')[0]).split('^')[12] === String((day0 + 40)), 'server 12 played today: ' + String(B.g('SY_m12')[0]).split('^')[12]);
 run(70);
 const left = names(B);
 ok(left.length === 1 && left[0] === '서버12', 'the 11 unplayed servers cleared: ' + left.join(','));

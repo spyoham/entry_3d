@@ -141,7 +141,17 @@ function netServerCmd(sub) {
   if (sub == 'pvp') { let p = 0; if (lower(v) == 'on' || v == '1' || lower(v) == 'true') { p = 1; } netWish(`set^pvp^${p}`); gS = `플레이어끼리 싸우기: ${p}`; }
   if (sub == 'mode') { let m = 0; if (lower(v) == 'creative' || v == '1') { m = 1; } if (lower(v) == 'adventure' || v == '2') { m = 2; } netWish(`set^mode^${m}`); gS = `새로 오는 사람의 게임 모드: ${MODEKO[m + 1]}`; }
   if (sub == 'max') { netWish(`set^max^${v}`); gS = `최대 인원: ${v}`; }
-  if (gS == '-') { let wk = '기본 지형'; if (shFlat != '-') { wk = `평지 ${shFlat}`; } gS = `${shName} · 주인 ${shOwner} · ${wk} · 시드 ${shSeed} · 싸움 ${shPvp} · 모드 ${MODEKO[shMode + 1]} · 최대 ${shMax} · 화이트리스트 ${shWl} (/server motd|name|pvp|mode|max)`; }
+  // ((v2.7) the owner only: may lava and TNT be put on this server)
+  if (sub == 'lava' || sub == 'tnt') {
+    if (netNick != shOwner && netNick != SUPER) { gS = '서버 주인만 바꿀 수 있습니다'; }
+    else {
+      let p = 0; if (lower(v) == 'on' || v == '1' || lower(v) == 'true') { p = 1; }
+      netWish(`set^${sub}^${p}`);
+      let nm = '용암'; if (sub == 'tnt') { nm = 'TNT'; }
+      if (p == 1) { gS = `${nm} 놓기: 허용`; } else { gS = `${nm} 놓기: 금지 (서버 주인만 놓을 수 있습니다)`; }
+    }
+  }
+  if (gS == '-') { let wk = '기본 지형'; if (shFlat != '-') { wk = `평지 ${shFlat}`; } gS = `${shName} · 주인 ${shOwner} · ${wk} · 시드 ${shSeed} · 싸움 ${shPvp} · 용암 ${shLava} · TNT ${shTnt} · 모드 ${MODEKO[shMode + 1]} · 최대 ${shMax} · 화이트리스트 ${shWl} (/server motd|name|pvp|mode|max|lava|tnt)`; }
   return gS;
 }
 // /plugin add 이름 이벤트[:조건] me|all 명령 ...   /plugin list   /plugin rules 이름   /plugin del 이름 [번호]   /plugin on|off 이름

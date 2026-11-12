@@ -165,7 +165,7 @@ function mobStep0(e, dt) {
         want = 0;
         if (EGND[e] == 1) { if (ETM[e] <= 0) { ETM[e] = 0.9 + rand(0, 8) / 10; EVY[e] = 7.5; want = 1.8; EYAW[e] = wy; } }
         else { want = 1.8; }
-        if (dist < 1.4) { if (Math.abs(dyp) < 1.2) { if (EATK[e] <= 0) { EATK[e] = 1; hurt(MDMG[t], `${MNAME[t]}에게 당했습니다`); pvx = pvx + dxp / (dist + 0.01) * 4; pvz = pvz + dzp / (dist + 0.01) * 4; pvy = 4; } } }
+        if (dist < 1.4) { if (Math.abs(dyp) < 1.2) { if (EATK[e] <= 0) { EATK[e] = 1; hurtM(MDMG[t], `${MNAME[t]}에게 당했습니다`); pvx = pvx + dxp / (dist + 0.01) * 4; pvz = pvz + dzp / (dist + 0.01) * 4; pvy = 4; } } }
       }
       if (ai == 6) { bombStep(e, dist, dt); if (EST[e] == 5) { want = 0; } }
       if (ai == 2) {
@@ -181,7 +181,7 @@ function mobStep0(e, dt) {
       } else { if (ai == 1 || ai == 5 || ai == 8) {
         if (dist < 1.2 + w) { if (Math.abs(dyp) < 1.5) { if (EATK[e] <= 0) {
           EATK[e] = 1;
-          hurt(MDMG[t], `${MNAME[t]}에게 당했습니다`);
+          hurtM(MDMG[t], `${MNAME[t]}에게 당했습니다`);
           // knocked back
           pvx = pvx + dxp / (dist + 0.01) * 5; pvz = pvz + dzp / (dist + 0.01) * 5; pvy = 4;
         } } }
@@ -401,7 +401,7 @@ function arrowsStep(dt) {
         // the player
         if (AON[a] == 1 || AON[a] == 3) {
           if (Math.abs(AXX[a] - px) < 0.45 && Math.abs(AZZ[a] - pz) < 0.45 && AYY[a] > py && AYY[a] < py + 1.8) {
-            if (AON[a] == 3) { hurt(5, '불덩이에 맞았습니다'); } else { hurt(rand(2, 4), '화살에 맞았습니다'); }
+            if (AON[a] == 3) { hurtM(5, '불덩이에 맞았습니다'); } else { hurtM(rand(2, 4), '화살에 맞았습니다'); }
             pvx = pvx + AVX[a] * 0.2; pvz = pvz + AVZ[a] * 0.2;
             AON[a] = 0;
           }
@@ -773,7 +773,7 @@ function bombStep(e, dist, dt) {
   if (EST[e] != 5) { if (dist < 2.6) { EST[e] = 5; ETM[e] = 1.5; sndPlay(4); } }
   else {
     if (dist > 6) { EST[e] = 0; }
-    if (ETM[e] <= 0) { let x = EX[e], y = EY[e], z = EZ[e]; ET[e] = 0; explodeShared(x, y + 0.8, z, 3); }
+    if (ETM[e] <= 0) { let x = EX[e], y = EY[e], z = EZ[e]; ET[e] = 0; explodeShared(x, y + 0.8, z, 103); }
   }
 }
 // snowballs, eggs and void pearls in flight

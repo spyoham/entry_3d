@@ -768,8 +768,9 @@ function lightSpread(which) {
 function M_spread(N, LN, WH) {
   let nb = W[N];
   if (BLOP[nb + 1] == 0) {
+    // ((v2.7) water, leaves, ice cost one a cell like air, as the genre: they stop only the sky's
+    // straight fall (it was two: the sea floor was dark seven down)
     let ll = LN;
-    if (BHC[nb + 1] != 0) { ll = LN - 1; }
     let lt = LT[N], sk = idiv(lt, 16);
     if (WH == 0) { if (sk < ll) { LT[N] = ll * 16 + lt - sk * 16; lqPush(N); } }
     else { if (lt - sk * 16 < ll) { LT[N] = sk * 16 + ll; lqPush(N); } }

@@ -6,7 +6,7 @@
 // 6 a server by name, 7 settings, 8 a message, 9 help.
 let scr = 0, menuTick = 0 - 9, panoReady = 0, panoGen = 0, panoYaw = 30, panoY = 50, splash = '', splashT = 0;
 let selW = 0, selS = 0, listTop = 0, cwName = '새 세계', cwMode = 0, cwSeedText = '', cwSeed = 0, cwFlat = 0, cwFlatSpec = 'bedrock,2*dirt,grass_block';
-let esName = '', esMotd = '', esSeedText = '', esSeed = 0, esMode = 0, esEdit = 0, dcName = '', esFlat = 0, esFlatSpec = 'bedrock,2*dirt,grass_block';
+let esLava = 1, esTnt = 1, esName = '', esMotd = '', esSeedText = '', esSeed = 0, esMode = 0, esEdit = 0, dcName = '', esFlat = 0, esFlatSpec = 'bedrock,2*dirt,grass_block';
 let msgTitle = '', msgBody = '', msgBody2 = '', msgBack = 0, menuKeep = 0;
 const PANOSEED = 1234;
 let SPLASHES = ['엔트리로 만들었습니다!', '블록이 1784가지!', '이제 함께 놉니다!', '플러그인을 만들어 보세요!', '세 개의 세계!', '불꽃가루로 움직여요!', '저장도 됩니다!', 'tessvm 덕분에!', '닉네임이 곧 계정!', '탄성 블록 비행기!', '구조물이 20가지!', '심연과 공허!', '마을 사람과 거래!', '피스톤이 여섯 방향!', '네모난 세상!', '오늘도 캐러 갑니다!'];
@@ -283,7 +283,7 @@ function scrServers() {
   button(-154, -76, -54, -96, '서버 접속', 2, has * on); if (btnHot == 1) { if (clickLatch == 1) { serverJoin(selS); } }
   button(-50, -76, 50, -96, '직접 연결', 3, on); if (btnHot == 1) { if (clickLatch == 1) { dcName = ''; menuGo(6); } }
   button(54, -76, 154, -96, '서버 추가', 4, on); if (btnHot == 1) { if (clickLatch == 1) { esEdit = 0; esName = `${netNick}의 서버`; esMotd = '블록 월드 서버'; esSeedText = ''; esMode = 0; menuGo(5); } }
-  button(-154, -102, -80, -122, '편집', 5, mine); if (btnHot == 1) { if (clickLatch == 1) { srvHead(selS); esEdit = selS; esName = shName; esMotd = shMotd; menuGo(5); } }
+  button(-154, -102, -80, -122, '편집', 5, mine); if (btnHot == 1) { if (clickLatch == 1) { srvHead(selS); esEdit = selS; esName = shName; esMotd = shMotd; esLava = shLava; esTnt = shTnt; menuGo(5); } }
   let canDel = 0; if (mine == 1) { if (srvCount(selS) == 0) { canDel = 1; } }
   button(-76, -102, -2, -122, '삭제', 6, canDel); if (btnHot == 1) { if (clickLatch == 1) { delS = selS; menuGo(10); } }
   button(2, -102, 76, -122, '새로 고침', 7, 1); if (btnHot == 1) { if (clickLatch == 1) { netMsg = ''; txClear(); } }
@@ -328,6 +328,14 @@ function scrServerEdit() {
     } else { txOff(29); txOff(30); }
     if (menuErrT > 0) { menuErrT = menuErrT - 1; tx(27, menuErr, 0, -84, 7, '#ff8080', 0); }
     else { tx(27, '만든 사람이 주인(관리자)이 됩니다. 들어가서 /plugin 으로 플러그인을 만드세요', 0, -84, 7, '#a0a0a0', 0); }
+  }
+  // ((v2.7) the owner: may lava and TNT be put (by anyone but the owner) on the server)
+  if (esEdit > 0) {
+    let lv = '허용'; if (esLava == 0) { lv = '금지'; }
+    let tn = '허용'; if (esTnt == 0) { tn = '금지'; }
+    button(-100, -6, -2, -24, `용암 놓기: ${lv}`, 26, 1); if (btnHot == 1) { if (clickLatch == 1) { esLava = 1 - esLava; } }
+    button(2, -6, 100, -24, `TNT 놓기: ${tn}`, 28, 1); if (btnHot == 1) { if (clickLatch == 1) { esTnt = 1 - esTnt; } }
+    tx(27, '금지하면 서버 주인 말고는 용암과 TNT를 놓을 수 없습니다 (/server lava|tnt on|off)', 0, -84, 7, '#a0a0a0', 0);
   }
   button(-154, -102, -4, -122, '완료', 2, 1); if (btnHot == 1) { if (clickLatch == 1) { serverSave(); } }
   button(4, -102, 154, -122, '취소', 3, 1); if (btnHot == 1) { if (clickLatch == 1) { menuGo(4); } }

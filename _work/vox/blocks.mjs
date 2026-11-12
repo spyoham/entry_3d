@@ -129,7 +129,7 @@ export const BLOCKS = [
     { id: 30, n: 'flowerYellow', ko: '노란 꽃', t: ['flowerYellow'], hard: 0, shape: 1, hide: 0, solid: 0, lop: 0 },
     { id: 31, n: 'sapling', ko: '묘목', t: ['sapling'], hard: 0, shape: 1, hide: 0, solid: 0, lop: 0 },
     { id: 32, n: 'wool', ko: '양털', t: ['wool'], hard: 0.8 },
-    { id: 33, n: 'ice', ko: '얼음', t: ['ice'], hard: 0.5, tool: 1, drop: 'none' },
+    { id: 33, n: 'ice', ko: '얼음', t: ['ice'], hard: 0.5, tool: 1, drop: 'none', lop: 0 },
     { id: 34, n: 'obsidian', ko: '흑요석', t: ['obsidian'], hard: 50, tool: 1, tier: 3 },
     { id: 35, n: 'lava', ko: '용암', t: ['lava'], hard: -1, shape: 3, hide: 3, solid: 0, lop: 0, light: 15, drop: 'none' },
     { id: 36, n: 'mossy', ko: '이끼 낀 조약돌', t: ['mossy'], hard: 2, tool: 1, tier: 0 },
@@ -153,7 +153,7 @@ export const BLOCKS = [
     { id: 53, n: 'basalt', ko: '현무암', t: ['basaltTop', 'basaltSide', 'basaltTop'], hard: 1.25, tool: 1, tier: 0 },
     { id: 54, n: 'voidStone', ko: '공허석', t: ['voidStone'], hard: 3, tool: 1, tier: 0 },
     { id: 55, n: 'voidBricks', ko: '공허 벽돌', t: ['voidBricks'], hard: 3, tool: 1, tier: 0 },
-    { id: 56, n: 'voidGate', ko: '공허 관문', t: ['voidGate'], hard: -1, shape: 4, hide: 0, solid: 0, lop: 0, light: 12, drop: 'none' },
+    { id: 56, n: 'voidGate', ko: '공허 관문', t: ['voidGate'], hard: -1, shape: 4, hide: 0, solid: 0, lop: 0, light: 15, drop: 'none' },
     { id: 57, n: 'wardCrystal', ko: '수호 수정', t: ['wardCrystal'], hard: 0, shape: 1, hide: 0, solid: 0, lop: 0, light: 15, drop: 'none' },
     // v1.4: the smithing table, the ashen debris, the old ruin and its gate frame, the far gate, the shell box, violet bricks
     { id: 58, n: 'smithTable', ko: '대장장이 작업대', t: ['smithTop', 'smithSide', 'planks'], hard: 2.5, tool: 2 },
@@ -161,7 +161,7 @@ export const BLOCKS = [
     { id: 60, n: 'ruinBricks', ko: '유적 벽돌', t: ['ruinBricks'], hard: 1.5, tool: 1, tier: 0 },
     { id: 61, n: 'voidFrame', ko: '관문 틀', t: ['frameTop', 'frameSide', 'frameSide'], hard: -1, drop: 'none' },
     { id: 62, n: 'voidFrameEye', ko: '눈 박힌 관문 틀', t: ['frameEyeTop', 'frameSide', 'frameSide'], hard: -1, drop: 'none', light: 1 },
-    { id: 63, n: 'farGate', ko: '바깥 관문', t: ['voidGate'], hard: -1, shape: 4, hide: 0, solid: 0, lop: 0, light: 12, drop: 'none' },
+    { id: 63, n: 'farGate', ko: '바깥 관문', t: ['voidGate'], hard: -1, shape: 4, hide: 0, solid: 0, lop: 0, light: 15, drop: 'none' },
     { id: 64, n: 'shellBox', ko: '껍질 상자', t: ['shellTop', 'shellSide', 'shellTop'], hard: 2, tool: 1 },
     { id: 65, n: 'violetBricks', ko: '보랏빛 벽돌', t: ['violetBricks'], hard: 1.5, tool: 1, tier: 0 },
 ];
@@ -239,8 +239,8 @@ export const ARM0 = 150;
 export const ARMT = [
     { n: 'Leather', ko: '가죽', col: '9a5a2a', dark: '7a4018', dur: 60, def: [1, 3, 2, 1], mat: 'leather' },
     { n: 'Iron', ko: '철', col: 'e6e6e6', dark: 'a8a8a8', dur: 200, def: [2, 6, 5, 2], mat: 'ingotIron' },
-    { n: 'Diamond', ko: '다이아몬드', col: '5fe3dc', dark: '2fa8a0', dur: 400, def: [3, 8, 6, 3], mat: 'diamond' },
-    { n: 'Abyss', ko: '심연철', col: '5a5060', dark: '2e2830', dur: 480, def: [3, 8, 6, 3], mat: 'abyssIngot', smith: 1 },
+    { n: 'Diamond', ko: '다이아몬드', col: '5fe3dc', dark: '2fa8a0', dur: 400, def: [3, 8, 6, 3], tough: 2, mat: 'diamond' },
+    { n: 'Abyss', ko: '심연철', col: '5a5060', dark: '2e2830', dur: 480, def: [3, 8, 6, 3], tough: 3, mat: 'abyssIngot', smith: 1 },
     { n: 'Gold', ko: '금', col: 'f2d23a', dark: 'c99a10', dur: 90, def: [2, 5, 3, 1], mat: 'ingotGold' },
     { n: 'Chain', ko: '사슬', col: 'a0a0a8', dark: '5a5a62', dur: 200, def: [2, 5, 4, 1], mat: 'ironNugget', nocraft: 1 },
 ];

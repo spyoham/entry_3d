@@ -459,7 +459,7 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     cube('beehive', 'beehive', '양봉 상자', [tex('hiveTop', pat(P.planks, { a: 'b8944e', b: '9a7a3a', c: 'c8a45e' })), tex('hiveSide', pat(['bbbbbbbb', 'aaaaaaaa', 'aaaaaaaa', 'aaakkaaa', 'aaakkaaa', 'cccccccc', 'aaaaaaaa', 'bbbbbbbb'], { a: 'b8944e', b: '8a6a2a', c: 'e8a020', k: '3a2810' })), 'hiveTop'], { hard: 0.6, tool: 2, cat: 3 });
     R(['#planks #planks #planks', 'honeycomb honeycomb honeycomb', '#planks #planks #planks'], 'beehive', 1);
     cube('honeyBlock', 'honey_block', '꿀 블록', tex('honeyT', pat(['cccccccc', 'caaaaaab', 'caabaaab', 'caaaaaab', 'caaaabab', 'caaaaaab', 'cabaaaab', 'bbbbbbbb'], { a: 'f0a830', b: 'd88a18', c: 'f8c860' })), { hard: 0, shape: 5, model: 'honey', hide: 0, lop: 0, slow: 1, cat: 4 });
-    cube('jellyBlock', 'jelly_block', '탄성 블록', tex('jellyT', pat(['cccccccc', 'caaaaaab', 'cabbbbab', 'cabaabab', 'cabaabab', 'cabbbbab', 'caaaaaab', 'bbbbbbbb'], { a: '7ad060', b: '4a9a38', c: 'a8f090' })), { hard: 0, bounce: 1, cat: 4 });
+    cube('jellyBlock', 'jelly_block', '탄성 블록', tex('jellyT', pat(['cccccccc', 'caaaaaab', 'cabbbbab', 'cabaabab', 'cabaabab', 'cabbbbab', 'caaaaaab', 'bbbbbbbb'], { a: '7ad060', b: '4a9a38', c: 'a8f090' })), { hard: 0, bounce: 1, cat: 4, lop: 0 });
     R(['jellyBall jellyBall jellyBall', 'jellyBall jellyBall jellyBall', 'jellyBall jellyBall jellyBall'], 'jellyBlock', 1); R(['jellyBlock'], 'jellyBall', 9);
     cube('packedIce', 'packed_ice', '단단한 얼음', tex('packedIceT', speck('8ab4e8', 400, 0.25, 0.2, 0.9, 1.1)), { hard: 0.5, tool: 1, drop: 'none', slip: 1, cat: 2 });
     R(['ice ice ice', 'ice ice ice', 'ice ice ice'], 'packedIce', 1);
@@ -599,6 +599,7 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     add({ n: 'wailCampfire', key: 'wail_campfire', ko: '흐느낌 모닥불', t: ['oakBark'], hard: 2, tool: 2, shape: 5, model: 'campfire', hide: 0, lop: 0, light: 10, hurt: 2, cat: 3, drop: 'wailSoil', flameTex: 'wailFireT', use: 'campfire' });
     R(['_ stick _', 'stick wailSand stick', '#logs #logs #logs'], 'wailCampfire', 1);
     add({ n: 'wailTorch', key: 'wail_torch', ko: '흐느낌 횃불', t: ['planks'], hard: 0, shape: 2, light: 10, cat: 1, flame: '50e0e0', need: 'torch' });
+
     R(['coal', 'stick', 'wailSand'], 'wailTorch', 4);
     // spark power: the torch (floor or a wall; lit or out), the lamp, the wire (power 0..15),
     // the repeater (facing, delay 1..4, on), the comparator (facing, subtract, on), the lever
@@ -707,7 +708,8 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     }
     R(['cobble cobble cobble', 'cobble bow cobble', 'cobble sparkDust cobble'], 'dispenser', 1);
     R(['cobble cobble cobble', 'cobble _ cobble', 'cobble sparkDust cobble'], 'dropper', 1);
-    add({ n: 'hopper', key: 'hopper', ko: '깔때기', t: [tc('hopperT', P.polished, { a: '4a4a4a', b: '2a2a2a', c: '5a5a5a' })], hard: 3, tool: 1, shape: 5, model: 'hopper', hide: 0, lop: 0, cat: 4, use: 'chest' });
+    // ((v2.7) fac: the way out, down; the sideways ones are at the end)
+    add({ n: 'hopper', key: 'hopper', ko: '깔때기', t: [tc('hopperT', P.polished, { a: '4a4a4a', b: '2a2a2a', c: '5a5a5a' })], hard: 3, tool: 1, shape: 5, model: 'hopper', hide: 0, lop: 0, cat: 4, use: 'chest', fac: 2 });
     R(['ingotIron _ ingotIron', 'ingotIron chest ingotIron', '_ ingotIron _'], 'hopper', 1);
     // pistons: 6 ways x pushed out or not (out: the base; its arm in the next cell is a pistonHead)
     turned('pistonSide', ['aaaaaaaa', 'bbbbbbbb', 'cccccccc', 'cckkkkcc', 'cckkkkcc', 'cccccccc', 'cccccccc', 'cccccccc'], { a: 'a7834f', b: '8c6b3c', c: '7a7a7a', k: '5a5a5a' });
@@ -909,5 +911,12 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
         }
     });
     add({ n: 'moving', key: 'moving_piston', ko: '움직이는 블록', t: ['stone'], hard: -1, shape: 5, model: 'empty', hide: 0, lop: 0, drop: 'none', hidden: 1, nokind: 1, rs: 'moving', cat: 4 });
+    // (v2.7, at the end so the ids before stay as they were) wall torches (against the block at att),
+    // hoppers pointing sideways (fac), campfires put out
+    for (const a of [0, 1, 4, 5]) add({ n: 'torch_a' + a, key: 'wall_torch_a' + a, ko: '횃불', t: ['planks'], hard: 0, shape: 2, hide: 0, solid: 0, lop: 0, light: 14, att: a, hidden: 1, nokind: 1, item: 'torch', drop: 'torch' });
+    for (const a of [0, 1, 4, 5]) add({ n: 'wailTorch_a' + a, key: 'wail_wall_torch_a' + a, ko: '흐느낌 횃불', t: ['planks'], hard: 0, shape: 2, light: 10, flame: '50e0e0', att: a, hidden: 1, nokind: 1, item: 'wailTorch', drop: 'wailTorch' });
+    for (const [m, f, v] of [['hopper_x0', 0, 'west'], ['hopper_x1', 1, 'east'], ['hopper_z0', 4, 'north'], ['hopper_z1', 5, 'south']]) add({ n: 'hopper_' + v, key: 'hopper_' + v, ko: '깔때기', t: ['hopperT'], hard: 3, tool: 1, shape: 5, model: m, hide: 0, lop: 0, cat: 4, use: 'chest', fac: f, hidden: 1, nokind: 1, item: 'hopper', drop: 'hopper' });
+    add({ n: 'campfireOff', key: 'campfire_off', ko: '모닥불', t: ['oakBark'], hard: 2, tool: 2, shape: 5, model: 'campfire_off', hide: 0, lop: 0, cat: 3, drop: 'coal', dropN: 2, use: 'campfire', hidden: 1, nokind: 1, item: 'campfire' });
+    add({ n: 'wailCampfireOff', key: 'wail_campfire_off', ko: '흐느낌 모닥불', t: ['oakBark'], hard: 2, tool: 2, shape: 5, model: 'campfire_off', hide: 0, lop: 0, cat: 3, drop: 'wailSoil', use: 'campfire', hidden: 1, nokind: 1, item: 'wailCampfire' });
     return { item, I, R, S, ICON, kinds, byKey };
 }

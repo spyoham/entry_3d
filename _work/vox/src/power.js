@@ -332,10 +332,11 @@ function cmpRead(x, y, z, b) {
   let r = 0 - 1, u = BUSE[b + 1];
   if (u == U_CHEST) { r = chestLevel(x, y, z); }
   if (u == U_FURNACE) { r = furnaceLevel(x, y, z); }
-  if (b == I_cake) { r = 14; }
+  if (b == I_cake) { r = (7 - pvGet(1, x, y, z)) * 2; }
   if (b == I_voidFrameEye) { r = 15; } if (b == I_voidFrame) { r = 0; }
-  if (u == U_ANCHOR) { r = Math.floor(anchorCh * 15 / 4); }
-  if (b == I_jukebox || b == I_lectern || b == I_cauldron || b == I_composter || b == I_beehive || b == I_beeNest) { r = 0; }
+  if (u == U_ANCHOR) { r = Math.floor(pvGet(3, x, y, z) * 15 / 4); }
+  if (b == I_jukebox || b == I_lectern || b == I_cauldron || b == I_beehive || b == I_beeNest) { r = 0; }
+  if (b == I_composter) { r = pvGet(2, x, y, z); if (r >= 7) { r = 8; } }
   return r;
 }
 function furnaceLevel(x, y, z) {
@@ -355,9 +356,9 @@ function chestLevel(x, y, z) {
   let r = 0;
   chestFind(x, y, z);
   if (cFound > 0) {
-    let k = 1, s = 0;
-    while (k <= 27) { let id = CHI[(cFound - 1) * 27 + k]; if (id > 0) { s = s + CHN[(cFound - 1) * 27 + k] / Math.max(1, ITST[id + 1]); } k = k + 1; }
-    if (s > 0) { r = Math.floor(1 + s / 27 * 14); }
+    let k = 1, s = 0, cap = chestCap(cFound);
+    while (k <= cap) { let id = CHI[(cFound - 1) * 27 + k]; if (id > 0) { s = s + CHN[(cFound - 1) * 27 + k] / Math.max(1, ITST[id + 1]); } k = k + 1; }
+    if (s > 0) { r = Math.floor(1 + s / cap * 14); }
   }
   return r;
 }
@@ -599,7 +600,7 @@ function rsEval(x, y, z, b) {
     else {
       let want = torchWant(x, y, z, b);
       // (burnt out: out at once, and looked at again in a while)
-      if (torchBurnt(x, y, z) == 1) { if (on == 1) { setBlock(x, y, z, b + 1); } rsSchedule(x, y, z, 3.1, 0 - 1); }
+      if (torchBurnt(x, y, z) == 1) { if (on == 1) { setBlock(x, y, z, b + 1); } rsSchedule(x, y, z, 8, 0 - 1); }
       else { if (want != on) { rsSchedule(x, y, z, 0.1, want); } }
     }
   }
@@ -680,7 +681,7 @@ function cmpOut(x, y, z, b) {
   let f = BFAC[b + 1], bk = OP6[f + 1], bx = x + DX6[bk + 1], bz = z + DZ6[bk + 1], a = backIn(x, y, z, bk), s1 = 0, s2 = 1, sd = 0, out = 0;
   let cb = blockAt(bx, y, bz), rd = cmpRead(bx, y, bz, cb);
   if (rd >= 0) { a = rd; }
-  else { if (BCOND[cb + 1] == 1) { if (a < 15) { let c2 = blockAt(bx + DX6[bk + 1], y, bz + DZ6[bk + 1]); let cl = cmpRead(bx + DX6[bk + 1], y, bz + DZ6[bk + 1], c2); if (cl > a) { a = cl; } } } }
+  else { if (BCOND[cb + 1] == 1) { if (a < 15) { let c2 = blockAt(bx + DX6[bk + 1], y, bz + DZ6[bk + 1]); let cl = cmpRead(bx + DX6[bk + 1], y, bz + DZ6[bk + 1], c2); if (cl >= 0) { a = cl; } } } }
   if (f == 0 || f == 1) { s1 = 4; s2 = 5; }
   sd = Math.max(sideIn(x, y, z, s1), sideIn(x, y, z, s2));
   if (BAUX[b + 1] == 1) { out = Math.max(0, a - sd); } else { if (a >= sd) { out = a; } }
@@ -708,8 +709,9 @@ function rsSwitch(x, y, z, b, on) {
   if (on == 1) {
     if (BRS[b + 1] == RS_NOTE) { notePlay(x, y, z, b); }
     if (BRS[b + 1] == RS_BELL) { bellRing(x, y, z); }
-    if (BRS[b + 1] == RS_COMMAND) { commandBlockRun(x, y, z); }
-    if (BRS[b + 1] == RS_DISPENSER) { dispense(x, y, z, b); }
+    // ((v2.7) as the genre a command block runs a tick on, a dispenser or dropper 4 ticks on)
+    if (BRS[b + 1] == RS_COMMAND) { rsSchedule(x, y, z, 0.05, 1); }
+    if (BRS[b + 1] == RS_DISPENSER) { rsSchedule(x, y, z, 0.2, 1); }
   }
 }
 // (v2.5) note blocks: the note (0 .. 24) is the block's aux, the instrument the block under it (BINST);
@@ -802,8 +804,10 @@ function rsApply(x, y, z, w) {
     if (w < 0) { rsNotify(x, y, z, 1); }
     else {
       let ww = torchWant(x, y, z, b);
-      if (ww == 1) { if (torchBurnt(x, y, z) == 1) { ww = 0; rsSchedule(x, y, z, 3.1, 0 - 1); } }
-      if (ww != on) { setBlock(x, y, z, b + on - ww); torchToggled(x, y, z); }
+      // ((v2.7) as the genre only going out counts toward burning out (8 in 3 s), looked at again
+      // 8 s on (it counted both ways and looked again after 3 s))
+      if (ww == 1) { if (torchBurnt(x, y, z) == 1) { ww = 0; rsSchedule(x, y, z, 8, 0 - 1); } }
+      if (ww != on) { setBlock(x, y, z, b + on - ww); if (ww == 0) { torchToggled(x, y, z); } }
     }
   }
   if (rl == RS_COMPARATOR) {
@@ -813,6 +817,8 @@ function rsApply(x, y, z, w) {
     if (want != on) { setBlock(x, y, z, b + want - on); } else { rsNotify(x, y, z, 1); }
   }
   if (rl == RS_LAMP) { if (on == 1) { if (powerIn(x, y, z, 0 - 1) == 0) { setBlock(x, y, z, b - 1); } } }
+  if (rl == RS_COMMAND) { if (w == 1) { commandBlockRun(x, y, z); } }
+  if (rl == RS_DISPENSER) { if (w == 1) { dispense(x, y, z, b); } }
 }
 // torches that switch too often burn out for a while (8 times in 3 s)
 let TBX = [], TBY = [], TBZ = [], TBT = [];
@@ -1109,7 +1115,7 @@ function dispense(x, y, z, b) {
   if (netSrv > 0 && netSt == 2 && netHost == 0) { cFound = 0; }
   if (cFound > 0) {
     let c = cFound, k = 1, n = 0, pick = 0;
-    while (k <= 27) { if (CHI[(c - 1) * 27 + k] > 0) { n = n + 1; if (rand(1, n) == 1) { pick = k; } } k = k + 1; }
+    while (k <= 9) { if (CHI[(c - 1) * 27 + k] > 0) { n = n + 1; if (rand(1, n) == 1) { pick = k; } } k = k + 1; }
     if (pick > 0) {
       let s = (c - 1) * 27 + pick, id = CHI[s], f = BFAC[b + 1], how = 0;
       let fx = x + DX6[f + 1], fy = y + DY6[f + 1], fz = z + DZ6[f + 1], fb = blockAt(fx, fy, fz);
@@ -1120,10 +1126,28 @@ function dispense(x, y, z, b) {
         cFound = c;
       } else {
         if (id == I_arrow) { arrowShoot(x + 0.5 + DX6[f + 1] * 0.6, y + 0.5 + DY6[f + 1] * 0.6, z + 0.5 + DZ6[f + 1] * 0.6, x + 0.5 + DX6[f + 1] * 10, y + 0.5 + DY6[f + 1] * 10, z + 0.5 + DZ6[f + 1] * 10, 1); how = 1; }
+        if (id == I_lavaBucket && netSrv > 0 && shLava == 0) { how = 3; id = 0; }
+        if (id == I_tnt && netSrv > 0 && shTnt == 0) { how = 3; id = 0; }
         if (id == I_waterBucket || id == I_lavaBucket) { if (fb == 0 || (BLQ[fb + 1] > 0 && BLV[fb + 1] > 0)) { let lq = 7; if (id == I_lavaBucket) { lq = 35; } setBlock(fx, fy, fz, lq); CHI[s] = I_bucket; how = 2; } }
         if (id == I_bucket) { if (BLQ[fb + 1] > 0 && BLV[fb + 1] == 0) { let full = I_waterBucket; if (BLQ[fb + 1] == 35) { full = I_lavaBucket; } setBlock(fx, fy, fz, 0); if (CHN[s] == 1) { CHI[s] = full; how = 2; } else { if (chestTake(c, full, 1, 0) == 1) { how = 1; } else { how = 3; } } } }
         if (id == I_tnt) { if (fb == 0 || BLQ[fb + 1] > 0) { setBlock(fx, fy, fz, I_tnt); tntLight(fx, fy, fz, worldDrops(), 4); how = 1; } }
+        // ((v2.7) as the genre's: bone meal on what grows, a fire charge flies, flint and steel lights
+        // (TNT too), a cart onto a rail, a boat onto water, a spawn egg hatches, snowballs and eggs are
+        // thrown, armour onto the player before it, a shell box is put down)
+        let ox = x + 0.5 + DX6[f + 1] * 0.7, oy = y + 0.5 + DY6[f + 1] * 0.7, oz = z + 0.5 + DZ6[f + 1] * 0.7;
+        if (id == I_boneMeal) { bmFree = 1; if (boneMeal(fx, fy, fz, fb) == 1) { how = 1; } else { how = 3; } bmFree = 0; }
+        if (id == I_fireCharge) { arrowShoot(ox, oy, oz, ox + DX6[f + 1] * 10, oy + DY6[f + 1] * 10, oz + DZ6[f + 1] * 10, 2); how = 1; }
+        if (id == 122) { if (fb == I_tnt) { tntLight(fx, fy, fz, worldDrops(), 4); how = 4; } else { if (fb == 0) { fireSet(fx, fy, fz, 0); how = 4; } else { how = 3; } } }
+        if (id == I_minecart || id == I_tntMinecart) { if (BRS[fb + 1] == RS_RAIL) { let t = M_MINECART; if (id == I_tntMinecart) { t = M_TNTCART; } cartPlace(t, fx, fy, fz); how = 1; } }
+        if (id == 174) { if (BLQ[fb + 1] == 7) { mobAdd(13, fx + 0.5, fy + 0.6, fz + 0.5); how = 1; } }
+        if (ITSPAWN[id + 1] > 0) { mobAdd(ITSPAWN[id + 1], fx + 0.5, fy, fz + 0.5); if (lastMob > 0) { EST[lastMob] = 0; } how = 1; }
+        if (ITTHROW[id + 1] > 0) { throwFrom(ITTHROW[id + 1], ox, oy, oz, DX6[f + 1], DY6[f + 1], DZ6[f + 1]); how = 1; }
+        if (ITSLOT[id + 1] > 0 && ITK[id + 1] == 4) { if (Math.floor(px) == fx && Math.floor(pz) == fz && (Math.floor(py) == fy || Math.floor(py + 1) == fy)) { let as = 36 + ITSLOT[id + 1]; if (INVI[as] == 0) { INVI[as] = id; INVN[as] = 1; INVD[as] = CHD[s]; how = 1; } } }
+        if (BUSE[ITPLB[id + 1] + 1] == U_SHELL) { if (fb == 0) { setBlock(fx, fy, fz, ITPLB[id + 1]); how = 1; } }
       }
+      // (4: flint and steel worn, 3: nothing done - the item stays)
+      if (how == 4) { CHD[s] = CHD[s] + 1; if (CHD[s] >= ITDUR[id + 1]) { CHN[s] = 0; } how = 2; }
+      if (how == 3) { how = 2; }
       if (how == 0) { dropItem(id, 1, CHD[s], x + 0.5 + DX6[f + 1] * 0.7, y + 0.3 + DY6[f + 1] * 0.7, z + 0.5 + DZ6[f + 1] * 0.7, 0); how = 1; }
       if (how == 1) { CHN[s] = CHN[s] - 1; }
       if (CHN[s] <= 0) { CHI[s] = 0; CHN[s] = 0; CHD[s] = 0; }

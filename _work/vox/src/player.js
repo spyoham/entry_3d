@@ -9,6 +9,11 @@ let jumpWas = 0, spaceTapT = 0, wTapT = 0, wWas = 0, bob = 0, walkDist = 0;
 let pickOn = 0, pickX = 0, pickY = 0, pickZ = 0, pickF = 0, pickB = 0, pickT = 99, mobPick = 0, pickHY = 0;
 let breakT = 0, breakStage = 0, breakX = -1, breakY = -1, breakZ = -1, breakCool = 0, swingT = 0, placeCool = 0, attackCool = 0;
 let specSpeed = 1, wasHitX = 0;
+// (v2.7) as 1.16.5: hurtRaw - a hurt armour does not stop (a fall, drowning, hunger, the void, a
+// block on the head, burning); hurtMob - a mob's (scaled by the difficulty); lastDmg - the hurt
+// that started the half second when no other lands (a bigger one lands for the difference);
+// fireT - seconds left on fire; wasSneak / inBush / pMoved / eatId, eatT (eating takes 1.6 s)
+let inFireB = 0, inSoul = 0, hurtRaw = 0, hurtMob = 0, lastDmg = 0, fireT = 0, burnT = 0, fastT = 0, chokeT = 0, wasSneak = 0, inBush = 0, pMoved = 0, eatId = 0, eatT = 0, armTough = 0;
 
 // ---------------------------------------------------------------- bodies (player, mobs)
 // box: centre (bmX, bmZ), feet bmY, half width bmW, height bmH; moved by (dx, dy, dz) against
@@ -144,7 +149,7 @@ function groundUnder(x, y, z, w) {
 // climb, a web; and what it stands on (underB)
 let inW = 0, inL = 0, inC = 0, inClimb = 0, inWeb = 0, underB = 0;
 function bodyIn(x, y, z, w, h) {
-  inW = 0; inL = 0; inC = 0; inClimb = 0; inWeb = 0;
+  inW = 0; inL = 0; inC = 0; inClimb = 0; inWeb = 0; inBush = 0; inFireB = 0; inSoul = 0;
   let x0 = Math.floor(x - w), x1 = Math.floor(x + w), y0 = Math.floor(y + 0.1), y1 = Math.floor(y + h - 0.1), z0 = Math.floor(z - w), z1 = Math.floor(z + w);
   if (y0 < 0) { y0 = 0; } if (y1 > WY - 1) { y1 = WY - 1; }
   let a = x0, c = 0, k = 0, yy = 0;
@@ -156,8 +161,9 @@ function bodyIn(x, y, z, w, h) {
         k = blockAt(a, yy, c);
         if (BLQ[k + 1] == 7) { inW = 1; } if (BLQ[k + 1] == 35) { inL = 1; }
         if (BWATER[k + 1] == 1) { inW = 1; }
-        if (BMOVE[k + 1] == 1) { inClimb = 1; } if (BMOVE[k + 1] == 3) { inWeb = 1; }
-        if (BHURT[k + 1] == 2) { inC = 2; } if (BHURT[k + 1] == 1) { if (BSHP[k + 1] != 0) { inC = 1; } }
+        if (BMOVE[k + 1] == 1) { if (yy == y0) { inClimb = 1; } } if (BMOVE[k + 1] == 3) { inWeb = 1; }
+        if (k == I_berryBush) { inBush = 1; }
+        if (BHURT[k + 1] == 2) { inC = 2; if (BSPEC[k + 1] == 10) { inFireB = 1; } if (k == I_wailFire || k == I_wailCampfire) { inSoul = 1; } } if (BHURT[k + 1] == 1) { if (BSHP[k + 1] != 0) { inC = 1; } }
         yy = yy + 1;
       }
       c = c + 1;
@@ -174,6 +180,8 @@ function bodyIn(x, y, z, w, h) {
     }
   }
   underB = blockAt(Math.floor(x), Math.floor(y - 0.05), Math.floor(z));
+  // ((v2.7) standing on a cactus hurts too)
+  if (underB == 19) { inC = 1; }
 }
 
 // ---------------------------------------------------------------- moving
@@ -212,6 +220,7 @@ function spectatorMove(dt) {
   if (BLQ[blockAt(Math.floor(px), Math.floor(py + 1.62), Math.floor(pz)) + 1] == 7) { headWater = 1; }
 }
 function playerMove2(dt) {
+  eatStep(dt);
   let fw = 0, st = 0;
   if (key(87)) { fw = fw + 1; } if (key(83)) { fw = fw - 1; }
   if (key(68)) { st = st + 1; } if (key(65)) { st = st - 1; }
@@ -223,6 +232,9 @@ function playerMove2(dt) {
   if (mod(gameMode, 2) == 0) { if (food <= 6) { sprinting = 0; } }
   sneaking = 0;
   if (key(16)) { if (uiMode == 0) { sneaking = 1; sprinting = 0; } }
+  // ((v2.7) sneaking the body is 1.5 high: it stays down under a ceiling lower than 1.8)
+  if (sneaking == 0 && wasSneak == 1 && flying == 0) { solidBox(px - 0.29, px + 0.29, py + 0.05, py + 1.8, pz - 0.29, pz + 0.29); if (solidHit == 1) { sneaking = 1; sprinting = 0; } }
+  wasSneak = sneaking;
   bodyIn(px, py, pz, 0.3, 1.8);
   inWater = inW; inLava = inL;
   // (v2.3.2) flowing water carries the player along
@@ -231,11 +243,18 @@ function playerMove2(dt) {
   if (sprinting == 1) { sp = 5.6; }
   if (sneaking == 1) { if (flying == 0) { sp = 1.3; } }
   if (flying == 1) { sp = 10.9; if (sprinting == 1) { sp = 21.6; } }
-  if (inWater == 1 || inLava == 1) { if (flying == 0) { sp = sp * 0.45; } }
+  // ((v2.7) lava holds back far more than water (0.8 m/s); sprinting stops in water and at a wall)
+  if (inWater == 1 || inLava == 1) { if (flying == 0) { sp = sp * 0.45; if (inLava == 1) { sp = sp * 0.42; } } }
+  if (inWater == 1 && flying == 0) { sprinting = 0; }
+  if (wasHitX == 1) { sprinting = 0; }
+  if (eatId > 0) { if (flying == 0) { sp = sp * 0.2; } sprinting = 0; }
   // what is under the feet or round the body: sand that holds, honey, a web
   let mv = BMOVE[underB + 1];
   if (flying == 0) {
-    if (mv == 2) { sp = sp * 0.45; } if (mv == 7) { sp = sp * 0.4; }
+    if (mv == 2) { sp = sp * 0.4; } if (mv == 7) { sp = sp * 0.4; }
+    // ((v2.7) the elastic block holds the feet (1.2 m/s walking), the berry bush catches)
+    if (mv == 4) { if (onGround == 1 && sneaking == 0) { sp = sp * 0.28; } }
+    if (inBush == 1) { sp = sp * 0.37; }
     if (inWeb == 1) { sp = sp * 0.15; }
   }
   sp = sp * (1 + 0.2 * fx(1)) * Math.max(0.1, 1 - 0.15 * fx(2));
@@ -245,17 +264,20 @@ function playerMove2(dt) {
     let sy = sind(yaw), cy = cosd(yaw);
     wx = (fw * sy + st * cy) / l * sp; wz = (fw * cy - st * sy) / l * sp;
   }
+  // ((v2.7) in the air the speed is kept as the genre (0.91 a tick: 1.9 a second; it was 3.5), ice
+  // 0.98 (2.3), blue ice 0.989 (2.1; it was 0.8), the elastic block 0.8 (6.35))
   let acc = 14;
-  if (onGround == 0) { acc = 3.5; }
-  if (onGround == 1) { if (mv == 5) { acc = 1.6; } if (mv == 6) { acc = 0.8; } }
+  if (onGround == 0) { acc = 1.9; }
+  if (onGround == 1) { if (mv == 5) { acc = 2.3; } if (mv == 6) { acc = 2.1; } if (mv == 4) { acc = 6.35; } }
   if (flying == 1) { acc = 8; }
-  if (inWater == 1) { acc = 6; }
+  if (inWater == 1) { acc = 6; } if (inLava == 1) { acc = 14; }
   let a = Math.min(1, acc * dt);
   if (gliding == 0) { pvx = pvx + (wx - pvx) * a; pvz = pvz + (wz - pvz) * a; }
   let spc = key(32);
   if (uiMode != 0) { spc = 0; }
   spaceTapT = spaceTapT + dt;
   if (spc) { if (jumpWas == 0) { if (gameMode == 1) { if (spaceTapT < 0.3) { flying = 1 - flying; pvy = 0; spaceTapT = 9; } else { spaceTapT = 0; } } } }
+  let vA = pvy;
   if (flying == 1) {
     let vy = 0;
     if (spc) { vy = 7.5; }
@@ -263,43 +285,53 @@ function playerMove2(dt) {
     pvy = pvy + (vy - pvy) * Math.min(1, 10 * dt);
   } else {
     if (inWater == 1 || inLava == 1) {
-      pvy = pvy - 9 * dt;
-      if (pvy < -3) { pvy = -3; }
-      if (spc) { pvy = Math.min(pvy + 30 * dt, 3.2); }
+      // ((v2.7) as the genre: sinking 0.4 m/s and rising 2.8 in water (it sank at 3 m/s), 0.8 in lava)
+      let vt = 0 - 0.4, rk = 4.5;
+      if (spc) { vt = 2.8; }
+      if (inLava == 1) { rk = 13.9; vt = 0 - 0.8; if (spc) { vt = 0.8; } }
+      pvy = pvy + (vt - pvy) * Math.min(1, rk * dt);
       fallTop = py;
     } else {
       if (gliding == 0) { if (onGround == 0) { if (pvy < 0) { if (keyHit(32) == 1) { if (gliderOn() == 1) { gliding = 1; } } } } }
       if (gliding == 1) { if (onGround == 1 || gliderOn() == 0) { gliding = 0; } }
-      if (gliding == 1) { glideStep(dt); }
+      if (gliding == 1) { glideStep(dt); vA = pvy; }
       else {
         pvy = pvy - 32 * dt;
-        if (fx(10) > 0) { pvy = pvy + (0.9 * fx(10) - pvy) * Math.min(1, 5 * dt) + 32 * dt; fallTop = py; }
-        if (fx(11) > 0) { if (pvy < -1.8) { pvy = 0 - 1.8; } fallTop = py; }
+        if (fx(10) > 0) { pvy = pvy + (0.9 * fx(10) - pvy) * Math.min(1, 5 * dt) + 32 * dt; fallTop = py; vA = pvy; }
+        if (fx(11) > 0) { if (pvy < -1.8) { pvy = 0 - 1.8; vA = pvy; } fallTop = py; }
       }
-      if (pvy < -60) { pvy = -60; }
-      if (spc) { if (onGround == 1) { let jv = Math.sqrt(79.2 + 32 * fx(4)); if (mv == 7) { jv = jv * 0.5; } pvy = jv; exhaust = exhaust + 0.05; if (sprinting == 1) { exhaust = exhaust + 0.15; pvx = pvx * 1.25; pvz = pvz * 1.25; } } }
+      if (pvy < -60) { pvy = -60; vA = pvy; }
+      // ((v2.7) 1.25 high (the move of the frame is the mean of its speeds, so the same at any frame
+      // rate: it was 1.3 .. 1.8 high), a sprint jump pushes on 2 m/s the way of the eye (it was x 1.25))
+      if (spc) { if (onGround == 1) { let jv = Math.sqrt(80.1 + 32 * fx(4)); if (mv == 7) { jv = jv * 0.5; } pvy = jv - 32 * dt; vA = jv; exhaust = exhaust + 0.05; if (sprinting == 1) { exhaust = exhaust + 0.15; pvx = pvx + sind(yaw) * 2; pvz = pvz + cosd(yaw) * 2; } } }
     }
     // ladders, vines, scaffolding: up when pushing on or Space, held when sneaking
     if (inClimb == 1) {
       if (pvy < -3) { pvy = -3; }
-      if (spc || (wasHitX == 1 && l > 0)) { pvy = 3; }
+      if (spc || (wasHitX == 1 && l > 0)) { pvy = 2.35; }
       if (sneaking == 1) { if (pvy < 0) { pvy = 0; } }
-      fallTop = py;
+      fallTop = py; vA = pvy;
     }
-    if (inWeb == 1) { if (pvy < -1) { pvy = -1; } if (pvy > 1) { pvy = 1; } fallTop = py; }
+    // ((v2.7) a web all but stops the fall, a bush slows it)
+    if (inWeb == 1) { if (pvy < -0.1) { pvy = -0.1; } if (pvy > 0.4) { pvy = 0.4; } fallTop = py; vA = pvy; }
+    if (inBush == 1) { if (pvy < -1.5) { pvy = -1.5; vA = pvy; } fallTop = py; }
+    // ((v2.7) the honey block's side: sliding down it slowly)
+    if (onGround == 0 && pvy < -2.6) { let hy = Math.floor(py + 0.3);
+      if (blockAt(Math.floor(px + 0.36), hy, Math.floor(pz)) == I_honeyBlock || blockAt(Math.floor(px - 0.36), hy, Math.floor(pz)) == I_honeyBlock || blockAt(Math.floor(px), hy, Math.floor(pz + 0.36)) == I_honeyBlock || blockAt(Math.floor(px), hy, Math.floor(pz - 0.36)) == I_honeyBlock) { pvy = 0 - 1; vA = pvy; fallTop = py; } }
   }
   jumpWas = 0;
   if (spc) { jumpWas = 1; }
   let ox = px, oz = pz;
   bmX = px; bmY = py; bmZ = pz; bmW = 0.3; bmH = 1.8; bmStep = 0;
+  if (sneaking == 1 && flying == 0) { bmH = 1.5; }
   if (onGround == 1 && flying == 0) { bmStep = 0.6; }
   let mx = pvx * dt, mz = pvz * dt;
   if (sneaking == 1) { if (onGround == 1) { if (flying == 0) {
-    if (groundUnder(px + mx, py, pz, 0.3) == 0) { mx = 0; }
-    if (groundUnder(px + mx, py, pz + mz, 0.3) == 0) { mz = 0; }
+    solidBox(px + mx - 0.3, px + mx + 0.3, py - 0.6, py, pz - 0.3, pz + 0.3); if (solidHit == 0) { mx = 0; }
+    solidBox(px + mx - 0.3, px + mx + 0.3, py - 0.6, py, pz + mz - 0.3, pz + mz + 0.3); if (solidHit == 0) { mz = 0; }
   } } }
   let vyWas = pvy;
-  bodyMove(mx, pvy * dt, mz);
+  bodyMove(mx, (vA + pvy) * 0.5 * dt, mz);
   bmStep = 0;
   wasHitX = 0;
   if (bmHitX == 1) { pvx = 0; wasHitX = 1; } if (bmHitZ == 1) { pvz = 0; wasHitX = 1; }
@@ -313,13 +345,21 @@ function playerMove2(dt) {
     let ub = blockAt(Math.floor(px), Math.floor(py - 0.05), Math.floor(pz));
     if (was == 0) {
       let fd = fallTop - py;
-      // the elastic block throws the body back up (but not when sneaking)
-      if (BMOVE[ub + 1] == 4 && sneaking == 0) { if (vyWas < -3) { pvy = 0 - vyWas * 0.85; onGround = 0; fd = 0; } }
-      if (ub == I_hayBale) { fd = fd * 0.2; }
-      if (BPLC[ub + 1] == P_BED) { fd = fd * 0.5; }
-      if (fd > 3.4) { if (mod(gameMode, 2) == 0) { if (inWater == 0) { if (grFall == 1) { hurt(Math.floor(fd - 3), '높은 곳에서 떨어졌습니다'); } } } }
-      // landing on farmland tramples it
-      if (fd > 1) { if (ub == I_farmland || ub == I_farmlandWet) { setBlock(Math.floor(px), Math.floor(py - 0.05), Math.floor(pz), 3); } }
+      // ((v2.7) as 1.16.5: the hurt is (fall - 3) x the block's share, rounded up (it was rounded down,
+      // and the share taken before the 3); the elastic block throws back and takes no hurt unless
+      // sneaking, a bed throws back two thirds and halves it, hay and honey a fifth)
+      let fm = 1;
+      if (BMOVE[ub + 1] == 4 && sneaking == 0) { fm = 0; if (vyWas < -1) { pvy = 0 - vyWas * 0.9; onGround = 0; } }
+      if (ub == I_hayBale || ub == I_honeyBlock) { fm = 0.2; }
+      if (BPLC[ub + 1] == P_BED) { fm = 0.5; if (sneaking == 0) { if (vyWas < -1) { pvy = 0 - vyWas * 0.66; onGround = 0; } } }
+      let fh = (fd - 3 - fx(4)) * fm;
+      if (fh > 0.03) { if (mod(gameMode, 2) == 0) { if (inWater == 0) { if (grFall == 1) { hurtR(Math.ceil(fh - 0.03), '높은 곳에서 떨어졌습니다'); } } } }
+      // landing on farmland tramples it (by chance: fall - 0.5) and the crop on it comes off
+      if (ub == I_farmland || ub == I_farmlandWet) { if (rand(0, 9999) / 10000 < fd - 0.5) {
+        let tx = Math.floor(px), ty = Math.floor(py - 0.05), tz = Math.floor(pz), cb = blockAt(tx, ty + 1, tz);
+        if (cb > 0) { if (BSOL[cb + 1] == 0) { if (mod(gameMode, 2) == 0 && netApplying == 0) { blockDrops(cb, tx, ty + 1, tz); } setBlock(tx, ty + 1, tz, 0); } }
+        setBlock(tx, ty, tz, 3);
+      } }
     }
     fallTop = py;
     // the magma block burns (unless sneaking)
@@ -327,28 +367,44 @@ function playerMove2(dt) {
     plateStep(Math.floor(px), Math.floor(py), Math.floor(pz));
   }
   if (flying == 1) { fallTop = py; }
-  if (py < -20) { hurt(4, '세계 밖으로 떨어졌습니다'); }
+  if (py < -20) { hurtR(4, '세계 밖으로 떨어졌습니다'); }
   let moved = Math.sqrt((px - ox) * (px - ox) + (pz - oz) * (pz - oz));
+  pMoved = moved;
   if (onGround == 1) { walkDist = walkDist + moved; bob = bob + moved * 2.2; }
-  if (sprinting == 1) { exhaust = exhaust + moved * 0.1; } else { exhaust = exhaust + moved * 0.01; }
+  // ((v2.7) as 1.16.5: walking costs nothing, sprinting on the ground 0.1 a metre, swimming 0.01)
+  if (sprinting == 1 && onGround == 1) { exhaust = exhaust + moved * 0.1; } else { if (inWater == 1) { exhaust = exhaust + moved * 0.01; } }
   headWater = 0;
   let hb = blockAt(Math.floor(px), Math.floor(py + 1.62), Math.floor(pz));
   if (BLQ[hb + 1] == 7 || BWATER[hb + 1] == 1) { headWater = 1; }
 }
 
 // ---------------------------------------------------------------- health and hunger
+// ((v2.7) as 1.16.5: a mob's hurt is scaled by the difficulty (easy n/2 + 1, hard x 1.5; it was
+// every hurt, falls too, and easy halved), armour by def - n / (2 + toughness / 4) (at least def / 5)
+// / 25 and worn by n / 4 (it was a flat 4 % a point, at least 1, and every hurt wore it, falls too);
+// some hurts go through armour (hurtR); within the half second a bigger hurt lands for the rest)
+function hurtM(n, why) { hurtMob = 1; hurt(n, why); hurtMob = 0; }
+function hurtR(n, why) { hurtRaw = 1; hurt(n, why); hurtRaw = 0; }
 function hurt(n, why) {
-  if (mod(gameMode, 2) == 0) { if (dead == 0) { if (hurtT <= 0) {
-    let def = armorDef();
-    if (def > 0) { n = Math.max(1, Math.round(n * (1 - Math.min(20, def) * 0.04))); armorWear(); }
-    if (fx(6) > 0) { n = Math.round(n * Math.max(0, 1 - 0.2 * fx(6))); }
-    n = Math.round(n * DIFF[difficulty + 1]);
-    if (n > 0) {
-      hp = hp - n; hurtT = 0.5; hurtFlash = 0.35; exhaust = exhaust + 0.1;
-      sndPlay(3);
-      if (hp <= 0) { hp = 0; die(why); }
+  if (mod(gameMode, 2) == 0) { if (dead == 0) {
+    if (hurtMob == 1) { if (difficulty == 0) { n = 0; } if (difficulty == 1) { n = Math.min(n, n / 2 + 1); } if (difficulty == 3) { n = n * 1.5; } }
+    let go = 1;
+    if (hurtT > 0) { if (n > lastDmg) { let d0 = lastDmg; lastDmg = n; n = n - d0; go = 2; } else { go = 0; } }
+    if (go > 0) {
+      if (go == 1) { lastDmg = n; }
+      let def = 0; if (hurtRaw == 0) { def = armorDef(); }
+      if (def > 0) { let red = Math.min(20, Math.max(def / 5, def - n / (2 + armTough / 4))); armorWear(Math.max(1, Math.floor(n / 4))); n = n * (1 - red / 25); }
+      if (fx(6) > 0) { n = n * Math.max(0, 1 - 0.2 * fx(6)); }
+      // (whole points: a part is a chance of one more)
+      n = Math.floor(n + rand(0, 998) / 1000);
+      if (n > 0) {
+        hp = hp - n; hurtFlash = 0.35; exhaust = exhaust + 0.1;
+        sndPlay(3);
+        if (hp <= 0) { hp = 0; die(why); }
+      }
+      if (go == 1) { hurtT = 0.5; }
     }
-  } } }
+  } }
 }
 let DIFF = [0.5, 0.5, 1, 1.5], difficulty = 2;
 function survival(dt) {
@@ -356,23 +412,49 @@ function survival(dt) {
   if (mod(gameMode, 2) == 1) { hp = 20; food = 20; air = 300; }
   else {
     while (exhaust >= 4) { exhaust = exhaust - 4; if (sat > 0) { sat = Math.max(0, sat - 1); } else { if (food > 0) { if (difficulty > 0) { food = food - 1; } } } }
-    regenT = regenT + dt;
-    if (regenT >= 4) {
-      regenT = 0;
-      if (grRegen == 1) { if (food >= 18 || difficulty == 0) { if (hp < 20) { hp = hp + 1; exhaust = exhaust + 6; } } }
-      if (food == 0) { if (hp > 10 - difficulty * 5 || difficulty == 3) { if (hp > 1 || difficulty == 3) { hurtT = 0; hurt(1, '굶주렸습니다'); } } }
+    // ((v2.7) as 1.16.5: full food with saturation heals fast (a point every half second while
+    // the saturation lasts, it was only the slow way), else at 18 or more a point in 4 s; peaceful:
+    // a point a second and food back; starving stops at 10 on easy (it was 5), 1 normal, none hard)
+    regenT = regenT + dt; fastT = fastT + dt;
+    if (difficulty == 0) {
+      if (regenT >= 1) { regenT = 0; if (grRegen == 1) { if (hp < 20) { hp = hp + 1; } } if (food < 20) { food = food + 1; } }
+    } else {
+      if (food == 20 && sat > 0 && hp < 20 && grRegen == 1) {
+        if (fastT >= 0.5 * Math.max(1, 6 / sat)) { fastT = 0; hp = hp + 1; exhaust = exhaust + 6; regenT = 0; }
+      } else {
+        fastT = 0;
+        if (regenT >= 4) {
+          regenT = 0;
+          if (grRegen == 1) { if (food >= 18) { if (hp < 20) { hp = hp + 1; exhaust = exhaust + 6; } } }
+          if (food == 0) { if (hp > 10 || (difficulty == 2 && hp > 1) || difficulty == 3) { hurtT = 0; hurtR(1, '굶주렸습니다'); } }
+        }
+      }
     }
     if (headWater == 1) {
       air = air - 20 * dt;
-      if (air <= 0) { air = 0; drownT = drownT + dt; if (drownT >= 1) { drownT = 0; hurtT = 0; if (grDrown == 1) { hurt(2, '물에 빠졌습니다'); } } }
-    } else { air = Math.min(300, air + 300 * dt); }
+      if (air <= 0) { air = 0; drownT = drownT + dt; if (drownT >= 1) { drownT = 0; hurtT = 0; if (grDrown == 1) { hurtR(2, '물에 빠졌습니다'); } } }
+    } else { air = Math.min(300, air + 80 * dt); }
     if (inLava == 1 && fx(7) == 0) { lavaT = lavaT + dt; if (lavaT >= 0.5) { lavaT = 0; hurtT = 0; if (grFire == 1) { hurt(4, '용암에 빠졌습니다'); } } }
     bodyIn(px, py, pz, 0.3, 1.8);
+    // ((v2.7) burning goes on after the fire (8 s, lava 15 s), a point a second through armour, out in
+    // water or rain under the sky)
+    if (inL == 1) { fireT = Math.max(fireT, 15); } if (inFireB == 1) { fireT = Math.max(fireT, 8); }
+    if (inW == 1) { fireT = 0; }
+    if (fireT > 0) {
+      fireT = fireT - dt; burnT = burnT + dt;
+      if (wthr > 0) { if (rainOn(Math.floor(px), Math.floor(py + 1.62), Math.floor(pz)) == 1) { fireT = 0; } }
+      if (burnT >= 1) { burnT = 0; if (fx(7) == 0 && grFire == 1 && inC != 2 && inL == 0) { hurtT = 0; hurtR(1, '불에 탔습니다'); } }
+    }
+    // ((v2.7) the head in a solid block chokes)
+    let hb = blockAt(Math.floor(px), Math.floor(py + eyeH), Math.floor(pz));
+    if (BLOP[hb + 1] == 1 && BSHP[hb + 1] == 0 && BSOL[hb + 1] > 0) { chokeT = chokeT + dt; if (chokeT >= 0.5) { chokeT = 0; hurtT = 0; hurtR(1, '벽 속에서 숨이 막혔습니다'); } } else { chokeT = 0; }
+    // (a berry bush pricks only while moving)
+    if (inBush == 1 && inC == 1 && pMoved < 0.003) { inC = 0; if (underB == 19) { inC = 1; } }
     if (inC > 0 || underB == I_magma && sneaking == 0) {
       cactusT = cactusT + dt;
       if (cactusT >= 0.5) {
         cactusT = 0;
-        if (inC == 2) { if (fx(7) == 0 && grFire == 1) { hurt(1, '불에 탔습니다'); } }
+        if (inC == 2) { if (fx(7) == 0 && grFire == 1) { let fd = 1; if (inSoul == 1) { fd = 2; } hurt(fd, '불에 탔습니다'); } }
         else { if (underB == I_magma) { if (fx(7) == 0 && grFire == 1) { hurt(1, '바닥이 용암처럼 뜨거웠습니다'); } } else { hurt(1, '찔렸습니다'); } }
       }
     }
@@ -403,13 +485,34 @@ function respawn0() {
   while (solidHit == 1 && k < WY) { py = py + 1; k = k + 1; solidBox(px - 0.3, px + 0.3, py, py + 1.8, pz - 0.3, pz + 0.3); }
   uiMode = 0;
 }
+// ((v2.7) eating takes 1.6 s with F held (slow walking meanwhile); it was at once)
+function eatStart(id) {
+  if (food < 20 || mod(gameMode, 2) == 1 || id == I_goldenApple) { if (eatId != id) { eatId = id; eatT = 0; } }
+}
+function eatStep(dt) {
+  if (eatId > 0) {
+    if (key(70) && uiMode == 0 && INVI[hotSel] == eatId && dead == 0) {
+      eatT = eatT + dt; swingT = Math.max(swingT, 0.1);
+      if (mod(Math.floor(eatT * 5), 2) == 0) { if (frac(eatT * 5) < dt * 5) { sndPlay(5); } }
+      if (eatT >= 1.6) { let e = eatId; eatId = 0; eatT = 0; eat(e); }
+    } else { eatId = 0; eatT = 0; }
+  }
+}
+// the genre's saturation share of a food (saturation = food x it x 2)
+function satOf(id) {
+  let m = 0.6;
+  if (id == I_porkCooked || id == I_steak) { m = 0.8; }
+  if (id == I_goldenApple || id == I_goldenCarrot) { m = 1.2; }
+  if (id == I_flesh || id == I_cookie || id == I_berries) { m = 0.1; }
+  if (id == I_melonSlice || id == I_pumpkinPie || id == I_potato || id == I_porkRaw || id == I_beefRaw || id == I_chickenRaw || id == I_apple || id == I_driedKelp) { m = 0.3; }
+  return m;
+}
 function eat(id) {
   let f = ITFOOD[id + 1];
   if (food < 20 || mod(gameMode, 2) == 1 || id == I_goldenApple) {
-    food = Math.min(20, food + f); sat = Math.min(food, sat + f * 0.6);
+    food = Math.min(20, food + f); sat = Math.min(food, sat + f * satOf(id) * 2);
     if (id == 112) { if (rand(1, 10) <= 8) { exhaust = exhaust + 12; msgShow('배가 아픕니다...', 2); } }
     if (id == I_goldenApple) { effectAdd(5, 5, 2); effectAdd(6, 120, 1); }
-    if (id == I_goldenCarrot) { sat = Math.min(food, sat + 8); }
     takeHeld(1);
     if (id == I_beetSoup || id == I_mushStew) { if (INVI[hotSel] == 0) { INVI[hotSel] = 0; } }
     sndPlay(5);
@@ -477,8 +580,11 @@ function breakTime(b) {
   harvest = 1;
   if (BTIER[b + 1] >= 0) { harvest = 0; if (kind == 0) { if (TLEVEL[tier + 1] >= BTIER[b + 1]) { harvest = 1; } } }
   let t = h * 1.5 / sp / (1 + 0.2 * fx(3));
-  if (harvest == 0) { t = h * 5 / sp; }
-  if (inWater == 1) { if (onGround == 0) { t = t * 5; } }
+  if (harvest == 0) { t = h * 5 / sp / (1 + 0.2 * fx(3)); }
+  // ((v2.7) as the genre: x 5 with the head in water, x 5 more off the ground (it was x 5 only
+  // in water and off the ground))
+  if (headWater == 1) { t = t * 5; }
+  if (onGround == 0 && flying == 0 && riding == 0) { t = t * 5; }
   if (h < 0) { t = 99999; }
   return t;
 }
@@ -500,8 +606,10 @@ function breaking(dt) {
       if (breakT >= bt) {
         breakBlock(pickX, pickY, pickZ, 1);
         breakT = 0; breakX = -1;
+        // ((v2.7) 5 ticks after a block that took time, none after one that breaks at once: it was
+        // the other way round)
         breakCool = 0.25;
-        if (bt > 0.05) { breakCool = 0.05; }
+        if (bt <= 0.05) { breakCool = 0.05; }
         if (gameMode == 1) { breakCool = 0.22; }
       } else { if (mod(Math.floor(breakT * 4), 2) == 0) { if (frac(breakT * 4) < dt * 4) { sndPlay(1); } } }
     }
@@ -520,18 +628,19 @@ function breakBlock(x, y, z, byP) {
       exhaust = exhaust + 0.005;
       if (harvest == 1) { if (grTileDrops == 1) { blockDrops(b, x, y, z); } }
       let id = INVI[hotSel];
-      if (ITTK[id + 1] >= 0) { if (BHARD[b + 1] > 0) { wearHeld(1); } }
+      if (ITTK[id + 1] >= 0) { if (BHARD[b + 1] > 0) { if (ITTK[id + 1] == 3) { wearHeld(2); } else { wearHeld(1); } } }
     }
   }
   if (BUSE[b + 1] == U_SHELL) { shellBoxBroken(x, y, z, b); }
   setBlock(x, y, z, 0);
   partnerGone(x, y, z, b, byP);
   if (b == 57) { crystalBreak(x, y, z); }
-  if (b == 33) { if (mod(gameMode, 2) == 0) { if (blockAt(x, y - 1, z) != 0) { setBlock(x, y, z, 7); } } }
+  if (b == 33) { if (mod(gameMode, 2) == 0) { if (dim != 1) { let ib = blockAt(x, y - 1, z); if (BSOL[ib + 1] > 0 || BLQ[ib + 1] > 0) { setBlock(x, y, z, 7); } } } }
   chestOrFurnaceGone(x, y, z, b);
 }
 function blockDrops(b, x, y, z) {
   let d = BDROP[b + 1], n = BDROPN[b + 1], held = INVI[hotSel];
+  if (dropBare == 1) { held = 0; }
   // (v2.4.4) lit TNT gives nothing back (it goes off anyway)
   if (b == I_tnt) { if (tntLit(x, y, z) == 1) { d = 0; } }
   if (b == 9) { if (rand(1, 10) == 1) { d = 118; } }
@@ -539,9 +648,12 @@ function blockDrops(b, x, y, z) {
     d = 0;
     if (ITTK[held + 1] == 5) { d = b; n = 1; }
     else {
-      if (rand(1, 20) == 1) { d = BSAP[b + 1]; n = 1; }
-      if (rand(1, 40) == 1) { d = 100; n = rand(1, 2); }
-      if (b == 14 || b == I_ebonyLeaves) { if (rand(1, 40) == 1) { d = 105; n = 1; } }
+      // ((v2.7) as 1.16.5: a sapling 1 in 20 (jungle-like 1 in 40), sticks 1 in 50, an apple 1 in 200,
+      // each its own roll (the last one hit took the place of the others)
+      let sc = 20; if (b == I_mahoganyLeaves) { sc = 40; }
+      if (rand(1, sc) == 1) { if (BSAP[b + 1] > 0) { dropItem(BSAP[b + 1], 1, 0, x + 0.5, y + 0.3, z + 0.5, 0); } }
+      if (rand(1, 50) == 1) { dropItem(100, rand(1, 2), 0, x + 0.5, y + 0.3, z + 0.5, 0); }
+      if (b == 14 || b == I_ebonyLeaves) { if (rand(1, 200) == 1) { dropItem(105, 1, 0, x + 0.5, y + 0.3, z + 0.5, 0); } }
     }
   }
   if (b == 40) { n = rand(4, 8); }
@@ -561,10 +673,20 @@ function blockDrops(b, x, y, z) {
     if (k == I_beetCrop) { dropItem(I_beetSeeds, rand(1, 3), 0, x + 0.5, y + 0.3, z + 0.5, 0); }
     if (k == I_carrotCrop || k == I_potatoCrop) { n = rand(2, 4); }
   }
-  if (BXP[b + 1] > 0) { if (d != b) { xpAdd(rand(0, BXP[b + 1])); } }
+  if (d != b) { let xp = oreXp(b); if (xp > 0) { xpAdd(xp); } }
   if (d > 0) { if (n > 0) { dropItem(d, n, 0, x + 0.5, y + 0.3, z + 0.5, 0); } }
 }
 
+// ((v2.7) the genre's experience: coal 0-2, diamond and jade 3-7, lapis and quartz 2-5, spark 1-5,
+// ashen gold 0-1, a spawner 15-43)
+function oreXp(b) {
+  let r = 0;
+  if (BXP[b + 1] > 0) { r = rand(0, BXP[b + 1]); }
+  if (b == 12) { r = rand(0, 2); } if (b == 16 || b == I_oreJade) { r = rand(3, 7); }
+  if (b == 40 || b == I_oreQuartz) { r = rand(2, 5); } if (b == I_oreSpark) { r = rand(1, 5); }
+  if (b == I_oreAshGold) { r = rand(0, 1); } if (BSPEC[b + 1] == 6) { r = rand(15, 43); }
+  return r;
+}
 // ---------------------------------------------------------------- changing the world
 let lbX0 = 9999, lbX1 = -1, lbZ0 = 9999, lbZ1 = -1, dirtyN = 0;
 let DIRTY = [], SDIRTY = [];
@@ -611,6 +733,8 @@ function setBlock(x, y, z, b) {
     if (two == 1) { rsNotify(x, y, z, 3); } else { rsNotify(x, y, z, 2); }
     // (v2.3.2) liquid by the change looks again: it runs into a hole, goes back when its source went
     fluidNotify(x, y, z);
+    // ((v2.7) leaves, fire, sponges, cane and cactus by it)
+    jeChanged(x, y, z, old, b);
   }
 }
 function waterNear(x, y, z) {
@@ -646,11 +770,16 @@ function worldFlush() {
 }
 // sand, gravel, concrete powder, anvils drop to the first support
 function fallBlock(x, y, z) {
-  let b = blockAt(x, y, z), y2 = y;
-  while (y2 > 0 && (blockAt(x, y2 - 1, z) == 0 || BLQ[blockAt(x, y2 - 1, z) + 1] > 0 || BSHP[blockAt(x, y2 - 1, z) + 1] == 1)) { y2 = y2 - 1; }
+  let b = blockAt(x, y, z), y2 = y, go = 1;
+  while (y2 > 0 && go == 1) {
+    let fb = blockAt(x, y2 - 1, z);
+    if (fb == 0 || BLQ[fb + 1] > 0 || mod(idiv(BJE[fb + 1], 2), 2) == 1) { y2 = y2 - 1; if (BWET[b + 1] > 0 && BLQ[fb + 1] == 7) { go = 0; } } else { go = 0; }
+  }
   if (y2 < y) {
     logOn = 1; wput(x, y, z, 0); wput(x, y2, z, b); logOn = 0;
     markDirty(x, y, z); markDirty(x, y2, z);
+    if (lightOn == 1) { lightCell(x, y, z); lightCell(x, y2, z); }
+    fluidNotify(x, y, z);
     rsTell(x, y, z); rsTell(x, y2, z);
     if (BWET[b + 1] > 0) { if (waterNear(x, y2, z) == 1 || BLQ[blockAt(x, y2 + 1, z) + 1] == 7) { logOn = 1; wput(x, y2, z, BWET[b + 1]); logOn = 0; } }
     let up = blockAt(x, y + 1, z);
@@ -673,15 +802,15 @@ function shootBow() {
   }
 }
 function armorDef() {
-  let d = 0, k = 37;
-  while (k <= 40) { if (INVI[k] > 0) { d = d + ITDEF[INVI[k] + 1]; } k = k + 1; }
+  let d = 0, k = 37; armTough = 0;
+  while (k <= 40) { if (INVI[k] > 0) { let v = ITDEF[INVI[k] + 1]; d = d + mod(v, 100); armTough = armTough + idiv(v, 100); } k = k + 1; }
   return d;
 }
-function armorWear() {
+function armorWear(w) {
   let k = 37;
   while (k <= 40) {
     if (INVI[k] > 0) {
-      INVD[k] = INVD[k] + 1;
+      INVD[k] = INVD[k] + w;
       if (INVD[k] >= ITDUR[INVI[k] + 1]) { msgShow(`${ITNAME[INVI[k] + 1]}이(가) 부서졌습니다`, 2); INVI[k] = 0; INVN[k] = 0; INVD[k] = 0; sndPlay(7); }
     }
     k = k + 1;

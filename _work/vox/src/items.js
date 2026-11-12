@@ -163,11 +163,20 @@ function furnacesStep(dt) {
 }
 let cFound = 0;
 // (v2.4.4) n of an item into chest c (a stack of it with room, else an empty slot): 1 when it went in
+// ((v2.7) as the genre: a hopper has 5 slots, a dispenser and a dropper 9, a chest 27)
+function chestCap(c) {
+  let r = 27;
+  if (c > 0 && c <= CHON.length) { if (CHON[c] == 1) { if (idiv(CHY[c], 1000) == dim) {
+    let b = blockAt(CHX[c], CHY[c] - dim * 1000, CHZ[c]);
+    if (BKIND[b + 1] == I_hopper) { r = 5; } if (BRS[b + 1] == RS_DISPENSER) { r = 9; }
+  } } }
+  return r;
+}
 function chestTake(c, id, n, d) {
-  let k = 1, f = 0, base = (c - 1) * 27;
-  while (k <= 27) { if (f == 0) { if (CHI[base + k] == id && CHD[base + k] == d && CHN[base + k] + n <= ITST[id + 1]) { f = k; } } k = k + 1; }
+  let k = 1, f = 0, base = (c - 1) * 27, cap = chestCap(c);
+  while (k <= cap) { if (f == 0) { if (CHI[base + k] == id && CHD[base + k] == d && CHN[base + k] + n <= ITST[id + 1]) { f = k; } } k = k + 1; }
   k = 1;
-  while (k <= 27) { if (f == 0) { if (CHI[base + k] == 0) { f = k; } } k = k + 1; }
+  while (k <= cap) { if (f == 0) { if (CHI[base + k] == 0) { f = k; } } k = k + 1; }
   let r = 0;
   if (f > 0) { if (CHI[base + f] == 0) { CHI[base + f] = id; CHN[base + f] = 0; CHD[base + f] = d; } CHN[base + f] = CHN[base + f] + n; r = 1; chestTouched(c); chestSay(c, f); }
   return r;
@@ -183,44 +192,58 @@ function chestSay(c, k) {
 // (v2.4.4) hoppers: every 0.4 s one item from a container over it (or the items lying on it) into it,
 // and one from it into a container (or a furnace's top) under it; held while powered. (They did
 // nothing.) On a server the host's screen does it and tells the others.
-let hopT = 0;
+// ((v2.7) a hopper that took an item waits its 8 ticks before passing one on (HRCV: the pass it took
+// one), so an item goes one hopper a pass, not down a whole line at once)
+let hopT = 0, hopPass = 0, HRCV = [];
 function hoppersStep(dt) {
   hopT = hopT + dt;
   if (hopT >= 0.4) {
-    hopT = 0;
+    hopT = 0; hopPass = hopPass + 1;
+    while (HRCV.length < NCHEST) { HRCV.push(0); }
     if (netSrv == 0 || netSt != 2 || netHost == 1) {
       let c = 1;
       while (c <= NCHEST) {
         if (CHON[c] == 1) { if (idiv(CHY[c], 1000) == dim) {
           let x = CHX[c], y = CHY[c] - dim * 1000, z = CHZ[c];
-          if (cOK(x, z) == 1) { if (blockAt(x, y, z) == I_hopper) { if (powerIn(x, y, z, 0 - 1) == 0) { hopperWork(c, x, y, z); } } }
+          if (cOK(x, z) == 1) { let hb = blockAt(x, y, z); if (BKIND[hb + 1] == I_hopper) { if (powerIn(x, y, z, 0 - 1) == 0) { hopperWork(c, x, y, z, BFAC[hb + 1]); } } }
         } }
         c = c + 1;
       }
     }
   }
 }
-function hopperWork(c, x, y, z) {
+function hopperWork(c, x, y, z, hf) {
   let base = (c - 1) * 27, k = 1, f = 0;
-  // out: the first item into what is under it
-  while (k <= 27) { if (f == 0) { if (CHI[base + k] > 0) { f = k; } } k = k + 1; }
-  if (f > 0) {
-    let id = CHI[base + f], moved = 0;
-    chestFind(x, y - 1, z);
-    if (cFound > 0) { moved = chestTake(cFound, id, 1, CHD[base + f]); }
-    else {
-      furnaceFind(x, y - 1, z);
-      if (fFound > 0) { if (FII[fFound] == 0 || (FII[fFound] == id && FIN[fFound] < ITST[id + 1])) { FII[fFound] = id; FIN[fFound] = FIN[fFound] + 1; moved = 1; } }
+  // ((v2.7) out the way it points: the first item that fits into the container there (from the side
+  // into a furnace's fuel, from above its input); not in the pass it took one)
+  let ox = x + DX6[hf + 1], oy = y + DY6[hf + 1], oz = z + DZ6[hf + 1], moved = 0;
+  if (HRCV[c] != hopPass) {
+    // (a container there that was never opened counts too)
+    let tb = blockAt(ox, oy, oz), tc = 0, tf = 0;
+    if (BUSE[tb + 1] == U_CHEST) { chestAt(ox, oy, oz); tc = cFound; }
+    if (BUSE[tb + 1] == U_FURNACE) { furnaceAt(ox, oy, oz); tf = fFound; }
+    k = 1;
+    while (k <= 5 && moved == 0) {
+      if (CHI[base + k] > 0) {
+        let id = CHI[base + k];
+        if (tc > 0) { moved = chestTake(tc, id, 1, CHD[base + k]); if (moved == 1) { HRCV[tc] = hopPass; } }
+        else { if (tf > 0) {
+          if (hf == 2) { if (FII[tf] == 0 || (FII[tf] == id && FIN[tf] < ITST[id + 1])) { FII[tf] = id; FIN[tf] = FIN[tf] + 1; moved = 1; } }
+          else { if (ITFUEL[id + 1] > 0) { if (FFI[tf] == 0 || (FFI[tf] == id && FFN[tf] < ITST[id + 1])) { FFI[tf] = id; FFN[tf] = FFN[tf] + 1; moved = 1; } } }
+        } }
+        if (moved == 1) { f = k; }
+      }
+      k = k + 1;
     }
     if (moved == 1) { CHN[base + f] = CHN[base + f] - 1; if (CHN[base + f] <= 0) { CHI[base + f] = 0; CHN[base + f] = 0; CHD[base + f] = 0; } chestTouched(c); chestSay(c, f); }
   }
-  // in: one from a container over it, else the items lying on it
+  // in: one from a container over it (the first that fits), else the items lying on it
   chestFind(x, y + 1, z);
   if (cFound > 0) {
-    let a = cFound, ab = (a - 1) * 27, g = 0;
+    let a = cFound, ab = (a - 1) * 27, g = 0, cap = chestCap(a);
     k = 1;
-    while (k <= 27) { if (g == 0) { if (CHI[ab + k] > 0) { g = k; } } k = k + 1; }
-    if (g > 0) { if (chestTake(c, CHI[ab + g], 1, CHD[ab + g]) == 1) { CHN[ab + g] = CHN[ab + g] - 1; if (CHN[ab + g] <= 0) { CHI[ab + g] = 0; CHN[ab + g] = 0; CHD[ab + g] = 0; } chestTouched(a); chestSay(a, g); } }
+    while (k <= cap && g == 0) { if (CHI[ab + k] > 0) { if (chestTake(c, CHI[ab + k], 1, CHD[ab + k]) == 1) { g = k; } } k = k + 1; }
+    if (g > 0) { CHN[ab + g] = CHN[ab + g] - 1; if (CHN[ab + g] <= 0) { CHI[ab + g] = 0; CHN[ab + g] = 0; CHD[ab + g] = 0; } chestTouched(a); chestSay(a, g); HRCV[c] = hopPass; }
   } else {
     furnaceFind(x, y + 1, z);
     if (fFound > 0) { if (FON[fFound] > 0) { if (chestTake(c, FOI[fFound], 1, 0) == 1) { FON[fFound] = FON[fFound] - 1; if (FON[fFound] <= 0) { FOI[fFound] = 0; FON[fFound] = 0; } } } }
@@ -268,8 +291,9 @@ function chestOpen(x, y, z) {
     let lt = lootAt(x, y, z);
     if (lt > 0) { lootTable(cFound, lt); } else { if (dim != 0 || lootUnder == 60) { chestLoot(cFound); } }
   }
-  if (cFound > 0) { curChest = cFound; uiOpen(4); trapOpen(x, y, z); } else { msgShow('상자가 너무 많습니다', 2); }
+  if (cFound > 0) { curChest = cFound; curCap = chestCap(cFound); uiOpen(4); trapOpen(x, y, z); } else { msgShow('상자가 너무 많습니다', 2); }
 }
+let curCap = 27;
 // (v2.5) a trapped chest looked in gives power (1: the player here; the genre counts the players)
 let tcOn = 0, tcX = 0, tcY = 0, tcZ = 0, tcD = 0;
 function trapOpen(x, y, z) {

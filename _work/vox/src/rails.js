@@ -222,7 +222,7 @@ function cartMove(e, h) {
       } else { if (Math.abs(sp) < 0.6) { sp = 0; } else { sp = sp * (1 - Math.min(1, 14 * h)); } }
     }
     // detector rails: power while it is on; activator rails on: the rider off, a TNT cart lit
-    if (kd == 2) { pressAddL(rx, ry, rz, 0.5, 15); }
+    if (kd == 2) { pressAddL(rx, ry, rz, 1, 15); }
     if (kd == 3) { if (BON[b + 1] == 1) {
       if (riding == e) { riding = 0; py = EY[e] + 1; pvy = 2; }
       if (ET[e] == M_TNTCART) { if (EST[e] == 0) { EST[e] = 1; ETM[e] = 4; sndPlay(1); } }

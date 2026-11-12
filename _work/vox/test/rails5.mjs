@@ -105,7 +105,7 @@ for (let x = X - 20; x <= X - 10; x++) put(x, Y, Z + 20, 'rail[shape=east_west]'
 put(X - 15, Y, Z + 20, 'detector_rail[shape=east_west]'); put(X - 15, Y, Z + 21, 'spark_lamp'); F(2);
 placeCart(X - 15, Y, Z + 20); wait(0.2);
 ok(lit(X - 15, Y, Z + 21), 'a cart on a detector rail: the lamp by it lit');
-cs = carts(); call(() => { s.peek('ET')[cs[0] - 1] = 0; }); wait(1);
+cs = carts(); call(() => { s.peek('ET')[cs[0] - 1] = 0; }); wait(1.5);
 ok(!lit(X - 15, Y, Z + 21), 'the cart gone: out');
 
 // 6 an activator rail on: the rider off, a TNT cart lit (it goes off 4 s after)

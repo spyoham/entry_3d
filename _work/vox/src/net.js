@@ -185,13 +185,14 @@ function slotEvents(k, evs, first) {
 }
 
 // ---------------------------------------------------------------- the servers (SY_m1..99, SY_e1..99)
-// their first line: H^name^owner^motd^seed^mode^pvp^max^whitelist^rev^flat^id^day (v2.4.1: the day it was last played, dayNow)
+// their first line: H^name^owner^motd^seed^mode^pvp^max^whitelist^rev^flat^id^day^lava^tnt (v2.4.1: the day it was last played,
+// dayNow; v2.7: lava and TNT may be put, 1 / 0 - the owner's choice)
 // (metaLen metaItem metaPut editLen editItem editsPut: written by build.mjs, one branch per place)
 // a server's header read into SH*: does it exist
-let shName = '', shOwner = '', shMotd = '', shSeed = 0, shMode = 0, shPvp = 1, shMax = 16, shWl = 0, shRev = 0, shFlat = '-', shId = '', shDay = 0;
+let shName = '', shOwner = '', shMotd = '', shSeed = 0, shMode = 0, shPvp = 1, shMax = 16, shWl = 0, shRev = 0, shFlat = '-', shId = '', shDay = 0, shLava = 1, shTnt = 1;
 function srvHas(k) {
   let h = metaItem(k, 1), r = 0;
-  shName = ''; shOwner = ''; shMotd = ''; shSeed = 0; shMode = 0; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shFlat = '-'; shId = ''; shDay = 0;
+  shName = ''; shOwner = ''; shMotd = ''; shSeed = 0; shMode = 0; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shFlat = '-'; shId = ''; shDay = 0; shLava = 1; shTnt = 1;
   if (strlen(h) > 3) { if (charAt(h, 1) == 'H') {
     splitBy(h, '^');
     if (SPL.length >= 10) {
@@ -201,6 +202,7 @@ function srvHas(k) {
       shId = `${shName}/${shOwner}`;
       if (SPL.length >= 12) { shId = SPL[12]; }
       if (SPL.length >= 13) { shDay = SPL[13] * 1; }
+      if (SPL.length >= 15) { shLava = SPL[14] * 1; shTnt = SPL[15] * 1; }
       r = 1;
     }
   } }
@@ -251,7 +253,7 @@ function metaRead(k) {
     i = i + 1;
   }
 }
-function headLine() { return `H^${shName}^${shOwner}^${shMotd}^${shSeed}^${shMode}^${shPvp}^${shMax}^${shWl}^${shRev}^${shFlat}^${shId}^${shDay}`; }
+function headLine() { return `H^${shName}^${shOwner}^${shMotd}^${shSeed}^${shMode}^${shPvp}^${shMax}^${shWl}^${shRev}^${shFlat}^${shId}^${shDay}^${shLava}^${shTnt}`; }
 // the host writes them back (after a change)
 function metaWrite(k) {
   shRev = shRev + 1; metaRev = shRev;
@@ -296,7 +298,7 @@ function srvCreate(name, motd, seedv, mode, flat) {
   let k = 1, r = 0;
   while (k <= NSRV) { if (r == 0) { if (srvHas(k) == 0) { r = k; } } k = k + 1; }
   if (r > 0) {
-    shName = netClean(name); shOwner = netNick; shMotd = netClean(motd); shSeed = seedv; shMode = mode; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shFlat = netClean(flat); shId = `${rand(100000, 999999)}${rand(100000, 999999)}`; shDay = dayNow();
+    shName = netClean(name); shOwner = netNick; shMotd = netClean(motd); shSeed = seedv; shMode = mode; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shLava = 1; shTnt = 1; shFlat = netClean(flat); shId = `${rand(100000, 999999)}${rand(100000, 999999)}`; shDay = dayNow();
     MOP = []; MBAN = []; MBANR = []; MWL = []; PLN = []; PLO = []; PLE = []; PLC = []; PLT = []; PLX = []; MUN = []; MUD = []; MCK = []; MCD = []; MSK = []; MST = [];
     MPC = []; MPL = []; MGN = []; MGC = [];
     // a plugin to start from: a greeting
@@ -310,7 +312,7 @@ function srvCreate(name, motd, seedv, mode, flat) {
 function srvEdit(k, name, motd) {
   if (srvHas(k) == 1) { if (shOwner == netNick || netNick == SUPER) {
     metaRead(k); srvHead(k);
-    shName = netClean(name); shMotd = netClean(motd);
+    shName = netClean(name); shMotd = netClean(motd); shLava = esLava; shTnt = esTnt;
     metaWrite(k);
   } }
 }
@@ -680,7 +682,7 @@ function hostWish(who, f) {
     if (a == 'pardon') { let i = 1; while (i <= MBAN.length) { if (MBAN[i] == b) { MBAN.removeAt(i); MBANR.removeAt(i); } else { i = i + 1; } } }
     if (a == 'wladd') { MWL.push(b); }
     if (a == 'wldel') { let i = 1; while (i <= MWL.length) { if (MWL[i] == b) { MWL.removeAt(i); } else { i = i + 1; } } }
-    if (a == 'set') { let v = ' '; if (SPL.length >= 3) { v = SPL[3]; } if (b == 'motd') { shMotd = v; } if (b == 'pvp') { shPvp = v * 1; } if (b == 'mode') { shMode = v * 1; } if (b == 'wl') { shWl = v * 1; } if (b == 'max') { shMax = Math.max(1, Math.min(NSLOT, v * 1)); } if (b == 'name') { shName = v; } }
+    if (a == 'set') { let v = ' '; if (SPL.length >= 3) { v = SPL[3]; } if (b == 'motd') { shMotd = v; } if (b == 'pvp') { shPvp = v * 1; } if (b == 'lava') { shLava = v * 1; } if (b == 'tnt') { shTnt = v * 1; } if (b == 'mode') { shMode = v * 1; } if (b == 'wl') { shWl = v * 1; } if (b == 'max') { shMax = Math.max(1, Math.min(NSLOT, v * 1)); } if (b == 'name') { shName = v; } }
     if (a == 'padd') { if (SPL.length >= 6) { PLN.push(b); PLO.push(1); PLE.push(SPL[3]); PLC.push(SPL[4]); PLT.push(SPL[5]); PLX.push(SPL[6]); } }
     if (a == 'pdel') { let n = 0; if (SPL.length >= 3) { n = SPL[3] * 1; } let i = 1, m = 0; while (i <= PLN.length) { if (PLN[i] == b) { m = m + 1; if (n == 0 || m == n) { PLN.removeAt(i); PLO.removeAt(i); PLE.removeAt(i); PLC.removeAt(i); PLT.removeAt(i); PLX.removeAt(i); } else { i = i + 1; } } else { i = i + 1; } } }
     if (a == 'pset') { let lv = 1; if (SPL.length >= 3) { lv = SPL[3] * 1; } let i = 1; while (i <= MPC.length) { if (MPC[i] == b) { MPC.removeAt(i); MPL.removeAt(i); } else { i = i + 1; } } if (lv != cmdLvDefault(b)) { MPC.push(b); MPL.push(lv); } }
