@@ -730,4 +730,5 @@ function renderWorld() {
   drawBuckets();
   drawPick();
   weDrawSel();
+  beaconsDraw();
 }

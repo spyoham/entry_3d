@@ -11,7 +11,7 @@ import { TEX, CRACK, BLOCKS, NBLOCK, ITEMS, TIERS, KINDS, SMITH, toolId, NITEM, 
 import { MODELS, ARMS, ARMCOL, pottedModel } from './models.mjs';
 import { makeSounds } from './sounds.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '2.8';
+export const VERSION = '2.9';
 // how many servers Entry Sync holds (each one two ?! lists; the slot line carries the number in two digits)
 export const NSRV = 99;
 export const NAME = '블록 월드';
@@ -33,7 +33,7 @@ export const consts = {
 };
 
 // what F does on a block, how it is put down, what it must stand on, how it moves a body
-const USE = { rs: 25, none: 0, craft: 1, furnace: 2, chest: 3, smith: 4, shell: 5, door: 6, trapdoor: 7, gate: 8, lever: 9, button: 10, bed: 11, sign: 12, note: 13, cake: 14, compost: 15, repair: 16, bell: 17, pot: 18, command: 19, campfire: 20, enchant: 21, lodestone: 22, anchor: 23, voidchest: 24 };
+const USE = { rs: 25, none: 0, craft: 1, furnace: 2, chest: 3, smith: 4, shell: 5, door: 6, trapdoor: 7, gate: 8, lever: 9, button: 10, bed: 11, sign: 12, note: 13, cake: 14, compost: 15, repair: 16, bell: 17, pot: 18, command: 19, campfire: 20, enchant: 21, lodestone: 22, anchor: 23, voidchest: 24, beacon: 26 };
 const PLACE = { none: 0, axis: 1, stairs: 2, slab: 3, door: 4, trapdoor: 5, gate: 6, bed: 7, ladder: 8, rail: 9 };
 const RS = { none: 0, wire: 1, repeater: 2, comparator: 3, torch: 4, lever: 5, button: 6, plate: 7, block: 8, sensor: 9, observer: 10, piston: 11, head: 12, lamp: 13, tnt: 14, door: 15, note: 16, command: 17, target: 18, dispenser: 19, moving: 20, bell: 21, trapped: 22, hook: 23, trip: 24, rail: 25 };
 const NEED = { none: 0, soil: 1, floor: 2, below: 3, torch: 4, ashen: 5, farm: 6, reed: 7, water: 8, any: 9, dark: 10 };
@@ -302,10 +302,45 @@ export function makeData() {
         B.BAXX.push(ax && names.has(b.n + '_x') ? names.get(b.n + '_x') : id);
         B.BAXZ.push(ax && names.has(b.n + '_z') ? names.get(b.n + '_z') : id);
     }
+    // ((v2.9) BROT: the same block turned 90 degrees clockwise seen from above (world edit's //rotate:
+    // stairs, doors, trapdoors, ladders, beds, levers ... kept their way): the variant of its kind whose
+    // model is this one's boxes turned (x, z) -> (16 - z, x), the same open state first; logs x <-> z
+    const rotKey = (m) => m.boxes.map(q => [16 - q[5], q[1], q[0], 16 - q[2], q[4], q[3], q[6] || '', q[7] || ''].join(',')).sort().join(';');
+    const plainKey = (m) => m.boxes.map(q => [q[0], q[1], q[2], q[3], q[4], q[5], q[6] || '', q[7] || ''].join(',')).sort().join(';');
+    B.BROT = [];
+    const byKind = new Map();
+    for (let id = 0; id < NBLOCK; id++) { const k = B.BKIND[id]; if (!byKind.has(k)) byKind.set(k, []); byKind.get(k).push(id); }
+    for (let id = 0; id < NBLOCK; id++) {
+        const b = BLOCKS[id];
+        let r = id;
+        if (b && typeof b.model === 'string' && MODELS[b.model]) {
+            const want = rotKey(MODELS[b.model]);
+            const c = byKind.get(B.BKIND[id]).filter(j => { const o = BLOCKS[j]; return o && typeof o.model === 'string' && MODELS[o.model] && plainKey(MODELS[o.model]) === want; });
+            const same = c.filter(j => (BLOCKS[j].on || 0) === (b.on || 0) && (BLOCKS[j].aux || 0) === (b.aux || 0));
+            if (same.length) r = same[0]; else if (c.length) r = c[0];
+        }
+        if (b && /_x$/.test(b.n) && names.has(b.n.replace(/_x$/, '_z'))) r = names.get(b.n.replace(/_x$/, '_z'));
+        if (b && /_z$/.test(b.n) && names.has(b.n.replace(/_z$/, '_x'))) r = names.get(b.n.replace(/_z$/, '_x'));
+        B.BROT.push(r);
+    }
+    // (the model alone cannot tell a door's open or upper half, a bed's head: for doors, beds and
+    // trapdoors the last digit of the variant's name is its way, turned 0 -> 3 -> 2 -> 1)
+    for (let id = 0; id < NBLOCK; id++) {
+        const b = BLOCKS[id], kb = BLOCKS[B.BKIND[id]];
+        if (!b || !kb || !['door', 'bed', 'trapdoor'].includes(kb.place)) continue;
+        const sufs = byKind.get(B.BKIND[id]).map(q => BLOCKS[q] && BLOCKS[q].n.startsWith(kb.n + '_') ? BLOCKS[q].n.slice(kb.n.length + 1) : '');
+        const len = Math.max(...sufs.map(s => s.length));
+        const suf = id === B.BKIND[id] ? '0'.repeat(len) : b.n.slice(kb.n.length + 1);
+        const d = +suf.slice(-1);
+        if (!(suf.length && d >= 0 && d <= 3)) continue;
+        const s2 = suf.slice(0, -1) + ((d + 3) % 4);
+        const nm = sufs.includes(s2) ? kb.n + '_' + s2 : (/^0+$/.test(s2) && s2.length === len ? kb.n : null);
+        if (nm && names.has(nm)) B.BROT[id] = names.get(nm);
+    }
     Object.assign(L, B, MB, CB);
 
     // items
-    const I = { ITKEY: [], ITNAME: [], ITK: [], ITST: [], ITFOOD: [], ITFUEL: [], ITTK: [], ITTT: [], ITDUR: [], ITDMG: [], ITISO: [], IC0: [], ICN: [], ITC1: [], ITC2: [], ITDEF: [], ITSLOT: [], ITTAG: [], ITPLB: [], ITSPAWN: [], ITTHROW: [], ITCAT: [] };
+    const I = { ITKEY: [], ITNAME: [], ITK: [], ITST: [], ITFOOD: [], ITFUEL: [], ITTK: [], ITTT: [], ITDUR: [], ITDMG: [], ITISO: [], IC0: [], ICN: [], ITC1: [], ITC2: [], ITDEF: [], ITSLOT: [], ITTAG: [], ITPLB: [], ITSPAWN: [], ITTHROW: [], ITCAT: [], ITFP: [], ITREP: [], ITENC: [], ITECL: [] };
     const SMELTT = 8;
     const iconOf = (grid, p) => putRects(rectsOf(grid, (ch) => ch !== '.', (ch) => col(snap(p[ch]))));
     const iconCol = (grid, p) => { const c = {}; for (const r of grid) for (const ch of r) if (ch !== '.') c[ch] = (c[ch] || 0) + 1; return col(snap(p[Object.entries(c).sort((a, b) => b[1] - a[1])[0][0]])); };
@@ -366,11 +401,69 @@ export function makeData() {
         I.ITNAME.push(name || ' '); I.ITK.push(k); I.ITST.push(st); I.ITFOOD.push(food); I.ITFUEL.push(fuel / 10 * SMELTT);
         I.ITTK.push(tk); I.ITTT.push(tt); I.ITDUR.push(dur); I.ITDMG.push(dmg); I.ITISO.push(iso); I.IC0.push(ic[0]); I.ICN.push(ic[1]); I.ITC1.push(c1); I.ITC2.push(c2); I.ITDEF.push(def); I.ITSLOT.push(slot);
         I.ITTAG.push(tag); I.ITPLB.push(plb); I.ITSPAWN.push(spawn); I.ITTHROW.push(thr); I.ITCAT.push(cat);
+        // ((v2.9) lying in fire or lava an item burns, but the abyss things (the genre's netherite)
+        // ((v2.9) enchanting: the class of item (ECLASS), how well it takes a charm at the table (the
+        // genre's enchantability), what mends it at the anvil (an item id, or -tag)
+        let ecl = 0, enc = 0, rep = 0;
+        if (tool) { ecl = [3, 2, 4, 1, 5][tool.kind]; enc = [15, 5, 14, 10, 15, 22][tool.tier]; rep = idOf(TIERS[tool.tier].mat); }
+        else if (arm) { ecl = 7 + arm.piece; enc = [15, 9, 10, 15, 25, 12][arm.tier]; rep = idOf(ARMT[arm.tier].n === 'Chain' ? 'ingotIron' : ARMT[arm.tier].mat); }
+        else if (it) {
+            if (it.n === 'bow') { ecl = 6; enc = 1; }
+            if (it.n === 'glider') ecl = 11;
+            if (it.tool5) ecl = 12;
+            if (it.n === 'igniter') ecl = 13;
+            if (it.n === 'book' || it.n === 'enchantedBook') { ecl = 14; enc = it.n === 'book' ? 1 : 0; }
+            if (it.n === 'glider') rep = idOf('leather');
+        }
+        I.ITECL.push(ecl); I.ITENC.push(enc); I.ITREP.push(rep);
+        I.ITFP.push((tool && tool.tier === 4) || (arm && ARMT[arm.tier].n === 'Abyss') || ['abyssIngot', 'scrap', 'debris', 'blockAbyss'].includes((b || it || {}).n) ? 1 : 0);
         if (name && cat >= 0 && id !== 6) PALS[cat].push(id);
     }
     // a few of the item flags the code asks for by name
     Object.assign(L, I);
     L.TSPEED = TIERS.map(t => t.speed); L.TLEVEL = TIERS.map(t => t.lv);
+    // ((v2.9) the charms: key, name, top level, weight at the table, the power a level 1 needs and each
+    // level more, treasure (not at the table), the group of those that exclude each other, and the
+    // classes (ITECL 1 sword 2 axe 3 pickaxe 4 shovel 5 hoe 6 bow 7..10 helmet..boots 11 elytra 12 shears
+    // 13 flint and steel 14 book) that take it at the anvil (ENOK) and at the table (ENTB)
+    const W = [1], T = [2, 3, 4, 5], AR = [7, 8, 9, 10], DUR = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+    const EN = [
+        ['sharpness', '날카로움', 5, 10, 1, 11, 0, 1, [1, 2], W],
+        ['smite', '강타', 5, 5, 5, 8, 0, 1, [1, 2], W],
+        ['bane_of_arthropods', '살충', 5, 5, 5, 8, 0, 1, [1, 2], W],
+        ['knockback', '밀치기', 2, 5, 5, 20, 0, 0, W, W],
+        ['fire_aspect', '발화', 2, 2, 10, 20, 0, 0, W, W],
+        ['looting', '약탈', 3, 2, 15, 9, 0, 0, W, W],
+        ['sweeping', '휩쓸기', 3, 2, 5, 9, 0, 0, W, W],
+        ['efficiency', '효율', 5, 10, 1, 10, 0, 0, [...T, 12], T],
+        ['silk_touch', '섬세한 손길', 1, 1, 15, 0, 0, 3, T, T],
+        ['fortune', '행운', 3, 2, 15, 9, 0, 3, T, T],
+        ['unbreaking', '내구성', 3, 5, 5, 8, 0, 0, DUR, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]],
+        ['mending', '수선', 1, 2, 25, 0, 1, 4, DUR, []],
+        ['power', '힘', 5, 10, 1, 10, 0, 0, [6], [6]],
+        ['punch', '밀어내기', 2, 2, 12, 20, 0, 0, [6], [6]],
+        ['flame', '화염', 1, 2, 20, 0, 0, 0, [6], [6]],
+        ['infinity', '무한', 1, 1, 20, 0, 0, 4, [6], [6]],
+        ['protection', '보호', 4, 10, 1, 11, 0, 2, AR, AR],
+        ['fire_protection', '화염으로부터 보호', 4, 5, 10, 8, 0, 2, AR, AR],
+        ['blast_protection', '폭발로부터 보호', 4, 2, 5, 8, 0, 2, AR, AR],
+        ['projectile_protection', '발사체로부터 보호', 4, 5, 3, 6, 0, 2, AR, AR],
+        ['thorns', '가시', 3, 1, 10, 20, 0, 0, AR, [8]],
+        ['respiration', '호흡', 3, 2, 10, 10, 0, 0, [7], [7]],
+        ['aqua_affinity', '친수성', 1, 2, 1, 0, 0, 0, [7], [7]],
+        ['feather_falling', '가벼운 착지', 4, 5, 5, 6, 0, 0, [10], [10]],
+        ['depth_strider', '물갈퀴', 3, 2, 10, 10, 0, 5, [10], [10]],
+        ['frost_walker', '차가운 걸음', 2, 2, 10, 10, 1, 5, [10], []],
+        ['binding_curse', '귀속 저주', 1, 1, 25, 0, 1, 0, [...AR, 11], []],
+        ['vanishing_curse', '소실 저주', 1, 1, 25, 0, 1, 0, DUR, []],
+    ];
+    L.ENKEY = EN.map(e => e[0]); L.ENKO = EN.map(e => e[1]); L.ENMAX = EN.map(e => e[2]); L.ENW = EN.map(e => e[3]);
+    L.ENP0 = EN.map(e => e[4]); L.ENPS = EN.map(e => e[5]); L.ENTR = EN.map(e => e[6]); L.ENX = EN.map(e => e[7]);
+    L.ENOK = []; L.ENTB = [];
+    for (const e of EN) for (let c = 1; c <= 14; c++) { L.ENOK.push(c === 14 || e[8].includes(c) ? 1 : 0); L.ENTB.push((c === 14 && !e[6]) || e[9].includes(c) ? 1 : 0); }
+    // (the code: one number of mixed radix over the charms a class takes, under the damage x 4096; a
+    // book's alone - it must stay under 2^53)
+    for (let c = 1; c <= 14; c++) { let p = 1; EN.forEach((e, k) => { if (L.ENOK[k * 14 + c - 1]) p *= e[2] + 1; }); if (p * (c === 14 ? 1 : 4096) > 2 ** 53) throw new Error('enchant code too big ' + c + ' ' + p); }
     L.SMA = SMITH.map(p => p[0]); L.SMB = SMITH.map(p => p[1]);
     // the creative tabs
     L.PALC = []; L.PALC0 = []; L.PALCN = [];
@@ -491,7 +584,7 @@ export function makeData() {
 }
 
 // ------------------------------------------------------------------ sources
-export const FILES = ['world.js', 'flat.js', 'fluid.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'rails.js', 'save.js', 'net.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'items.js', 'hud.js', 'extra.js', 'cmds.js', 'wedit.js', 'keyin.js', 'swear.js', 'je.js', 'main.js', 'test.js'];
+export const FILES = ['world.js', 'flat.js', 'fluid.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'rails.js', 'save.js', 'net.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'items.js', 'hud.js', 'extra.js', 'ench.js', 'cmds.js', 'wedit.js', 'keyin.js', 'swear.js', 'je.js', 'main.js', 'test.js'];
 export function allConsts(more = {}) {
     const { C } = makeData();
     return { ...consts, ...C, ...more };

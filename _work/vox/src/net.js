@@ -821,6 +821,13 @@ function netRemoveEnts() {
   while (k <= NSLOT) { let e = NENT[k]; if (e > 0) { if (ET[e] == M_NETPLAYER) { ET[e] = 0; } } NENT[k] = 0; k = k + 1; }
 }
 // I hit another player (the mob e stands for slot EST[e])
+// ((v2.9) a mob that stands for a player on the server (not one from a spawn egg: that one is a mob
+// like the others, hit, killed and gone; it was untouchable and stayed for ever)
+function isProxy(e) {
+  let r = 0;
+  if (ET[e] == M_NETPLAYER) { let k = EST[e]; if (k >= 1 && k <= NENT.length) { if (NENT[k] == e) { r = 1; } } }
+  return r;
+}
 function netHit(e, dmg) {
   let k = EST[e];
   if (shPvp == 1) {

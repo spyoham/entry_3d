@@ -182,6 +182,8 @@ function lootTable(c, lt) {
     CHI[s] = LOOTI[pick]; CHN[s] = rand(LOOTLO[pick], LOOTHI[pick]); CHD[s] = 0;
     k = k + 1;
   }
+  // ((v2.9) an enchanted book in one chest of four: the treasures - mending, frost walker - are found so)
+  if (rand(1, 4) == 1) { let s = (c - 1) * 27 + rand(1, 27); CHI[s] = I_enchantedBook; CHN[s] = 1; CHD[s] = enRandomBook(); }
 }
 // mobs that live in a structure come once (the first time its middle chunk is made)
 let SMX = [], SMZ = [];

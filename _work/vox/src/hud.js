@@ -159,8 +159,10 @@ function drawIcon(id, x, y, s) {
 function slotItem(cx, cy, id, n, d, ti) {
   if (id > 0) {
     drawIcon(id, cx, cy, 7);
-    if (ITDUR[id + 1] > 0) { if (d > 0) {
-      let f = 1 - d / ITDUR[id + 1];
+    if (enHas(id, d) == 1) { penAlpha(70); box(cx - 7, cy + 7, cx + 7, cy - 7, '#a050ff'); fillStop(); penAlpha(0); }
+    let dm = 0; if (ITDUR[id + 1] > 0) { dm = dmgOf(d); }
+    if (ITDUR[id + 1] > 0) { if (dm > 0) {
+      let f = 1 - dm / ITDUR[id + 1];
       box(cx - 7, cy - 6, cx + 7, cy - 8, '#000000');
       let c = '#40e040';
       if (f < 0.5) { c = '#e0e040'; } if (f < 0.2) { c = '#e04040'; }
@@ -229,6 +231,8 @@ function drawHud2(dt) {
         j = j + 1;
       }
     }
+    // ((v2.9) absorption: gold hearts over them)
+    if (absorb > 0) { let j = 0; while (j * 2 < absorb && j < 10) { let ax = x0 + j * 8 + 4, ay = y0 + 42; box(ax - 3, ay + 3, ax + 3, ay - 3, '#5a4a10'); box(ax - 2, ay + 2, ax + 2, ay - 2, '#f2d23a'); j = j + 1; } }
     // hearts (left) and food (right), two halves each
     let i = 0;
     while (i < 10) {
@@ -325,8 +329,9 @@ function slotXY(s) {
   } else { if (s == 50) { if (cgSize == 2) { slX = 66; slY = 53; } else { slX = 40; slY = 48; } }
   else { if (s == 51) { slX = -24; slY = 66; } else { if (s == 52) { slX = -24; slY = 30; } else { if (s == 53) { slX = 36; slY = 48; }
   else { if (s == 54) { slX = -52; slY = 48; } else { if (s == 55) { slX = -16; slY = 48; } else { if (s == 56) { slX = 40; slY = 48; }
+  else { if (s >= 57 && s <= 60 || s == 88) { if (s == 57) { slX = -66; slY = 62; } if (s == 58) { slX = -66; slY = 30; } if (s == 59) { slX = -60; slY = 48; } if (s == 60) { slX = -8; slY = 48; } if (s == 88) { slX = 44; slY = 48; } }
   else { if (s <= 87) { slX = -72 + mod(s - 61, 9) * 18; slY = 66 - idiv(s - 61, 9) * 18; }
-  else { slX = -72 + mod(s - 101, 9) * 18; slY = 70 - idiv(s - 101, 9) * 18; } } } } } } } } } } } }
+  else { slX = -72 + mod(s - 101, 9) * 18; slY = 70 - idiv(s - 101, 9) * 18; } } } } } } } } } } } } }
 }
 // is slot s part of the screen now?
 function slotIn(s) {
@@ -337,6 +342,8 @@ function slotIn(s) {
   if (s == 50) { if (uiMode == 1 || uiMode == 2) { r = 1; } }
   if (s >= 51 && s <= 53) { if (uiMode == 3) { r = 1; } }
   if (s >= 54 && s <= 56) { if (uiMode == 8) { r = 1; } }
+  if (s == 57 || s == 58) { if (uiMode == 11) { r = 1; } }
+  if (s == 59 || s == 60 || s == 88) { if (uiMode == 12) { r = 1; } }
   if (s >= 61 && s <= 87) { if (uiMode == 4) { if (s - 60 <= curCap) { r = 1; } } }
   if (s >= 101 && s <= 136) { if (uiMode == 5) { r = 1; } }
   return r;
@@ -346,8 +353,8 @@ function slotsInit() {
   SLOTS = [];
   let s = 1;
   while (s <= 40) { SLOTS.push(s); s = s + 1; }
-  s = 41; while (s <= 56) { SLOTS.push(s); s = s + 1; }
-  s = 61; while (s <= 87) { SLOTS.push(s); s = s + 1; }
+  s = 41; while (s <= 60) { SLOTS.push(s); s = s + 1; }
+  s = 61; while (s <= 88) { SLOTS.push(s); s = s + 1; }
   s = 101; while (s <= 136) { SLOTS.push(s); s = s + 1; }
 }
 function invScreen() {
@@ -359,6 +366,8 @@ function invScreen() {
   if (uiMode == 3) { title = '화로'; }
   if (uiMode == 4) { title = '상자'; if (curCap == 5) { title = '깔때기'; } if (curCap == 9) { title = '발사기'; } }
   if (uiMode == 8) { title = '대장장이 작업대: 다이아몬드 장비 + 심연철 주괴'; }
+  if (uiMode == 11) { title = '마법 탁자'; }
+  if (uiMode == 12) { title = '모루: 수리·합치기·마법이 부여된 책'; }
   if (uiMode == 5) {
     let tn = '검색';
     if (uiTab < NCAT) { tn = CATNAME[uiTab + 1]; } else { tn = `검색: ${srchText} (${SRCH.length})`; }
@@ -397,6 +406,8 @@ function invScreen() {
     box(-30, 56, -18, 40, '#8b8b8b');
     if (fl > 0) { box(-30, 40 + 16 * fl, -18, 40, '#f08020'); box(-27, 40 + 10 * fl, -21, 40, '#f8e040'); }
   }
+  if (uiMode == 11) { enTableScreen(); }
+  if (uiMode == 12) { anvilScreen(); }
   // what is on the cursor follows it; the name of what is under it
   if (curI > 0) { slotItem(mx, my, curI, curN, curD, 91); } else { txOff(91); }
   if (hov > 0) {
@@ -405,11 +416,17 @@ function invScreen() {
       if (curI == 0) {
         let nm = ITNAME[gI + 1];
         let w = emOf(nm) * 8 + 8;
-        box(mx + 10, my + 14, mx + 10 + w, my + 2, '#100010');
+        // ((v2.9) the charms under the name)
+        if (enHas(gI, gD) == 1) {
+          enDesc(gI, gD);
+          let w2 = emOf(enS) * 7 + 8;
+          box(mx + 10, my + 14, mx + 10 + Math.max(w, w2), my - 9, '#100010');
+          tx(104, enS, mx + 14, my, 7, '#b090ff', 1);
+        } else { box(mx + 10, my + 14, mx + 10 + w, my + 2, '#100010'); txOff(104); }
         tx(92, nm, mx + 14, my + 11, 8, '#ffffff', 1);
-      } else { txOff(92); }
-    } else { txOff(92); }
-  } else { txOff(92); }
+      } else { txOff(92); txOff(104); }
+    } else { txOff(92); txOff(104); }
+  } else { txOff(92); txOff(104); }
   uiHover = hov;
 }
 let uiHover = 0;

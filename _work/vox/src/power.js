@@ -1149,7 +1149,7 @@ function dispense(x, y, z, b) {
         if (BUSE[ITPLB[id + 1] + 1] == U_SHELL) { if (fb == 0) { setBlock(fx, fy, fz, ITPLB[id + 1]); how = 1; } }
       }
       // (4: flint and steel worn, 3: nothing done - the item stays)
-      if (how == 4) { CHD[s] = CHD[s] + 1; if (CHD[s] >= ITDUR[id + 1]) { CHN[s] = 0; } how = 2; }
+      if (how == 4) { CHD[s] = CHD[s] + enWear(id, CHD[s], 1, 0); if (dmgOf(CHD[s]) >= ITDUR[id + 1]) { CHN[s] = 0; } how = 2; }
       if (how == 3) { how = 2; }
       if (how == 0) { dropItem(id, 1, CHD[s], x + 0.5 + DX6[f + 1] * 0.7, y + 0.3 + DY6[f + 1] * 0.7, z + 0.5 + DZ6[f + 1] * 0.7, 0); how = 1; }
       if (how == 1) { CHN[s] = CHN[s] - 1; }

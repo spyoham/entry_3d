@@ -51,6 +51,11 @@ function useKey0() {
       if (et == 13 || isCart(et) == 1) { riding = mobPick; used = 1; placeCool = 0.4; }
       if (et == 3) { if (ITTK[id + 1] == 5) { if (EST[mobPick] != 9) { EST[mobPick] = 9; dropItem(32, rand(1, 3), 0, EX[mobPick], EY[mobPick] + 1, EZ[mobPick], 0); wearHeld(1); sndPlay(6); used = 1; placeCool = 0.3; } } }
       if (et == M_VILLAGER) { tradeOpen(mobPick); used = 1; }
+      // ((v2.9) flint and steel or a fire charge lights a bursting mushroom: it goes off in 1.5 s)
+      if (MAI[et] == 6) { if (id == 122 || id == I_fireCharge) { if (EST[mobPick] != 6) {
+        EST[mobPick] = 6; ETM[mobPick] = 1.5; used = 1; placeCool = 0.3; sndPlay(2);
+        if (id == 122) { wearHeld(1); } else { if (mod(gameMode, 2) == 0) { takeHeld(1); } }
+      } } }
       // ((v2.7.4) milking: in creative the bucket stays and a milk bucket comes if there is none; a cow
       // clicked with a milk bucket keeps it (it was drunk at once: the milk seemed to go))
       if (et == 2) {
@@ -92,12 +97,12 @@ function useBlock(x, y, z, b, id) {
   else { if (u == U_NOTE) { if (BKIND[b + 1] == I_noteBlock) { noteTune(x, y, z, b); } else { sndPlay(6); msgShow('♪', 1); } }
   else { if (u == U_CAKE) { cakeEat(x, y, z); }
   else { if (u == U_COMPOST) { used = composterUse(x, y, z, id); }
-  else { if (u == U_REPAIR) { repairHeld(b); }
+  else { if (u == U_REPAIR) { if (b == I_grindstone) { grindHeld(); } else { anvilOpen(x, y, z); } }
   else { if (u == U_BELL) { bellRing(x, y, z); msgShow('댕-', 1); }
   else { if (u == U_POT) { used = potUse(x, y, z, b, id); }
   else { if (u == U_COMMAND) { commandBlockEdit(x, y, z); }
   else { if (u == U_CAMPFIRE) { used = campfireUse(x, y, z, b, id); }
-  else { if (u == U_ENCHANT) { enchantHeld(); }
+  else { if (u == U_ENCHANT || u == U_BEACON) { if (u == U_ENCHANT) { enchOpen(x, y, z); } else { beaconOpen(x, y, z, b); } }
   else { if (u == U_LODESTONE) { used = 0; if (id == I_compass) { lodeX = x; lodeZ = z; lodeOn = 1; msgShow('나침반이 이 자석석을 가리킵니다', 2); used = 1; } }
   else { if (u == U_ANCHOR) { anchorUse(x, y, z, id); }
   else { if (u == U_RS) { rsUse(x, y, z, b); }
@@ -778,30 +783,6 @@ function composterUse(x, y, z, id) {
   }
   return used;
 }
-// the anvil mends the tool in hand (a level, if there is one), the grindstone a quarter of it
-function repairHeld(b) {
-  let id = INVI[hotSel];
-  if (ITDUR[id + 1] > 0 && INVD[hotSel] > 0) {
-    if (b == I_grindstone) { INVD[hotSel] = Math.max(0, INVD[hotSel] - Math.ceil(ITDUR[id + 1] / 4)); xpAdd(2); msgShow('숫돌로 갈았습니다', 2); }
-    else {
-      if (xpLevel >= 1 || mod(gameMode, 2) == 1) { if (mod(gameMode, 2) == 0) { xpLevel = xpLevel - 1; } INVD[hotSel] = 0; msgShow(`${ITNAME[id + 1]}을(를) 고쳤습니다`, 2); sndPlay(6); }
-      else { msgShow('경험치 레벨이 1 필요합니다', 2); }
-    }
-  } else { msgShow('손에 든 닳은 도구를 고칠 수 있습니다', 2); }
-}
-// the table of charms: three levels and a lapis make the tool in hand as good as new and tougher
-function enchantHeld() {
-  let id = INVI[hotSel];
-  if (ITDUR[id + 1] > 0) {
-    let li = 0, k = 1;
-    while (k <= 36) { if (INVI[k] == 119) { li = k; } k = k + 1; }
-    if ((xpLevel >= 3 && li > 0) || mod(gameMode, 2) == 1) {
-      if (mod(gameMode, 2) == 0) { xpLevel = xpLevel - 3; INVN[li] = INVN[li] - 1; if (INVN[li] <= 0) { INVI[li] = 0; } }
-      INVD[hotSel] = 0 - Math.floor(ITDUR[id + 1] / 2);
-      msgShow(`${ITNAME[id + 1]}에 마법을 걸었습니다 (내구도 +50%)`, 3); sndPlay(7);
-    } else { msgShow('경험치 3레벨과 청금석 1개가 필요합니다', 2); }
-  } else { msgShow('도구나 무기를 들고 쓰세요', 2); }
-}
 // ((v2.7) as the genre: a shovel or a water bucket puts a campfire out, flint and steel or a fire
 // charge lights it again; raw food is put on it (4 at most) and comes off cooked 30 s on while it
 // burns (it was cooked in the hand at once; a campfire never went out). Put out it neither hurts
@@ -925,6 +906,8 @@ function xpNeed(l) {
   return r;
 }
 function xpAdd(n) {
+  // ((v2.9) mending drinks it first)
+  n = mendXp(n);
   xpPts = xpPts + n;
   while (xpPts >= xpNeed(xpLevel)) { xpPts = xpPts - xpNeed(xpLevel); xpLevel = xpLevel + 1; if (mod(xpLevel, 5) == 0) { sndPlay(6); } }
 }

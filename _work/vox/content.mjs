@@ -762,7 +762,7 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     cube('trappedChest', 'trapped_chest', '덫 상자', ['chestTop', tc('trappedSide', ['bbbbbbbb', 'baaaaaab', 'baaaaaab', 'kkkrrkkk', 'baarraab', 'baaaaaab', 'baaaaaab', 'bbbbbbbb'], { a: '9c6a2c', b: '6b4518', k: '3a2810', r: 'c02020' }), 'chestTop'], { hard: 2.5, tool: 2, cat: 4, use: 'chest', shape: 5, model: 'chestm', hide: 0, lop: 0, rs: 'trapped' });
     R(['chest tripwireHook'], 'trappedChest', 1, 1);
     cube('commandBlock', 'command_block', '명령 블록', tc('cmdT', ['kkkkkkkk', 'kaaaaaak', 'kaccccak', 'kacbbcak', 'kacbbcak', 'kaccccak', 'kaaaaaak', 'kkkkkkkk'], { a: 'c88a4a', b: 'e8c890', c: 'a86a2a', k: '6a4a2a' }), { hard: -1, cat: 4, use: 'command', drop: 'none', rs: 'command' });
-    cube('beacon', 'beacon', '신호기', tc('beaconT', ['wwwwwwww', 'w.cccc.w', 'w.cbbc.w', 'w.cbbc.w', 'w.cccc.w', 'wkkkkkkw', 'wkkkkkkw', 'wwwwwwww'], { w: 'c8f0f8', c: '80f0f0', b: 'f0ffff', k: '2a2a3a' }), { hard: 3, shape: 4, hide: 0, lop: 0, light: 15, cat: 3 });
+    cube('beacon', 'beacon', '신호기', tc('beaconT', ['wwwwwwww', 'w.cccc.w', 'w.cbbc.w', 'w.cbbc.w', 'w.cccc.w', 'wkkkkkkw', 'wkkkkkkw', 'wwwwwwww'], { w: 'c8f0f8', c: '80f0f0', b: 'f0ffff', k: '2a2a3a' }), { hard: 3, shape: 4, hide: 0, lop: 0, light: 15, cat: 3, use: 'beacon' });
     R(['glass glass glass', 'glass heartCore glass', 'obsidian obsidian obsidian'], 'beacon', 1);
     add({ n: 'enchantTable', key: 'enchanting_table', ko: '마법 탁자', t: [tc('enchTop', ['kkkkkkkk', 'krrrrrrk', 'krwwwwrk', 'krwwwwrk', 'krrrrrrk', 'kkkkkkkk', 'kkkkkkkk', 'kkkkkkkk'], { k: '2a1a2a', r: 'a02020', w: 'e8e0c8' }), tc('enchSide', ['rrrrrrrr', 'kkkkkkkk', 'kcckkcck', 'kkkkkkkk', 'kkckkkck', 'kkkkkkkk', 'kkkkkkkk', 'kkkkkkkk'], { k: '1a1420', r: 'a02020', c: '3ae0d0' }), 'obsidian'], hard: 5, tool: 1, tier: 0, shape: 5, model: 'table12', hide: 0, lop: 0, light: 7, cat: 3, use: 'enchant' });
     R(['_ book _', 'diamond obsidian diamond', 'obsidian obsidian obsidian'], 'enchantTable', 1);
@@ -918,5 +918,9 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     for (const [m, f, v] of [['hopper_x0', 0, 'west'], ['hopper_x1', 1, 'east'], ['hopper_z0', 4, 'north'], ['hopper_z1', 5, 'south']]) add({ n: 'hopper_' + v, key: 'hopper_' + v, ko: '깔때기', t: ['hopperT'], hard: 3, tool: 1, shape: 5, model: m, hide: 0, lop: 0, cat: 4, use: 'chest', fac: f, hidden: 1, nokind: 1, item: 'hopper', drop: 'hopper' });
     add({ n: 'campfireOff', key: 'campfire_off', ko: '모닥불', t: ['oakBark'], hard: 2, tool: 2, shape: 5, model: 'campfire_off', hide: 0, lop: 0, cat: 3, drop: 'coal', dropN: 2, use: 'campfire', hidden: 1, nokind: 1, item: 'campfire' });
     add({ n: 'wailCampfireOff', key: 'wail_campfire_off', ko: '흐느낌 모닥불', t: ['oakBark'], hard: 2, tool: 2, shape: 5, model: 'campfire_off', hide: 0, lop: 0, cat: 3, drop: 'wailSoil', use: 'campfire', hidden: 1, nokind: 1, item: 'wailCampfire' });
+    // (v2.9) a beacon with its powers chosen (aux 1..15: the first power (aux-1)%5 - speed, haste,
+    // resistance, jump boost, strength - and the second (aux-1)/5 - none, regeneration, the first at II):
+    // kept in the block, so a world and a server keep them as they keep blocks
+    for (let k = 1; k <= 15; k++) add({ n: 'beacon_' + k, key: 'beacon_' + k, ko: '신호기', t: ['beaconT'], hard: 3, shape: 4, hide: 0, lop: 0, light: 15, cat: 3, use: 'beacon', aux: k, hidden: 1, nokind: 1, item: 'beacon', drop: 'beacon' });
     return { item, I, R, S, ICON, kinds, byKey };
 }

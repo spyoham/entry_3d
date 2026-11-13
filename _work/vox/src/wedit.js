@@ -192,7 +192,8 @@ function weRunsOf(b) {
     let v = 0 - 3;
     if (i <= n) {
       v = WEN[i];
-      if (b == 1) { if (v >= 0) { v = blockAt(x, y, z); } }
+      // ((v2.9) a cell in a chunk not made yet: not known, so the undo leaves it)
+      if (b == 1) { if (v >= 0) { if (cOK(x, z) == 1) { v = blockAt(x, y, z); } else { v = 0 - 1; } } }
       y = y + 1; if (y > weY1) { y = weY0; z = z + 1; if (z > weZ1) { z = weZ0; x = x + 1; } }
     }
     if (v == last && run < 46655) { run = run + 1; }
@@ -307,12 +308,13 @@ function weCopy(c) {
   else { if (weN > WEMAX) { weS = weTooBig(); }
   else {
     WCB = [];
-    let x = weX0;
-    while (x <= weX1) { let z = weZ0; while (z <= weZ1) { let y = weY0; while (y <= weY1) { WCB.push(blockAt(x, y, z)); y = y + 1; } z = z + 1; } x = x + 1; }
+    let x = weX0, nf = 0;
+    // ((v2.9) a cell of a chunk not made yet is left out of the paste: it read as stone)
+    while (x <= weX1) { let z = weZ0; while (z <= weZ1) { let y = weY0; let ok = cOK(x, z); while (y <= weY1) { if (ok == 1) { WCB.push(blockAt(x, y, z)); } else { WCB.push(0 - 1); nf = nf + 1; } y = y + 1; } z = z + 1; } x = x + 1; }
     wcW = weX1 - weX0 + 1; wcH = weY1 - weY0 + 1; wcL = weZ1 - weZ0 + 1;
     wcOX = weX0 - Math.floor(px); wcOY = weY0 - Math.floor(py); wcOZ = weZ0 - Math.floor(pz);
-    weS = `블록 ${weN}칸을 복사했습니다`;
-    if (c == 'cut') { weFill(0); let i = 1; while (i <= WCB.length) { if (WCB[i] == 0) { WEN[i] = 0 - 1; } i = i + 1; } let n = weCommit(0); weS = `블록 ${weN}칸을 잘라 냈습니다 (${n}개 지움)`; }
+    weS = `블록 ${weN}칸을 복사했습니다`; if (nf > 0) { weS = `${weS} (아직 불러오지 않은 ${nf}칸은 빼고)`; }
+    if (c == 'cut') { weFill(0); let i = 1; while (i <= WCB.length) { if (WCB[i] <= 0) { WEN[i] = 0 - 1; } i = i + 1; } let n = weCommit(0); weS = `블록 ${weN}칸을 잘라 냈습니다 (${n}개 지움)`; }
   } }
   return weS;
 }
@@ -331,7 +333,7 @@ function wePaste() {
     while (x <= weX1) { let z = weZ0; while (z <= weZ1) { let y = ry0; while (y <= ry1) {
       let b = WCB[i];
       if (skipAir == 1 && b == 0) { b = 0 - 1; }
-      if (y < 0 || y >= WY || cOK(x, z) == 0) { b = 0 - 2; }
+      if (y < 0 || y >= WY) { b = 0 - 2; }
       WEN.push(b); i = i + 1; y = y + 1; } z = z + 1; } x = x + 1; }
     // (cells out of the world taken out: the box weY0 .. weY1 inside it)
     if (weY0 < 0 || weY1 >= WY) {
@@ -365,6 +367,8 @@ function weRotate(d) {
       let ox0 = wcOX, oz0 = wcOZ;
       wcOX = 0 - (oz0 + wcL - 1); wcOZ = ox0;
       wcW = nW; wcL = nL;
+      // ((v2.9) each block turned with it: stairs, doors, logs ... (they kept their way))
+      i = 1; while (i <= WCB.length) { if (WCB[i] > 0) { WCB[i] = BROT[WCB[i] + 1]; } i = i + 1; }
       t = t + 1;
     }
     weS = `클립보드를 ${q * 90}도 돌렸습니다`;

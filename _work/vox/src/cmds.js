@@ -247,7 +247,7 @@ function selParse(w) {
       if (pOk == 1) { selAdd(0); }
       let e = 1;
       while (e <= NMOB) {
-        if (ET[e] > 0 && ET[e] != M_NETPLAYER) {
+        if (ET[e] > 0 && isProxy(e) == 0) {
           let okT = 1;
           if (ty > 0) { if (ET[e] != ty) { okT = 0; } if (neg == 1) { okT = 1 - okT; } }
           if (ty == 0 - 1) { okT = neg; }
@@ -640,7 +640,8 @@ function cmdHelp(w) {
   if (w == 'summon') { r = '/summon <몹> [x y z] 예: /summon zombie ~ ~ ~3 · 몹: pig cow sheep chicken zombie skeleton spider wraith toad wanderer villager golem bombshroom raider ashpig ashboar blackskel boat lightning_bolt tnt'; }
   if (w == 'gamemode') { r = '/gamemode survival|creative|adventure|spectator [대상]'; }
   if (w == 'gamerule') { r = '/gamerule <규칙> [값] 규칙: keepInventory doDaylightCycle doMobSpawning naturalRegeneration fallDamage doWeatherCycle doMobLoot doTileDrops mobGriefing doFireTick drowningDamage fireDamage doImmediateRespawn randomTickSpeed commandBlockOutput sendCommandFeedback showDeathMessages spawnRadius'; }
-  if (w == 'effect') { r = '/effect give <대상> <효과> [초] [단계] · /effect clear [대상] [효과] 효과: speed slowness haste jump_boost regeneration resistance fire_resistance night_vision saturation levitation slow_falling water_breathing'; }
+  if (w == 'effect') { r = '/effect give <대상> <효과> [초] [단계] · /effect clear [대상] [효과] 효과: speed slowness haste jump_boost regeneration resistance fire_resistance night_vision saturation levitation slow_falling water_breathing absorption strength'; }
+  if (w == 'enchant') { r = '/enchant [@s] <마법> [레벨] 손에 든 것에 · 예: /enchant @s sharpness 5 · 마법: sharpness smite bane_of_arthropods knockback fire_aspect looting sweeping efficiency silk_touch fortune unbreaking mending power punch flame infinity protection fire_protection blast_protection projectile_protection thorns respiration aqua_affinity feather_falling depth_strider frost_walker binding_curse vanishing_curse'; }
   if (w == 'time') { r = '/time set day|noon|night|midnight|<틱>[d|s|t] · /time add <틱> · /time query daytime|gametime|day'; }
   if (w == 'weather') { r = '/weather clear|rain|thunder [초]'; }
   if (w == 'locate') { r = '/locate village|desert_pyramid|jungle_temple|swamp_hut|igloo|pillager_outpost|mansion|monument|shipwreck|ocean_ruin|buried_treasure|ruined_portal|stronghold|mineshaft|fortress|bastion_remnant|void_city'; }
@@ -883,7 +884,14 @@ function boxPut(x, y, z, b) {
       // (v2.3.2) water or lava put by a command flows; a hole made by one fills
       fluidNotify(x, y, z);
       bxN = bxN + 1;
+      // ((v2.9) a crop over farmland made something else goes (it stayed, standing on dirt))
+      if (y + 1 < WY) { let up = W[i + 1]; if (BNEED[up + 1] == N_FARM) { if (standsOn(up, b, x, y + 1, z) == 0) { logOn = 1; wput(x, y + 1, z, 0); logOn = 0; markDirty(x, y + 1, z); } } }
     }
+  } else {
+    // ((v2.9) a chunk not made yet (out of sight, or still coming): kept in the world's log and put
+    // when the chunk is made (it was lost: a //paste or /fill reaching there came out cut)
+    edPush(x, y, z, b); bxN = bxN + 1;
+    if (netSrv > 0) { if (netHost == 1) { hostKeepEdit(x, y, z, b, dim); } }
   } }
 }
 let bxN = 0;
@@ -1100,12 +1108,6 @@ function cmdReplaceItem() {
   if (indexOf(slot, 'inventory.') == 1) { s = substr(slot, 11, strlen(slot)) * 1 + 10; }
   if (s < 1 || s > 40 || id == 0) { out = '/replaceitem entity @s <weapon.mainhand|hotbar.0-8|inventory.0-26|armor.head|chest|legs|feet> <아이템> [개수]'; }
   else { INVI[s] = id; INVN[s] = Math.min(n, ITST[id + 1]); INVD[s] = 0; out = `${ITNAME[id + 1]}(으)로 바꿨습니다`; }
-  return out;
-}
-function cmdEnchant() {
-  let id = INVI[hotSel], out = '';
-  if (ITDUR[id + 1] > 0) { INVD[hotSel] = 0 - Math.floor(ITDUR[id + 1] / 2); out = `${ITNAME[id + 1]}에 마법을 걸었습니다 (내구도 +50%)`; }
-  else { out = '손에 든 것에는 마법을 걸 수 없습니다'; }
   return out;
 }
 function cmdLocate(nm) {

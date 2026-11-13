@@ -4,18 +4,19 @@
 
 // ---------------------------------------------------------------- effects
 // 1 speed, 2 slowness, 3 haste, 4 jump boost, 5 regeneration, 6 resistance, 7 fire resistance,
-// 8 night vision, 9 saturation, 10 levitation, 11 slow falling, 12 water breathing
+// 8 night vision, 9 saturation, 10 levitation, 11 slow falling, 12 water breathing; (v2.9) 13 absorption
+// (the totem's), 14 strength (the beacon's)
 let EFT = [], EFL = [];
-let EFK = ['speed', 'slowness', 'haste', 'jump_boost', 'regeneration', 'resistance', 'fire_resistance', 'night_vision', 'saturation', 'levitation', 'slow_falling', 'water_breathing'];
-let EFKO = ['신속', '구속', '성급함', '점프 강화', '재생', '저항', '화염 저항', '야간 투시', '포화', '공중 부양', '느린 낙하', '수중 호흡'];
+let EFK = ['speed', 'slowness', 'haste', 'jump_boost', 'regeneration', 'resistance', 'fire_resistance', 'night_vision', 'saturation', 'levitation', 'slow_falling', 'water_breathing', 'absorption', 'strength'];
+let EFKO = ['신속', '구속', '성급함', '점프 강화', '재생', '저항', '화염 저항', '야간 투시', '포화', '공중 부양', '느린 낙하', '수중 호흡', '흡수', '힘'];
 let nightVis = 0, efRegenT = 0;
 function effectsInit() {
   EFT = []; EFL = [];
   let k = 0;
-  while (k < 12) { EFT.push(0); EFL.push(0); k = k + 1; }
-  nightVis = 0;
+  while (k < 14) { EFT.push(0); EFL.push(0); k = k + 1; }
+  nightVis = 0; absorb = 0;
 }
-function effectAdd(k, sec, lvl) { EFT[k] = sec; EFL[k] = lvl; }
+function effectAdd(k, sec, lvl) { EFT[k] = sec; EFL[k] = lvl; if (k == 13) { absorb = 4 * lvl; } }
 // the level of effect k now (0: none)
 function fx(k) {
   let r = 0;
@@ -24,7 +25,8 @@ function fx(k) {
 }
 function effectsStep(dt) {
   let k = 1;
-  while (k <= 12) { if (EFT[k] > 0) { EFT[k] = EFT[k] - dt; if (EFT[k] <= 0) { EFT[k] = 0; } } k = k + 1; }
+  while (k <= EFT.length) { if (EFT[k] > 0) { EFT[k] = EFT[k] - dt; if (EFT[k] <= 0) { EFT[k] = 0; } } k = k + 1; }
+  if (fx(13) == 0) { absorb = 0; }
   if (fx(5) > 0) {
     efRegenT = efRegenT + dt;
     if (efRegenT >= 2.5 / fx(5)) { efRegenT = 0; if (hp < 20) { hp = hp + 1; } }
@@ -43,7 +45,7 @@ function romanOf(n) {
 // the effects on the screen (top right)
 function effectsHud() {
   let k = 1, y = 128, j = 96;
-  while (k <= 12) {
+  while (k <= EFT.length) {
     if (EFT[k] > 0) {
       if (j <= 101) {
         let s = Math.floor(EFT[k]);
@@ -315,7 +317,7 @@ function farArrive() {
 let gliding = 0;
 function gliderOn() {
   let r = 0;
-  if (INVI[38] == 173) { if (INVD[38] < ITDUR[174] - 1) { r = 1; } }
+  if (INVI[38] == 173) { if (dmgOf(INVD[38]) < ITDUR[174] - 1) { r = 1; } }
   return r;
 }
 // a step of gliding (in blocks a tick, as the original falls do: dt in seconds)
@@ -341,7 +343,7 @@ function glideStep(dt) {
   pvx = vx * 20; pvy = vy * 20; pvz = vz * 20;
   fallTop = py;
   glideWearT = glideWearT + dt;
-  if (glideWearT >= 1) { glideWearT = 0; if (mod(gameMode, 2) == 0) { INVD[38] = INVD[38] + 1; } }
+  if (glideWearT >= 1) { glideWearT = 0; if (mod(gameMode, 2) == 0) { INVD[38] = INVD[38] + enWear(173, INVD[38], 1, 0); } }
 }
 
 // ---------------------------------------------------------------- (v2.8) firework rockets

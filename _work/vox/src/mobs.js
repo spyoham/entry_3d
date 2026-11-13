@@ -1,27 +1,27 @@
 // ===================================================================== things that move
 // mobs (slots 1..NMOB), items lying about (1..NITM), arrows (1..NARR)
-let ET = [], EX = [], EY = [], EZ = [], EVX = [], EVY = [], EVZ = [], EYAW = [], EHP = [], EST = [], ETM = [], EHURT = [], EWALK = [], EATK = [], EBURN = [], EGND = [], EWY = [];
+let ET = [], EX = [], EY = [], EZ = [], EVX = [], EVY = [], EVZ = [], EYAW = [], EHP = [], EST = [], ETM = [], EHURT = [], EWALK = [], EATK = [], EBURN = [], EGND = [], EWY = [], EFIR = [];
 let IID = [], INN = [], IDU = [], IXX = [], IYY = [], IZZ = [], IVX = [], IVY = [], IVZ = [], IAGE = [];
-let AXX = [], AYY = [], AZZ = [], AVX = [], AVY = [], AVZ = [], AAGE = [], AON = [], ASTK = [];
+let AXX = [], AYY = [], AZZ = [], AVX = [], AVY = [], AVZ = [], AAGE = [], AON = [], ASTK = [], AEN = [], shotEn = 0;
 let nHostile = 0, nPassive = 0, spawnT = 0;
 
 function thingsInit() {
-  ET = []; EX = []; EY = []; EZ = []; EVX = []; EVY = []; EVZ = []; EYAW = []; EHP = []; EST = []; ETM = []; EHURT = []; EWALK = []; EATK = []; EBURN = []; EGND = []; EWY = [];
+  ET = []; EX = []; EY = []; EZ = []; EVX = []; EVY = []; EVZ = []; EYAW = []; EHP = []; EST = []; ETM = []; EHURT = []; EWALK = []; EATK = []; EBURN = []; EGND = []; EWY = []; EFIR = [];
   IID = []; INN = []; IDU = []; IXX = []; IYY = []; IZZ = []; IVX = []; IVY = []; IVZ = []; IAGE = [];
-  AXX = []; AYY = []; AZZ = []; AVX = []; AVY = []; AVZ = []; AAGE = []; AON = []; ASTK = [];
+  AXX = []; AYY = []; AZZ = []; AVX = []; AVY = []; AVZ = []; AAGE = []; AON = []; ASTK = []; AEN = [];
   let i = 0;
-  while (i < NMOB) { ET.push(0); EX.push(0); EY.push(0); EZ.push(0); EVX.push(0); EVY.push(0); EVZ.push(0); EYAW.push(0); EHP.push(0); EST.push(0); ETM.push(0); EHURT.push(0); EWALK.push(0); EATK.push(0); EBURN.push(0); EGND.push(0); EWY.push(0); i = i + 1; }
+  while (i < NMOB) { ET.push(0); EX.push(0); EY.push(0); EZ.push(0); EVX.push(0); EVY.push(0); EVZ.push(0); EYAW.push(0); EHP.push(0); EST.push(0); ETM.push(0); EHURT.push(0); EWALK.push(0); EATK.push(0); EBURN.push(0); EGND.push(0); EWY.push(0); EFIR.push(0); i = i + 1; }
   i = 0;
   while (i < NITM) { IID.push(0); INN.push(0); IDU.push(0); IXX.push(0); IYY.push(0); IZZ.push(0); IVX.push(0); IVY.push(0); IVZ.push(0); IAGE.push(0); i = i + 1; }
   i = 0;
-  while (i < NARR) { AXX.push(0); AYY.push(0); AZZ.push(0); AVX.push(0); AVY.push(0); AVZ.push(0); AAGE.push(0); AON.push(0); ASTK.push(0); i = i + 1; }
+  while (i < NARR) { AXX.push(0); AYY.push(0); AZZ.push(0); AVX.push(0); AVY.push(0); AVZ.push(0); AAGE.push(0); AON.push(0); ASTK.push(0); AEN.push(0); i = i + 1; }
 }
 function mobAdd(t, x, y, z) {
   let i = 1, e = 0;
   while (i <= NMOB) { if (e == 0) { if (ET[i] == 0) { e = i; } } i = i + 1; }
   if (e > 0) {
     ET[e] = t; EX[e] = x; EY[e] = y; EZ[e] = z; EVX[e] = 0; EVY[e] = 0; EVZ[e] = 0; EYAW[e] = rand(0, 359); EWY[e] = EYAW[e];
-    EHP[e] = MHP[t]; EST[e] = 0; ETM[e] = rand(1, 40) / 10; EHURT[e] = 0; EWALK[e] = 0; EATK[e] = 0; EBURN[e] = 0; EGND[e] = 0;
+    EHP[e] = MHP[t]; EST[e] = 0; ETM[e] = rand(1, 40) / 10; EHURT[e] = 0; EWALK[e] = 0; EATK[e] = 0; EBURN[e] = 0; EGND[e] = 0; EFIR[e] = 0;
   }
   lastMob = e;
 }
@@ -60,7 +60,7 @@ function spawnStep(dt) {
           nHostile = nHostile + 1;
           // far away ones go
           if ((EX[i] - px) * (EX[i] - px) + (EZ[i] - pz) * (EZ[i] - pz) > 56 * 56) { ET[i] = 0; }
-        } else { if (ET[i] != M_NETPLAYER) { nPassive = nPassive + 1; } if (MNEU[ET[i]] == 1 || ET[i] == 12) { if ((EX[i] - px) * (EX[i] - px) + (EZ[i] - pz) * (EZ[i] - pz) > 64 * 64) { ET[i] = 0; } } }
+        } else { if (isProxy(i) == 0) { nPassive = nPassive + 1; } if (MNEU[ET[i]] == 1 || ET[i] == 12) { if ((EX[i] - px) * (EX[i] - px) + (EZ[i] - pz) * (EZ[i] - pz) > 64 * 64) { ET[i] = 0; } } }
       }
       i = i + 1;
     }
@@ -125,7 +125,7 @@ function mobsStep(dt) {
       else {
         // (v2.4.3) mobs and the other players press plates too
         // (v2.5: a minecart presses as an item does: wooden plates, not stone ones; string)
-        if (ET[e] != 13) { let wh = 0; if (isCart(ET[e]) == 1) { wh = 1; } plateHit(Math.floor(EX[e]), Math.floor(EY[e] + 0.05), Math.floor(EZ[e]), wh); } if (ET[e] != 10 && ET[e] != M_NETPLAYER) { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 1600) { mobStep(e, dt); } } }
+        if (ET[e] != 13) { let wh = 0; if (isCart(ET[e]) == 1) { wh = 1; } plateHit(Math.floor(EX[e]), Math.floor(EY[e] + 0.05), Math.floor(EZ[e]), wh); } if (ET[e] != 10 && isProxy(e) == 0) { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 1600) { mobStep(e, dt); } } }
     }
     e = e + 1;
   }
@@ -143,6 +143,8 @@ function mobStep0(e, dt) {
   let want = 0, wy = EYAW[e], spd = MSPD[t];
   ETM[e] = ETM[e] - dt; EHURT[e] = EHURT[e] - dt; EATK[e] = EATK[e] - dt;
   let ai = MAI[t];
+  // ((v2.9) a lit bursting mushroom goes off whoever is near, in creative too)
+  if (ai == 6) { if (EST[e] == 6) { bombStep(e, dist, dt); } }
   // the iron keeper goes for hostile mobs near it; the people of the village run from them
   if (ai == 8) { if (EST[e] != 4) { golemHunt(e, dt); } }
   if (ai == 7) { villagerFear(e); }
@@ -165,9 +167,9 @@ function mobStep0(e, dt) {
         want = 0;
         if (EGND[e] == 1) { if (ETM[e] <= 0) { ETM[e] = 0.9 + rand(0, 8) / 10; EVY[e] = 7.5; want = 1.8; EYAW[e] = wy; } }
         else { want = 1.8; }
-        if (dist < 1.4) { if (Math.abs(dyp) < 1.2) { if (EATK[e] <= 0) { EATK[e] = 1; hurtM(MDMG[t], `${MNAME[t]}에게 당했습니다`); pvx = pvx + dxp / (dist + 0.01) * 4; pvz = pvz + dzp / (dist + 0.01) * 4; pvy = 4; } } }
+        if (dist < 1.4) { if (Math.abs(dyp) < 1.2) { if (EATK[e] <= 0) { EATK[e] = 1; hurtM(MDMG[t], `${MNAME[t]}에게 당했습니다`); thornsHit(e); pvx = pvx + dxp / (dist + 0.01) * 4; pvz = pvz + dzp / (dist + 0.01) * 4; pvy = 4; } } }
       }
-      if (ai == 6) { bombStep(e, dist, dt); if (EST[e] == 5) { want = 0; } }
+      if (ai == 6) { if (EST[e] != 6) { bombStep(e, dist, dt); } if (EST[e] == 5 || EST[e] == 6) { want = 0; } }
       if (ai == 2) {
         // the archer keeps its distance and shoots
         if (dist < 6) { want = 0 - 1; }
@@ -181,7 +183,7 @@ function mobStep0(e, dt) {
       } else { if (ai == 1 || ai == 5 || ai == 8) {
         if (dist < 1.2 + w) { if (Math.abs(dyp) < 1.5) { if (EATK[e] <= 0) {
           EATK[e] = 1;
-          hurtM(MDMG[t], `${MNAME[t]}에게 당했습니다`);
+          hurtM(MDMG[t], `${MNAME[t]}에게 당했습니다`); thornsHit(e);
           // knocked back
           pvx = pvx + dxp / (dist + 0.01) * 5; pvz = pvz + dzp / (dist + 0.01) * 5; pvy = 4;
         } } }
@@ -192,6 +194,12 @@ function mobStep0(e, dt) {
       if (ETM[e] <= 0) { ETM[e] = rand(20, 60) / 10; if (EST[e] != 4) { EST[e] = rand(0, 2); } EWY[e] = rand(0, 359); }
       if (EST[e] == 1) { want = 0.5; wy = EWY[e]; }
       if (EST[e] == 5) { EST[e] = 0; }
+    }
+    // ((v2.9) set on fire by a hit (fire aspect, flame): a point a second till it is out, out in water)
+    if (EFIR[e] > 0) {
+      let f0 = EFIR[e]; EFIR[e] = f0 - dt;
+      if (BLQ[blockAt(Math.floor(EX[e]), Math.floor(EY[e] + 0.3), Math.floor(EZ[e])) + 1] == 7) { EFIR[e] = 0; }
+      else { if (Math.floor(EFIR[e]) < Math.floor(f0)) { EHURT[e] = 0; mobHurt(e, 1, 0, 0); } }
     }
     // burning in the sun
     if (MBURN[t] == 1) {
@@ -266,6 +274,8 @@ function atan2d(x, z) {
   return a;
 }
 // a mob hit (by the player: knocked away from (fx, fz))
+// ((v2.9) the hit's charms, set by the one who hits: knockback, fire aspect, looting)
+let hitKb = 0, hitFire = 0, lootLv = 0;
 function mobHurt(e, n, fx, fz) {
   if (ET[e] == 10) { if (nCrystal > 0) { n = 0; msgShow('수호 수정이 수호자를 지키고 있습니다', 1.5); } }
   if (EHURT[e] <= 0 && n > 0) {
@@ -274,9 +284,10 @@ function mobHurt(e, n, fx, fz) {
     // (a boat is not knocked away: it went out of reach after one hit)
     if ((fx != 0 || fz != 0) && ET[e] != M_BOAT && isCart(ET[e]) == 0) {
       let l = Math.sqrt(fx * fx + fz * fz) + 0.001;
-      EVX[e] = fx / l * 6; EVZ[e] = fz / l * 6; EVY[e] = 5;
+      EVX[e] = fx / l * (6 + 5 * hitKb); EVZ[e] = fz / l * (6 + 5 * hitKb); EVY[e] = 5 + hitKb;
     }
     let t = ET[e];
+    if (hitFire > 0) { if (MFIRE[t] == 0) { EFIR[e] = Math.max(EFIR[e], 4 * hitFire + 0.99); } }
     if (MAI[t] == 0 || MAI[t] == 7) { EST[e] = 3; ETM[e] = 3; EWY[e] = atan2d(EX[e] - px, EZ[e] - pz); }
     if (MAI[t] == 5 || MAI[t] == 8) { if (fx != 0 || fz != 0) { EST[e] = 4; ETM[e] = 30; } }
     if (t == 11) { EST[e] = 4; ETM[e] = 30; if (EHP[e] > 0) { if (rand(1, 10) <= 6) { wanderTeleport(e); } } }
@@ -286,11 +297,13 @@ function mobHurt(e, n, fx, fz) {
       let k = MDROP0[t], n2 = 0;
       if (grLoot == 1) {
         while (k < MDROP0[t] + MDROPN[t]) {
-          n2 = rand(MDLO[k], MDHI[k]);
+          n2 = rand(MDLO[k], MDHI[k] + lootLv);
           if (n2 > 0) { dropItem(MDI[k], n2, 0, EX[e], EY[e] + 0.5, EZ[e], 0); }
           k = k + 1;
         }
         if (MHOST[t] == 1) { xpAdd(5); } else { if (MAI[t] == 0) { xpAdd(rand(1, 3)); } }
+        // ((v2.9) a raider sometimes has a totem of undying)
+        if (t == M_RAIDER) { if (rand(1, 6) <= 1 + lootLv) { dropItem(I_totem, 1, 0, EX[e], EY[e] + 0.5, EZ[e], 0); } }
       }
       if (specMob == e) { specMob = 0; }
       ET[e] = 0;
@@ -332,11 +345,28 @@ function mobInCell(x, y, z) {
 function attack() {
   if (mobPick > 0) { if (attackCool <= 0) {
     let id = INVI[hotSel], dmg = 1;
+    // ((v2.9) the weapon's charms (read before it wears, it may break), strength)
+    let bon = enBonus(mobPick), kb = ENL[4], fa = ENL[5], lo = ENL[6], sw = ENL[7];
     if (ITTK[id + 1] >= 0) { dmg = ITDMG[id + 1]; wearHeld(1); }
+    dmg = dmg + bon + 3 * fx(14);
     if (gameMode == 1) { dmg = 99; }
     let crit = 0;
     if (onGround == 0) { if (pvy < 0) { crit = 1; dmg = Math.floor(dmg * 1.5); } }
-    if (ET[mobPick] == M_NETPLAYER) { netHit(mobPick, dmg); } else { mobHurt(mobPick, dmg, EX[mobPick] - px, EZ[mobPick] - pz); }
+    hitKb = kb; hitFire = fa; lootLv = lo;
+    let tg = mobPick, tx0 = EX[mobPick], tz0 = EZ[mobPick], ty0 = EY[mobPick];
+    if (isProxy(mobPick) == 1) { netHit(mobPick, dmg); } else { mobHurt(mobPick, dmg, EX[mobPick] - px, EZ[mobPick] - pz); }
+    // a sword's sweep on the ground (not a critical hit, not sprinting): the mobs by the one hit
+    if (ITTK[id + 1] == 3 && onGround == 1 && crit == 0 && sprinting == 0) {
+      let f = 1, sd = 1; if (sw > 0) { sd = 1 + dmg * sw / (sw + 1); }
+      hitKb = 0;
+      while (f <= NMOB) {
+        if (f != tg && ET[f] > 0) { if (isProxy(f) == 0 && ET[f] != M_BOAT && isCart(ET[f]) == 0 && ET[f] != M_VILLAGER) {
+          if (Math.abs(EX[f] - tx0) < 1.5 && Math.abs(EZ[f] - tz0) < 1.5 && Math.abs(EY[f] - ty0) < 1) { mobHurt(f, sd, EX[f] - px, EZ[f] - pz); }
+        } }
+        f = f + 1;
+      }
+    }
+    hitKb = 0; hitFire = 0; lootLv = 0;
     exhaust = exhaust + 0.1;
     attackCool = 0.45; swingT = 0.3;
   } }
@@ -379,7 +409,7 @@ function arrowShoot(x, y, z, tx, ty, tz, own) {
       if (own == 4) { sp = 5; }
       AVX[a] = dx / d * sp; AVY[a] = dy / d * sp; AVZ[a] = dz / d * sp;
     }
-    AAGE[a] = 0; ASTK[a] = 0;
+    AAGE[a] = 0; ASTK[a] = 0; AEN[a] = shotEn;
   }
 }
 function arrowsStep(dt) {
@@ -413,7 +443,9 @@ function arrowsStep(dt) {
             if (ET[e] > 0) { if (AON[a] == 2) {
               let w = MW[ET[e]] / 2 + 0.1;
               if (Math.abs(AXX[a] - EX[e]) < w && Math.abs(AZZ[a] - EZ[e]) < w && AYY[a] > EY[e] && AYY[a] < EY[e] + MH[ET[e]]) {
-                mobHurt(e, 7, AVX[a], AVZ[a]); AON[a] = 0;
+                let pw = idiv(AEN[a], 1000), dm = 7; if (pw > 0) { dm = 7 * (1 + 0.25 * (pw + 1)); }
+                hitKb = mod(idiv(AEN[a], 100), 10); if (mod(idiv(AEN[a], 10), 10) > 0) { hitFire = 1; }
+                mobHurt(e, dm, AVX[a], AVZ[a]); hitKb = 0; hitFire = 0; AON[a] = 0;
               }
             } }
             e = e + 1;
@@ -424,7 +456,7 @@ function arrowsStep(dt) {
         // (v2.4.4) an arrow on a wooden or weighted plate keeps it down
         plateHit(Math.floor(AXX[a]), Math.floor(AYY[a]), Math.floor(AZZ[a]), 1);
         // a stuck arrow can be picked up
-        if (Math.abs(AXX[a] - px) < 1 && Math.abs(AZZ[a] - pz) < 1 && Math.abs(AYY[a] - py - 0.5) < 1.5) { if (AON[a] <= 2) { if (mod(gameMode, 2) == 0) { if (rand(1, 2) == 1 || AON[a] == 2) { addItem(115, 1, 0); } } } AON[a] = 0; }
+        if (Math.abs(AXX[a] - px) < 1 && Math.abs(AZZ[a] - pz) < 1 && Math.abs(AYY[a] - py - 0.5) < 1.5) { if (AON[a] <= 2) { if (mod(gameMode, 2) == 0) { if ((rand(1, 2) == 1 || AON[a] == 2) && mod(AEN[a], 10) == 0) { addItem(115, 1, 0); } } } AON[a] = 0; }
       }
       } } }
       if (AAGE[a] > 20) { AON[a] = 0; }
@@ -461,6 +493,12 @@ function itemsStep(dt) {
       solidHit = 0;
       if (BSOL[blockAt(Math.floor(IXX[i]), Math.floor(IYY[i] + 0.1), Math.floor(IZZ[i])) + 1] == 1) { solidHit = 1; }
       if (solidHit == 1) { IYY[i] = Math.floor(IYY[i] + 0.1) + 1; }
+      // ((v2.9) in lava, fire or a lit campfire it burns (it lay there); the abyss things float up out of lava)
+      let fb = blockAt(Math.floor(IXX[i]), Math.floor(IYY[i] + 0.1), Math.floor(IZZ[i]));
+      if (BLQ[fb + 1] == 35 || BSPEC[fb + 1] == 10 || fb == I_wailFire || fb == I_campfire || fb == I_wailCampfire) {
+        if (ITFP[IID[i] + 1] == 1) { if (BLQ[fb + 1] == 35) { IVY[i] = Math.max(IVY[i], 1.5); } }
+        else { IID[i] = 0; sndPlay(5); }
+      }
       // picked up when close
       if (dead == 0 && gameMode != 3) { if (IAGE[i] > 0.5) {
         let dx = px - IXX[i], dy = py + 0.8 - IYY[i], dz = pz - IZZ[i];
@@ -546,8 +584,8 @@ function drawMob(e, fog) {
   mdLv = lightAt(mdX, mdY + 0.5, mdZ); mdFog = fog;
   mdTint = 0;
   if (EHURT[e] > 0.2) { mdTint = 1; }
-  if (MAI[t] == 6) { if (EST[e] == 5) { if (mod(frameNo, 8) < 4) { mdTint = 1; } } }
-  if (EBURN[e] == 1) { if (mod(frameNo, 10) < 2) { mdTint = 2; } }
+  if (MAI[t] == 6) { if (EST[e] == 5 || EST[e] == 6) { if (mod(frameNo, 8) < 4) { mdTint = 1; } } }
+  if (EBURN[e] == 1 || EFIR[e] > 0) { if (mod(frameNo, 10) < 2) { mdTint = 2; } }
   // order the boxes by distance of their middles (in the camera's depth)
   let b = MB0[t], be = b + MBN[t], n = 0, cxm = 0, cym = 0, czm = 0, wx = 0, wz = 0, dd = 0, j = 0;
   while (b < be) {
@@ -806,11 +844,13 @@ function villagerFear(e) {
 }
 // the bursting mushroom: close to the player it swells for a moment and bursts
 function bombStep(e, dist, dt) {
-  if (EST[e] != 5) { if (dist < 2.6) { EST[e] = 5; ETM[e] = 1.5; sndPlay(4); } }
+  // ((v2.9) lit by flint and steel or a fire charge (EST 6): it goes off whatever, in 1.5 s)
+  if (EST[e] == 6) { if (ETM[e] <= 0) { let x = EX[e], y = EY[e], z = EZ[e]; ET[e] = 0; explodeShared(x, y + 0.8, z, 103); } }
+  else { if (EST[e] != 5) { if (dist < 2.6) { EST[e] = 5; ETM[e] = 1.5; sndPlay(4); } }
   else {
     if (dist > 6) { EST[e] = 0; }
     if (ETM[e] <= 0) { let x = EX[e], y = EY[e], z = EZ[e]; ET[e] = 0; explodeShared(x, y + 0.8, z, 103); }
-  }
+  } }
 }
 // snowballs, eggs and void pearls in flight
 function thrownStep(a, dt) {

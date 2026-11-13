@@ -79,9 +79,16 @@ let ACN = ['give', 'clear', 'kill', 'gamemode', 'defaultgamemode', 'gamerule', '
 let ACS = ['#p #i', '#p #i', '#p', 'survival|creative|adventure|spectator #p', 'survival|creative|adventure|spectator', '#g true|false', 'give|clear #p #e', 'set|add|query day|night|noon|midnight', 'clear|rain|thunder', '-',
   '#p #p', '#p #p', '#m ~ ~ ~', '~ ~ ~ #b destroy|keep|replace', '~ ~ ~ ~ ~ ~ #b destroy|hollow|keep|outline|replace #b', '~ ~ ~ ~ ~ ~ ~ ~ ~ replace|masked', 'peaceful|easy|normal|hard', '#p ~ ~ ~', '~ ~ ~', '-',
   '-', '-', '-', '#p', '#p', '#p', '-', '#s', '#v', '#p title|subtitle|actionbar|clear|reset|times',
-  'add|set|query #p', 'add|set|query #p', '#X', '#p #p', 'entity #p weapon.mainhand|hotbar.0|hotbar.1|hotbar.2|hotbar.3|hotbar.4|hotbar.5|hotbar.6|hotbar.7|hotbar.8|armor.head|armor.chest|armor.legs|armor.feet #i', 'replace entity #p weapon.mainhand|hotbar.0|armor.head|armor.chest|armor.legs|armor.feet with #i', '-', '#p', '#c'];
+  'add|set|query #p', 'add|set|query #p', '#X', '#p #p', 'entity #p weapon.mainhand|hotbar.0|hotbar.1|hotbar.2|hotbar.3|hotbar.4|hotbar.5|hotbar.6|hotbar.7|hotbar.8|armor.head|armor.chest|armor.legs|armor.feet #i', 'replace entity #p weapon.mainhand|hotbar.0|armor.head|armor.chest|armor.legs|armor.feet with #i', '-', '#p #E 1|2|3|4|5', '#c'];
 let ACNET = ['op', 'deop', 'ban', 'pardon', 'unban', 'kick', 'whitelist', 'server', 'plugin', 'perm'];
 let ACSNET = ['#p', '#o', '#p', '#n', '#n', '#p', 'add|remove|on|off|list #W', 'motd|name|pvp|mode|max|lava|tnt on|off|survival|creative|adventure', '-', '#Q'];
+// ((v2.9) world edit's commands after //, the same way)
+let ACWE = ['wand', 'pos1', 'pos2', 'hpos1', 'hpos2', 'sel', 'size', 'count', 'set', 'replace', 'walls', 'faces', 'outline', 'overlay', 'naturalize',
+  'copy', 'cut', 'paste', 'rotate', 'flip', 'stack', 'move', 'shift', 'expand', 'contract', 'undo', 'redo', 'clearhistory',
+  'sphere', 'hsphere', 'cyl', 'hcyl', 'pyramid', 'hpyramid', 'drain', 'replacenear', 'worldedit', 'help'];
+let ACWS = ['-', '-', '-', '-', '-', '-', '-', '#b', '#b', '#b #b', '#b', '#b', '#b', '#b', '-',
+  '-', '-', '-a', '90|180|270|-90', 'up|down|north|south|east|west|me', '1|2|3|5|10 up|down|north|south|east|west|me', '1|2|3|5|10 up|down|north|south|east|west|me', '1|2|3|5|10 up|down|north|south|east|west|me', '1|2|3|5|10 up|down|north|south|east|west|me|vert', '1|2|3|5|10 up|down|north|south|east|west|me', '-', '-', '-',
+  '#b 3|5|8', '#b 3|5|8', '#b 3|5 1|3|5', '#b 3|5 1|3|5', '#b 3|5|8', '#b 3|5|8', '5|10', '5|10 #b #b', 'on|off', '-'];
 let ACL = [], ACW = [];
 let acI = 0, acCyc = 0, acDirty = 1, acBase = '', acPart = '', acLow = '', acT = '', acCmd = '';
 
@@ -173,6 +180,7 @@ function acKind(t) {
     }
   }
   if (t == '#m') { let k = 1; while (k <= NMOBT) { if (MKEY[k] != 'netPlayer') { acTry(MKEY[k]); acName(MNAME[k]); } k = k + 1; } }
+  if (t == '#E') { let k = 1; while (k <= ENKEY.length) { acTry(ENKEY[k]); acName(ENKO[k]); k = k + 1; } }
   if (t == '#e') { let k = 1; while (k <= EFK.length) { acTry(EFK[k]); acName(EFKO[k]); k = k + 1; } }
   if (t == '#g') { let k = 1; while (k <= GRS.length) { acTry(GRS[k]); k = k + 1; } }
   if (t == '#s') { let k = 1; while (k <= STKEY.length) { acTry(STKEY[k]); acName(STNAME[k]); k = k + 1; } }
@@ -213,13 +221,15 @@ function acBuild(line) {
       k = k + 1;
     }
     let ap = done + 1 - s0;
-    if (ap == 0) { acCommands(); }
+    let weLine = 0; if (s0 == 1 && strlen(line) >= 2) { if (substr(line, 1, 2) == '//') { weLine = 1; } }
+    if (ap == 0) { if (weLine == 1) { let q = 1; while (q <= ACWE.length) { acTry(ACWE[q]); q = q + 1; } } else { acCommands(); } }
     else {
       acCmd = lower(ACW[s0]);
       if (ch1(acCmd) == '/' && strlen(acCmd) > 1) { acCmd = substr(acCmd, 2, strlen(acCmd)); }
       let spec = '-';
       k = 1;
-      while (k <= ACN.length) { if (ACN[k] == acCmd) { spec = ACS[k]; } k = k + 1; }
+      if (weLine == 1) { if (ch1(acCmd) == '/' && strlen(acCmd) > 1) { acCmd = substr(acCmd, 2, strlen(acCmd)); } while (k <= ACWE.length) { if (ACWE[k] == acCmd) { spec = ACWS[k]; } k = k + 1; } acCmd = `/${acCmd}`; }
+      else { while (k <= ACN.length) { if (ACN[k] == acCmd) { spec = ACS[k]; } k = k + 1; } }
       if (netSrv > 0) { k = 1; while (k <= ACNET.length) { if (ACNET[k] == acCmd) { spec = ACSNET[k]; } k = k + 1; } }
       if (acCmd == 'pl' || acCmd == 'plugins') { spec = ACSNET[9]; }
       let prev = lower(ACW[done]);

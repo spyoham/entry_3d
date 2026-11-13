@@ -441,6 +441,9 @@ CONTENT.R(['tnt', 'minecart'], 'tntMinecart', 1, 1);
 // (v2.8) the firework rocket, after them (the ids before stay): paper and gunpowder make three
 CONTENT.item({ n: 'fireworkRocket', key: 'firework_rocket', ko: '폭죽 로켓', cat: 6, st: 64, icon: ['.....ww.', '....wrrw', '....rrr.', '...rrr..', '..krr...', '.k......', 'k.......', '........'], p: { r: 'd03030', w: 'f0f0f0', k: '8a6a3a' } });
 CONTENT.R(['paper gunpowder'], 'fireworkRocket', 3, 1);
+// (v2.9) the enchanted book (its charms in the slot's number) and the totem of undying, after them
+CONTENT.item({ n: 'enchantedBook', key: 'enchanted_book', ko: '마법이 부여된 책', cat: 6, st: 1, icon: ['........', '.kkkkkk.', '.kpppppk', '.kpwpppk', '.kppppyk', '.kppyppk', '.kkkkkk.', '........'], p: { k: '5a2a7a', p: 'a060e0', w: 'f0e0ff', y: 'ffe060' } });
+CONTENT.item({ n: 'totem', key: 'totem_of_undying', ko: '불사의 토템', cat: 6, st: 1, icon: ['..yyyy..', '.yykkyy.', '..yyyy..', 'yyyggyyy', '..yyyy..', '..yggy..', '..y..y..', '..yy.yy.'], p: { y: 'f2d23a', k: '1a1a1a', g: '3ac06a' } });
 NBLOCK = BLOCKS.length;
 NITEM = Math.max(...ITEMS.map(i => i.id)) + 1;
 

@@ -195,6 +195,8 @@ function playKeys(dt) {
     }
     survival(dt);
     effectsStep(dt);
+    // ((v2.9) beacons, frost walker)
+    beaconsStep(dt); frostStep(dt);
   } else { pickOn = 0; breakStage = 0; uiInput(); }
   netUserAct = 0;
   wheelAcc = 0;
@@ -255,7 +257,9 @@ function drawUI(dt) {
   if (uiMode <= 6) { if (dead == 0) { drawHud(dt); } }
   // ((v2.6) the chat open: its history)
   if (uiMode == 9) { chatHud(dt); }
-  if (uiMode >= 1) { if (uiMode <= 5 || uiMode == 8) { invScreen(); } }
+  if (uiMode >= 1) { if (uiMode <= 5 || uiMode == 8 || uiMode == 11 || uiMode == 12) { invScreen(); } }
+  if (uiMode == 13) { beaconScreen(); }
+  totemDraw(dt);
   if (uiMode == 6) { pauseScreen(); }
   if (uiMode == 10) { tradeScreen(); }
   if (uiMode == 7) { deathScreen(); }
@@ -273,7 +277,10 @@ function helpText() {
 // clicks on the screens
 function uiInput() {
   if (uiMode == 9) { chatType(uiDt); }
-  if (uiMode >= 1 && uiMode <= 5 || uiMode == 8) {
+  if (uiMode == 13) { beaconInput(); }
+  // ((v2.9) the enchanting table's offers)
+  if (uiMode == 11) { if (clickLatch == 1) { if (enHot > 0 && uiHover == 0) { enTake(enHot); clickLatch = 0; } } }
+  if (uiMode >= 1 && uiMode <= 5 || uiMode == 8 || uiMode == 11 || uiMode == 12) {
     if (keyHit(69) == 1 || keyHit(27) == 1) { uiClose(); lockReq(); }
     else {
       if (uiMode == 5) {

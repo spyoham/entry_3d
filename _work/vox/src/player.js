@@ -245,6 +245,17 @@ function playerMove2(dt) {
   if (flying == 0 && riding == 0 && gliding == 0 && dead == 0) {
     if (swimming == 0) { if (sprinting == 1 && headWater == 1 && inWater == 1) { swimming = 1; } }
     else { if (sprinting == 0 || inWater == 0) { solidBox(px - 0.29, px + 0.29, py + 0.05, py + 1.8, pz - 0.29, pz + 0.29); if (solidHit == 0) { swimming = 0; } } }
+    // ((v2.9) as the genre's poses: where the body standing (or sneaking) has no room - a trapdoor
+    // closed over the head - it sneaks, or lies down and crawls (it was pushed about, upright))
+    if (swimming == 0) {
+      let need = 1.75; if (sneaking == 1) { need = 1.45; }
+      solidBox(px - 0.29, px + 0.29, py + 0.05, py + need, pz - 0.29, pz + 0.29);
+      if (solidHit == 1) {
+        let lie = 1;
+        if (sneaking == 0) { solidBox(px - 0.29, px + 0.29, py + 0.05, py + 1.45, pz - 0.29, pz + 0.29); if (solidHit == 0) { sneaking = 1; sprinting = 0; lie = 0; } }
+        if (lie == 1) { solidBox(px - 0.29, px + 0.29, py + 0.05, py + 0.55, pz - 0.29, pz + 0.29); if (solidHit == 0) { swimming = 1; } }
+      }
+    }
   } else { swimming = 0; }
   if (swimming == 1) { sneaking = 0; }
   // (v2.3.2) flowing water carries the player along
@@ -254,7 +265,7 @@ function playerMove2(dt) {
   if (sneaking == 1) { if (flying == 0) { sp = 1.3; } }
   if (flying == 1) { sp = 10.9; if (sprinting == 1) { sp = 21.6; } }
   // ((v2.7) lava holds back far more than water (0.8 m/s); sprinting stops in water and at a wall)
-  if (inWater == 1 || inLava == 1) { if (flying == 0) { if (swimming == 0 || sprinting == 0 || inLava == 1) { sp = sp * 0.45; } if (inLava == 1) { sp = sp * 0.42; } } }
+  if (inWater == 1 || inLava == 1) { if (flying == 0) { if (swimming == 0 || sprinting == 0 || inLava == 1) { let ds = 0; if (inLava == 0) { ds = Math.min(3, armLv(40, 25)); } sp = sp * (0.45 + 0.55 * ds / 3); } if (inLava == 1) { sp = sp * 0.42; } } }
   // (sprinting goes on in water only to swim: with the head under water, or swimming)
   if (inWater == 1 && flying == 0) { if (swimming == 0 && headWater == 0) { sprinting = 0; } }
   // (crawling out of the water: as slow as sneaking)
@@ -416,12 +427,16 @@ function hurt(n, why) {
       let def = 0; if (hurtRaw == 0) { def = armorDef(); }
       if (def > 0) { let red = Math.min(20, Math.max(def / 5, def - n / (2 + armTough / 4))); armorWear(Math.max(1, Math.floor(n / 4))); n = n * (1 - red / 25); }
       if (fx(6) > 0) { n = n * Math.max(0, 1 - 0.2 * fx(6)); }
+      // ((v2.9) the armour's charms: protection and its kinds, feather falling (through armour too))
+      let ep = enEpf(why); if (ep > 0) { n = n * (1 - 0.04 * ep); }
       // (whole points: a part is a chance of one more)
       n = Math.floor(n + rand(0, 998) / 1000);
+      // ((v2.9) absorption's hearts go first)
+      if (n > 0 && absorb > 0) { let t = Math.min(absorb, n); absorb = absorb - t; n = n - t; hurtFlash = 0.35; }
       if (n > 0) {
         hp = hp - n; hurtFlash = 0.35; exhaust = exhaust + 0.1;
         sndPlay(3);
-        if (hp <= 0) { hp = 0; die(why); }
+        if (hp <= 0) { if (totemSave() == 0) { hp = 0; die(why); } }
       }
       if (go == 1) { hurtT = 0.5; }
     }
@@ -452,7 +467,7 @@ function survival(dt) {
       }
     }
     if (headWater == 1) {
-      air = air - 20 * dt;
+      air = air - 20 * dt / (1 + armLv(37, 22));
       if (air <= 0) { air = 0; drownT = drownT + dt; if (drownT >= 1) { drownT = 0; hurtT = 0; if (grDrown == 1) { hurtR(2, '물에 빠졌습니다'); } } }
     } else { air = Math.min(300, air + 80 * dt); }
     if (inLava == 1 && fx(7) == 0) { lavaT = lavaT + dt; if (lavaT >= 0.5) { lavaT = 0; hurtT = 0; if (grFire == 1) { hurt(4, '용암에 빠졌습니다'); } } }
@@ -486,7 +501,7 @@ function die(why) {
   if (netSrv > 0) { evAdd('c', `${netNick}: ${netClean(why)}`); plugRun('death', ' ', netNick); }
   let i = 1;
   while (i <= 40) {
-    if (grKeep == 0) { if (INVI[i] > 0) { dropItem(INVI[i], INVN[i], INVD[i], px, py + 1, pz, 1); INVI[i] = 0; INVN[i] = 0; INVD[i] = 0; } }
+    if (grKeep == 0) { if (INVI[i] > 0) { if (enLv(INVI[i], INVD[i], 28) == 0) { dropItem(INVI[i], INVN[i], INVD[i], px, py + 1, pz, 1); } INVI[i] = 0; INVN[i] = 0; INVD[i] = 0; } }
     i = i + 1;
   }
   if (grKeep == 0) { xpLevel = 0; xpPts = 0; }
@@ -678,13 +693,15 @@ function breakTime(b) {
   if (tool > 0) { if (kind + 1 == tool) { if (kind == 5) { sp = 5; } else { sp = TSPEED[tier + 1]; } } }
   if (kind == 3) { if (BLEAF[b + 1] == 1) { sp = 1.5; } if (b == 19) { sp = 1.5; } if (b == I_cobweb) { sp = 15; } }
   if (kind == 5) { if (b == I_cobweb) { sp = 15; } if (BLEAF[b + 1] == 1) { sp = 15; } }
+  // ((v2.9) efficiency: level^2 + 1 more speed with the right tool)
+  if (sp > 1) { let ef = enLv(id, INVD[hotSel], 8); if (ef > 0) { sp = sp + ef * ef + 1; } }
   harvest = 1;
   if (BTIER[b + 1] >= 0) { harvest = 0; if (kind == 0) { if (TLEVEL[tier + 1] >= BTIER[b + 1]) { harvest = 1; } } }
   let t = h * 1.5 / sp / (1 + 0.2 * fx(3));
   if (harvest == 0) { t = h * 5 / sp / (1 + 0.2 * fx(3)); }
   // ((v2.7) as the genre: x 5 with the head in water, x 5 more off the ground (it was x 5 only
   // in water and off the ground))
-  if (headWater == 1) { t = t * 5; }
+  if (headWater == 1) { if (armLv(37, 23) == 0) { t = t * 5; } }
   if (onGround == 0 && flying == 0 && riding == 0) { t = t * 5; }
   if (h < 0) { t = 99999; }
   return t;
@@ -727,7 +744,7 @@ function breakBlock(x, y, z, byP) {
     sndPlay(2);
     if (mod(gameMode, 2) == 0) {
       exhaust = exhaust + 0.005;
-      if (harvest == 1) { if (grTileDrops == 1) { blockDrops(b, x, y, z); } }
+      if (harvest == 1) { if (grTileDrops == 1) { dropHand = 1; blockDrops(b, x, y, z); dropHand = 0; } }
       let id = INVI[hotSel];
       if (ITTK[id + 1] >= 0) { if (BHARD[b + 1] > 0) { if (ITTK[id + 1] == 3) { wearHeld(2); } else { wearHeld(1); } } }
     }
@@ -739,7 +756,17 @@ function breakBlock(x, y, z, byP) {
   if (b == 33) { if (mod(gameMode, 2) == 0) { if (dim != 1) { let ib = blockAt(x, y - 1, z); if (BSOL[ib + 1] > 0 || BLQ[ib + 1] > 0) { setBlock(x, y, z, 7); } } } }
   chestOrFurnaceGone(x, y, z, b);
 }
+// ((v2.9) broken by the player's hand: silk touch gives the block itself, fortune more of an ore)
+let dropHand = 0, dropFort = 0;
 function blockDrops(b, x, y, z) {
+  let silk = 0; dropFort = 0;
+  if (dropHand == 1 && dropBare == 0) { enDec(INVI[hotSel], INVD[hotSel]); silk = ENL[9]; dropFort = ENL[10]; }
+  if (silk > 0 && BHARD[b + 1] >= 0 && BCROP[b + 1] < 0 && BSPEC[b + 1] != 6 && BUSE[b + 1] != U_SHELL && b != I_farmland && b != I_farmlandWet && b != I_tnt && (BSHP[b + 1] == 0 || BSHP[b + 1] == 3 || BSHP[b + 1] == 4 || BLEAF[b + 1] == 1) && BLQ[b + 1] == 0) {
+    dropItem(BKIND[b + 1], 1, 0, x + 0.5, y + 0.3, z + 0.5, 0);
+  } else { blockDrops0(b, x, y, z); }
+  dropFort = 0;
+}
+function blockDrops0(b, x, y, z) {
   let d = BDROP[b + 1], n = BDROPN[b + 1], held = INVI[hotSel];
   if (dropBare == 1) { held = 0; }
   // (v2.4.4) lit TNT gives nothing back (it goes off anyway)
@@ -775,6 +802,10 @@ function blockDrops(b, x, y, z) {
     if (k == I_carrotCrop || k == I_potatoCrop) { n = rand(2, 4); }
   }
   if (d != b) { let xp = oreXp(b); if (xp > 0) { xpAdd(xp); } }
+  if (dropFort > 0 && d > 0 && d != b) {
+    if (BXP[b + 1] > 0 || b == 12 || b == 16 || b == I_oreJade || b == 40 || b == I_oreQuartz || b == I_oreSpark || b == I_oreAshGold) { let m = rand(0, dropFort + 1) - 1; if (m > 0) { n = n * (m + 1); } }
+    if (b == I_glowCrystal) { n = Math.min(4, n + rand(0, dropFort)); } if (b == I_melon) { n = Math.min(9, n + rand(0, dropFort)); }
+  }
   if (d > 0) { if (n > 0) { dropItem(d, n, 0, x + 0.5, y + 0.3, z + 0.5, 0); } }
 }
 
@@ -820,6 +851,12 @@ function setBlock(x, y, z, b) {
         } }
         if (BFALL[up + 1] == 1) { fallBlock(x, y + 1, z); }
       }
+    } else {
+      // ((v2.9) a solid block that no longer holds what grows on it: farmland gone to dirt (trampled,
+      // dried, a command) drops its crop; it stayed on the dirt)
+      if (y + 1 < WY) { let nd = BNEED[up + 1]; if (nd == N_FARM || nd == N_SOIL || nd == N_ASHEN) { if (standsOn(up, b, x, y + 1, z) == 0) {
+        if (mod(gameMode, 2) == 0 && netApplying == 0) { blockDrops(up, x, y + 1, z); } setBlock(x, y + 1, z, 0);
+      } } }
     }
     if (BFALL[b + 1] == 1) { fallBlock(x, y, z); }
     // concrete powder by water sets
@@ -896,8 +933,12 @@ function shootBow() {
     let k = 1, a = 0;
     while (k <= 36) { if (a == 0) { if (INVI[k] == 115) { a = k; } } k = k + 1; }
     if (a > 0 || gameMode == 1) {
-      if (gameMode != 1) { INVN[a] = INVN[a] - 1; if (INVN[a] <= 0) { INVI[a] = 0; INVN[a] = 0; } }
+      // ((v2.9) the bow's charms go with its arrow; infinity keeps the arrow)
+      enDec(INVI[hotSel], INVD[hotSel]);
+      shotEn = ENL[13] * 1000 + ENL[14] * 100 + ENL[15] * 10 + ENL[16];
+      if (gameMode != 1 && ENL[16] == 0) { INVN[a] = INVN[a] - 1; if (INVN[a] <= 0) { INVI[a] = 0; INVN[a] = 0; } }
       arrowShoot(camX, camY - 0.1, camZ, camX + lookX * 20, camY - 0.1 + lookY * 20, camZ + lookZ * 20, 1);
+      shotEn = 0;
       wearHeld(1); bowCool = 0.6; swingT = 0.3; sndPlay(1);
     } else { msgShow('화살이 없습니다', 1.5); }
   }
@@ -911,8 +952,8 @@ function armorWear(w) {
   let k = 37;
   while (k <= 40) {
     if (INVI[k] > 0) {
-      INVD[k] = INVD[k] + w;
-      if (INVD[k] >= ITDUR[INVI[k] + 1]) { msgShow(`${ITNAME[INVI[k] + 1]}이(가) 부서졌습니다`, 2); INVI[k] = 0; INVN[k] = 0; INVD[k] = 0; sndPlay(7); }
+      INVD[k] = INVD[k] + enWear(INVI[k], INVD[k], w, 1);
+      if (dmgOf(INVD[k]) >= ITDUR[INVI[k] + 1]) { msgShow(`${ITNAME[INVI[k] + 1]}이(가) 부서졌습니다`, 2); INVI[k] = 0; INVN[k] = 0; INVD[k] = 0; sndPlay(7); }
     }
     k = k + 1;
   }

@@ -270,6 +270,8 @@ function loadGame(k) {
   lodeOn = rdN(); lodeX = rdN(); lodeZ = rdN(); anchorCh = rdN(); bossDead = rdN(); bossWake = rdN(); hotSel = rdN(); viewWant = rdN();
   M_rdL(INVI); M_rdL(INVN); M_rdL(INVD);
   M_rdL(GRV); M_rdL(EFT); M_rdL(EFL);
+  // ((v2.9) a save from before has 12 effects: 14 now)
+  while (EFT.length < 14) { EFT.push(0); } while (EFL.length < 14) { EFL.push(0); }
   grSync();
   M_rdL(EDX); M_rdL(EDY); M_rdL(EDZ); M_rdL(EDB); M_rdL(EDD);
   edIndex();

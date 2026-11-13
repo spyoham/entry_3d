@@ -41,8 +41,9 @@ function wearHeld(n) {
   if (mod(gameMode, 2) == 0) {
     let id = INVI[hotSel];
     if (ITDUR[id + 1] > 0) {
-      INVD[hotSel] = INVD[hotSel] + n;
-      if (INVD[hotSel] >= ITDUR[id + 1]) { INVI[hotSel] = 0; INVN[hotSel] = 0; INVD[hotSel] = 0; sndPlay(7); msgShow(`${ITNAME[id + 1]}이(가) 부서졌습니다`, 2); }
+      // ((v2.9) unbreaking lets some of it go; the damage is under the charms in the number)
+      INVD[hotSel] = INVD[hotSel] + enWear(id, INVD[hotSel], n, 0);
+      if (dmgOf(INVD[hotSel]) >= ITDUR[id + 1]) { INVI[hotSel] = 0; INVN[hotSel] = 0; INVD[hotSel] = 0; sndPlay(7); msgShow(`${ITNAME[id + 1]}이(가) 부서졌습니다`, 2); }
     }
   }
 }
@@ -328,7 +329,8 @@ function chestOrFurnaceGone(x, y, z, b) {
 
 // ---------------------------------------------------------------- slots of the screens
 // 1..36 inventory, 41..49 crafting grid, 50 result, 51 furnace input, 52 fuel, 53 output,
-// 61..87 chest, 101.. the creative list
+// 61..87 chest, 101.. the creative list; (v2.9) 57 the enchanting table's item, 58 its lapis,
+// 59 60 the anvil's two, 88 what it makes
 let gI = 0, gN = 0, gD = 0;
 function slotGet(s) {
   gI = 0; gN = 0; gD = 0;
@@ -339,8 +341,10 @@ function slotGet(s) {
   else { if (s == 52) { gI = FFI[curFur]; gN = FFN[curFur]; }
   else { if (s == 53) { gI = FOI[curFur]; gN = FON[curFur]; }
   else { if (s == 54) { gI = SMI1; gN = SMN1; gD = SMD1; } else { if (s == 55) { gI = SMI2; gN = SMN2; } else { if (s == 56) { gI = smOut; gN = 1; gD = SMD1; }
+  else { if (s >= 57 && s <= 60) { if (s == 57) { gI = ENI; gN = ENN; gD = END; } if (s == 58) { gI = ELI; gN = ELN; } if (s == 59) { gI = AN1I; gN = AN1N; gD = AN1D; } if (s == 60) { gI = AN2I; gN = AN2N; gD = AN2D; } }
+  else { if (s == 88) { gI = anOut; gN = 1; gD = anOutD; }
   else { if (s <= 87) { let j = (curChest - 1) * 27 + s - 60; gI = CHI[j]; gN = CHN[j]; gD = CHD[j]; }
-  else { let k = uiPage * 36 + s - 100; gI = palAt(k); gN = ITST[gI + 1]; } } } } } } } } } }
+  else { let k = uiPage * 36 + s - 100; gI = palAt(k); gN = ITST[gI + 1]; } } } } } } } } } } } }
   if (gI == 0) { gN = 0; gD = 0; }
 }
 function slotSet(s, i, n, d) {
@@ -351,10 +355,20 @@ function slotSet(s, i, n, d) {
   else { if (s == 52) { FFI[curFur] = i; FFN[curFur] = n; }
   else { if (s == 53) { FOI[curFur] = i; FON[curFur] = n; }
   else { if (s == 54) { SMI1 = i; SMN1 = n; SMD1 = d; smithMatch(); } else { if (s == 55) { SMI2 = i; SMN2 = n; smithMatch(); }
-  else { if (s >= 61) { if (s <= 87) { let j = (curChest - 1) * 27 + s - 60; CHI[j] = i; CHN[j] = n; CHD[j] = d; chestTouched(curChest); } } } } } } } } }
+  else { if (s >= 57 && s <= 60) { if (s == 57) { ENI = i; ENN = n; END = d; } if (s == 58) { ELI = i; ELN = n; } if (s == 59) { AN1I = i; AN1N = n; AN1D = d; anvilMatch(); } if (s == 60) { AN2I = i; AN2N = n; AN2D = d; anvilMatch(); } }
+  else { if (s >= 61) { if (s <= 87) { let j = (curChest - 1) * 27 + s - 60; CHI[j] = i; CHN[j] = n; CHD[j] = d; chestTouched(curChest); } } } } } } } } } }
 }
 // a click on slot s (half: Shift held)
+// ((v2.9) armour with the curse of binding does not come off but in creative; the anvil's result is taken by anvilTake)
 function slotClick(s, half) {
+  let go = 1;
+  if (s >= 37 && s <= 40 && mod(gameMode, 2) == 0) { if (INVI[s] > 0) { if (armLv(s, 27) > 0) { if (curI == 0 || half == 1) { go = 0; msgShow('귀속 저주: 벗을 수 없습니다', 1.5); } } } }
+  if (s == 57) { if (curI > 0) { if (ITENC[curI + 1] <= 0 || curN > 1 && half == 0) { go = 0; } } }
+  if (s == 58) { if (curI > 0 && curI != 119) { go = 0; } }
+  if (s == 88) { go = 0; if (curI == 0) { anvilTake(half); } }
+  if (go == 1) { slotClick0(s, half); }
+}
+function slotClick0(s, half) {
   slotGet(s);
   let si = gI, sn = gN, sd = gD;
   if (s == 56) {
@@ -466,6 +480,12 @@ function uiClose() {
   }
   craftOut = 0; craftCnt = 0;
   smithBack();
+  // ((v2.9) the enchanting table's and the anvil's things go back too)
+  if (ENI > 0) { addItem(ENI, ENN, END); if (addLeft > 0) { dropItem(ENI, addLeft, END, px, py + 1, pz, 1); } }
+  if (ELI > 0) { addItem(ELI, ELN, 0); if (addLeft > 0) { dropItem(ELI, addLeft, 0, px, py + 1, pz, 1); } }
+  if (AN1I > 0) { addItem(AN1I, AN1N, AN1D); if (addLeft > 0) { dropItem(AN1I, addLeft, AN1D, px, py + 1, pz, 1); } }
+  if (AN2I > 0) { addItem(AN2I, AN2N, AN2D); if (addLeft > 0) { dropItem(AN2I, addLeft, AN2D, px, py + 1, pz, 1); } }
+  ENI = 0; ENN = 0; END = 0; ELI = 0; ELN = 0; AN1I = 0; AN1N = 0; AN1D = 0; AN2I = 0; AN2N = 0; AN2D = 0; anOut = 0;
   uiMode = 0;
   txClear();
 }
@@ -515,6 +535,8 @@ function chestLoot(c) {
     CHI[j] = id; CHN[j] = cnt; CHD[j] = 0;
     k = k + 1;
   }
+  // ((v2.9) an enchanted book now and then)
+  if (rand(1, 3) == 1) { j = (c - 1) * 27 + rand(1, 27); CHI[j] = I_enchantedBook; CHN[j] = 1; CHD[j] = enRandomBook(); }
   // a ship's hold (on its deck of planks): the glider
   if (dim == 2) { if (lootUnder == 5) { CHI[(c - 1) * 27 + 14] = 173; CHN[(c - 1) * 27 + 14] = 1; CHD[(c - 1) * 27 + 14] = 0; } }
 }
