@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "엔트리 이야기 일괄 삭제",
+  "version": "1.0.0",
+  "description": "엔트리 마이페이지에서 로그인한 계정의 엔트리 이야기 글을 모두 지웁니다.",
+  "host_permissions": ["https://playentry.org/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://playentry.org/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ]
+}
