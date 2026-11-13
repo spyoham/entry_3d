@@ -66,7 +66,7 @@ open(191); lat(); typeText('execute as @s run ti'); tap(9); ok(s.peek('tline') =
 typeText(' s'); tap(9); ok(s.peek('tline') === '/execute as @s run time set ', 'its words: ' + s.peek('tline')); close();
 open(191); typeText('locate '); kor(); typeText('akdmf'); tap(9); ok(s.peek('tline') === '/locate 마을 ', 'structure in Korean: ' + s.peek('tline')); close();
 const MN = s.peek('MNAME'), MK = s.peek('MKEY'); console.log('mobs', MN.slice(1, 8).join(','));
-open(191); lat(); typeText('summon co'); tap(9); ok(s.peek('tline') === '/summon cow ', 'mob: ' + s.peek('tline')); close();
+open(191); lat(); typeText('summon pi'); tap(9); ok(s.peek('tline') === '/summon pig ', 'mob: ' + s.peek('tline')); close();
 open(191); lat(); typeText('effect give @s ju'); tap(9); ok(s.peek('tline') === '/effect give @s jump_boost ', 'effect: ' + s.peek('tline')); close();
 open(191); typeText('weather '); tap(9); ok(s.peek('tline') === '/weather clear', 'empty word: the first choice: ' + s.peek('tline'));
 tap(9); tap(9); ok(s.peek('tline') === '/weather thunder', 'cycled: ' + s.peek('tline')); tap(13); F(2);

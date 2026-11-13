@@ -11,7 +11,7 @@ import { TEX, CRACK, BLOCKS, NBLOCK, ITEMS, TIERS, KINDS, SMITH, toolId, NITEM, 
 import { MODELS, ARMS, ARMCOL, pottedModel } from './models.mjs';
 import { makeSounds } from './sounds.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '2.9';
+export const VERSION = '3.0';
 // how many servers Entry Sync holds (each one two ?! lists; the slot line carries the number in two digits)
 export const NSRV = 99;
 export const NAME = '블록 월드';
@@ -155,7 +155,7 @@ export function makeData() {
         'BKIND', 'BVAR', 'BUSE', 'BPLC', 'BNEED', 'BMOVE', 'BHURT', 'BFALL', 'BFLAME', 'BCROP', 'BSPEC', 'BWET', 'BSTRIP', 'BTREE', 'BSAP', 'BXP', 'BHALF', 'BSIDE', 'BFACE', 'BSPAWN', 'BPOT', 'BWATER', 'BSTATE', 'BXT', 'BRS', 'BFAC', 'BON', 'BAUX', 'BATT', 'BJE', 'BRES', 'BFLAM', 'BCOND'];
     for (const k of BL) B[k] = [];
     B.BT6 = [];
-    const spawnOf = { zombie: 5, skeleton: 6, spider: 7, wraith: 8 };
+    const spawnOf = Object.fromEntries(MOBS.map((m, i) => [m ? m.n : "", i]));
     const potOf = new Map();
     for (const b of BLOCKS) if (b && b.plant) potOf.set(names.get(b.plant), b.id);
     for (let id = 0; id < NBLOCK; id++) {
@@ -369,6 +369,8 @@ export function makeData() {
             name = it.ko; key = it.key || it.n; food = it.food || 0; fuel = it.fuel || 0; k = food ? 2 : 1; cat = it.cat ?? 5;
             if (it.n === 'bow' || it.n === 'igniter') { st = 1; dur = it.n === 'bow' ? 384 : 64; cat = 6; }
             if (it.n === 'boat' || it.n === 'voidKey') { st = 1; }
+            // ((v3.0) the trident: a weapon of 9 (tool kind 7: none of the blocks'), thrown with F
+            if (it.n === 'trident') { tk = 7; tt = 0; dmg = 9; k = 3; }
             if (it.n === 'voidPearl' || it.n === 'voidEye' || it.n === 'egg' || it.n === 'snowball') { st = 16; }
             if (it.n === 'arrow') cat = 6;
             if (it.st) st = it.st;
@@ -499,8 +501,8 @@ export function makeData() {
     const LOOTS = {
         1: [3, 7, [['bread', 1, 4, 6], ['apple', 1, 5, 5], ['wheat', 1, 6, 6], ['ingotIron', 1, 3, 3], ['jade', 1, 2, 3], ['wheatSeeds', 2, 5, 5], ['potato', 1, 5, 4], ['carrot', 1, 5, 4], ['sapling', 1, 2, 2], ['book', 1, 1, 1]]],
         2: [3, 8, [['ingotIron', 1, 5, 8], ['ingotGold', 1, 3, 4], ['bread', 1, 3, 6], ['diamond', 1, 3, 2], ['jade', 1, 3, 3], ['pickIron', 1, 1, 2], ['swordIron', 1, 1, 2], ['ChestIron', 1, 1, 2], ['HelmetIron', 1, 1, 2], ['obsidian', 3, 7, 3]]],
-        3: [2, 6, [['diamond', 1, 3, 3], ['ingotIron', 1, 5, 10], ['ingotGold', 2, 7, 10], ['jade', 1, 3, 10], ['bone', 4, 6, 15], ['flesh', 3, 7, 15], ['goldenApple', 1, 1, 3], ['gunpowder', 1, 8, 10], ['sand', 1, 8, 6], ['string', 1, 8, 10]]],
-        4: [2, 6, [['diamond', 1, 3, 3], ['ingotIron', 1, 5, 10], ['ingotGold', 2, 7, 15], ['jade', 1, 3, 2], ['bone', 4, 6, 20], ['flesh', 3, 7, 16], ['arrow', 2, 7, 10], ['bamboo', 1, 3, 5]]],
+        3: [2, 6, [['saddle', 1, 1, 12], ['diamond', 1, 3, 3], ['ingotIron', 1, 5, 10], ['ingotGold', 2, 7, 10], ['jade', 1, 3, 10], ['bone', 4, 6, 15], ['flesh', 3, 7, 15], ['goldenApple', 1, 1, 3], ['gunpowder', 1, 8, 10], ['sand', 1, 8, 6], ['string', 1, 8, 10]]],
+        4: [2, 6, [['saddle', 1, 1, 12], ['diamond', 1, 3, 3], ['ingotIron', 1, 5, 10], ['ingotGold', 2, 7, 15], ['jade', 1, 3, 2], ['bone', 4, 6, 20], ['flesh', 3, 7, 16], ['arrow', 2, 7, 10], ['bamboo', 1, 3, 5]]],
         5: [2, 6, [['apple', 1, 3, 15], ['coal', 1, 4, 15], ['goldNugget', 1, 3, 10], ['axeStone', 1, 1, 2], ['flesh', 1, 1, 10], ['wheat', 2, 3, 10], ['goldenApple', 1, 1, 1]]],
         6: [2, 4, [['wheat', 3, 5, 7], ['potato', 2, 5, 5], ['carrot', 3, 5, 5], ['arrow', 2, 7, 5], ['ingotIron', 1, 3, 3], ['string', 1, 6, 4], ['book', 1, 1, 1], ['bow', 1, 1, 2]]],
         7: [1, 3, [['ingotIron', 1, 4, 10], ['ingotGold', 1, 4, 5], ['jade', 1, 3, 5], ['diamond', 1, 2, 3], ['goldenApple', 1, 1, 2], ['book', 1, 3, 5], ['ChestDiamond', 1, 1, 1], ['hoeDiamond', 1, 1, 2], ['bread', 1, 4, 10], ['sparkDust', 1, 4, 10]]],
@@ -510,8 +512,8 @@ export function makeData() {
         11: [4, 8, [['aquaCrystal', 1, 3, 5], ['ingotIron', 1, 4, 20], ['ingotGold', 1, 4, 10], ['tnt', 1, 2, 5], ['jade', 4, 8, 5], ['diamond', 1, 2, 5], ['bread', 1, 3, 10], ['goldenApple', 1, 1, 2]]],
         12: [4, 8, [['obsidian', 1, 2, 40], ['flint', 1, 4, 40], ['ironNugget', 9, 18, 40], ['igniter', 1, 1, 40], ['fireCharge', 1, 1, 40], ['goldenApple', 1, 1, 15], ['goldNugget', 4, 24, 15], ['swordGold', 1, 1, 15], ['pickGold', 1, 1, 15], ['ingotGold', 2, 8, 5], ['glintObsidian', 1, 2, 5], ['blockGold', 1, 2, 1]]],
         13: [3, 6, [['goldenApple', 1, 1, 20], ['ingotIron', 1, 5, 10], ['ingotGold', 1, 3, 5], ['sparkDust', 4, 9, 5], ['lapis', 4, 9, 5], ['diamond', 1, 2, 3], ['coal', 3, 8, 10], ['bread', 1, 3, 15], ['rail', 4, 8, 20], ['poweredRail', 1, 4, 5], ['torch', 1, 16, 15], ['beetSeeds', 2, 4, 10]]],
-        14: [3, 6, [['bone', 1, 8, 10], ['gunpowder', 1, 8, 10], ['flesh', 1, 8, 10], ['string', 1, 8, 10], ['bread', 1, 1, 20], ['wheat', 1, 4, 20], ['bucket', 1, 1, 10], ['sparkDust', 1, 4, 15], ['coal', 1, 4, 15], ['goldenApple', 1, 1, 15], ['ingotIron', 1, 4, 10], ['ingotGold', 1, 4, 5], ['diamond', 1, 1, 2]]],
-        15: [3, 8, [['ingotGold', 2, 9, 10], ['goldNugget', 4, 16, 10], ['blockGold', 1, 1, 3], ['abyssIngot', 1, 1, 2], ['scrap', 1, 2, 4], ['magmaCream', 1, 6, 8], ['ashBrick', 2, 8, 8], ['blackrock', 4, 16, 10], ['HelmetChain', 1, 1, 3], ['diamond', 1, 2, 3], ['wailSand', 4, 12, 6]]],
+        14: [3, 6, [['saddle', 1, 1, 14], ['bone', 1, 8, 10], ['gunpowder', 1, 8, 10], ['flesh', 1, 8, 10], ['string', 1, 8, 10], ['bread', 1, 1, 20], ['wheat', 1, 4, 20], ['bucket', 1, 1, 10], ['sparkDust', 1, 4, 15], ['coal', 1, 4, 15], ['goldenApple', 1, 1, 15], ['ingotIron', 1, 4, 10], ['ingotGold', 1, 4, 5], ['diamond', 1, 1, 2]]],
+        15: [3, 8, [['saddle', 1, 1, 6], ['ingotGold', 2, 9, 10], ['goldNugget', 4, 16, 10], ['blockGold', 1, 1, 3], ['abyssIngot', 1, 1, 2], ['scrap', 1, 2, 4], ['magmaCream', 1, 6, 8], ['ashBrick', 2, 8, 8], ['blackrock', 4, 16, 10], ['HelmetChain', 1, 1, 3], ['diamond', 1, 2, 3], ['wailSand', 4, 12, 6]]],
     };
     L.LOOT0 = []; L.LOOTN = []; L.LOOTR0 = []; L.LOOTR1 = []; L.LOOTI = []; L.LOOTLO = []; L.LOOTHI = []; L.LOOTW = [];
     for (let t = 1; t <= 15; t++) {
@@ -521,13 +523,20 @@ export function makeData() {
     }
 
     // mobs
-    const ML = ['MHP', 'MW', 'MH', 'MSPD', 'MHOST', 'MBURN', 'MDMG', 'MNAME', 'MKEY', 'MB0', 'MBN', 'MFLY', 'MFIRE', 'MNEU', 'MSTILL', 'MAI'];
+    const ML = ['MHP', 'MW', 'MH', 'MSPD', 'MHOST', 'MBURN', 'MDMG', 'MNAME', 'MKEY', 'MB0', 'MBN', 'MFLY', 'MFIRE', 'MNEU', 'MSTILL', 'MAI', 'MSHOT', 'MHITE', 'MHITS', 'MFOOD', 'MTAME', 'MSWIM', 'MXP', 'MSPLIT', 'MR0', 'MRN'];
+    L.MRI = []; L.MRP = [];
+    const mobIx = (n) => MOBS.findIndex((m) => m && m.n === n);
     for (const k of ML) L[k] = [];
     L.BX0 = []; L.BY0 = []; L.BZ0 = []; L.BX1 = []; L.BY1 = []; L.BZ1 = []; L.BCOL = []; L.BPART = [];
     L.MDI = []; L.MDLO = []; L.MDHI = [];
     for (const m of MOBS.slice(1)) {
+        // ((v3.0) shooting, a bite's effect, breeding food, taming item, water, xp, splitting, rare drops)
+        L.MSHOT.push(m.shot ?? 0); L.MHITE.push(m.hitE || 0); L.MHITS.push(m.hitS || 0); L.MFOOD.push(m.food || 0); L.MTAME.push(m.tame ? idOf(m.tame) : 0);
+        L.MSWIM.push(m.swim || 0); L.MXP.push(m.xp ?? (m.hostile ? 5 : 2)); L.MSPLIT.push(m.split ? mobIx(m.split) : 0);
+        L.MR0.push(L.MRI.length + 1); L.MRN.push((m.rare || []).length / 2);
+        for (let i = 0; i < (m.rare || []).length; i += 2) { L.MRI.push(idOf(m.rare[i])); L.MRP.push(m.rare[i + 1]); }
         L.MFLY.push(m.fly || 0); L.MFIRE.push(m.fireproof || 0); L.MNEU.push(m.neutral || 0); L.MSTILL.push(m.still || 0); L.MAI.push(m.ai ?? 0);
-        L.MHP.push(m.hp); L.MW.push(m.w); L.MH.push(m.h); L.MSPD.push(m.speed); L.MHOST.push(m.hostile || 0); L.MBURN.push(m.burns || 0); L.MDMG.push(m.dmg || 0); L.MNAME.push(m.ko); L.MKEY.push(m.n);
+        L.MHP.push(m.hp); L.MW.push(m.w); L.MH.push(m.h); L.MSPD.push(m.speed); L.MHOST.push(m.hostile || 0); L.MBURN.push(m.burns || 0); L.MDMG.push(m.dmg || 0); L.MNAME.push(m.ko); L.MKEY.push(m.n.replace(/[A-Z]/g, (x) => '_' + x.toLowerCase()));
         L.MB0.push(L.BX0.length + 1); L.MBN.push(m.boxes.length);
         for (const [x0, y0, z0, x1, y1, z1, c, part] of m.boxes) { const t = (v) => Math.round(v * 10); L.BX0.push(t(x0)); L.BY0.push(t(y0)); L.BZ0.push(t(z0)); L.BX1.push(t(x1)); L.BY1.push(t(y1)); L.BZ1.push(t(z1)); L.BCOL.push(col(snap(c))); L.BPART.push(part); }
         L.MDROP0 = L.MDROP0 || []; L.MDROPN = L.MDROPN || [];
@@ -565,7 +574,7 @@ export function makeData() {
         'ember_forest', 'indigo_forest', 'wail_valley', 'basalt_deltas'];
     L.TITLEB = [2, 13, 4, 16, 17];
 
-    const extra = { CTORCH: col('7a5a30'), CFLAME: col('ffc830'), CCLOUD: col('ffffff'), CHURT: col('e83a3a'), CARROW: col('8a7a5a'), CSKIN: col('c8a080'), CRAIN: col('8ab0e0'), CSNOW: col('f4f8ff'), CXP: col('80ff20'), CSHIRT: col('2a8ac8'), CPANTS: col('3a3a8a'), CFWR: col('ff4a4a'), CFWY: col('ffd84a'), CFWB: col('4ac8ff'), CFWG: col('6aff6a'), CFWP: col('ff6aff'), CFWW: col('ffffff') };
+    const extra = { CTORCH: col('7a5a30'), CFLAME: col('ffc830'), CCLOUD: col('ffffff'), CHURT: col('e83a3a'), CARROW: col('8a7a5a'), CSKIN: col('c8a080'), CRAIN: col('8ab0e0'), CSNOW: col('f4f8ff'), CXP: col('80ff20'), CSHIRT: col('2a8ac8'), CPANTS: col('3a3a8a'), CFWR: col('ff4a4a'), CFWY: col('ffd84a'), CFWB: col('4ac8ff'), CFWG: col('6aff6a'), CFWP: col('ff6aff'), CFWW: col('ffffff'), CFANG: col('e8e0c8'), CBEAM: col('a8e8ff'), CPOT: col('9a4ad8'), CSKULL: col('2a2a2e') };
     L.COLR = cols.map(h => rgbOf(h)[0]); L.COLG = cols.map(h => rgbOf(h)[1]); L.COLB = cols.map(h => rgbOf(h)[2]);
     Object.assign(L, R);
     // the ids the code names (I_<name> for every block and item)
@@ -584,7 +593,7 @@ export function makeData() {
 }
 
 // ------------------------------------------------------------------ sources
-export const FILES = ['world.js', 'flat.js', 'fluid.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'rails.js', 'save.js', 'net.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'items.js', 'hud.js', 'extra.js', 'ench.js', 'cmds.js', 'wedit.js', 'keyin.js', 'swear.js', 'je.js', 'main.js', 'test.js'];
+export const FILES = ['world.js', 'flat.js', 'fluid.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'rails.js', 'save.js', 'net.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'fauna.js', 'items.js', 'hud.js', 'extra.js', 'ench.js', 'cmds.js', 'wedit.js', 'keyin.js', 'swear.js', 'je.js', 'main.js', 'test.js'];
 export function allConsts(more = {}) {
     const { C } = makeData();
     return { ...consts, ...C, ...more };
@@ -616,15 +625,16 @@ export function sources(C) {
             for (const x of v.slice(s, s + per)) { let d = x - mn, q = ''; for (let j = 0; j < w; j++) { q = PA[d % 64] + q; d = Math.floor(d / 64); } t += q; }
             PKS.push(t);
         }
-        let dec = `v = indexOf(PA, charAt(s, j)) - 1;`;
-        for (let j = 1; j < w; j++) dec += ` v = v * 64 + indexOf(PA, charAt(s, j + ${j})) - 1;`;
-        unpack.push(`  c = ${a}; while (c <= ${PKS.length}) { s = PKS[c]; n = strlen(s); j = 2; while (j <= n) { ${dec} ${k}.push(v + ${mn}); j = j + ${w}; } c = c + 1; }`);
+        // ((v3.0) one decoder fills UPK, each list only copies it: the function was 540 KB)
+        unpack.push(`  unpk(${a}, ${PKS.length}, ${w}, ${mn}); i = 1; while (i <= UPK.length) { ${k}.push(UPK[i]); i = i + 1; }`);
         parts.push(`let ${k} = [];`);
         packed.add(k);
     }
     parts.push(`let PA = ${JSON.stringify(PA)};`);
     parts.push(`let PKS = [${PKS.map(lit).join(', ')}];`);
-    parts.push(`function unpackLists() {\n  let c = 1, s = ' ', n = 0, j = 0, v = 0;\n${unpack.join('\n')}\n}`);
+    parts.push(`let UPK = [];`);
+    parts.push(`function unpk(a, b, w, mn) {\n  UPK = []; let c = a, s = ' ', n = 0, j = 0, v = 0, q = 0;\n  while (c <= b) { s = PKS[c]; n = strlen(s); j = 2; while (j <= n) { v = 0; q = 0; while (q < w) { v = v * 64 + indexOf(PA, charAt(s, j + q)) - 1; q = q + 1; } UPK.push(v + mn); j = j + w; } c = c + 1; }\n}`);
+    parts.push(`function unpackLists() {\n  let i = 0;\n${unpack.join('\n')}\n}`);
     init.push('  unpackLists();');
     for (const [k, v] of Object.entries(L)) {
         if (packed.has(k)) continue;

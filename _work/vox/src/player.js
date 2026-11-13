@@ -188,12 +188,12 @@ function bodyIn(x, y, z, w, h) {
 
 // ---------------------------------------------------------------- moving
 function playerMove(dt) {
-  if (riding > 0) { if (ET[riding] != 13 && isCart(ET[riding]) == 0) { riding = 0; } }
+  if (riding > 0) { if (rideOk(ET[riding]) == 0) { riding = 0; } }
   if (gameMode == 3) { riding = 0; spectatorMove(dt); }
   else {
     if (riding > 0) {
       if (key(16)) { if (uiMode == 0) { riding = 0; py = py + 0.9; pvy = 2; } }
-      else { px = EX[riding]; py = EY[riding] + 0.25; if (isCart(ET[riding]) == 1) { py = EY[riding] + 0.1; } pz = EZ[riding]; pvx = 0; pvy = 0; pvz = 0; fallTop = py; onGround = 1; }
+      else { px = EX[riding]; py = rideY(riding); pz = EZ[riding]; pvx = 0; pvy = 0; pvz = 0; fallTop = py; onGround = 1; }
     } else {
       if (cOK(Math.floor(px), Math.floor(pz)) == 0) { pvx = 0; pvy = 0; pvz = 0; fallTop = py; }
       else { playerMove2(dt); }
@@ -270,6 +270,8 @@ function playerMove2(dt) {
   if (inWater == 1 && flying == 0) { if (swimming == 0 && headWater == 0) { sprinting = 0; } }
   // (crawling out of the water: as slow as sneaking)
   if (swimming == 1 && inWater == 0) { sp = 1.3; }
+  // ((v3.0) a dolphin's grace: much faster in water)
+  if (fx(20) > 0 && inWater == 1) { sp = sp * 1.8; }
   if (wasHitX == 1) { sprinting = 0; }
   if (eatId > 0) { if (flying == 0) { sp = sp * 0.2; } sprinting = 0; }
   // what is under the feet or round the body: sand that holds, honey, a web
@@ -703,6 +705,8 @@ function breakTime(b) {
   // in water and off the ground))
   if (headWater == 1) { if (armLv(37, 23) == 0) { t = t * 5; } }
   if (onGround == 0 && flying == 0 && riding == 0) { t = t * 5; }
+  // ((v3.0) mining fatigue: 0.3, 0.09, 0.0027 of the pace)
+  if (fx(19) > 0) { let mf = 0.3; if (fx(19) == 2) { mf = 0.09; } if (fx(19) >= 3) { mf = 0.0027; } t = t / mf; }
   if (h < 0) { t = 99999; }
   return t;
 }

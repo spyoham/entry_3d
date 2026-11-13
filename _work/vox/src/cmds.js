@@ -637,7 +637,7 @@ function cmdHelp(w) {
   if (w == 'setblock') { r = '/setblock <x y z> <블록>[상태] [destroy|keep|replace] 예: /setblock ~ ~ ~2 oak_stairs[facing=east]'; }
   if (w == 'clone') { r = '/clone <x1 y1 z1> <x2 y2 z2> <x y z> [replace|masked] [normal|force|move]'; }
   if (w == 'tp' || w == 'teleport') { r = '/tp <x y z> · /tp <대상> · /tp <대상> <x y z> · ~ 상대, ^ 시선 기준'; }
-  if (w == 'summon') { r = '/summon <몹> [x y z] 예: /summon zombie ~ ~ ~3 · 몹: pig cow sheep chicken zombie skeleton spider wraith toad wanderer villager golem bombshroom raider ashpig ashboar blackskel boat lightning_bolt tnt'; }
+  if (w == 'summon') { r = '/summon <몹> [x y z] 예: /summon zombie ~ ~ ~3 · 몹 67종의 영어 이름은 Tab으로 채웁니다 (wolf, horse, cave_spider, flame_spirit ...), 그 밖에 boat lightning_bolt tnt'; }
   if (w == 'gamemode') { r = '/gamemode survival|creative|adventure|spectator [대상]'; }
   if (w == 'gamerule') { r = '/gamerule <규칙> [값] 규칙: keepInventory doDaylightCycle doMobSpawning naturalRegeneration fallDamage doWeatherCycle doMobLoot doTileDrops mobGriefing doFireTick drowningDamage fireDamage doImmediateRespawn randomTickSpeed commandBlockOutput sendCommandFeedback showDeathMessages spawnRadius'; }
   if (w == 'effect') { r = '/effect give <대상> <효과> [초] [단계] · /effect clear [대상] [효과] 효과: speed slowness haste jump_boost regeneration resistance fire_resistance night_vision saturation levitation slow_falling water_breathing absorption strength'; }

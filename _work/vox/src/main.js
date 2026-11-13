@@ -196,7 +196,7 @@ function playKeys(dt) {
     survival(dt);
     effectsStep(dt);
     // ((v2.9) beacons, frost walker)
-    beaconsStep(dt); frostStep(dt);
+    beaconsStep(dt); frostStep(dt); raidStep(dt);
   } else { pickOn = 0; breakStage = 0; uiInput(); }
   netUserAct = 0;
   wheelAcc = 0;

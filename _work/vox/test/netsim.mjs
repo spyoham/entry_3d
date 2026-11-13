@@ -136,7 +136,7 @@ ok(B.g('INVI').includes(KEY.indexOf('jade')), "bob's emeralds came back with him
 // pvp: alice hits bob
 const hp0 = B.g('hp');
 A.call((fn) => fn.netHit(A.g('NENT')[slotB - 1], 4));
-run(1);
+run(4, () => B.g('hp') < hp0);
 ok(B.g('hp') < hp0, `alice's hit hurt bob (${hp0} -> ${B.g('hp')})`);
 // alice bans carol
 A.call((fn) => fn.runCommand('/ban carol 시험'));

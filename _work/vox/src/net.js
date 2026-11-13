@@ -440,7 +440,7 @@ function netJoin(k) {
   EVI = []; EVT = [];
   // a new world from the server's seed, its changed blocks put in the log (they come back as the chunks are made)
   gameMode = shMode; defMode = shMode;
-  thingsInit();
+  thingsInit(); petsClear();
   let fbad = flatSet(shFlat);
   genStart(shSeed);
   genPhase = 0;

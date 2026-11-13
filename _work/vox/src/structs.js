@@ -316,6 +316,7 @@ function village() {
       let n = 3 + mod(stV, 4), k = 0;
       while (k < n) { structMob(M_VILLAGER, cxv + 0.5 + rndI(-6, 6), gy + 1, czv + 0.5 + rndI(-6, 6)); k = k + 1; }
       structMob(M_GOLEM, cxv + 4.5, gy + 1, czv + 0.5);
+      structMob(M_CAT, cxv - 3.5, gy + 1, czv + 2.5);
     }
   }
 }
@@ -480,6 +481,8 @@ function swampHut() {
   sput(x - 2, fy + 2, z, I_glassPane); sput(x + 2, fy + 2, z, I_glassPane);
   sput(x + 1, fy + 1, z + 2, I_cauldron); sput(x - 1, fy + 1, z + 2, 17); sput(x - 1, fy + 2, z + 2, I_potted_mushRed);
   sput(x, fy + 3, z, I_lantern);
+  // ((v3.0) its witch and her cat)
+  if (inChunk(x, z, x, z) == 1) { if (structMobsOnce(x, z) == 1) { structMob(M_WITCH, x + 0.5, fy + 1, z + 0.5); structMob(M_CAT, x - 0.5, fy + 1, z - 1.5); } }
 }
 // ---------------------------------------------------------------- the igloo (and now and then its cellar)
 function igloo() {
@@ -531,7 +534,7 @@ function outpost() {
   let k = gy + 1;
   while (k <= gy + h) { sput(x + 2, k, z + 2, I_ladder + 1); k = k + 1; }
   schest(x - 2, gy + h + 1, z - 2, 6); sput(x - 2, gy + 8, z + 2, I_grayBanner);
-  if (inChunk(x, z, x, z) == 1) { if (structMobsOnce(x, z) == 1) { structMob(M_RAIDER, x + 0.5, gy + h + 1, z + 0.5); structMob(M_RAIDER, x + 0.5, gy + 1, z + 0.5); structMob(M_RAIDER, x + 4.5, gy + 1, z + 5.5); } }
+  if (inChunk(x, z, x, z) == 1) { if (structMobsOnce(x, z) == 1) { structMob(M_RAIDER + 1000, x + 0.5, gy + h + 1, z + 0.5); structMob(M_RAIDER, x + 0.5, gy + 1, z + 0.5); structMob(M_RAIDER, x + 4.5, gy + 1, z + 5.5); } }
 }
 // ---------------------------------------------------------------- the ebony mansion
 function mansion() {
@@ -573,7 +576,7 @@ function mansion() {
   while (k < 5) { if (k < 4) { sput(x - w + 2 + k, gy + 5, z - d + 2, 0); sput(x - w + 2 + k, gy + 6, z - d + 2, 0); } sput(x - w + 2 + k, gy + 1 + k, z - d + 2, I_ebonyStairs + 1); k = k + 1; }
   let r = 0;
   while (r <= 4) { sbox(x - w - 1 + r, gy + 11 + r, z - d - 1 + r, x + w + 1 - r, gy + 11 + r, z + d + 1 - r, I_cobbleSlab); sbox(x - w + r, gy + 11 + r, z - d + r, x + w - r, gy + 11 + r, z + d - r, I_ebonyPlanks); r = r + 1; }
-  if (inChunk(x, z, x, z) == 1) { if (structMobsOnce(x, z) == 1) { k = 0; while (k < 4) { structMob(M_RAIDER, x - w + 4 + k * 7 + 0.5, gy + 1, z + 4.5); k = k + 1; } } }
+  if (inChunk(x, z, x, z) == 1) { if (structMobsOnce(x, z) == 1) { k = 0; while (k < 4) { structMob(M_AXERAIDER + mod(k, 2), x - w + 4 + k * 7 + 0.5, gy + 1, z + 4.5); k = k + 1; } } }
 }
 // ---------------------------------------------------------------- the sea temple
 function monument() {
@@ -608,6 +611,8 @@ function monument() {
   // the gate
   sbox(x - 2, by + 1, z - w, x + 2, by + 4, z - w + 6, 7);
   sput(x - 3, by + 5, z - w, I_aquaLantern); sput(x + 3, by + 5, z - w, I_aquaLantern);
+  // ((v3.0) its keepers: spiny fish about it, an elder in its heart)
+  if (inChunk(x, z, x, z) == 1) { if (structMobsOnce(x, z) == 1) { k = 0; while (k < 4) { structMob(M_GUARDIAN, x - 12 + k * 8 + 0.5, by + 3, z - 12.5); k = k + 1; } structMob(M_ELDERGUARDIAN, x + 0.5, by + 2, z + 0.5); } }
 }
 // ---------------------------------------------------------------- wrecks, sea ruins, buried chests, wells, fossils, dungeons
 function shipwreck() {
@@ -754,7 +759,7 @@ function mineRun(x, y, z, d, len) {
         s = s + 1;
       }
       if (mod(t * 7 + len, 37) == 0) { let qx = cx2 + dirZ(d), qz = cz2 + dirX(d); if (inChunk(qx, qz, qx, qz) == 1) { schest(qx, y, qz, 13); } }
-      if (mod(t * 11 + len, 97) == 0) { if (inChunk(cx2, cz2, cx2, cz2) == 1) { sspawner(cx2, y, cz2, I_spawner_spider); } }
+      if (mod(t * 11 + len, 97) == 0) { if (inChunk(cx2, cz2, cx2, cz2) == 1) { sspawner(cx2, y, cz2, I_spawner_caveSpider); } }
       t = t + 1;
     }
   }
@@ -788,7 +793,7 @@ function bastion() {
   // pillars down to the ground
   let a = x - w;
   while (a <= x + w) { let c = z - w; while (c <= z + w) { let yy = y - 1, n = 0; while (yy > 1 && n < 20) { if (inChunk(a, c, a, c) == 1) { let b = W[wi(a, yy, c)]; if (b == 0 || b == 35) { W[wi(a, yy, c)] = I_blackrock; yy = yy - 1; n = n + 1; } else { n = 99; } } else { n = 99; } } c = c + w; } a = a + w; }
-  if (inChunk(x, z, x, z) == 1) { if (structMobsOnce(x, z) == 1) { k = 0; while (k < 4) { structMob(M_ASHPIG, x - 5 + k * 3 + 0.5, y + 1, z + 5.5); k = k + 1; } structMob(M_ASHBOAR, x + 0.5, y + 7, z - 6.5); } }
+  if (inChunk(x, z, x, z) == 1) { if (structMobsOnce(x, z) == 1) { k = 0; while (k < 4) { structMob(M_ASHPIG, x - 5 + k * 3 + 0.5, y + 1, z + 5.5); k = k + 1; } structMob(M_ASHBOAR, x + 0.5, y + 7, z - 6.5); structMob(M_ASHBRUTE, x - 2.5, y + 1, z + 2.5); } }
 }
 // mobs of a structure wait until the chunk they stand in is ready
 let PMT = [], PMX = [], PMY = [], PMZ = [];
@@ -798,8 +803,8 @@ function pendingMobs() {
   while (k >= 1) {
     if (cOK(Math.floor(PMX[k]), Math.floor(PMZ[k])) == 1) {
       if (CKST[slotOf(idiv(Math.floor(PMX[k]), 16), idiv(Math.floor(PMZ[k]), 16))] == 5) {
-        mobAdd(PMT[k], PMX[k], PMY[k], PMZ[k]);
-        if (lastMob > 0) { EST[lastMob] = 0; }
+        mobAdd(mod(PMT[k], 1000), PMX[k], PMY[k], PMZ[k]);
+        if (lastMob > 0) { EST[lastMob] = 0; if (PMT[k] > 1000) { EVAR[lastMob] = 1; } }
         PMT.removeAt(k); PMX.removeAt(k); PMY.removeAt(k); PMZ.removeAt(k);
       }
     }

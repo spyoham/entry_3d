@@ -255,12 +255,15 @@ function drawHud2(dt) {
   nameT = nameT - dt;
   if (nameT > 0) { if (INVI[hotSel] > 0) { tx(10, ITNAME[INVI[hotSel] + 1], 0, y0 + 40, 9, '#ffffff', 0); } else { txOff(10); } } else { txOff(10); }
   // the warden's life across the top
-  let showB = 0;
-  if (dim == 2) { if (bossDead == 0) { if (bossE > 0) { if (ET[bossE] == 10) { showB = 1; } } } }
+  // ((v3.0) and the king of the black bones', and a raid's waves)
+  let showB = 0, bf = 0, bc = '#c040ff';
+  if (dim == 2) { if (bossDead == 0) { if (bossE > 0) { if (ET[bossE] == 10) { showB = 1; bf = Math.max(0, EHP[bossE]) / MHP[10]; gS = `공허의 수호자 · 남은 수호 수정 ${nCrystal}`; } } } }
+  if (kingE > 0) { if (ET[kingE] == M_BONEKING) { showB = 1; bf = Math.max(0, EHP[kingE]) / 300; bc = '#8a8aff'; gS = MNAME[M_BONEKING]; } }
+  if (raidOn == 1) { showB = 1; bf = raidWave / Math.max(1, raidN); bc = '#c03030'; gS = `습격 · ${raidWave} / ${raidN}번째 물결 · 남은 약탈자 ${raidLeft}`; }
   if (showB == 1) {
     box(-101, 127, 101, 121, '#000000');
-    box(-100, 126, -100 + 200 * Math.max(0, EHP[bossE]) / MHP[10], 122, '#c040ff');
-    tx(93, `공허의 수호자 · 남은 수호 수정 ${nCrystal}`, 0, 134, 7, '#f0e0ff', 0);
+    box(-100, 126, -100 + 200 * bf, 122, bc);
+    tx(93, gS, 0, 134, 7, '#f0e0ff', 0);
   } else { txOff(93); }
   if (winT > 0) { winT = winT - dt; tx(94, '승리!', 0, 70, 22, '#ffe880', 0); tx(95, '공허의 수호자를 쓰러뜨렸습니다 · 수호자의 심장을 주워 가세요', 0, 48, 8, '#ffffff', 0); }
   else { txOff(94); txOff(95); }

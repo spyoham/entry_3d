@@ -222,7 +222,7 @@ function worldMake(k) {
   worldCur = k; worldName = cwName; seedText = cwSeedText;
   gameMode = cwMode; defMode = cwMode;
   txClear();
-  thingsInit();
+  thingsInit(); petsClear(); sleptDay = 0;
   genStart(s);
   gState = 1;
 }

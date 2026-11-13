@@ -229,6 +229,8 @@ function svWrite() {
   // (v2.3: the kind of world; read from the end for the list)
   // ((v2.8) world edit on or off in this world)
   svN('WEDIT'); svN(weSingle);
+  // ((v3.0) the tamed and the built keepers)
+  petsPack(); svN('PETS'); M_svL(KPT); M_svL(KPX); M_svL(KPY); M_svL(KPZ); M_svL(KPH); M_svL(KPO); M_svL(KPV); M_svL(KPS); M_svL(KPD);
   svN('CHEAT'); svN(cheatsOn);
   svN('FLAT'); svN(flatKept());
   worldPut(worldCur);
@@ -271,7 +273,7 @@ function loadGame(k) {
   M_rdL(INVI); M_rdL(INVN); M_rdL(INVD);
   M_rdL(GRV); M_rdL(EFT); M_rdL(EFL);
   // ((v2.9) a save from before has 12 effects: 14 now)
-  while (EFT.length < 14) { EFT.push(0); } while (EFL.length < 14) { EFL.push(0); }
+  while (EFT.length < 22) { EFT.push(0); } while (EFL.length < 22) { EFL.push(0); }
   grSync();
   M_rdL(EDX); M_rdL(EDY); M_rdL(EDZ); M_rdL(EDB); M_rdL(EDD);
   edIndex();
@@ -296,8 +298,10 @@ function loadGame(k) {
   }
   flatOn = 0; cheatsOn = 1; weSingle = 1;
   KVX = []; KVY = []; KVZ = []; KVK = []; KVV = []; LPX = []; LPY = []; LPZ = [];
+  petsClear();
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'JE27') { svP = svP + 2; M_rdL(KVX); M_rdL(KVY); M_rdL(KVZ); M_rdL(KVK); M_rdL(KVV); M_rdL(LPX); M_rdL(LPY); M_rdL(LPZ); svP = svP - 1; } }
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'WEDIT') { svP = svP + 2; weSingle = rdN(); svP = svP - 1; } }
+  if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'PETS') { svP = svP + 2; M_rdL(KPT); M_rdL(KPX); M_rdL(KPY); M_rdL(KPZ); M_rdL(KPH); M_rdL(KPO); M_rdL(KPV); M_rdL(KPS); M_rdL(KPD); svP = svP - 1; } }
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'CHEAT') { svP = svP + 2; cheatsOn = rdN(); svP = svP - 1; } }
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'FLAT') { svP = svP + 2; let fbad = flatSet(rdN()); } }
   curI = 0; curN = 0; curD = 0;
@@ -313,6 +317,7 @@ function arriveKept() {
   solidBox(px - 0.3, px + 0.3, py, py + 1.8, pz - 0.3, pz + 0.3);
   while (solidHit == 1 && k < WY) { py = py + 1; k = k + 1; solidBox(px - 0.3, px + 0.3, py, py + 1.8, pz - 0.3, pz + 0.3); }
   dead = 0; uiMode = 0;
+  petsRestore();
   if (dim == 2) { if (bossDead == 0) { bossSpawn(); } }
   msgShow('저장한 세계로 돌아왔습니다', 3);
 }

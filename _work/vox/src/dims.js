@@ -168,7 +168,7 @@ function fortRun(x, z, dx, dz) {
     if (cross == 1) {
       if (s == 3) {
         let cxs = ax + dz * 2 - dx * 0, czs = az + dx * 2;
-        if (cxs >= gx0 && cxs <= gx1 && czs >= gz0 && czs <= gz1) { fortSet(cxs, FORTY + 1, czs, 37); let spx = ax - dz * 0, spz = az; if (spx >= gx0 && spx <= gx1 && spz >= gz0 && spz <= gz1) { W[wi(spx, FORTY + 1, spz)] = I_spawner_wraith; spawnerNote(spx, FORTY + 1, spz); } }
+        if (cxs >= gx0 && cxs <= gx1 && czs >= gz0 && czs <= gz1) { fortSet(cxs, FORTY + 1, czs, 37); let spx = ax - dz * 0, spz = az; if (spx >= gx0 && spx <= gx1 && spz >= gz0 && spz <= gz1) { W[wi(spx, FORTY + 1, spz)] = I_spawner_flameSpirit; spawnerNote(spx, FORTY + 1, spz); } }
       }
     }
     t = t + 1;
@@ -355,6 +355,8 @@ function veilBreak(x, y, z) {
 // gState 3: the new world's chunks round the player are made, then the player is put down
 let travelTo = 0, travelKind = 0, gateT = 0, gateCool = 0;
 function startTravel(nd, x, z, kind) {
+  // ((v3.0) the tamed of the world left are kept for when the player comes back)
+  if (kind <= 5) { petsPack(); }
   let s = 1;
   while (s <= NCH * NCH) { if (CKST[s] > 0) { chunkDrop(s); } s = s + 1; }
   thingsInit(); fluidInit();
@@ -401,6 +403,7 @@ function arrive() {
   if (travelKind == 4 || travelKind == 5) { farArrive(); }
   if (travelKind == 6) { arriveKept(); }
   if (travelKind == 7) { netArrive(); }
+  if (travelKind <= 5) { petsRestore(); }
   fallTop = py; gateCool = 1;
   gState = 2; txClear();
   lockReq();

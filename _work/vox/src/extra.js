@@ -5,15 +5,16 @@
 // ---------------------------------------------------------------- effects
 // 1 speed, 2 slowness, 3 haste, 4 jump boost, 5 regeneration, 6 resistance, 7 fire resistance,
 // 8 night vision, 9 saturation, 10 levitation, 11 slow falling, 12 water breathing; (v2.9) 13 absorption
-// (the totem's), 14 strength (the beacon's)
+// (the totem's), 14 strength (the beacon's); (v3.0) 15 hunger, 16 poison, 17 wither, 18 weakness,
+// 19 mining fatigue, 20 dolphin's grace, 21 bad omen, 22 hero of the village
 let EFT = [], EFL = [];
-let EFK = ['speed', 'slowness', 'haste', 'jump_boost', 'regeneration', 'resistance', 'fire_resistance', 'night_vision', 'saturation', 'levitation', 'slow_falling', 'water_breathing', 'absorption', 'strength'];
-let EFKO = ['신속', '구속', '성급함', '점프 강화', '재생', '저항', '화염 저항', '야간 투시', '포화', '공중 부양', '느린 낙하', '수중 호흡', '흡수', '힘'];
-let nightVis = 0, efRegenT = 0;
+let EFK = ['speed', 'slowness', 'haste', 'jump_boost', 'regeneration', 'resistance', 'fire_resistance', 'night_vision', 'saturation', 'levitation', 'slow_falling', 'water_breathing', 'absorption', 'strength', 'hunger', 'poison', 'wither', 'weakness', 'mining_fatigue', 'dolphins_grace', 'bad_omen', 'hero_of_the_village'];
+let EFKO = ['신속', '구속', '성급함', '점프 강화', '재생', '저항', '화염 저항', '야간 투시', '포화', '공중 부양', '느린 낙하', '수중 호흡', '흡수', '힘', '허기', '독', '시듦', '나약함', '채굴 피로', '돌고래의 가호', '불길한 징조', '마을의 영웅'];
+let nightVis = 0, efRegenT = 0, efPoisonT = 0, efWitherT = 0;
 function effectsInit() {
   EFT = []; EFL = [];
   let k = 0;
-  while (k < 14) { EFT.push(0); EFL.push(0); k = k + 1; }
+  while (k < 22) { EFT.push(0); EFL.push(0); k = k + 1; }
   nightVis = 0; absorb = 0;
 }
 function effectAdd(k, sec, lvl) { EFT[k] = sec; EFL[k] = lvl; if (k == 13) { absorb = 4 * lvl; } }
@@ -32,6 +33,10 @@ function effectsStep(dt) {
     if (efRegenT >= 2.5 / fx(5)) { efRegenT = 0; if (hp < 20) { hp = hp + 1; } }
   }
   if (fx(9) > 0) { food = Math.min(20, food + fx(9)); sat = Math.min(food, sat + 2 * fx(9)); }
+  // ((v3.0) hunger tires; poison takes a point now and then down to one; withering to the end)
+  if (fx(15) > 0) { exhaust = exhaust + 0.1 * fx(15) * dt; }
+  if (fx(16) > 0) { efPoisonT = efPoisonT + dt; if (efPoisonT >= 1.25 / fx(16)) { efPoisonT = 0; if (hp > 1) { hurtT = 0; hurtR(1, '독에 당했습니다'); } } }
+  if (fx(17) > 0) { efWitherT = efWitherT + dt; if (efWitherT >= 2 / fx(17)) { efWitherT = 0; hurtT = 0; hurtR(1, '시들어 버렸습니다'); } }
   let nv = 0;
   if (fx(8) > 0) { nv = 1; }
   if (nv != nightVis) { nightVis = nv; ltkDark = 0 - 99; }
@@ -123,8 +128,8 @@ function ruinCell(dx, dy, dz, k) {
         if (mod(dx * 3 + dz * 5 + k * 7 + seed, 10) == 0) { v = 62; }
       }
     }
-    // a chest in a corner
-    if (dy == 1) { if (dx == 7 && dz == 7) { v = 37; } }
+    // a chest in a corner; ((v3.0) the crawlers' spawner by the gate)
+    if (dy == 1) { if (dx == 7 && dz == 7) { v = 37; } if (dx == 0 && dz == 0 - 6) { v = I_spawner_silverfish; } }
   } else {
     // four halls out of it
     if (dy >= 0 && dy <= 4) {
@@ -146,7 +151,7 @@ function featuresRuins() {
           let y = 0;
           while (y <= 7) {
             let v = ruinCell(x - ruX, y, z - ruZ, k);
-            if (v >= 0) { W[wi(x, RUY + y, z)] = v; }
+            if (v >= 0) { W[wi(x, RUY + y, z)] = v; if (v == I_spawner_silverfish) { spawnerNote(x, RUY + y, z); } }
             y = y + 1;
           }
           z = z + 1;
@@ -482,11 +487,15 @@ function shellStep(e, dt) {
   let dx = px - EX[e], dy = py + 1 - EY[e], dz = pz - EZ[e];
   let d = Math.sqrt(dx * dx + dy * dy + dz * dz);
   EYAW[e] = atan2d(dx, dz);
+  // ((v3.0) it opens to shoot, and now and then to look; shut, blows hardly reach it)
+  let op = 0;
   if (d < 16 && mod(gameMode, 2) == 0 && dead == 0) {
-    if (EATK[e] <= 0) {
-      if (sightLine(EX[e], EY[e] + 0.8, EZ[e], px, py + 1.2, pz) == 1) { arrowShoot(EX[e], EY[e] + 1.1, EZ[e], px, py + 1.2, pz, 4); EATK[e] = 2 + rand(0, 20) / 10; }
+    if (sightLine(EX[e], EY[e] + 0.8, EZ[e], px, py + 1.2, pz) == 1) {
+      op = 1;
+      if (EATK[e] <= 0 && EVAR[e] > 40) { arrowShoot(EX[e], EY[e] + 1.1, EZ[e], px, py + 1.2, pz, 4); EATK[e] = 2 + rand(0, 20) / 10; }
     }
   }
+  shellLid(e, dt, op);
 }
 // the bolt (AON 5) and the eye (AON 6), each frame
 function boltStep(a, dt) {
@@ -497,7 +506,7 @@ function boltStep(a, dt) {
     AXX[a] = AXX[a] + AVX[a] * dt; AYY[a] = AYY[a] + AVY[a] * dt; AZZ[a] = AZZ[a] + AVZ[a] * dt;
     if (BSOL[blockAt(Math.floor(AXX[a]), Math.floor(AYY[a]), Math.floor(AZZ[a])) + 1] == 1) { AON[a] = 0; }
     if (Math.abs(AXX[a] - px) < 0.5 && Math.abs(AZZ[a] - pz) < 0.5 && AYY[a] > py && AYY[a] < py + 1.8) {
-      hurtM(4, '껍질벌레의 탄환에 맞았습니다'); effectAdd(10, 5, 1); AON[a] = 0;
+      hurtM(4, '껍질벌레의 탄환에 맞았습니다'); effectAdd(10, 10, 1); AON[a] = 0;
     }
     if (AAGE[a] > 10) { AON[a] = 0; }
   }
@@ -578,7 +587,7 @@ function lightning(x, y, z) {
     if (grFireTick == 1) { if (blockAt(bx, ty, bz) == 0) { if (BSOL[blockAt(bx, ty - 1, bz) + 1] > 0) { setBlock(bx, ty, bz, I_fire); } } }
     if ((px - x) * (px - x) + (pz - z) * (pz - z) < 9) { if (Math.abs(py - ty) < 4) { hurtT = 0; hurt(5, '번개에 맞았습니다'); } }
     let e = 1;
-    while (e <= NMOB) { if (ET[e] > 0) { if ((EX[e] - x) * (EX[e] - x) + (EZ[e] - z) * (EZ[e] - z) < 9) { EHURT[e] = 0; mobHurt(e, 5, 0, 0); } } e = e + 1; }
+    while (e <= NMOB) { if (ET[e] > 0) { if ((EX[e] - x) * (EX[e] - x) + (EZ[e] - z) * (EZ[e] - z) < 9) { boltMob(e); } } e = e + 1; }
   }
 }
 // ((v2.7) is it raining on this cell (the sky open over it)?

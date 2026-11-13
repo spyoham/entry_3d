@@ -179,7 +179,7 @@ function acKind(t) {
       id = id + 1;
     }
   }
-  if (t == '#m') { let k = 1; while (k <= NMOBT) { if (MKEY[k] != 'netPlayer') { acTry(MKEY[k]); acName(MNAME[k]); } k = k + 1; } }
+  if (t == '#m') { let k = 1; while (k <= NMOBT) { if (k != M_NETPLAYER) { acTry(MKEY[k]); acName(MNAME[k]); } k = k + 1; } }
   if (t == '#E') { let k = 1; while (k <= ENKEY.length) { acTry(ENKEY[k]); acName(ENKO[k]); k = k + 1; } }
   if (t == '#e') { let k = 1; while (k <= EFK.length) { acTry(EFK[k]); acName(EFKO[k]); k = k + 1; } }
   if (t == '#g') { let k = 1; while (k <= GRS.length) { acTry(GRS[k]); k = k + 1; } }

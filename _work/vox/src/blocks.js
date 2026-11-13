@@ -48,7 +48,10 @@ function useKey0() {
     }
     if (used == 0) { if (mobPick > 0) {
       let et = ET[mobPick];
+      // ((v3.0) feeding, taming, saddling, sitting, shearing a mushroom cow, curing, getting on a horse)
+      if (gameMode != 3) { if (mobUse(mobPick, id) == 1) { used = 1; placeCool = 0.3; et = 0; } }
       if (et == 13 || isCart(et) == 1) { riding = mobPick; used = 1; placeCool = 0.4; }
+      if (et == M_TRADER) { tradeOpen(mobPick); used = 1; }
       if (et == 3) { if (ITTK[id + 1] == 5) { if (EST[mobPick] != 9) { EST[mobPick] = 9; dropItem(32, rand(1, 3), 0, EX[mobPick], EY[mobPick] + 1, EZ[mobPick], 0); wearHeld(1); sndPlay(6); used = 1; placeCool = 0.3; } } }
       if (et == M_VILLAGER) { tradeOpen(mobPick); used = 1; }
       // ((v2.9) flint and steel or a fire charge lights a bursting mushroom: it goes off in 1.5 s)
@@ -133,6 +136,7 @@ function useItem(id) {
   if ((id == I_minecart || id == I_tntMinecart) && noCart == 0) { used = 1; if (pickOn == 1) { if (BRS[pickB + 1] == RS_RAIL) { let t = M_MINECART; if (id == I_tntMinecart) { t = M_TNTCART; } cartPlace(t, pickX, pickY, pickZ); if (mod(gameMode, 2) == 0) { takeHeld(1); } placeCool = 0.4; } } }
   if (id == I_compass) { used = 1; placeCool = 0.5; compassShow(); }
   if (id == I_fireworkRocket) { used = 1; placeCool = 0.3; fireworkUse(); }
+  if (id == I_trident) { used = 1; placeCool = 0.6; tridentThrow(); }
   if (id == I_clock) { used = 1; placeCool = 0.5; msgShow(`지금 ${timeText()} (${dayN + 1}일째)`, 2); }
   if (ITTHROW[id + 1] > 0) { used = 1; placeCool = 0.3; throwIt(ITTHROW[id + 1]); if (mod(gameMode, 2) == 0) { takeHeld(1); } }
   if (ITSPAWN[id + 1] > 0) { used = 1; placeCool = 0.3; if (pickOn == 1) { pickNeighbour(); mobAdd(ITSPAWN[id + 1], nbX + 0.5, nbY, nbZ + 0.5); if (lastMob > 0) { EST[lastMob] = 0; } if (mod(gameMode, 2) == 0) { takeHeld(1); } } }
@@ -252,6 +256,7 @@ function placeBlock(b, id) {
     // what it had: it does not sound or fire, as in the genre)
     if (BRS[put + 1] == RS_NOTE || BRS[put + 1] == RS_COMMAND || BRS[put + 1] == RS_DISPENSER) { let pw = 0; if (powerIn(x, y, z, 0 - 1) > 0) { pw = 1; } edgeSet(x, y, z, pw); }
     if (y2 >= 0) { setBlock(x2, y2, z2, put2); }
+    if (b == I_carvedPumpkin || b == I_pumpkinLantern || b == I_skullBlack) { buildMob(x, y, z, b); }
     // (v2.5) the rails by a rail put turn to it
     if (BRS[put + 1] == RS_RAIL) { railJoin(x, y, z); }
     sndPlay(2);
@@ -706,7 +711,7 @@ function bedUse(x, y, z, b) {
   else {
     spawnX = x + 0.5; spawnY = y + 1; spawnZ = z + 0.5; spawnDim = 0; spawnSet = 1;
     if (dark >= 7 || wthr == 2) {
-      if (nearHostile(8) == 0) { tday = 0.0; dayN = dayN + 1; weatherClear(); msgShow('잠을 자고 아침이 되었습니다 (되살아날 곳을 정했습니다)', 3); }
+      if (nearHostile(8) == 0) { tday = 0.0; dayN = dayN + 1; sleptDay = dayN; weatherClear(); msgShow('잠을 자고 아침이 되었습니다 (되살아날 곳을 정했습니다)', 3); }
       else { msgShow('근처에 몬스터가 있어 잘 수 없습니다', 2); }
     } else { msgShow('되살아날 곳을 정했습니다 (밤에만 잘 수 있습니다)', 2); }
   }
@@ -933,7 +938,7 @@ function throwFrom(k, x, y, z, dx, dy, dz) {
 // where a thrown thing lands (AON 7 snowball, 8 egg, 9 void pearl)
 function thrownHit(a) {
   let k = AON[a];
-  if (k == 8) { if (rand(1, 8) == 1) { mobAdd(4, AXX[a], AYY[a], AZZ[a]); } }
+  if (k == 8) { if (rand(1, 8) == 1) { mobAdd(4, AXX[a], AYY[a], AZZ[a]); if (lastMob > 0) { ESZ[lastMob] = 0.5; EAGE[lastMob] = 0 - 1200; } } }
   if (k == 9) {
     px = AXX[a]; py = Math.floor(AYY[a]) + 0.05; pz = AZZ[a];
     let n = 0;
@@ -941,6 +946,7 @@ function thrownHit(a) {
     while (solidHit == 1 && n < 4) { py = py + 1; n = n + 1; solidBox(px - 0.3, px + 0.3, py, py + 1.8, pz - 0.3, pz + 0.3); }
     pvx = 0; pvy = 0; pvz = 0; fallTop = py;
     hurtT = 0; hurt(3, '공허 진주에 다쳤습니다');
+    if (rand(1, 20) == 1) { mobAdd(M_VOIDMITE, px, py, pz); }
     sndPlay(7);
   }
   AON[a] = 0;
@@ -1025,17 +1031,18 @@ function worldExtraInit() {
 
 // ---------------------------------------------------------------- trading with the people of the villages
 // four offers a villager (from its slot and the seed): what it wants -> what it gives
-let TRA = [I_wheat, I_potato, I_carrot, 101, I_paper, 32, I_jade, I_jade, I_jade, I_jade, I_jade, I_jade, I_jade, 115, I_string, I_jade];
-let TRAN = [20, 26, 22, 15, 24, 18, 1, 3, 1, 2, 4, 1, 6, 16, 14, 1];
-let TRB = [I_jade, I_jade, I_jade, I_jade, I_jade, I_jade, I_bread, 132, 102, 125, 133, 27, 155, I_jade, I_jade, I_glowCrystal];
-let TRBN = [1, 1, 1, 1, 1, 1, 6, 1, 4, 1, 1, 8, 1, 1, 1, 2];
+// ((v3.0) 17..24: the wandering trader's wares)
+let TRA = [I_wheat, I_potato, I_carrot, 101, I_paper, 32, I_jade, I_jade, I_jade, I_jade, I_jade, I_jade, I_jade, 115, I_string, I_jade, I_jade, I_jade, I_jade, I_jade, I_jade, I_jade, I_jade, I_jade];
+let TRAN = [20, 26, 22, 15, 24, 18, 1, 3, 1, 2, 4, 1, 6, 16, 14, 1, 1, 1, 1, 4, 2, 1, 1, 1];
+let TRB = [I_jade, I_jade, I_jade, I_jade, I_jade, I_jade, I_bread, 132, 102, 125, 133, 27, 155, I_jade, I_jade, I_glowCrystal, I_kelpItem, 8, I_redSand, I_jellyBall, I_glowCrystal, I_pumpkin, 19, I_podzol];
+let TRBN = [1, 1, 1, 1, 1, 1, 6, 1, 4, 1, 1, 8, 1, 1, 1, 2, 3, 8, 4, 1, 1, 1, 2, 3];
 let trMob = 0, trSel = 0;
 function tradeOpen(e) { trMob = e; uiMode = 10; mouseFree(); txClear(); }
-function tradeOffer(k) { return mod(trMob * 5 + k * 4 + seed + k * k, 16) + 1; }
+function tradeOffer(k) { let r = mod(trMob * 5 + k * 4 + seed + k * k, 16) + 1; if (ET[trMob] == M_TRADER) { r = mod(trMob * 3 + k * 5 + seed, 8) + 17; } return r; }
 function tradeScreen() {
   penAlpha(45); box(-245, 140, 245, -140, '#000000'); fillStop(); penAlpha(0);
   panel(-110, 92, 110, -40);
-  tx(20, `${MNAME[M_VILLAGER]}과 바꾸기 (클릭) · E 닫기`, -102, 86, 8, '#404040', 1);
+  tx(20, `${MNAME[ET[trMob]]}과 바꾸기 (클릭) · E 닫기`, -102, 86, 8, '#404040', 1);
   let k = 0, mx = mouseX(), my = mouseY();
   trSel = 0;
   while (k < 4) {
@@ -1051,7 +1058,7 @@ function tradeScreen() {
   }
 }
 function tradeInput() {
-  if (keyHit(69) == 1 || keyHit(27) == 1 || ET[trMob] != M_VILLAGER) { uiMode = 0; txClear(); lockReq(); }
+  if (keyHit(69) == 1 || keyHit(27) == 1 || (ET[trMob] != M_VILLAGER && ET[trMob] != M_TRADER)) { uiMode = 0; txClear(); lockReq(); }
   else {
     if (clickLatch == 1) { if (trSel > 0) {
       let o = tradeOffer(trSel - 1), have = 0, k = 1;

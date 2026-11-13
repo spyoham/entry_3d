@@ -922,5 +922,8 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     // resistance, jump boost, strength - and the second (aux-1)/5 - none, regeneration, the first at II):
     // kept in the block, so a world and a server keep them as they keep blocks
     for (let k = 1; k <= 15; k++) add({ n: 'beacon_' + k, key: 'beacon_' + k, ko: '신호기', t: ['beaconT'], hard: 3, shape: 4, hide: 0, lop: 0, light: 15, cat: 3, use: 'beacon', aux: k, hidden: 1, nokind: 1, item: 'beacon', drop: 'beacon' });
+    // (v3.0) the spawners of the mines (small poisoned spiders), the strongholds (crawlers) and the forts
+    // (spirits of flame): the last free ids but one
+    for (const [m, ko] of [['caveSpider', '동굴 거미'], ['silverfish', '좀벌레'], ['flameSpirit', '불꽃 정령']]) add({ n: 'spawner_' + m, key: 'spawner_' + m.replace(/[A-Z]/g, (x) => '_' + x.toLowerCase()), ko: `${ko} 생성기`, t: ['spawnerT'], hard: 5, tool: 1, tier: 0, shape: 4, hide: 0, lop: 0, drop: 'none', hidden: 1, nokind: 1, item: 'spawner', spawns: m, xp: 20 });
     return { item, I, R, S, ICON, kinds, byKey };
 }
