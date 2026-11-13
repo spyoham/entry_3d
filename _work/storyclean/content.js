@@ -11,9 +11,7 @@
       searchAfter
     }
   }`;
-  const REMOVE_Q = `mutation REMOVE_DISCUSS($id: ID) {
-    removeDiscuss(id: $id){ id }
-  }`;
+  const BATCH = 20; // 한 요청에 지우는 글 수 (안 되면 저절로 줄인다)
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -26,7 +24,8 @@
     }
   }
 
-  async function gql(name, query, variables) {
+  // raw: GraphQL 오류가 있어도 던지지 않고 {data, errors}를 그대로 준다 (묶음 삭제에서 하나하나 보려고).
+  async function gql(name, query, variables, raw) {
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const headers = {
       'content-type': 'application/json',
@@ -57,9 +56,40 @@
       }
       clearTimeout(timer);
       if (!res.ok) throw new Error('HTTP ' + res.status);
-      if (j.errors && j.errors.length) throw new Error(j.errors[0].message || 'GraphQL 오류');
+      if (raw) return j;
+      if (j.errors && j.errors.length) throw new Error(errText(j.errors[0]));
       return j.data;
     }
+  }
+
+  function errText(e) {
+    if (!e) return '알 수 없는 오류';
+    if (e.message) return e.message;
+    if (e.statusCode === 401) return '로그인이 필요합니다 (401)';
+    if (e.statusCode === 403) return '권한이 없습니다 (403)';
+    return e.statusCode ? '오류 ' + e.statusCode : 'GraphQL 오류';
+  }
+
+  // 한 요청에 여러 개를 지운다: d0: removeDiscuss(id: $i0) d1: ... 서버는 별칭마다 따로 실행한다.
+  // 돌려주는 것: id -> null(성공) 또는 오류 문구.
+  async function removeMany(ids) {
+    const vars = {};
+    const defs = [];
+    const fields = [];
+    ids.forEach((id, k) => {
+      vars['i' + k] = id;
+      defs.push(`$i${k}: ID`);
+      fields.push(`d${k}: removeDiscuss(id: $i${k}){ id }`);
+    });
+    const q = `mutation REMOVE_DISCUSS(${defs.join(' ')}) { ${fields.join(' ')} }`;
+    const j = await gql('REMOVE_DISCUSS', q, vars, true);
+    const errs = (j && j.errors) || [];
+    const out = new Map();
+    ids.forEach((id, k) => {
+      const r = j && j.data && j.data['d' + k];
+      out.set(id, r ? null : errText(errs.find((e) => e.path && e.path[0] === 'd' + k) || errs[0]));
+    });
+    return out;
   }
 
   // 내 엔트리 이야기 id를 전부 모은다.
@@ -187,6 +217,7 @@
       const failed = new Map(); // id -> 메시지
       let queue = found ? found.slice() : [];
       let planned = queue.length;
+      let batch = BATCH;
 
       // 검색 색인이 늦게 따라올 수 있으니 다 지운 뒤 다시 모아 남은 것을 지운다 (최대 5바퀴).
       for (let round = 0; round < 5 && !stopFlag; round++) {
@@ -207,18 +238,30 @@
           planned = done.size + queue.length;
         }
         if (!queue.length) break;
-        for (const id of queue) {
-          if (stopFlag) break;
+        let i = 0;
+        while (i < queue.length && !stopFlag) {
+          const chunk = queue.slice(i, i + batch);
           try {
-            const d = await gql('REMOVE_DISCUSS', REMOVE_Q, { id });
-            if (d && d.removeDiscuss) done.add(id);
-            else failed.set(id, '응답 없음');
+            const res = await removeMany(chunk);
+            for (const [id, err] of res) {
+              if (err) failed.set(id, err);
+              else done.add(id);
+            }
+            i += chunk.length;
           } catch (e) {
-            failed.set(id, e.message);
+            // 묶음째 안 되면 반으로 줄여 다시; 하나짜리도 안 되면 실패로 치고 넘어간다.
+            if (batch > 1) {
+              batch = Math.max(1, batch >> 1);
+              await sleep(2000);
+              continue;
+            }
+            failed.set(chunk[0], e.message);
+            i += 1;
           }
           const n = done.size + failed.size;
           fill.style.width = Math.round((n / Math.max(planned, 1)) * 100) + '%';
-          status.textContent = `삭제 중… ${done.size} / ${planned}` + (failed.size ? `\n실패 ${failed.size}` : '');
+          status.textContent =
+            `삭제 중… ${done.size} / ${planned}` + (failed.size ? `\n실패 ${failed.size}` : '') + `\n(한 번에 ${batch}개)`;
           await sleep(300);
         }
       }

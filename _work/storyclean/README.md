@@ -16,6 +16,9 @@
 ## 쓰는 API (2026-11 사이트 코드에서 확인)
 
 - 목록: `POST /graphql/SELECT_ENTRYSTORY` — `discussList(user: <내 id>, category: "free", term: "all", searchType: "scroll", pageParam: {display: 50, sort: "created"}, searchAfter)`; `searchAfter`로 다음 쪽.
-- 삭제: `POST /graphql/REMOVE_DISCUSS` — `mutation REMOVE_DISCUSS($id: ID) { removeDiscuss(id: $id) { id } }` (사이트의 글 삭제 버튼과 같은 것).
+- 삭제: `POST /graphql/REMOVE_DISCUSS` — `removeDiscuss(id: $id) { id }` (사이트의 글 삭제 버튼과 같은 것).
+  한 요청에 20개를 별칭으로 묶는다 (`d0: removeDiscuss(id: $i0) … d19: …`); 서버가 별칭마다 따로 실행하고
+  결과도 따로 준다 (로그아웃 상태로 20개 묶음 → 401 오류 20개, 32 ms). 묶음이 안 되면 10·5·2·1개로 줄인다.
+- 목록은 `display`를 50보다 크게 해도 50개씩만 준다.
 - 헤더: `CSRF-Token` (`meta[name=csrf-token]`), `x-token` (`__NEXT_DATA__ … common.user.xToken`), `x-client-type: Client`, 쿠키 포함.
 - 요청을 몰아 보내면 서버가 응답 없이 붙잡는다: 요청 사이 300 ms, 10 초 넘으면 끊고 2·4·6… 초 쉬었다 다시 (5번까지).
