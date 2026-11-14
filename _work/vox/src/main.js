@@ -2,7 +2,7 @@
 // Every tick: count it, gather the mouse movement and the wheel (tessvm writes $DELTA_X/Y and
 // $SCROLL_Y only in a tick the wheel turned: the work sets it back to 0 itself). Every kStep ticks: a frame (the game and the picture) with dt the
 // time since the last one.
-let $TESSVM = 0, $M_LOCK = 0, $DELTA_X = 0, $DELTA_Y = 0, $SCROLL_Y = 0, $CURSOR = '';
+let $TESSVM = 0, $M_LOCK = 0, $DELTA_X = 0, $DELTA_Y = 0, $SCROLL_Y = 0, $CURSOR = '', $MOUSE_BUTTONS = 0;
 let tickN = 0, lastFrameTick = 0, kStep = 1, frames = 0, fpsShow = 0, tpsShow = 0;
 let secNow = -1, secTicks = 0, secFrames = 0, kGood = 0, kBad = 0, secN = 0, kHoldTo = 0, kDecAt = -99, rtK = 1;
 let mAccX = 0, mAccY = 0, wheelAcc = 0, clickLatch = 0, clickHeld = 0, mouseWas = 0, sens = 0.5, isTess = 0;
@@ -69,8 +69,33 @@ function locked() {
   if ($M_LOCK == 1) { r = 1; }
   return r;
 }
+// ((v3.0) the buttons: tessvm 0.3.56 writes $MOUSE_BUTTONS (1 left, 2 right, 4 middle, added up) while
+// one is held. Each tick looks for a button going down: the left one is the click (clickLatch), the
+// right one rLatch (place, use), the middle one mLatch (pick block). A press another button already
+// held is in brings no click event of its own, so the left one is caught here too. Entry without it
+// (and an older tessvm) leaves 0: every press is the left one, and F and C do the right's and the middle's work.
+let mbL = 0, mbR = 0, mbM = 0, rLatch = 0, mLatch = 0;
+function btnTick() {
+  let mb = $MOUSE_BUTTONS;
+  let b1 = mod(mb, 2), b2 = mod(Math.floor(mb / 2), 2), b4 = mod(Math.floor(mb / 4), 2);
+  if (b1 == 1 && mbL == 0) { clickLatch = 1; }
+  if (b2 == 1 && mbR == 0) { rLatch = 1; }
+  if (b4 == 1 && mbM == 0) { mLatch = 1; }
+  mbL = b1; mbR = b2; mbM = b4;
+}
+// the left button held (any press, where the buttons are not told)
+function leftHeld() {
+  let r = 0;
+  if (mouseDown()) { if ($MOUSE_BUTTONS == 0 || mod($MOUSE_BUTTONS, 2) == 1) { r = 1; } }
+  return r;
+}
+// use (the right button or F): went down this frame / held
+function useHit() { let r = 0; if (keyHit(70) == 1 || rLatch == 1) { r = 1; } return r; }
+function useDown() { let r = 0; if (key(70) || mbR == 1) { r = 1; } return r; }
 on('click', 'pen', function () {
-  clickLatch = 1;
+  // (a press of the left button that tessvm told is caught by btnTick; this is for the rest: Entry,
+  // an older tessvm, a press let go before the tick)
+  if ($MOUSE_BUTTONS == 0) { clickLatch = 1; }
   if (gState == 2) { if (uiMode == 0) { if (dead == 0) { if ($M_LOCK == 0) { lockReq(); } } } }
   if (keysLost == 1) { keysLost = 0; msgT = 0; }
 });
@@ -155,7 +180,7 @@ function playLook(dt) {
   if (uiMode == 0) { if (dead == 0) { if (wasLocked == 1) { if (lkNow == 0) { if (lockAskT == 0) { uiMode = 6; txClear(); } } } } }
   wasLocked = lkNow;
   clickHeld = 0;
-  if (mouseDown()) { if (lkNow == 1) { clickHeld = 1; } }
+  if (leftHeld() == 1) { if (lkNow == 1) { clickHeld = 1; } }
   attackCool = attackCool - dt; placeCool = placeCool - dt; swingT = swingT - dt; bowCool = Math.max(0, bowCool - dt);
 }
 // the keys of play (or of the open screen)
@@ -177,10 +202,13 @@ function playKeys(dt) {
       pickRay();
       if (clickLatch == 1) { if (lkNow == 1) { attack(); } }
       breaking(dt);
-      if (keyHit(70) == 1) { useKey(); }
-      if (key(70)) { if (placeCool <= 0) { if (KW[70] == 1) { useKey(); placeCool = 0.25; } } }
+      // the right button (or F): place, use; held, again every 0.2 s (the genre's 4 ticks)
+      if (useHit() == 1) { if (lkNow == 1 || keyHit(70) == 1) { useKey(); } }
+      else { if (useDown() == 1) { if (placeCool <= 0) { if (lkNow == 1 || key(70)) { useKey(); placeCool = Math.max(placeCool, 0.2); } } } }
+      useHeldStep(dt);
       if (keyHit(81) == 1) { dropHeld(); }
-      if (keyHit(67) == 1) { pickCopy(); }
+      // the middle button (or C): pick block
+      if (keyHit(67) == 1 || (mLatch == 1 && lkNow == 1)) { pickCopy(); }
       if (keyHit(69) == 1) { if (gameMode == 1) { uiOpen(5); } else { if (gameMode != 3) { uiOpen(1); } } }
       if (keyHit(80) == 1) { uiMode = 6; mouseFree(); txClear(); }
       // a command: T or /
@@ -190,14 +218,14 @@ function playKeys(dt) {
     } else {
       playerMove(dt);
       camX = px; camY = py + eyeH; camZ = pz; camYaw = yaw; camPitch = pitch;
-      pickOn = 0; breakStage = 0;
+      pickOn = 0; breakStage = 0; drawId = 0; drawT = 0;
       uiInput();
     }
     survival(dt);
     effectsStep(dt);
     // ((v2.9) beacons, frost walker)
     beaconsStep(dt); frostStep(dt); raidStep(dt);
-  } else { pickOn = 0; breakStage = 0; uiInput(); }
+  } else { pickOn = 0; breakStage = 0; drawId = 0; drawT = 0; uiInput(); }
   netUserAct = 0;
   wheelAcc = 0;
   if (keyHit(114) == 1) { showDbg = 1 - showDbg; }
@@ -270,7 +298,7 @@ function drawUI(dt) {
 }
 function helpText() {
   tx(15, 'WASD 이동 · 스페이스 점프(크리에이티브: 두 번 눌러 날기) · Shift 웅크리기 · W 두 번/R 달리기', 0, 104, 7, '#ffffff', 0);
-  tx(16, '클릭(누르고 있기) 부수기·공격 · F 놓기·쓰기(먹기, 작업대·화로·상자 열기) · Q 버리기', 0, 94, 7, '#ffffff', 0);
+  tx(16, '왼쪽 클릭(누르고 있기) 부수기·공격 · 오른쪽 클릭 놓기·쓰기(먹기, 활, 상자 열기) · Q 버리기', 0, 94, 7, '#ffffff', 0);
   tx(17, '1~9·휠 손에 들 것 · E 소지품·제작 · G 시야 거리 · T 또는 / 명령어 · F3 정보 · P 메뉴 · H 도움말', 0, 84, 7, '#ffffff', 0);
   tx(18, '/gamemode spectator 관전자 · /help 명령어 목록 · 크리에이티브 창 위의 탭과 검색', 0, 74, 7, '#c0ffc0', 0);
 }
@@ -290,15 +318,33 @@ function uiInput() {
         if (clickLatch == 1) { if (tabHot >= 0) { if (tabHot == NCAT) { palSearch(); } else { uiTab = tabHot; uiPage = 0; } clickLatch = 0; } }
         if (wheelAcc <= -1) { if (uiPage > 0) { uiPage = uiPage - 1; } }
       }
-      if (clickLatch == 1) {
+      // ((v3.0) a stack drawn over slots (items.js dragStep) until its button is let go
+      if (dragOn == 1) {
+        let held = mbR;
+        if (dragBtn == 0) { held = leftHeld(); }
+        dragStep(held);
+        clickLatch = 0; rLatch = 0; mLatch = 0;
+      }
+      // ((v3.0) the left, right or middle button; Shift)
+      let btn = 0 - 1;
+      if (clickLatch == 1) { btn = 0; } else { if (rLatch == 1) { btn = 1; } else { if (mLatch == 1) { btn = 2; } } }
+      if (btn >= 0) {
         let sh = 0;
         if (key(16)) { sh = 1; }
-        if (uiHover > 0) { slotClick(uiHover, sh); }
+        if (uiHover > 0) {
+          if (btn <= 1 && sh == 0 && curI > 0 && dragOk(uiHover) == 1) { dragOn = 1; dragBtn = btn; DRS = []; DRS.push(uiHover); }
+          else { slotClick(uiHover, btn, sh); }
+        }
         else {
-          // a click outside the window throws what is on the cursor
+          // a click outside the window throws what is on the cursor (the right button: one)
           let mx = mouseX(), my = mouseY();
           let left = -88; if (uiMode == 5) { left = -112; }
-          if (curI > 0) { if (mx < left || mx > 88 || my > 92 || my < -94) { if (uiMode != 5) { dropItem(curI, curN, curD, camX + lookX * 0.4, camY - 0.3, camZ + lookZ * 0.4, 2); } curI = 0; curN = 0; curD = 0; } }
+          if (curI > 0 && btn <= 1) { if (mx < left || mx > 88 || my > 92 || my < -94) {
+            let n = curN;
+            if (btn == 1) { n = 1; }
+            if (uiMode != 5) { dropItem(curI, n, curD, camX + lookX * 0.4, camY - 0.3, camZ + lookZ * 0.4, 2); }
+            curN = curN - n; if (curN <= 0) { curI = 0; curN = 0; curD = 0; }
+          } }
         }
       }
       // number keys: the hovered slot to the hotbar
@@ -411,6 +457,7 @@ on('start', 'pen', function () {
   if (AUTOSEED > 0) { genStart(AUTOSEED); gameMode = AUTOMODE; gState = 1; }
   for (;;) {
     tickN = tickN + 1; secTicks = secTicks + 1;
+    btnTick();
     if (isTess == 1) { mAccX = mAccX + $DELTA_X; mAccY = mAccY + $DELTA_Y; lockWatch();
       // the wheel: tessvm writes $SCROLL_Y in the tick it turned and leaves it there, so it is
       // read once and set back to 0 (one step a turn, down is +1)
@@ -430,6 +477,7 @@ on('start', 'pen', function () {
       if (gState == 0) { titleFrame(dt); }
       else { if (gState == 1) { loadFrame(); } else { if (gState == 3) { travelFrame(); } else { playFrame(dt); } } }
       netStep(dt);
+      rLatch = 0; mLatch = 0;
       if (TESTRUN == 1) { testStep(); }
     }
   }

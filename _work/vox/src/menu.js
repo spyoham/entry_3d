@@ -11,7 +11,7 @@ let esLava = 1, esTnt = 1, esWe = 1, esName = '', esMotd = '', esSeedText = '', 
 let msgTitle = '', msgBody = '', msgBody2 = '', msgBack = 0, menuKeep = 0, gbSel = 0, gbMsg = '', gbNick = '';
 const PANOSEED = 1234;
 let SPLASHES = ['엔트리로 만들었습니다!', '블록이 1784가지!', '이제 함께 놉니다!', '플러그인을 만들어 보세요!', '세 개의 세계!', '불꽃가루로 움직여요!', '저장도 됩니다!', 'tessvm 덕분에!', '닉네임이 곧 계정!', '탄성 블록 비행기!', '구조물이 20가지!', '심연과 공허!', '마을 사람과 거래!', '피스톤이 여섯 방향!', '네모난 세상!', '오늘도 캐러 갑니다!'];
-let HELPL = ['W A S D 걷기 · 스페이스 점프 · Shift 웅크리기 · R 달리기', '클릭 부수기·공격 · F 놓기·쓰기 · Q 버리기 · E 소지품', '1~9·휠 손에 들 칸 · G 시야 · F3 정보 · P 메뉴 · C 블록 복사(크리에이티브)', 'T 채팅 · / 명령어 (한/영 한글 · Tab 자동완성 · ↑↓ 지난 줄)', '멀티플레이: Tab을 누르고 있으면 접속한 사람들', '서버 관리자는 /op /ban /kick /whitelist /server /plugin /perm', '플러그인: /plugin add 이름 이벤트 조건 대상 명령', '자세한 것은 설명서를 보세요'];
+let HELPL = ['W A S D 걷기 · 스페이스 점프 · Shift 웅크리기 · R 달리기', '왼쪽 클릭 부수기·공격 · 오른쪽 클릭(F) 놓기·쓰기 · Q 버리기 · E 소지품', '1~9·휠 손에 들 칸 · G 시야 · F3 정보 · P 메뉴 · 가운데 클릭(C) 블록 복사', 'T 채팅 · / 명령어 (한/영 한글 · Tab 자동완성 · ↑↓ 지난 줄)', '멀티플레이: Tab을 누르고 있으면 접속한 사람들', '서버 관리자는 /op /ban /kick /whitelist /server /plugin /perm', '플러그인: /plugin add 이름 이벤트 조건 대상 명령', '자세한 것은 설명서를 보세요'];
 
 function titleFrame(dt) {
   if (tickN - menuTick > 3) { menuEnter(); }

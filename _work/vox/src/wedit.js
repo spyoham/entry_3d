@@ -33,7 +33,7 @@ function weWandId() {
   return weWand;
 }
 function weWandHeld() { let r = 0; if (INVI[hotSel] == weWandId()) { if (weWand > 0) { r = weCan(); } } return r; }
-// the wand: a click the first corner (instead of breaking), F the second
+// the wand: a click the first corner (instead of breaking), the right button (or F) the second
 function breaking(dt) {
   if (weWandHeld() == 1) {
     breakStage = 0;
@@ -89,7 +89,7 @@ function weToggle(v) {
   return weS;
 }
 function weRun(c) {
-  if (c == 'wand') { addItem(weWandId(), 1, 0); weS = '나무 도끼(선택 도구): 블록을 클릭하면 첫 점, F를 누르면 두 번째 점'; }
+  if (c == 'wand') { addItem(weWandId(), 1, 0); weS = '나무 도끼(선택 도구): 블록을 왼쪽 클릭하면 첫 점, 오른쪽 클릭하면 두 번째 점'; }
   if (c == 'pos1' || c == 'pos2') { let k = 1; if (c == 'pos2') { k = 2; } weS = wePosSet(k, Math.floor(px), Math.floor(py), Math.floor(pz)); }
   if (c == 'hpos1' || c == 'hpos2') { let k = 1; if (c == 'hpos2') { k = 2; } if (pickOn == 1) { weS = wePosSet(k, pickX, pickY, pickZ); } else { weS = '보고 있는 블록이 없습니다'; } }
   if (c == 'sel' || c == 'desel' || c == 'deselect') { we1 = 0; we2 = 0; weS = '선택을 지웠습니다'; }

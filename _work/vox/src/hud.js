@@ -191,7 +191,7 @@ function drawHud(dt) {
   debugHud();
 }
 function specHud() {
-  if (specMob > 0) { tx(10, `관전 중: ${MNAME[ET[specMob] + 0]} (Shift: 그만)`, 0, -110, 8, '#ffffff', 0); } else { tx(10, `관전자 · 휠: 속도 x${Math.round(specSpeed * 10) / 10} · F: 몹 관전`, 0, -110, 8, '#c0c0c0', 0); }
+  if (specMob > 0) { tx(10, `관전 중: ${MNAME[ET[specMob] + 0]} (Shift: 그만)`, 0, -110, 8, '#ffffff', 0); } else { tx(10, `관전자 · 휠: 속도 x${Math.round(specSpeed * 10) / 10} · 오른쪽 클릭: 몹 관전`, 0, -110, 8, '#c0c0c0', 0); }
 }
 function drawHud2(dt) {
   // the hotbar
@@ -298,6 +298,8 @@ function drawHand() {
   let sw = 0;
   if (swingT > 0) { sw = sind(swingT / 0.3 * 180); }
   let bx = 150 - sw * 40 + sind(bob * 57) * 4, by = -100 - sw * 20 + Math.abs(cosd(bob * 57)) * 3;
+  // ((v3.0) a bow or trident being drawn comes in to the middle (and shakes when full)
+  if (drawId > 0) { let f = Math.min(1, drawT); bx = bx - f * 70; by = by + f * 20; if (f >= 1) { bx = bx + rand(-1, 1); by = by + rand(-1, 1); } }
   let id = INVI[hotSel];
   let lv = lightAt(px, py + 1.6, pz);
   let k = BIDX[lv * 8 + 3 + 1];

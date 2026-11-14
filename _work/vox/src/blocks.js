@@ -125,7 +125,7 @@ function useItem(id) {
   if (id == 122) { used = 1; placeCool = 0.3; if (pickOn == 1) { ignite(); } }
   if (id == I_fireCharge) { used = 1; placeCool = 0.3; if (pickOn == 1) { ignite(); if (mod(gameMode, 2) == 0) { takeHeld(1); } } }
   if (id == 124) { used = 1; placeCool = 0.5; useVoidKey(); }
-  if (id == 125) { used = 1; shootBow(); }
+  if (id == 125) { used = 1; drawStart(125); }
   if (id == 171) { used = 1; let fr = 0; if (pickOn == 1) { if (pickB == 61) { fr = 1; } } if (fr == 1) { if (mod(gameMode, 2) == 0) { takeHeld(1); } placeCool = 0.3; frameEye(pickX, pickY, pickZ); } else { eyeThrow(); } }
   if (id == 174) { used = 1; boatPlace(); }
   // (v2.5) a minecart onto the rail clicked
@@ -136,7 +136,7 @@ function useItem(id) {
   if ((id == I_minecart || id == I_tntMinecart) && noCart == 0) { used = 1; if (pickOn == 1) { if (BRS[pickB + 1] == RS_RAIL) { let t = M_MINECART; if (id == I_tntMinecart) { t = M_TNTCART; } cartPlace(t, pickX, pickY, pickZ); if (mod(gameMode, 2) == 0) { takeHeld(1); } placeCool = 0.4; } } }
   if (id == I_compass) { used = 1; placeCool = 0.5; compassShow(); }
   if (id == I_fireworkRocket) { used = 1; placeCool = 0.3; fireworkUse(); }
-  if (id == I_trident) { used = 1; placeCool = 0.6; tridentThrow(); }
+  if (id == I_trident) { used = 1; drawStart(I_trident); }
   if (id == I_clock) { used = 1; placeCool = 0.5; msgShow(`지금 ${timeText()} (${dayN + 1}일째)`, 2); }
   if (ITTHROW[id + 1] > 0) { used = 1; placeCool = 0.3; throwIt(ITTHROW[id + 1]); if (mod(gameMode, 2) == 0) { takeHeld(1); } }
   if (ITSPAWN[id + 1] > 0) { used = 1; placeCool = 0.3; if (pickOn == 1) { pickNeighbour(); mobAdd(ITSPAWN[id + 1], nbX + 0.5, nbY, nbZ + 0.5); if (lastMob > 0) { EST[lastMob] = 0; } if (mod(gameMode, 2) == 0) { takeHeld(1); } } }
@@ -783,7 +783,7 @@ function composterUse(x, y, z, id) {
     if (ch > 0) {
       if (mod(gameMode, 2) == 0) { takeHeld(1); }
       used = 1; sndPlay(5);
-      if (lv == 0 || rand(1, 100) <= ch) { lv = lv + 1; pvSet(2, x, y, z, lv); powerAround(x, y, z); if (lv >= 7) { msgShow('퇴비통이 찼습니다: F로 뼛가루를 꺼내세요', 2); } else { msgShow(`퇴비통 ${lv} / 7`, 1.2); } }
+      if (lv == 0 || rand(1, 100) <= ch) { lv = lv + 1; pvSet(2, x, y, z, lv); powerAround(x, y, z); if (lv >= 7) { msgShow('퇴비통이 찼습니다: 오른쪽 클릭으로 뼛가루를 꺼내세요', 2); } else { msgShow(`퇴비통 ${lv} / 7`, 1.2); } }
     }
   }
   return used;

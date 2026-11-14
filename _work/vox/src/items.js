@@ -358,29 +358,32 @@ function slotSet(s, i, n, d) {
   else { if (s >= 57 && s <= 60) { if (s == 57) { ENI = i; ENN = n; END = d; } if (s == 58) { ELI = i; ELN = n; } if (s == 59) { AN1I = i; AN1N = n; AN1D = d; anvilMatch(); } if (s == 60) { AN2I = i; AN2N = n; AN2D = d; anvilMatch(); } }
   else { if (s >= 61) { if (s <= 87) { let j = (curChest - 1) * 27 + s - 60; CHI[j] = i; CHN[j] = n; CHD[j] = d; chestTouched(curChest); } } } } } } } } } }
 }
-// a click on slot s (half: Shift held)
+// a click on slot s: btn 0 the left button, 1 the right, 2 the middle; sh 1 with Shift
+// ((v3.0) as the genre's: the right button takes half or puts one, Shift moves the stack across
+// (it was Shift that took half or put one, the buttons not being told apart), the middle one in
+// creative takes a full stack of it)
 // ((v2.9) armour with the curse of binding does not come off but in creative; the anvil's result is taken by anvilTake)
-function slotClick(s, half) {
+function slotClick(s, btn, sh) {
   let go = 1;
-  if (s >= 37 && s <= 40 && mod(gameMode, 2) == 0) { if (INVI[s] > 0) { if (armLv(s, 27) > 0) { if (curI == 0 || half == 1) { go = 0; msgShow('귀속 저주: 벗을 수 없습니다', 1.5); } } } }
-  if (s == 57) { if (curI > 0) { if (ITENC[curI + 1] <= 0 || curN > 1 && half == 0) { go = 0; } } }
-  if (s == 58) { if (curI > 0 && curI != 119) { go = 0; } }
-  if (s == 88) { go = 0; if (curI == 0) { anvilTake(half); } }
-  if (go == 1) { slotClick0(s, half); }
+  if (s >= 37 && s <= 40 && mod(gameMode, 2) == 0) { if (INVI[s] > 0) { if (armLv(s, 27) > 0) { if (curI == 0 || sh == 1) { go = 0; msgShow('귀속 저주: 벗을 수 없습니다', 1.5); } } } }
+  if (s == 57) { if (curI > 0 && sh == 0) { if (ITENC[curI + 1] <= 0 || curN > 1 && btn == 0) { go = 0; } } }
+  if (s == 58) { if (curI > 0 && sh == 0 && curI != 119) { go = 0; } }
+  if (s == 88) { go = 0; if (curI == 0) { anvilTake(sh); } }
+  if (go == 1) { slotClick0(s, btn, sh); }
 }
-function slotClick0(s, half) {
+function slotClick0(s, btn, sh) {
   slotGet(s);
   let si = gI, sn = gN, sd = gD;
   if (s == 56) {
     // the smithing result: onto an empty cursor (Shift: into the inventory)
     if (smOut > 0) {
-      if (half == 1) { addItem(smOut, 1, SMD1); if (addLeft > 0) { dropItem(smOut, addLeft, SMD1, px, py + 1, pz, 1); } smithTake(); sndPlay(6); }
+      if (sh == 1) { addItem(smOut, 1, SMD1); if (addLeft > 0) { dropItem(smOut, addLeft, SMD1, px, py + 1, pz, 1); } smithTake(); sndPlay(6); }
       else { if (curI == 0) { curI = smOut; curN = 1; curD = SMD1; smithTake(); sndPlay(6); } }
     }
   } else { if (s == 50) {
     // the crafting result: onto the cursor (Shift: as many as can be made, into the inventory)
     if (si > 0) {
-      if (half == 1) {
+      if (sh == 1) {
         let k = 0;
         while (k < 64 && craftOut > 0) {
           let o = craftOut, c = craftCnt;
@@ -397,46 +400,38 @@ function slotClick0(s, half) {
       }
     }
   } else { if (s >= 101) {
-    // the creative list: a full stack onto the cursor (Shift: one)
+    // the creative list: a full stack onto the cursor (the right button: one; Shift: a full stack
+    // into the inventory); what is on the cursor goes back into the list
     if (curI > 0) { curI = 0; curN = 0; curD = 0; }
-    else { if (si > 0) { curI = si; curN = sn; if (half == 1) { curN = 1; } curD = 0; } }
+    else { if (si > 0) {
+      if (sh == 1) { addItem(si, sn, 0); }
+      else { curI = si; curN = sn; if (btn == 1) { curN = 1; } curD = 0; }
+    } }
   } else {
     let isOut = 0;
     if (s == 53) { isOut = 1; }
-    if (curI == 0) {
+    if (sh == 1) { if (si > 0) { quickMove(s); } }
+    else { if (btn == 2) {
+      // the middle button: in creative a full stack of it onto an empty cursor
+      if (gameMode == 1 && curI == 0 && si > 0) { curI = si; curN = ITST[si + 1]; curD = sd; }
+    } else { if (curI == 0) {
       if (si > 0) {
         let take = sn;
-        if (half == 1) { take = Math.ceil(sn / 2); }
-        // Shift on an inventory slot with nothing in hand: to the other part of the inventory
-        if (half == 1 && s <= 40 && uiMode <= 2) {
-          take = sn;
-          let a = 10, b = 36;
-          if (s >= 10) { a = 1; b = 9; }
-          // armour to its slot (and off again)
-          if (ITK[si + 1] == 4) { if (s <= 36) { if (INVI[36 + ITSLOT[si + 1]] == 0) { a = 36 + ITSLOT[si + 1]; b = a; } } else { a = 1; b = 36; } }
-          moveRange(s, a, b);
-        } else {
-          curI = si; curN = take; curD = sd;
-          slotSet(s, si, sn - take, sd);
-        }
+        if (btn == 1) { take = Math.ceil(sn / 2); }
+        curI = si; curN = take; curD = sd;
+        slotSet(s, si, sn - take, sd);
       }
     } else {
       if (isOut == 0) {
         let put = curN;
-        if (half == 1) { put = 1; }
-        // the fuel slot takes only fuel, an armour slot only its piece
-        let okS = 1;
-        if (s == 52) { if (ITFUEL[curI + 1] <= 0) { okS = 0; } }
-        if (s >= 37 && s <= 40) { if (ITSLOT[curI + 1] != s - 36) { okS = 0; } }
-        if (okS == 1) {
+        if (btn == 1) { put = 1; }
+        if (slotTakes(s, curI) == 1) {
           if (si == 0) { slotSet(s, curI, put, curD); curN = curN - put; }
           else {
             if (si == curI && ITST[si + 1] > 1) {
               put = Math.min(put, ITST[si + 1] - sn);
               slotSet(s, si, sn + put, sd); curN = curN - put;
-            } else {
-              if (half == 0) { slotSet(s, curI, curN, curD); curI = si; curN = sn; curD = sd; }
-            }
+            } else { slotSet(s, curI, curN, curD); curI = si; curN = sn; curD = sd; }
           }
         }
       } else {
@@ -444,22 +439,92 @@ function slotClick0(s, half) {
         if (si == curI) { if (curN + sn <= ITST[si + 1]) { curN = curN + sn; slotSet(s, 0, 0, 0); } }
       }
       if (curN <= 0) { curI = 0; curN = 0; curD = 0; }
-    }
+    } } }
   } } }
 }
-// slot s into slots a..b (stacks first, then empty ones)
-function moveRange(s, a, b) {
-  slotGet(s);
-  let id = gI, n = gN, d = gD, st = ITST[gI + 1], k = a;
-  if (st > 1) {
-    while (k <= b && n > 0) { if (INVI[k] == id) { let r = Math.min(st - INVN[k], n); if (r > 0) { INVN[k] = INVN[k] + r; n = n - r; } } k = k + 1; }
+// may slot s hold id: the fuel slot only fuel, an armour slot only its piece
+function slotTakes(s, id) {
+  let r = 1;
+  if (s == 52) { if (ITFUEL[id + 1] <= 0) { r = 0; } }
+  if (s >= 37 && s <= 40) { if (ITSLOT[id + 1] != s - 36) { r = 0; } }
+  return r;
+}
+// ((v3.0) Shift and a click: the stack across, as the genre's - between the inventory and the hotbar,
+// into the open chest or furnace (what smelts to its input, fuel to its fuel) and out of it, armour
+// onto its slot; out of the grid, the furnace, the chest, the other screens' slots into the inventory.
+// From a chest or a furnace's output the hotbar is filled first, from its right end.)
+function quickMove(s) {
+  if (s <= 36) {
+    slotGet(s);
+    let id = gI, done = 0;
+    if (uiMode == 4) { moveTo(s, 61, 60 + curCap); done = 1; }
+    if (uiMode == 3) { smeltOf(id); if (smeltOut > 0) { moveTo(s, 51, 51); done = 1; } else { if (ITFUEL[id + 1] > 0) { moveTo(s, 52, 52); done = 1; } } }
+    if (done == 0 && (uiMode == 1 || uiMode == 5)) { if (ITK[id + 1] == 4) { if (INVI[36 + ITSLOT[id + 1]] == 0) { moveTo(s, 36 + ITSLOT[id + 1], 36 + ITSLOT[id + 1]); done = 1; } } }
+    if (done == 0) { if (s >= 10) { moveTo(s, 1, 9); } else { moveTo(s, 10, 36); } }
+  } else {
+    if ((s >= 61 && s <= 87) || s == 53) { moveTo(s, 9, 1); moveTo(s, 36, 10); }
+    else { moveTo(s, 10, 36); moveTo(s, 1, 9); }
   }
-  k = a;
-  while (k <= b && n > 0) { if (INVI[k] == 0) { INVI[k] = id; INVN[k] = n; INVD[k] = d; n = 0; } k = k + 1; }
-  slotSet(s, id, n, d);
+}
+// slot s into slots a..b (b < a: from a down), onto stacks of it first, then into empty ones
+function moveTo(s, a, b) {
+  slotGet(s);
+  let id = gI, n = gN, d = gD, st = ITST[gI + 1], step = 1, k = a, put = 0;
+  if (b < a) { step = 0 - 1; }
+  if (id > 0) {
+    if (st > 1) {
+      while (n > 0 && (k - b) * step <= 0) {
+        if (k != s) { slotGet(k); if (gI == id) { put = Math.min(st - gN, n); if (put > 0) { slotSet(k, id, gN + put, gD); n = n - put; } } }
+        k = k + step;
+      }
+    }
+    k = a;
+    while (n > 0 && (k - b) * step <= 0) {
+      if (k != s) { slotGet(k); if (gI == 0) { if (slotTakes(k, id) == 1) { put = Math.min(st, n); slotSet(k, id, put, d); n = n - put; } } }
+      k = k + step;
+    }
+    slotSet(s, id, n, d);
+  }
+}
+// ((v3.0) a stack on the cursor drawn over slots with a button held, as the genre's: on letting go the
+// left button shares it out evenly (what does not divide stays on the cursor), the right one puts one
+// in each; over one slot alone it is a click there. DRS the slots passed, dragBtn the button.)
+let dragOn = 0, dragBtn = 0, DRS = [];
+function dragOk(s) {
+  let r = 0;
+  if (s <= 36 || (s >= 41 && s <= 49) || s == 51 || s == 52 || (s >= 61 && s <= 87)) {
+    if (slotTakes(s, curI) == 1) { slotGet(s); if (gI == 0) { r = 1; } else { if (gI == curI && ITST[gI + 1] > gN) { r = 1; } } }
+  }
+  return r;
+}
+function dragStep(held) {
+  if (held == 1) {
+    if (uiHover > 0 && DRS.length < curN) { if (dragOk(uiHover) == 1) {
+      let i = 1, has = 0;
+      while (i <= DRS.length) { if (DRS[i] == uiHover) { has = 1; } i = i + 1; }
+      if (has == 0) { DRS.push(uiHover); }
+    } }
+  } else {
+    dragOn = 0;
+    if (DRS.length == 1) { slotClick(DRS[1], dragBtn, 0); }
+    else {
+      let per = 1, i = 1;
+      if (dragBtn == 0) { per = Math.floor(curN / DRS.length); }
+      while (i <= DRS.length && curN > 0) {
+        let s = DRS[i];
+        slotGet(s);
+        let put = Math.min(per, ITST[curI + 1] - gN);
+        if (gI == 0) { slotSet(s, curI, put, curD); } else { slotSet(s, gI, gN + put, gD); }
+        curN = curN - put;
+        i = i + 1;
+      }
+      if (curN <= 0) { curI = 0; curN = 0; curD = 0; }
+    }
+    DRS = [];
+  }
 }
 function uiOpen(m) {
-  uiMode = m; uiPage = 0;
+  uiMode = m; uiPage = 0; dragOn = 0; DRS = [];
   cgSize = 2;
   if (m == 2) { cgSize = 3; }
   craftMatch();

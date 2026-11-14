@@ -273,7 +273,7 @@ function playerMove2(dt) {
   // ((v3.0) a dolphin's grace: much faster in water)
   if (fx(20) > 0 && inWater == 1) { sp = sp * 1.8; }
   if (wasHitX == 1) { sprinting = 0; }
-  if (eatId > 0) { if (flying == 0) { sp = sp * 0.2; } sprinting = 0; }
+  if (eatId > 0 || drawId > 0) { if (flying == 0) { sp = sp * 0.2; } sprinting = 0; }
   // what is under the feet or round the body: sand that holds, honey, a web
   let mv = BMOVE[underB + 1];
   if (flying == 0) {
@@ -523,13 +523,13 @@ function respawn0() {
   while (solidHit == 1 && k < WY) { py = py + 1; k = k + 1; solidBox(px - 0.3, px + 0.3, py, py + 1.8, pz - 0.3, pz + 0.3); }
   uiMode = 0;
 }
-// ((v2.7) eating takes 1.6 s with F held (slow walking meanwhile); it was at once)
+// ((v2.7) eating takes 1.6 s with F held (slow walking meanwhile); it was at once; (v3.0) the right button held)
 function eatStart(id) {
   if (food < 20 || mod(gameMode, 2) == 1 || id == I_goldenApple) { if (eatId != id) { eatId = id; eatT = 0; } }
 }
 function eatStep(dt) {
   if (eatId > 0) {
-    if (key(70) && uiMode == 0 && INVI[hotSel] == eatId && dead == 0) {
+    if (useDown() == 1 && uiMode == 0 && INVI[hotSel] == eatId && dead == 0) {
       eatT = eatT + dt; swingT = Math.max(swingT, 0.1);
       if (mod(Math.floor(eatT * 5), 2) == 0) { if (frac(eatT * 5) < dt * 5) { sndPlay(5); } }
       if (eatT >= 1.6) { let e = eatId; eatId = 0; eatT = 0; eat(e); }
@@ -931,19 +931,45 @@ function fallBlock(x, y, z) {
 // (before v2.3.2 a hole by water was filled at once, 40 cells deep: now fluid.js)
 
 // ---------------------------------------------------------------- bow and armour
-let bowCool = 0;
-function shootBow() {
+// ((v3.0) as the genre's: the right button (or F) held draws the bow and letting go shoots, as hard as
+// it was drawn ((t^2 + 2t) / 3 for t seconds, full at 1 s; under 0.1 no arrow); the trident is thrown
+// when let go after 0.5 s. Walking is slow meanwhile. (Before: F shot at once, always full.)
+let bowCool = 0, drawId = 0, drawT = 0, drawSlot = 0;
+function bowArrow() {
+  let k = 1, a = 0;
+  while (k <= 36) { if (a == 0) { if (INVI[k] == 115) { a = k; } } k = k + 1; }
+  return a;
+}
+function drawStart(id) {
+  if (drawId != id || drawSlot != hotSel) {
+    if (id == 125 && bowArrow() == 0 && gameMode != 1) { msgShow('화살이 없습니다', 1.5); }
+    else { drawId = id; drawT = 0; drawSlot = hotSel; }
+  }
+}
+function useHeldStep(dt) {
+  if (drawId > 0) {
+    if (INVI[hotSel] != drawId || hotSel != drawSlot || uiMode != 0 || dead == 1) { drawId = 0; drawT = 0; }
+    else { if (useDown() == 1) { drawT = drawT + dt; }
+    else {
+      let id = drawId, t = drawT;
+      drawId = 0; drawT = 0;
+      if (id == 125) { let f = (t * t + 2 * t) / 3; if (f > 1) { f = 1; } if (f >= 0.1) { shootBow(f); } }
+      if (id == I_trident) { if (t >= 0.5) { placeCool = 0.3; tridentThrow(); } }
+    } }
+  }
+}
+function shootBow(f) {
   if (bowCool <= 0) {
-    let k = 1, a = 0;
-    while (k <= 36) { if (a == 0) { if (INVI[k] == 115) { a = k; } } k = k + 1; }
+    let a = bowArrow();
     if (a > 0 || gameMode == 1) {
       // ((v2.9) the bow's charms go with its arrow; infinity keeps the arrow)
       enDec(INVI[hotSel], INVD[hotSel]);
       shotEn = ENL[13] * 1000 + ENL[14] * 100 + ENL[15] * 10 + ENL[16];
       if (gameMode != 1 && ENL[16] == 0) { INVN[a] = INVN[a] - 1; if (INVN[a] <= 0) { INVI[a] = 0; INVN[a] = 0; } }
+      shotPow = f;
       arrowShoot(camX, camY - 0.1, camZ, camX + lookX * 20, camY - 0.1 + lookY * 20, camZ + lookZ * 20, 1);
-      shotEn = 0;
-      wearHeld(1); bowCool = 0.6; swingT = 0.3; sndPlay(1);
+      shotEn = 0; shotPow = 1;
+      wearHeld(1); bowCool = 0.15; swingT = 0.3; sndPlay(1);
     } else { msgShow('화살이 없습니다', 1.5); }
   }
 }

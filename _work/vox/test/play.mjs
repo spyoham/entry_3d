@@ -22,7 +22,7 @@ console.log('ui', s.peek('uiMode'), 'inv', inv());
 s.as('pen', () => { const k = s.peek('INVI').indexOf(13) + 1; s.fn.slotClick(k, 0); s.fn.slotClick(41, 0); });
 F(2);
 console.log('grid', s.peek('CGI').slice(0, 4).join(','), 'out', s.peek('craftOut'), 'x', s.peek('craftCnt'));
-s.as('pen', () => { s.fn.slotClick(50, 1); });
+s.as('pen', () => { s.fn.slotClick(50, 0, 1); });
 console.log('after shift-craft', inv(), 'grid', s.peek('CGI').slice(0, 4).join(','), s.peek('CGN').slice(0, 4).join(','));
 // crafting table from 4 planks
 s.as('pen', () => { const k = s.peek('INVI').indexOf(5) + 1; s.fn.slotClick(k, 0); s.fn.slotClick(41, 1); s.fn.slotClick(42, 1); s.fn.slotClick(43, 1); s.fn.slotClick(44, 1); s.fn.slotClick(k, 0); });

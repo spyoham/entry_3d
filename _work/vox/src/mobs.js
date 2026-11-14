@@ -3,18 +3,20 @@
 let ET = [], EX = [], EY = [], EZ = [], EVX = [], EVY = [], EVZ = [], EYAW = [], EHP = [], EST = [], ETM = [], EHURT = [], EWALK = [], EATK = [], EBURN = [], EGND = [], EWY = [], EFIR = [];
 let IID = [], INN = [], IDU = [], IXX = [], IYY = [], IZZ = [], IVX = [], IVY = [], IVZ = [], IAGE = [];
 let AXX = [], AYY = [], AZZ = [], AVX = [], AVY = [], AVZ = [], AAGE = [], AON = [], ASTK = [], AEN = [], shotEn = 0;
+// ((v3.0) how hard the player's bow was drawn (0.1 .. 1): the arrow's speed and hurt)
+let APW = [], shotPow = 1;
 let nHostile = 0, nPassive = 0, spawnT = 0;
 
 function thingsInit() {
   ET = []; EX = []; EY = []; EZ = []; EVX = []; EVY = []; EVZ = []; EYAW = []; EHP = []; EST = []; ETM = []; EHURT = []; EWALK = []; EATK = []; EBURN = []; EGND = []; EWY = []; EFIR = [];
   IID = []; INN = []; IDU = []; IXX = []; IYY = []; IZZ = []; IVX = []; IVY = []; IVZ = []; IAGE = [];
-  AXX = []; AYY = []; AZZ = []; AVX = []; AVY = []; AVZ = []; AAGE = []; AON = []; ASTK = []; AEN = [];
+  AXX = []; AYY = []; AZZ = []; AVX = []; AVY = []; AVZ = []; AAGE = []; AON = []; ASTK = []; AEN = []; APW = [];
   let i = 0;
   while (i < NMOB) { ET.push(0); EX.push(0); EY.push(0); EZ.push(0); EVX.push(0); EVY.push(0); EVZ.push(0); EYAW.push(0); EHP.push(0); EST.push(0); ETM.push(0); EHURT.push(0); EWALK.push(0); EATK.push(0); EBURN.push(0); EGND.push(0); EWY.push(0); EFIR.push(0); i = i + 1; }
   i = 0;
   while (i < NITM) { IID.push(0); INN.push(0); IDU.push(0); IXX.push(0); IYY.push(0); IZZ.push(0); IVX.push(0); IVY.push(0); IVZ.push(0); IAGE.push(0); i = i + 1; }
   i = 0;
-  while (i < NARR) { AXX.push(0); AYY.push(0); AZZ.push(0); AVX.push(0); AVY.push(0); AVZ.push(0); AAGE.push(0); AON.push(0); ASTK.push(0); AEN.push(0); i = i + 1; }
+  while (i < NARR) { AXX.push(0); AYY.push(0); AZZ.push(0); AVX.push(0); AVY.push(0); AVZ.push(0); AAGE.push(0); AON.push(0); ASTK.push(0); AEN.push(0); APW.push(1); i = i + 1; }
   faunaInit();
 }
 function mobAdd(t, x, y, z) {
@@ -449,11 +451,11 @@ function arrowShoot(x, y, z, tx, ty, tz, own) {
       AVX[a] = dx / d * sp + rand(-10, 10) / 20; AVY[a] = dy / d * sp + d * 0.56; AVZ[a] = dz / d * sp + rand(-10, 10) / 20;
     } else {
       if (own == 2) { sp = 11; }
-      if (own == 1) { sp = 32; AYY[a] = y + dy / d * 0.6; }
+      if (own == 1) { sp = 32 * shotPow; AYY[a] = y + dy / d * 0.6; }
       if (own == 4) { sp = 5; }
       AVX[a] = dx / d * sp; AVY[a] = dy / d * sp; AVZ[a] = dz / d * sp;
     }
-    AAGE[a] = 0; ASTK[a] = 0; AEN[a] = shotEn;
+    AAGE[a] = 0; ASTK[a] = 0; AEN[a] = shotEn; APW[a] = shotPow;
   }
   lastArr = a;
 }
@@ -489,6 +491,7 @@ function arrowsStep(dt) {
               let w = MW[ET[e]] / 2 + 0.1;
               if (Math.abs(AXX[a] - EX[e]) < w && Math.abs(AZZ[a] - EZ[e]) < w && AYY[a] > EY[e] && AYY[a] < EY[e] + MH[ET[e]] * ESZ[e]) {
                 let pw = idiv(AEN[a], 1000), dm = 7; if (pw > 0) { dm = 7 * (1 + 0.25 * (pw + 1)); }
+                dm = Math.max(1, Math.round(dm * APW[a]));
                 hitKb = mod(idiv(AEN[a], 100), 10); if (mod(idiv(AEN[a], 10), 10) > 0) { hitFire = 1; }
                 if (AEN[a] < 0) { dm = 8; hitKb = 0; hitFire = 0; }
                 // ((v3.0) the wanderer is not hit by arrows (it slips away), a shut shell, the king below half
