@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "엔트리 보관함 초기화",
+  "version": "1.0.0",
+  "description": "엔트리 만들기 화면이나 마이페이지에서 로그인한 계정의 보관함(오브젝트·블록)을 모두 지웁니다.",
+  "host_permissions": ["https://playentry.org/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://playentry.org/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ]
+}
