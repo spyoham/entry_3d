@@ -425,6 +425,8 @@ on('start', 'pen', function () {
       frames = frames + 1; secFrames = secFrames + 1;
       sndN = 0;
       pollKeys();
+      // ((v3.0.1) what tessvm put back, looked at before anything writes)
+      svLook();
       if (gState == 0) { titleFrame(dt); }
       else { if (gState == 1) { loadFrame(); } else { if (gState == 3) { travelFrame(); } else { playFrame(dt); } } }
       netStep(dt);

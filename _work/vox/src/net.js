@@ -129,6 +129,29 @@ function evAdd(t, f) {
   EVI.push(evN); EVT.push(`${t}:${f}`);
   while (EVI.length > 12) { EVI.removeAt(1); EVT.removeAt(1); }
   netWriteT = 99;
+  if (netSrv > 0) { rgAdd(netMy, t, f); }
+}
+// ((v3.0.1) the lasting events of the last seconds on my server, everybody's and mine: a host gone
+// without a word (the tab closed, the line down) is seen gone only NSTALE s later, and what was done
+// in those seconds reached nobody's record - whoever is host next puts them in (rgReplay))
+let RGT = [], RGK = [], RGE = [], RGF = [];
+function rgAdd(k, t, f) {
+  if (t == 'b' || t == 'x' || t == 's' || t == 'K' || t == 'F' || t == 'u') {
+    RGT.push(netClock); RGK.push(k); RGE.push(t); RGF.push(f);
+    while (RGT.length > 600) { RGT.removeAt(1); RGK.removeAt(1); RGE.removeAt(1); RGF.removeAt(1); }
+  }
+}
+function rgReplay() {
+  let i = 1;
+  while (i <= RGT.length) {
+    if (netClock - RGT[i] <= NSTALE + 8) {
+      let t = RGE[i], f = RGF[i];
+      // a block: as it is here now (a blast or another change after it ran on this screen too)
+      if (t == 'b') { splitBy(f, '^'); if (SPL.length >= 5) { let x = SPL[1] * 1, y = SPL[2] * 1, z = SPL[3] * 1, b = SPL[4] * 1, d = SPL[5] * 1; if (d == dim && cOK(x, z) == 1) { b = blockAt(x, y, z); } hostKeepEdit(x, y, z, b, d); } }
+      else { hostEvent(RGK[i], t, f); }
+    }
+    i = i + 1;
+  }
 }
 
 // read a slot that changed
@@ -181,6 +204,7 @@ function slotEvents(k, evs, first) {
         if (t == 'b' || t == 'x' || t == 's') { lasting = 1; }
         if (first == 0 || last >= 0 || lasting == 1) { if (NSRVk[k] == netSrv) { if (netSrv > 0) { netEvent(k, t, f); } } }
         if (netHost == 1) { if (netSrv > 0) { if (NSRVk[k] == netSrv || t == 'u') { hostEvent(k, t, f); } } }
+        if (netSrv > 0) { if (NSRVk[k] == netSrv) { rgAdd(k, t, f); } }
         top = id;
       }
     }
@@ -436,6 +460,7 @@ function netJoinCheck(k) {
 }
 function netJoin(k) {
   netSrv = k; netSt = 1; netHost = 0;
+  svAck(); RGT = []; RGK = []; RGE = []; RGF = [];
   metaRead(k); srvHead(k);
   EVI = []; EVT = [];
   // a new world from the server's seed, its changed blocks put in the log (they come back as the chunks are made)
@@ -478,7 +503,7 @@ function netLeave() {
   if (netSrv > 0) {
     if (netSt == 2) {
       // (the host keeps its own things and what is not written yet before it goes)
-      if (netHost == 1) { hostKeepUser(netNick, netUserPack()); if (editDirty == 1) { editsPut(netSrv); editDirty = 0; } metaWrite(netSrv); }
+      if (netHost == 1) { hostKeepUser(netNick, netUserPack()); if (editDirty == 1) { editsWrite(); } metaWrite(netSrv); }
       else { evAdd('u', `${netSrv}^${netUserPack()}`); }
       netWrite();
     }
@@ -539,7 +564,7 @@ function netInServer(dt) {
   netHost = 0;
   if (h == netMy) { netHost = 1; }
   if (netSt == 2) { if (h == 0) { netHost = 1; } }
-  if (netHost == 1) { if (was == 0) { netEditsLoad(); metaRead(netSrv); srvHead(netSrv); editDirty = 0; metaDirty = 0; } }
+  if (netHost == 1) { if (was == 0) { netEditsLoad(); metaRead(netSrv); srvHead(netSrv); editDirty = 0; metaDirty = 0; if (netSt == 2) { rgReplay(); } } }
   // the settings changed (the host wrote them): read again; banned now: out
   if (srvHas(netSrv) == 0) { if (netSt == 2) { netDisconnect('서버가 삭제되었습니다'); } }
   else {
@@ -653,6 +678,39 @@ function netEditsLoad() {
   NEW = [];
   let n = editLen(netSrv), i = 1;
   while (i <= n) { NEW.push(editItem(netSrv, i)); i = i + 1; }
+  ewLen = NEW.length; ewTail = editsTail();
+}
+// ((v3.0.1) the host holds the server's record (NEW) and writes it whole. A host whose tab was in
+// the background stood still - its line went stale, another became host and wrote what was done -
+// and coming back it was still host in its own eyes and wrote its old record over that, the other
+// host's blocks gone. So the shared record is checked against what I last read or wrote (length
+// and last entry) before each write: written by another, it is read again and only what I added
+// since goes on it.)
+let ewLen = 0, ewTail = '', EWK = [];
+function editsTail() {
+  let n = NEW.length, r = `${n}`;
+  if (n >= 5) { r = `${n}:${NEW[n - 4]},${NEW[n - 3]},${NEW[n - 2]},${NEW[n - 1]},${NEW[n]}`; }
+  return r;
+}
+function editsTailShared() {
+  let n = editLen(netSrv), r = `${n}`;
+  if (n >= 5) { r = `${n}:${editItem(netSrv, n - 4)},${editItem(netSrv, n - 3)},${editItem(netSrv, n - 2)},${editItem(netSrv, n - 1)},${editItem(netSrv, n)}`; }
+  return r;
+}
+function editsWrite() {
+  if (editsTailShared() != ewTail) {
+    EWK = [];
+    let q = ewLen + 1;
+    while (q <= NEW.length) { EWK.push(NEW[q]); q = q + 1; }
+    netEditsLoad();
+    q = 1;
+    while (q <= EWK.length) { NEW.push(EWK[q]); q = q + 1; }
+    EWK = [];
+  }
+  // made short when long: the last of each cell
+  if (NEW.length > 30000) { hostEditsCompact(); }
+  editsPut(netSrv); editDirty = 0;
+  ewLen = NEW.length; ewTail = editsTail();
 }
 function hostKeepUser(nick, d) {
   let i = 1, f = 0;
@@ -682,9 +740,7 @@ function hostStep(dt) {
   if (netHostT > 5) { netHostT = 0; let td = dayNow(); if (shDay != td) { shDay = td; metaDirty = 1; } }
   // the block changes and the settings written at most once a second / two
   if (editDirty == 1) { if (editT > 1) {
-    // made short when long: the last of each cell
-    if (NEW.length > 30000) { hostEditsCompact(); }
-    editsPut(netSrv); editDirty = 0; editT = 0;
+    editsWrite(); editT = 0;
   } }
   if (metaDirty == 1) { if (metaT > 2) { metaWrite(netSrv); } }
   // timers of the plugins

@@ -74,7 +74,7 @@ function svBackDrop(k) {
     let id = shId, p = bkFind(id);
     if (p > 0) { bkDropAt(p); }
     if (bkGone(id) == 0) { SY_gone.push(id); if (SY_gone.length > 64) { SY_gone.removeAt(1); } }
-    if (canSave() == 1) { AT_비동기저장(); }
+    if (svAuto() == 1) { svPut(0); }
   }
 }
 // the copies against the shared lists (once they have come: some seconds after Entry Sync is on)
@@ -113,18 +113,18 @@ function bkCheck() {
     }
     a = a + 1;
   }
-  if (ch == 1) { if (canSave() == 1) { AT_비동기저장(); } }
+  if (ch == 1) { if (svAuto() == 1) { svPut(0); } }
   // (srvHas above read every place into the sh* globals: back to the server I am on)
   if (netSrv > 0) { srvHead(netSrv); }
 }
 // each frame (net.js netStep)
 function svBackStep(dt) {
   if (SY_ == 1) { if (syOnT < 0) { syOnT = netClock; } } else { syOnT = 0 - 1; }
-  if (canSave() == 1) {
+  if (svAuto() == 1) {
     // on a server: a copy soon after coming, then every minute
     if (netSrv != bkSrv) { bkSrv = netSrv; bkT = 50; }
     bkT = bkT + dt;
-    if (netSrv > 0 && netSt == 2 && bkT > 60) { bkT = 0; bkKeep(netSrv); AT_비동기저장(); }
+    if (netSrv > 0 && netSt == 2 && bkT > 60) { bkT = 0; bkKeep(netSrv); svPut(0); }
     bkChkT = bkChkT + dt;
     if (syOnT >= 0 && netClock - syOnT > 20 && bkChkT > 10) { bkChkT = 0; if (AT_서버백업.length > 0) { bkCheck(); } gbCheck(); }
   }
@@ -173,7 +173,7 @@ function srvAgeCheck() {
 }
 // leaving a server: its copy as it is then
 function svBackLeave() {
-  if (canSave() == 1) { if (netSrv > 0 && netSt == 2) { bkKeep(netSrv); AT_비동기저장(); } }
+  if (svAuto() == 1) { if (netSrv > 0 && netSt == 2) { bkKeep(netSrv); svPut(0); } }
 }
 
 // ---------------------------------------------------------------- the nicknames banned from every server, kept too (v2.7.4)
@@ -184,12 +184,12 @@ function svBackLeave() {
 let AT_전체차단 = [];
 let gbChkN = 0;
 function gbKeep() {
-  if (canSave() == 1) {
+  if (svAuto() == 1) {
     AT_전체차단 = [];
     AT_전체차단.push(SY_gbr * 1);
     let i = 1;
     while (i <= SY_gb.length) { AT_전체차단.push(SY_gb[i]); i = i + 1; }
-    AT_비동기저장();
+    svPut(0);
   }
 }
 // is the copy the shared list

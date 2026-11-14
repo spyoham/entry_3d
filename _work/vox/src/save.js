@@ -65,7 +65,7 @@ function worldMigrate() {
       while (q <= AT_블록월드.length) { SVB.push(AT_블록월드[q]); q = q + 1; }
       worldPut(k);
       AT_블록월드 = [];
-      if (canSave() == 1) { AT_비동기저장(); }
+      if (canSave() == 1) { svPut(0); }
     }
   } }
 }
@@ -80,6 +80,38 @@ function canSave() {
   let r = 0;
   if (AT_확장프로그램 == 1) { r = 1; }
   return r;
+}
+// ((v3.0.1) tessvm writes every @ name at once, and puts back what its storage answered when the
+// work starts - an answer that does not come (the extension's worker slow to wake: 5 s, the
+// extension updated under an open page) is taken as nothing kept, the @ lists stay empty, and the
+// next write of anything (a server's copy, the bans' copy 20 s after Entry Sync is on, a new world)
+// wrote those empty lists over every world kept. The game cannot ask again nor tell such a start
+// from a first one, so: svSeen, looked at in the first tick - 1 something came back, 0 nothing
+// (a first start, or the answer lost). With 0 nothing is written on its own (the copies, the
+// timer) until the player has seen the title's word about it and gone on (a new world, a server).
+// @저장표 is 1 in every write, so even a store holding only empty lists reads as kept.
+let AT_저장표 = 0;
+let svSeen = 0 - 1;
+function svLook() {
+  if (svSeen < 0) {
+    svSeen = 0;
+    if (AT_저장표 == 1) { svSeen = 1; }
+    if (AT_블록월드.length > 0 || AT_세계1.length > 0 || AT_세계2.length > 0 || AT_세계3.length > 0 || AT_세계4.length > 0 || AT_세계5.length > 0) { svSeen = 1; }
+    if (AT_서버백업.length > 0 || AT_전체차단.length > 0) { svSeen = 1; }
+  }
+}
+// the player went on past the word: writing is theirs now
+function svAck() { if (svSeen == 0) { svSeen = 2; } }
+// may the game write on its own (a copy, the timer)
+function svAuto() {
+  let r = 0;
+  if (canSave() == 1 && svSeen > 0) { r = 1; }
+  return r;
+}
+// a write: waiting for it (1) or not (0)
+function svPut(wait) {
+  AT_저장표 = 1;
+  if (wait == 1) { AT_저장(); } else { AT_비동기저장(); }
 }
 
 // ---------------------------------------------------------------- the log of changes, by chunk
@@ -240,7 +272,7 @@ function saveGame(wait) {
   if (canSave() == 1 && netSrv == 0 && worldCur > 0) {
     if (gState == 2 && dead == 0) {
       svWrite();
-      if (wait == 1) { AT_저장(); } else { AT_비동기저장(); }
+      svPut(wait);
       saveT = 0;
       msgShow(`세계를 저장했습니다 (바꾼 블록 ${EDX.length}개)`, 2);
     }
@@ -249,13 +281,13 @@ function saveGame(wait) {
 // every five minutes on its own, and the log made short when it grows long
 function saveStep(dt) {
   saveT = saveT + dt;
-  if (saveT > 300) { saveT = 0; if (canSave() == 1) { if (netSrv == 0) { saveGame(0); } } }
+  if (saveT > 120) { saveT = 0; if (svAuto() == 1) { if (netSrv == 0) { saveGame(0); } } }
   if (EDX.length > edNext) { edCompact(); }
 }
 
 // ---------------------------------------------------------------- reading: the kept world again
 function loadGame(k) {
-  worldGet(k); worldCur = k;
+  worldGet(k); worldCur = k; svSeen = 1;
   svP = 2;
   worldName = rdN(); svP = svP + 2;
   let s = rdN();

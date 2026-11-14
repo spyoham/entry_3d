@@ -64,7 +64,8 @@ const SUPER = '코딩재미있어';
 const S = new Client(srv, SUPER); cs.push(S);
 const A = new Client(srv, 'alice'); cs.push(A);
 const B = new Client(srv, 'bob'); cs.push(B);
-for (const c of cs) c.sim.poke('AT_확장프로그램', 1);
+// ((v3.0.1) players who saved before: @저장표 came back; a game that got nothing back writes nothing on its own)
+for (const c of cs) { c.sim.poke('AT_확장프로그램', 1); c.sim.poke('AT_저장표', 1); }
 run(1);
 S.call((fn) => { fn.netEnter(); fn.menuGo(11); });
 run(4);
@@ -102,5 +103,13 @@ ok(D.g('AT_전체차단').join('|') === '3|carol^도배', "dave's copy brought u
 const E = new Client(srv, 'eve'); cs.push(E);
 run(35);
 ok(E.g('AT_전체차단').length === 0, 'none kept where saving is off');
+// (v3.0.1) saving on but nothing came back (a first start, or tessvm's answer lost): no copy, no write
+const F = new Client(srv, 'fred'); cs.push(F);
+F.sim.poke('AT_확장프로그램', 1);
+run(35);
+ok(F.g('svSeen') === 0 && F.g('AT_전체차단').length === 0 && F.g('AT_저장표') === 0, `nothing written by a game that got nothing back (svSeen ${F.g('svSeen')}, copy ${F.g('AT_전체차단').length})`);
+F.call((fn) => fn.svAck());
+run(15);
+ok(F.g('AT_전체차단').length === 2 && F.g('AT_저장표') === 1, "once the player went on (a server, a world): the copy kept: " + F.g('AT_전체차단').join('|'));
 console.log(fails ? fails + ' FAILED' : 'all ok');
 process.exit(0);

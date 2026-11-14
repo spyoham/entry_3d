@@ -115,6 +115,7 @@ function scrTitle(dt) {
     button(-100, -80, -2, -100, '전체 차단 목록', 12, 1); if (btnHot == 1) { if (clickLatch == 1) { netEnter(); gbSel = 0; gbMsg = ''; menuGo(11); } }
     button(2, -80, 100, -100, '용암 기록', 13, 1); if (btnHot == 1) { if (clickLatch == 1) { netEnter(); lgT = 99; menuGo(12); } }
   }
+  if (svSeen == 0 && canSave() == 1) { tx(14, '저장한 세계·서버 기록이 안 보이면 아무것도 하지 말고 새로고침(F5) 하세요', 0, -113, 7, '#ffc060', 0); } else { txOff(14); }
   tx(10, `블록 월드 v${VERSION}`, -236, -128, 7, '#ffffff', 1);
   tx(11, '엔트리 · tessvm · Entry Sync', 236, -128, 7, '#ffffff', 2);
 }
@@ -142,7 +143,7 @@ function scrWorlds() {
     k = k + 1;
   }
   while (ti < 42) { txOff(ti); ti = ti + 1; }
-  if (row == 0) { tx(29, '저장한 세계가 없습니다. 새 세계를 만들어 보세요', 0, 40, 9, '#c0c0c0', 0); } else { txOff(29); }
+  if (row == 0) { if (svSeen == 0 && canSave() == 1) { tx(29, '저장한 세계가 없습니다 · 있었다면 새로고침(F5) 하세요', 0, 40, 9, '#ffc060', 0); } else { tx(29, '저장한 세계가 없습니다. 새 세계를 만들어 보세요', 0, 40, 9, '#c0c0c0', 0); } } else { txOff(29); }
   let has = 0; if (selW > 0) { has = worldHead(selW); }
   button(-154, -76, -4, -96, '선택한 세계 플레이', 2, has); if (btnHot == 1) { if (clickLatch == 1) { worldPlay(); } }
   button(4, -76, 154, -96, '새 세계 만들기', 3, 1); if (btnHot == 1) { if (clickLatch == 1) { cwName = '새 세계'; cwMode = 0; cwSeedText = ''; cwSeed = 0; cwFlat = 0; cwFlatSpec = FLPS[1]; cwCheats = 1; menuGo(2); } }
@@ -159,7 +160,7 @@ function worldRename(k) {
     ask('세계의 새 이름');
     ansS = answer();
     hideAnswer();
-    if (strlen(ansS) > 0) { worldGet(k); SVB[2] = netClean(ansS); worldPut(k); if (canSave() == 1) { AT_비동기저장(); } }
+    if (strlen(ansS) > 0) { worldGet(k); SVB[2] = netClean(ansS); worldPut(k); if (canSave() == 1) { svPut(0); } }
   }
 }
 
@@ -213,6 +214,8 @@ let menuErr = '', menuErrT = 0;
 function worldNew(k) {
   let ok = 1;
   if (cwFlat == 1) { if (flatSet(cwFlatSpec) == 1) { menuErr = flatErr; menuErrT = 240; ok = 0; } } else { flatOn = 0; }
+  // ((v3.0.1) five kept already: it could not be saved - worldCur 0 - and said nothing)
+  if (k == 0) { ok = 0; menuErr = `세계는 ${NWORLD}개까지 저장됩니다. 하나를 지우세요`; menuErrT = 240; }
   if (ok == 1) { worldMake(k); }
 }
 function worldMake(k) {
@@ -220,6 +223,8 @@ function worldMake(k) {
   let s = rand(1, 99999999);
   if (strlen(cwSeedText) > 0) { s = seedOf(cwSeedText); }
   worldCur = k; worldName = cwName; seedText = cwSeedText;
+  // ((v3.0.1) kept 20 s in: closed before the timer it was nowhere)
+  svAck(); saveT = 100;
   gameMode = cwMode; defMode = cwMode;
   txClear();
   thingsInit(); petsClear(); sleptDay = 0;
@@ -232,7 +237,7 @@ function scrDelWorld() {
   let wq = worldHead(selW);
   tx(1, '이 세계를 정말 지울까요?', 0, 50, 11, '#ffffff', 0);
   tx(2, `'${wName}'은(는) 영원히 사라집니다! (아주 오랫동안!)`, 0, 26, 9, '#c0c0c0', 0);
-  button(-154, -60, -4, -80, '삭제', 3, 1); if (btnHot == 1) { if (clickLatch == 1) { worldClear(selW); if (canSave() == 1) { AT_저장(); } selW = 0; menuGo(1); } }
+  button(-154, -60, -4, -80, '삭제', 3, 1); if (btnHot == 1) { if (clickLatch == 1) { worldClear(selW); if (canSave() == 1) { svPut(1); } selW = 0; menuGo(1); } }
   button(4, -60, 154, -80, '취소', 4, 1); if (btnHot == 1) { if (clickLatch == 1) { menuGo(1); } }
 }
 

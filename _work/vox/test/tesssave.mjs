@@ -29,8 +29,8 @@ if (conv.dropped && conv.dropped.length) console.log('dropped', JSON.stringify(c
 const F0 = globalThis.Function; let SRC = '';
 globalThis.Function = function (...a) { if (a.length === 2 && a[0] === 'R') SRC = a[1]; return F0(...a); };
 
-let stored = {}, writes = 0;
-const host = { read: async () => stored, write: async (v) => { stored = JSON.parse(JSON.stringify(v)); writes++; } };
+let stored = {}, writes = 0, readFails = false;
+const host = { read: async () => { if (readFails) throw new Error('Save storage is unavailable'); return stored; }, write: async (v) => { stored = JSON.parse(JSON.stringify(v)); writes++; } };
 async function run(fn) {
   const vm = new Vm({ kernel: null, store: null });
   vm.load(conv.project);
@@ -67,7 +67,8 @@ console.log('kept list', kept ? kept.length + ' items, first ' + kept[0].data : 
 // run 2: the title sees it; 이어하기
 await run(async ({ vm, V, set, tick }) => {
   tick(30);
-  console.log('run 2: kept items', V('@세계1').getArray().length);
+  console.log('run 2: kept items', V('@세계1').getArray().length);
+
   set('tStage', 1); set('testCmd', 9); tick(1);
   let k = 0; while (V('gState').getValue() != 2 && k < 6000) { tick(1); k++; }
   tick(30);
@@ -76,4 +77,18 @@ await run(async ({ vm, V, set, tick }) => {
   set('tCmd', '/execute if block ~ ~3 ~ gold_block run say gold'); set('testCmd', 8); tick(3);
   const ch = V('CHT').getArray().map(x => x.data); console.log('  chat', ch.slice(-2).join(' | '));
 });
+// run 3 (v3.0.1): tessvm's read does not answer (the worker slow, the extension updated under the page) -
+// it starts as if nothing were kept. Entry Sync on, a ban list in the room: 20 s on, the bans' copy was
+// written, and with it every @ name, empty - the world above gone. Now nothing is written.
+const before = JSON.stringify(stored['@세계1']), w0 = writes;
+readFails = true;
+await run(async ({ vm, V, set, tick }) => {
+  tick(30);
+  console.log('run 3 (read failed): kept items seen', V('@세계1').getArray().length, 'svSeen', V('svSeen')?.getValue());
+  const gb = V('?!gb'); gb.array = [{ data: 'bob^그리핑' }]; gb.touch(); set('?!gbr', 1); set('?!', 1);
+  tick(60 * 35);
+  console.log('  writes in 35 s at the title', writes - w0, 'copy', V('@전체차단').getArray().length);
+});
+readFails = false;
+console.log('run 3: the kept world', JSON.stringify(stored['@세계1']) === before ? 'still there' : 'LOST', `(${(stored['@세계1'] || []).length} items)`);
 fs.rmSync(tmp, { recursive: true, force: true });
