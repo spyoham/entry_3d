@@ -2,7 +2,7 @@
 // game's t9/netsim.mjs): the ?! flag turns 1, the room's values arrive after `welcome` s, nothing is
 // sent in the first 4 s before they do, every change goes to everyone else (never back), one socket
 // each way keeps the order, a list goes whole (once a frame here, as the extension sends once a tick).
-// (v3.0.1) the server's block record when the host goes quiet: node test/hostgap.mjs [latency ms]
+// (v3.0) the server's block record when the host goes quiet: node test/hostgap.mjs [latency ms]
 // 1. the host's tab in the background (it stands still, still hearing): another becomes host and
 //    keeps blocks; the first comes back as host - its old record must not go over them
 // 2. the host's tab closed: what the others do before it is seen gone (NSTALE s) is kept by the next host

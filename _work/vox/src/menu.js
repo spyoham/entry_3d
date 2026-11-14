@@ -214,7 +214,7 @@ let menuErr = '', menuErrT = 0;
 function worldNew(k) {
   let ok = 1;
   if (cwFlat == 1) { if (flatSet(cwFlatSpec) == 1) { menuErr = flatErr; menuErrT = 240; ok = 0; } } else { flatOn = 0; }
-  // ((v3.0.1) five kept already: it could not be saved - worldCur 0 - and said nothing)
+  // ((v3.0) five kept already: it could not be saved - worldCur 0 - and said nothing)
   if (k == 0) { ok = 0; menuErr = `세계는 ${NWORLD}개까지 저장됩니다. 하나를 지우세요`; menuErrT = 240; }
   if (ok == 1) { worldMake(k); }
 }
@@ -223,7 +223,7 @@ function worldMake(k) {
   let s = rand(1, 99999999);
   if (strlen(cwSeedText) > 0) { s = seedOf(cwSeedText); }
   worldCur = k; worldName = cwName; seedText = cwSeedText;
-  // ((v3.0.1) kept 20 s in: closed before the timer it was nowhere)
+  // ((v3.0) kept 20 s in: closed before the timer it was nowhere)
   svAck(); saveT = 100;
   gameMode = cwMode; defMode = cwMode;
   txClear();

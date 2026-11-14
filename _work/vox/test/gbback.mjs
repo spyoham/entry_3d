@@ -64,7 +64,7 @@ const SUPER = '코딩재미있어';
 const S = new Client(srv, SUPER); cs.push(S);
 const A = new Client(srv, 'alice'); cs.push(A);
 const B = new Client(srv, 'bob'); cs.push(B);
-// ((v3.0.1) players who saved before: @저장표 came back; a game that got nothing back writes nothing on its own)
+// ((v3.0) players who saved before: @저장표 came back; a game that got nothing back writes nothing on its own)
 for (const c of cs) { c.sim.poke('AT_확장프로그램', 1); c.sim.poke('AT_저장표', 1); }
 run(1);
 S.call((fn) => { fn.netEnter(); fn.menuGo(11); });
@@ -103,7 +103,7 @@ ok(D.g('AT_전체차단').join('|') === '3|carol^도배', "dave's copy brought u
 const E = new Client(srv, 'eve'); cs.push(E);
 run(35);
 ok(E.g('AT_전체차단').length === 0, 'none kept where saving is off');
-// (v3.0.1) saving on but nothing came back (a first start, or tessvm's answer lost): no copy, no write
+// (v3.0) saving on but nothing came back (a first start, or tessvm's answer lost): no copy, no write
 const F = new Client(srv, 'fred'); cs.push(F);
 F.sim.poke('AT_확장프로그램', 1);
 run(35);

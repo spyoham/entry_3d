@@ -77,7 +77,7 @@ await run(async ({ vm, V, set, tick }) => {
   set('tCmd', '/execute if block ~ ~3 ~ gold_block run say gold'); set('testCmd', 8); tick(3);
   const ch = V('CHT').getArray().map(x => x.data); console.log('  chat', ch.slice(-2).join(' | '));
 });
-// run 3 (v3.0.1): tessvm's read does not answer (the worker slow, the extension updated under the page) -
+// run 3 (v3.0): tessvm's read does not answer (the worker slow, the extension updated under the page) -
 // it starts as if nothing were kept. Entry Sync on, a ban list in the room: 20 s on, the bans' copy was
 // written, and with it every @ name, empty - the world above gone. Now nothing is written.
 const before = JSON.stringify(stored['@세계1']), w0 = writes;

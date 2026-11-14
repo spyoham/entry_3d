@@ -81,7 +81,7 @@ function canSave() {
   if (AT_확장프로그램 == 1) { r = 1; }
   return r;
 }
-// ((v3.0.1) tessvm writes every @ name at once, and puts back what its storage answered when the
+// ((v3.0) tessvm writes every @ name at once, and puts back what its storage answered when the
 // work starts - an answer that does not come (the extension's worker slow to wake: 5 s, the
 // extension updated under an open page) is taken as nothing kept, the @ lists stay empty, and the
 // next write of anything (a server's copy, the bans' copy 20 s after Entry Sync is on, a new world)

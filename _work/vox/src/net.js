@@ -131,7 +131,7 @@ function evAdd(t, f) {
   netWriteT = 99;
   if (netSrv > 0) { rgAdd(netMy, t, f); }
 }
-// ((v3.0.1) the lasting events of the last seconds on my server, everybody's and mine: a host gone
+// ((v3.0) the lasting events of the last seconds on my server, everybody's and mine: a host gone
 // without a word (the tab closed, the line down) is seen gone only NSTALE s later, and what was done
 // in those seconds reached nobody's record - whoever is host next puts them in (rgReplay))
 let RGT = [], RGK = [], RGE = [], RGF = [];
@@ -680,7 +680,7 @@ function netEditsLoad() {
   while (i <= n) { NEW.push(editItem(netSrv, i)); i = i + 1; }
   ewLen = NEW.length; ewTail = editsTail();
 }
-// ((v3.0.1) the host holds the server's record (NEW) and writes it whole. A host whose tab was in
+// ((v3.0) the host holds the server's record (NEW) and writes it whole. A host whose tab was in
 // the background stood still - its line went stale, another became host and wrote what was done -
 // and coming back it was still host in its own eyes and wrote its old record over that, the other
 // host's blocks gone. So the shared record is checked against what I last read or wrote (length
