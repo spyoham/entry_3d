@@ -19,6 +19,7 @@ function rtInit() {
     if (BSPEC[b + 1] == 10) { r = 1; }
     if (BWET[b + 1] > 0 && BFALL[b + 1] == 0) { r = 1; }
     if (b == I_wetSponge || b == 33 || b == I_snowLayer || BLQ[b + 1] == 35 || BLEAF[b + 1] == 1) { r = 1; }
+    if (b == I_mushBrown || b == I_mushRed) { r = 1; }
     RTK.push(r);
     b = b + 1;
   }
@@ -39,6 +40,26 @@ function randomTicks(dt) {
   campfireStep(dt);
   leafStep(dt);
   fireStep(dt);
+}
+// (v3.2) a mushroom's spread, as the genre's: while fewer than five of its kind stand within 4 blocks (a
+// level up and down), onto a free cell beside it with a solid block under and a light under 13
+function mushSpread(x, y, z, b) {
+  let n = 0, a = x - 4;
+  while (a <= x + 4) {
+    let c = z - 4;
+    while (c <= z + 4) {
+      if (cOK(a, c) == 1) { let d = Math.max(0, y - 1); while (d <= y + 1 && d < WY) { if (blockAt(a, d, c) == b) { n = n + 1; } d = d + 1; } }
+      c = c + 1;
+    }
+    a = a + 1;
+  }
+  if (n < 5) {
+    let sx = x + rand(-1, 1), sy = y + rand(-1, 1), sz = z + rand(-1, 1);
+    if (sy > 0 && sy < WY - 1) { if (cOK(sx, sz) == 1) { if (blockAt(sx, sy, sz) == 0) {
+      let ub = blockAt(sx, sy - 1, sz);
+      if (BSOL[ub + 1] == 1 && BLOP[ub + 1] == 1) { if (lightNow(wi(sx, sy, sz)) < 13) { setBlock(sx, sy, sz, b); } }
+    } } }
+  }
 }
 // the light a cell has now (the sky dimmed by night) and its raw light (the sky full)
 function lightNow(i) { return Math.max(idiv(LT[i], 16) - dark, mod(LT[i], 16)); }
@@ -116,6 +137,8 @@ function randomTick(x, y, z, i, b) {
       if (h < 25) { setBlock(x, y + 1, z, b); }
     } } }
   }
+  // ((v3.2) mushrooms spread in the dark)
+  if (b == I_mushBrown || b == I_mushRed) { if (rand(1, 25) == 1) { mushSpread(x, y, z, b); } }
   // fire: kept going by its own clock (fireAdd); one that was not on it is put on it
   if (BSPEC[b + 1] == 10) { fireAdd(x, y, z, 0); }
   // coral out of water dies

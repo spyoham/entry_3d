@@ -5,21 +5,23 @@
 // mushroom, an armed drowned; a shell's opening; a horse's build in the rest); ETG the mob it goes for
 // (below 0: the one it runs from; a horse's temper); ECNV seconds towards a change (drowned, rotted,
 // cured), or a spirit's, a mite's, a stung bee's life.
-let ESZ = [], EOWN = [], EAGE = [], ELOVE = [], EVAR = [], ETG = [], ECNV = [];
+let ESZ = [], EOWN = [], EAGE = [], ELOVE = [], EVAR = [], ETG = [], ECNV = [], EFALL = [];
 // petTgt: what the tamed wolves go for (the one that hurt the player or that the player hit); pKill 1
 // while the player (or a pet) deals the blow (rare drops and xp come only then); hitBy the kind that hit
 let petTgt = 0, pKill = 0, hitBy = 0, flyTY = 0, sleptDay = 0, kingE = 0;
 function faunaInit() {
-  ESZ = []; EOWN = []; EAGE = []; ELOVE = []; EVAR = []; ETG = []; ECNV = [];
+  ESZ = []; EOWN = []; EAGE = []; ELOVE = []; EVAR = []; ETG = []; ECNV = []; EFALL = [];
   let i = 0;
-  while (i < NMOB) { ESZ.push(1); EOWN.push(0); EAGE.push(0); ELOVE.push(0); EVAR.push(0); ETG.push(0); ECNV.push(0); i = i + 1; }
+  while (i < NMOB) { ESZ.push(1); EOWN.push(0); EAGE.push(0); ELOVE.push(0); EVAR.push(0); ETG.push(0); ECNV.push(0); EFALL.push(0 - 999); i = i + 1; }
   netMobInit();
   petTgt = 0; kingE = 0; raidOn = 0;
 }
 function mobInit(e, t) {
-  ESZ[e] = 1; EOWN[e] = 0; EAGE[e] = 0; ELOVE[e] = 0; EVAR[e] = 0; ETG[e] = 0; ECNV[e] = 0;
+  ESZ[e] = 1; EOWN[e] = 0; EAGE[e] = 0; ELOVE[e] = 0; EVAR[e] = 0; ETG[e] = 0; ECNV[e] = 0; EFALL[e] = 0 - 999;
   if (MAI[t] == 13) { EHP[e] = rand(15, 30); EVAR[e] = 2 * rand(0, 99); if (t == M_BONEHORSE) { EHP[e] = 15; } }
   if (t == M_ZOMBIE || t == M_HUSK || t == M_DROWNED || t == M_ZOMBIEVILLAGER) { if (rand(1, 20) == 1) { ESZ[e] = 0.5; EAGE[e] = 0 - 999999; } }
+  // ((v3.2) a sheep has its coat (EVAR odd) till it is shorn)
+  if (t == M_SHEEP) { EVAR[e] = 1; }
   if (t == M_DROWNED) { if (rand(1, 16) == 1) { EVAR[e] = 1; } }
   if (t == M_SPRITE) { ECNV[e] = rand(30, 119); }
   if (t == M_VOIDMITE) { ECNV[e] = 120; }
@@ -43,13 +45,30 @@ function faunaStep(e, t, dt, dist) {
   // changes: the dead drown (30 s under), the depths' folk rot under another sky (15 s), a cured one comes round
   if (t == M_ZOMBIE || t == M_HUSK) { if (headIn(e) == 1) { ECNV[e] = ECNV[e] + dt; if (ECNV[e] > 30) { ECNV[e] = 0; if (t == M_ZOMBIE) { ET[e] = M_DROWNED; } else { ET[e] = M_ZOMBIE; } } } else { ECNV[e] = 0; } }
   if (t == M_ASHPIG || t == M_ASHBOAR) { if (dim != 1) { ECNV[e] = ECNV[e] + dt; if (ECNV[e] > 15) { ECNV[e] = 0; if (t == M_ASHPIG) { ET[e] = M_ROTPIG; } else { ET[e] = M_ROTBOAR; } } } }
-  if (t == M_ZOMBIEVILLAGER) { if (EVAR[e] == 2) { ECNV[e] = ECNV[e] - dt; if (ECNV[e] <= 0) { ET[e] = M_VILLAGER; EHP[e] = 20; EVAR[e] = 0; msgShow('좀비 마을 사람이 치료되었습니다', 2); sndPlay(6); } } }
+  // ((v3.2) ECNV: what it was as one of the village (x 1024, villagerTurn) and the seconds left; cured, it is
+  // that again - its work, its offers - and thanks with lower prices)
+  if (t == M_ZOMBIEVILLAGER) { if (EVAR[e] == 2) {
+    let cp = Math.floor(ECNV[e] / 1024), ct = ECNV[e] - cp * 1024 - dt;
+    if (ct <= 0) {
+      villGet(cp); vD = Math.min(3, vD + 1);
+      ET[e] = M_VILLAGER; EHP[e] = 20; EVAR[e] = villPack(); ECNV[e] = 0; ETG[e] = 0; EAGE[e] = 0; ESZ[e] = 1;
+      msgShow('좀비 마을 사람이 치료되었습니다 (고마워서 값을 깎아 줍니다)', 3); sndPlay(6);
+    } else { ECNV[e] = cp * 1024 + ct; }
+  } }
   if (t == M_SPRITE || t == M_VOIDMITE || t == M_TRADER || (t == M_BEE && EVAR[e] == 1)) { ECNV[e] = ECNV[e] - dt; if (ECNV[e] <= 0) { ET[e] = 0; } }
   // the wanderer and water: hurt and away
   if (t == M_WANDERER) { if (mod(frameNo + e, 10) == 0) { let wb = blockAt(Math.floor(EX[e]), Math.floor(EY[e] + 0.5), Math.floor(EZ[e])); if (BLQ[wb + 1] == 7 || rainOn(Math.floor(EX[e]), Math.floor(EY[e] + 2.9), Math.floor(EZ[e])) == 1) { EHURT[e] = 0; mobHurt(e, 1, 0, 0); if (ET[e] > 0) { wanderTeleport(e); } } } }
   // the witch drinks to heal; the elder fish curse the miner; the dolphin's grace; the puffer puffs
   if (t == M_WITCH) { if (EHP[e] < 13) { if (rand(1, 150) == 1) { EHP[e] = EHP[e] + 4; sndPlay(6); } } }
-  if (t == M_ELDERGUARDIAN) { ECNV[e] = ECNV[e] - dt; if (ECNV[e] <= 0) { ECNV[e] = 60; if (dist < 50 && mod(gameMode, 2) == 0) { if (EFT[19] < 60) { effectAdd(19, 300, 3); msgShow(`${MNAME[t]}의 저주: 채굴 피로`, 2); } } } }
+  // ((v3.2) the village folk at work, hens laying, sheep grazing: each on a slow clock of its own)
+  if (t == M_VILLAGER) { if (slowTick(e, dt, 30) == 1) { villThink(e); } }
+  if (t == M_CHICKEN) { chickenEgg(e, dt); }
+  if (t == M_SHEEP) { if (slowTick(e, dt, 40) == 1) { sheepGraze(e); } }
+  if (t == M_ELDERGUARDIAN) { ECNV[e] = ECNV[e] - dt; if (ECNV[e] <= 0) { ECNV[e] = 60; if (dist < 50 && mod(gameMode, 2) == 0) { if (EFT[19] < 60) { effectAdd(19, 300, 3); msgShow(`${MNAME[t]}의 저주: 채굴 피로`, 2); } }
+    // ((v3.2) and the others of the server within 50 blocks: told as a shot that only leaves its effect)
+    let ci = 1;
+    while (ci <= NPLN) { let ck = NPL[ci]; if ((NPX[ck] - EX[e]) * (NPX[ck] - EX[e]) + (NPZ[ck] - EZ[e]) * (NPZ[ck] - EZ[e]) < 2500) { evAdd('H', `${NNICK[ck]}^${t}^1^119300^0^0^0`); } ci = ci + 1; }
+  } }
   if (t == M_DOLPHIN) { if (inWater == 1 && dist < 6) { effectAdd(20, 5, 1); } }
   if (t == M_PUFFERFISH) {
     let d3 = Math.sqrt(dist * dist + (py + 0.8 - EY[e]) * (py + 0.8 - EY[e]));
@@ -76,9 +95,12 @@ function faunaStep(e, t, dt, dist) {
   }
   // the guardians' beam: it takes three seconds of sight to strike
   if (MSHOT[t] == 8) { if (EST[e] == 7) {
-    golemT = 1; golemWant = 0; golemYaw = atan2d(px - EX[e], pz - EZ[e]);
-    if (dist > 16 || dead == 1 || sightLine(EX[e], EY[e] + 0.5, EZ[e], px, py + 1.2, pz) == 0) { EST[e] = 0; }
-    else { if (ETM[e] <= 0) { EST[e] = 0; EATK[e] = 3; hurtM(MDMG[t], `${MNAME[t]}의 빛줄기에 맞았습니다`); } }
+    // ((v3.2) on the player it chose (ETG: 0 me, else the slot of another on the server))
+    let bk = ETG[e], bx = px, by = py, bz = pz, gone = dead;
+    if (bk > 0) { bx = NPX[bk]; by = NPY[bk]; bz = NPZ[bk]; gone = 1 - NLIVE[bk]; }
+    golemT = 1; golemWant = 0; golemYaw = atan2d(bx - EX[e], bz - EZ[e]);
+    if ((bx - EX[e]) * (bx - EX[e]) + (bz - EZ[e]) * (bz - EZ[e]) > 256 || gone == 1 || sightLine(EX[e], EY[e] + 0.5, EZ[e], bx, by + 1.2, bz) == 0) { EST[e] = 0; }
+    else { if (ETM[e] <= 0) { EST[e] = 0; EATK[e] = 3; if (bk == 0) { hurtM(MDMG[t], `${MNAME[t]}의 빛줄기에 맞았습니다`); } else { tgK = bk; netMobStrike(e, t, 0, 0); } } }
   } }
   // the armed drowned throw; an angry llama spits
   if (t == M_DROWNED && EVAR[e] == 1) { if (dist > 4 && dist < 14 && EATK[e] <= 0 && mod(gameMode, 2) == 0 && dead == 0 && difficulty > 0) { EATK[e] = 3; mobShoot(e, px, py + 1.2, pz); } }
@@ -252,7 +274,7 @@ function mobShoot(e, tx, ty, tz) {
     arrowShoot(x, y - 0.4, z, tx, ty, tz, 2); shotEn = 0;
     if (s == 5) { ECNV[e] = ECNV[e] + 1; if (mod(ECNV[e], 3) != 0) { EATK[e] = 0.3; } }
   }
-  if (s == 8) { EST[e] = 7; ETM[e] = 3; }
+  if (s == 8) { EST[e] = 7; ETM[e] = 3; ETG[e] = tgK; }
   if (s == 9) {
     ECNV[e] = ECNV[e] + 1;
     if (mod(ECNV[e], 3) == 0 && nKind(M_SPRITE) < 6) { let k = 0; while (k < 3) { mobAdd(M_SPRITE, x + rand(-10, 10) / 10, y + 0.5, z + rand(-10, 10) / 10); k = k + 1; } sndPlay(7); }
@@ -268,7 +290,7 @@ function fangAt(x, y, z, late) {
   let fy = Math.floor(y + 1), j = 0;
   while (j < 4 && BSOL[blockAt(Math.floor(x), fy - 1, Math.floor(z)) + 1] == 0) { fy = fy - 1; j = j + 1; }
   arrowShoot(x, fy, z, x + 1, fy, z, 11);
-  if (lastArr > 0) { AVX[lastArr] = 0; AVY[lastArr] = 0; AVZ[lastArr] = 0; AAGE[lastArr] = 0 - late; AXX[lastArr] = x; }
+  if (lastArr > 0) { AVX[lastArr] = 0; AVY[lastArr] = 0; AVZ[lastArr] = 0; AAGE[lastArr] = 0 - late; AXX[lastArr] = x; netArrowSay(lastArr); }
 }
 // the conjurer's fangs (AON 12): up out of the ground, they bite once
 function fangStep(a, dt) {
@@ -371,7 +393,7 @@ function mobUse(e, id) {
   // the red mushroom cow sheared: a cow and five mushrooms
   if (useR == 0 && t == M_MOOSHROOM && ITTK[id + 1] == 5 && isBaby(e) == 0) { useR = 1; ET[e] = M_COW; dropItem(I_mushRed, 5, 0, EX[e], EY[e] + 1, EZ[e], 0); wearHeld(1); sndPlay(6); }
   // a zombie villager given a golden apple comes round in three to five minutes
-  if (useR == 0 && t == M_ZOMBIEVILLAGER && id == I_goldenApple && EVAR[e] != 2) { useR = 1; EVAR[e] = 2; ECNV[e] = rand(180, 300); if (mod(gameMode, 2) == 0) { takeHeld(1); } msgShow('치료를 시작했습니다', 2); }
+  if (useR == 0 && t == M_ZOMBIEVILLAGER && id == I_goldenApple && EVAR[e] != 2) { useR = 1; EVAR[e] = 2; ECNV[e] = Math.floor(ECNV[e] / 1024) * 1024 + rand(180, 300); if (mod(gameMode, 2) == 0) { takeHeld(1); } msgShow('치료를 시작했습니다', 2); }
   // getting on
   if (useR == 0 && isBaby(e) == 0) { if (MAI[t] == 13 || ((t == M_PIG || t == M_LAVAWALKER) && mod(EVAR[e], 2) == 1)) { riding = e; useR = 1; ECNV[e] = 0; } }
   return useR;
@@ -448,7 +470,10 @@ function mobDies(e, t) {
 function villagerTurn(e) {
   let r = 0;
   if (ET[e] == M_VILLAGER && isDead(hitBy) == 1) { if (difficulty == 3 || (difficulty == 2 && rand(1, 2) == 1)) {
+    // ((v3.2) what it was is kept in ECNV (x 1024: the seconds of its cure go below) - its work and offers
+    // come back with it; ETG is the one it hunts now)
     ET[e] = M_ZOMBIEVILLAGER; EHP[e] = 20; EST[e] = 0; r = 1;
+    ECNV[e] = EVAR[e] * 1024; EVAR[e] = 0; ETG[e] = 0; ELOVE[e] = 0;
   } }
   return r;
 }
@@ -629,24 +654,291 @@ function tridentThrow() {
 function tridentDrop(a) { if (AEN[a] != 0 - 99) { dropItem(I_trident, 1, 0 - AEN[a] - 100 + 1, AXX[a], AYY[a] + 0.3, AZZ[a], 0); } AON[a] = 0; }
 
 // ---------------------------------------------------------------- the tamed kept with the world
-let KPT = [], KPX = [], KPY = [], KPZ = [], KPH = [], KPO = [], KPV = [], KPS = [], KPD = [];
-function petsDel(k) { KPT.removeAt(k); KPX.removeAt(k); KPY.removeAt(k); KPZ.removeAt(k); KPH.removeAt(k); KPO.removeAt(k); KPV.removeAt(k); KPS.removeAt(k); KPD.removeAt(k); }
-function petsClear() { KPT = []; KPX = []; KPY = []; KPZ = []; KPH = []; KPO = []; KPV = []; KPS = []; KPD = []; }
-// the other worlds' kept ones stay; this world's are taken from the living
-function petsPack() {
-  let k = KPT.length;
-  while (k >= 1) { if (KPD[k] == dim) { petsDel(k); } k = k - 1; }
+// (v3.2) Every mob that is not a monster is kept now, not only the tamed: animals in a pen, the people of
+// a village and the iron keepers were gone when their chunk went out of the window (and the chunk's own
+// animals were made again when it came back, the bred ones not). A kept mob lies in these lists while its
+// chunk is not made (KPG its ETG, KPC its ECNV), and comes back when it is (keptStep). CAK: the chunks
+// whose animals were made once (they are not made again). In a single game only: on a server the mobs are
+// their owners' (netmob.js).
+let KPT = [], KPX = [], KPY = [], KPZ = [], KPH = [], KPO = [], KPV = [], KPS = [], KPD = [], KPG = [], KPC = [], CAK = [], keptT = 0;
+function petsDel(k) { KPT.removeAt(k); KPX.removeAt(k); KPY.removeAt(k); KPZ.removeAt(k); KPH.removeAt(k); KPO.removeAt(k); KPV.removeAt(k); KPS.removeAt(k); KPD.removeAt(k); KPG.removeAt(k); KPC.removeAt(k); }
+function petsClear() { KPT = []; KPX = []; KPY = []; KPZ = []; KPH = []; KPO = []; KPV = []; KPS = []; KPD = []; KPG = []; KPC = []; CAK = []; }
+// is e one to keep: the tamed and built ones as before; the rest that are no monsters (no boat, no cart)
+function keptKind(e) {
+  let r = 0, t = ET[e];
+  if (t > 0 && ERK[e] == 0) {
+    if (EOWN[e] >= 1 && EOWN[e] <= 3) { r = 1; }
+    else { if (netSrv == 0) { if (MHOST[t] == 0 && t != 12 && t != M_BOAT && isCart(t) == 0 && isProxy(e) == 0 && t != M_TRADER && t != M_SPRITE && t != M_VOIDMITE) { r = 1; } } }
+  }
+  return r;
+}
+function keptPut(e) {
+  // (too many: the oldest goes)
+  if (KPT.length >= 240) { petsDel(1); }
+  KPT.push(ET[e]); KPX.push(EX[e]); KPY.push(EY[e]); KPZ.push(EZ[e]); KPH.push(EHP[e]); KPO.push(EOWN[e]); KPV.push(EVAR[e]); KPS.push(EAGE[e]); KPD.push(dim); KPG.push(ETG[e]); KPC.push(ECNV[e]);
+}
+// a world left: its living ones to keep go in with the others' (gone 1: and are no more here; 0: the game
+// kept while it goes on - save.js takes them out of the lists again once they are written)
+function keptAll(gone) {
   let e = 1;
   while (e <= NMOB) {
-    if (ET[e] > 0 && EOWN[e] >= 1 && EOWN[e] <= 3 && ERK[e] == 0) { KPT.push(ET[e]); KPX.push(EX[e]); KPY.push(EY[e]); KPZ.push(EZ[e]); KPH.push(EHP[e]); KPO.push(EOWN[e]); KPV.push(EVAR[e]); KPS.push(EAGE[e]); KPD.push(dim); }
+    if (keptKind(e) == 1) { keptPut(e); if (gone == 1) { ET[e] = 0; } }
     e = e + 1;
   }
 }
+function petsPack() { keptAll(1); }
+// the kept ones of this world whose chunk is made come back
 function petsRestore() {
   let k = KPT.length;
   while (k >= 1) {
-    if (KPD[k] == dim) { mobAdd(KPT[k], KPX[k], KPY[k], KPZ[k]); if (lastMob > 0) { EHP[lastMob] = KPH[k]; EOWN[lastMob] = KPO[k]; EVAR[lastMob] = KPV[k]; EAGE[lastMob] = KPS[k]; if (KPS[k] < 0) { ESZ[lastMob] = 0.5; } } petsDel(k); }
+    if (KPD[k] == dim) { if (cOK(Math.floor(KPX[k]), Math.floor(KPZ[k])) == 1) {
+      mobAdd(KPT[k], KPX[k], KPY[k], KPZ[k]);
+      if (lastMob > 0) { EHP[lastMob] = KPH[k]; EOWN[lastMob] = KPO[k]; EVAR[lastMob] = KPV[k]; EAGE[lastMob] = KPS[k]; ETG[lastMob] = KPG[k]; ECNV[lastMob] = KPC[k]; if (KPS[k] < 0 && KPS[k] > 0 - 999000) { ESZ[lastMob] = 0.5; } petsDel(k); }
+    } }
     k = k - 1;
   }
   sleptDay = dayN;
+}
+// (main: now and then) the ones whose chunk came into the window
+function keptStep(dt) {
+  keptT = keptT + dt;
+  if (keptT > 1.5) { keptT = 0; if (KPT.length > 0) { let d0 = sleptDay; petsRestore(); sleptDay = d0; } }
+}
+// a chunk's own animals and a structure's people are made once: 1 when that one (key) was, else it is noted
+function keptOnce(key) {
+  let r = 0;
+  if (netSrv == 0) { let i = 1; while (i <= CAK.length) { if (CAK[i] == key) { r = 1; } i = i + 1; } if (r == 0) { CAK.push(key); } }
+  return r;
+}
+
+// ===================================================================== (v3.2) the village folk at work
+// As the genre's villagers, in this world's names. A grown villager with no work takes the nearest free job
+// block within 8 blocks (4 up or 3 down: VJOB, thirteen kinds) and with it a profession and a seed of its
+// own; its offers come of that seed (blocks.js vOffer), two for each level it has. While nobody has traded
+// with it, it loses the profession when the block goes (and gets new offers with the next block: the way
+// to look for a wanted offer); after the first trade both are its own for good. It fills its sold-out
+// offers again when it stands by its job block, at most every half day. Fed (bread 4, carrot / potato /
+// beetroot 1 a piece, picked up off the ground: 12 make one willing), two willing ones within 6 blocks
+// have a child when there are more beds than villagers round them (20 minutes to grow, 5 to rest).
+// Three grown ones together with three beds call an iron keeper when none is within 16 blocks: about every
+// 7 minutes, every 35 s while a monster is within 10 blocks of them (an iron farm).
+// A villager's state, all numbers the mob lists carry (kept with it, fauna.js keptPut):
+//   EVAR = 2 x (profession 0..13 + 16 x (level 1..5 + 8 x (traded 0/1 + 2 x (cures 0..3 + 4 x (xp 0..250
+//          + 256 x seed 1..4095))))) - what its offers are;
+//   ETG  = how often each of its ten offers was used (a hex digit each) + VFD x its food (0..24);
+//   ECNV = its job block ((x + 500000) x 1048576 + z + 500000) x 128 + y, 0 none;
+//   EAGE (grown: above 0) = the game tick from which it may fill its offers again; ELOVE below 0: resting.
+let JOBK = [], vP = 0, vL = 1, vK = 0, vD = 0, vX = 0, vS = 0, jbX = 0, jbY = 0, jbZ = 0, jbK = 0, VFD = 1099511627776;
+// once every n game ticks (20 a second) for mob e, whatever the frames are
+function slowTick(e, dt, n) { let a = gameTicks + e * 7, r = 0; if (idiv(a, n) != idiv(a - dt * 20, n)) { r = 1; } return r; }
+// a block's profession (1..13); 100 the head half of a bed
+function jobInit() {
+  JOBK = [];
+  let b = 0;
+  while (b < BSOL.length) {
+    let r = 0, k = 1, kd = BKIND[b + 1];
+    while (k <= VJOB.length) { if (kd == VJOB[k]) { r = k; } k = k + 1; }
+    if (BPLC[b + 1] == P_BED) { if (BVAR[b + 1] >= 4) { r = 100; } }
+    JOBK.push(r);
+    b = b + 1;
+  }
+}
+function villGet(v) {
+  let q = idiv(v, 2);
+  vP = mod(q, 16); q = idiv(q, 16); vL = mod(q, 8); q = idiv(q, 8); vK = mod(q, 2); q = idiv(q, 2); vD = mod(q, 4); q = idiv(q, 4); vX = mod(q, 256); vS = idiv(q, 256);
+  if (vL < 1) { vL = 1; } if (vL > 5) { vL = 5; } if (vP > VJOB.length) { vP = 0; }
+}
+function villPack() { return 2 * (vP + 16 * (vL + 8 * (vK + 2 * (vD + 4 * (vX + 256 * vS))))); }
+function jobPack(x, y, z) { return ((x + 500000) * 1048576 + z + 500000) * 128 + y; }
+function jobAt(p) { jbY = mod(p, 128); let q = idiv(p, 128); jbZ = mod(q, 1048576) - 500000; jbX = idiv(q, 1048576) - 500000; }
+// is that job block (as ECNV has it) nobody's but e's
+function jobFree(p, e) {
+  let r = 1, g = 1;
+  while (g <= NMOB) { if (g != e) { if (ET[g] == M_VILLAGER) { if (ECNV[g] == p) { r = 0; } } } g = g + 1; }
+  return r;
+}
+// the nearest free job block within 8 of e (of profession want, any when 0): jbX jbY jbZ, its kind jbK (0 none)
+function jobFind(e, want) {
+  let x0 = Math.floor(EX[e]), y0 = Math.floor(EY[e]), z0 = Math.floor(EZ[e]), bd = 9999;
+  let rx = 0, ry = 0, rz = 0, rk = 0, x = x0 - 8;
+  while (x <= x0 + 8) {
+    let z = z0 - 8;
+    while (z <= z0 + 8) {
+      if (cOK(x, z) == 1) {
+        let y = Math.max(1, y0 - 3), ye = Math.min(WY - 1, y0 + 4), i = wi(x, y, z);
+        while (y <= ye) {
+          let k = JOBK[W[i] + 1];
+          if (k > 0 && k < 100) { if (want == 0 || k == want) {
+            let d = (x - x0) * (x - x0) + (z - z0) * (z - z0) + (y - y0) * (y - y0);
+            if (d < bd) { if (jobFree(jobPack(x, y, z), e) == 1) { bd = d; rk = k; rx = x; ry = y; rz = z; } }
+          } }
+          y = y + 1; i = i + 1;
+        }
+      }
+      z = z + 1;
+    }
+    x = x + 1;
+  }
+  jbK = rk; jbX = rx; jbY = ry; jbZ = rz;
+}
+// the beds within 8 of e (4 up and down)
+function bedsNear(e) {
+  let x0 = Math.floor(EX[e]), y0 = Math.floor(EY[e]), z0 = Math.floor(EZ[e]), n = 0, x = x0 - 8;
+  while (x <= x0 + 8) {
+    let z = z0 - 8;
+    while (z <= z0 + 8) {
+      if (cOK(x, z) == 1) {
+        let y = Math.max(1, y0 - 4), ye = Math.min(WY - 1, y0 + 4), i = wi(x, y, z);
+        while (y <= ye) { if (JOBK[W[i] + 1] == 100) { n = n + 1; } y = y + 1; i = i + 1; }
+      }
+      z = z + 1;
+    }
+    x = x + 1;
+  }
+  return n;
+}
+// (faunaStep, every 1.5 s for each villager near the player)
+function villThink(e) {
+  if (JOBK.length == 0) { jobInit(); }
+  if (isBaby(e) == 0) {
+    villFood(e);
+    villGet(EVAR[e]);
+    let jp = ECNV[e];
+    if (EAGE[e] > gameTicks + dayLen * 10) { EAGE[e] = gameTicks + dayLen * 10; }
+    if (jp > 0) {
+      jobAt(jp);
+      let gone = 0, dd = (jbX + 0.5 - EX[e]) * (jbX + 0.5 - EX[e]) + (jbZ + 0.5 - EZ[e]) * (jbZ + 0.5 - EZ[e]);
+      if (cOK(jbX, jbZ) == 1) { if (JOBK[blockAt(jbX, jbY, jbZ) + 1] != vP || vP == 0) { gone = 1; } }
+      if (dd > 1024) { gone = 1; }
+      if (gone == 1) {
+        // its block gone: one nobody traded with is out of work (and of its offers); the others keep theirs
+        jp = 0; ECNV[e] = 0;
+        if (vK == 0) { vP = 0; vL = 1; vX = 0; ETG[e] = ETG[e] - mod(ETG[e], VFD); }
+      } else {
+        // by its block: the offers sold out are filled again, at most every half day
+        if (dd < 20 && Math.abs(jbY - EY[e]) < 4) { if (gameTicks >= EAGE[e]) { if (mod(ETG[e], VFD) > 0) { ETG[e] = ETG[e] - mod(ETG[e], VFD); EAGE[e] = gameTicks + dayLen * 10; } } }
+      }
+    }
+    // (out of work: a look round every other time; one whose block is gone but who has traded: now and then)
+    let look = 0;
+    if (vP == 0) { if (rand(1, 2) == 1) { look = 1; } } else { if (vK == 0 || rand(1, 4) == 1) { look = 1; } }
+    if (jp == 0 && look == 1) { if (look == 1) {
+      jobFind(e, vP);
+      if (jbK > 0) {
+        ECNV[e] = jobPack(jbX, jbY, jbZ);
+        if (vP == 0) { vP = jbK; vL = 1; vX = 0; vK = 0; vS = rand(1, 4095); sndPlay(6); }
+      } else { if (vK == 0) { vP = 0; vL = 1; vX = 0; } }
+    } }
+    EVAR[e] = villPack();
+    villMate(e);
+    villKeeper(e);
+  }
+}
+// food lying within reach is picked up (up to 24: enough for two children)
+function villFood(e) {
+  let f = idiv(ETG[e], VFD), i = 1;
+  if (f < 24) {
+    while (i <= NITM) {
+      if (IID[i] > 0) { if (IRK[i] == 0 && f < 24) {
+        let id = IID[i], pts = 0;
+        if (id == I_bread) { pts = 4; } if (id == I_carrot || id == I_potato || id == I_beetroot) { pts = 1; }
+        if (pts > 0) { if (Math.abs(IXX[i] - EX[e]) < 1.6 && Math.abs(IZZ[i] - EZ[e]) < 1.6 && Math.abs(IYY[i] - EY[e] - 0.5) < 1.6) {
+          let n = Math.min(INN[i], Math.ceil((24 - f) / pts));
+          INN[i] = INN[i] - n; f = f + n * pts;
+          if (INN[i] <= 0) { IID[i] = 0; }
+          sndPlay(6);
+        } }
+      } }
+      i = i + 1;
+    }
+    ETG[e] = mod(ETG[e], VFD) + Math.min(24, f) * VFD;
+  }
+}
+// two fed ones near each other, a bed to spare: a child
+function villMate(e) {
+  if (ELOVE[e] == 0) { if (idiv(ETG[e], VFD) >= 12) {
+    let g = 1, f = 0, n = 0;
+    while (g <= NMOB) {
+      if (ET[g] == M_VILLAGER) {
+        let d = (EX[g] - EX[e]) * (EX[g] - EX[e]) + (EZ[g] - EZ[e]) * (EZ[g] - EZ[e]);
+        if (d < 64 && Math.abs(EY[g] - EY[e]) < 5) { n = n + 1; }
+        if (g != e && ERK[g] == 0 && ELOVE[g] == 0 && isBaby(g) == 0 && d < 36 && Math.abs(EY[g] - EY[e]) < 3) { if (idiv(ETG[g], VFD) >= 12) { f = g; } }
+      }
+      g = g + 1;
+    }
+    if (f > 0) {
+      if (bedsNear(e) > n) {
+        mobAdd(M_VILLAGER, (EX[e] + EX[f]) / 2, EY[e] + 0.1, (EZ[e] + EZ[f]) / 2);
+        if (lastMob > 0) {
+          ESZ[lastMob] = 0.5; EAGE[lastMob] = 0 - 1200;
+          ELOVE[e] = 0 - 300; ELOVE[f] = 0 - 300; ETG[e] = ETG[e] - 12 * VFD; ETG[f] = ETG[f] - 12 * VFD;
+          xpAdd(rand(1, 7)); sndPlay(6);
+        }
+      } else { ELOVE[e] = 0 - 20; }
+    }
+  } }
+}
+// the iron keeper the village folk call (the lowest of a group decides, so a group counts once)
+function villKeeper(e) {
+  let r = rand(1, 280);
+  if (r <= 12) {
+    let g = 1, n = 0, low = 1, scared = 0, kp = 0;
+    while (g <= NMOB) {
+      if (ET[g] > 0) {
+        let d = (EX[g] - EX[e]) * (EX[g] - EX[e]) + (EZ[g] - EZ[e]) * (EZ[g] - EZ[e]), dy = Math.abs(EY[g] - EY[e]);
+        if (ET[g] == M_VILLAGER) { if (isBaby(g) == 0 && d < 100 && dy < 6) { n = n + 1; if (g < e && ERK[g] == 0) { low = 0; } } }
+        else { if (ET[g] == M_GOLEM) { if (d < 256 && dy < 8) { kp = 1; } } else { if (MHOST[ET[g]] == 1) { if (d < 100 && dy < 6) { scared = 1; } } } }
+      }
+      g = g + 1;
+    }
+    if (n >= 3 && low == 1 && kp == 0) { if (r == 1 || scared == 1) { if (bedsNear(e) >= 3) { keeperPut(e); } } }
+  }
+}
+// on a free spot within 8 of e (ten tries: a solid block under, three cells of air)
+function keeperPut(e) {
+  let k = 0, done = 0;
+  // ((v3.2) 24 tries for a spot, it was 10: a farm's small floor was seldom found)
+  while (k < 24 && done == 0) {
+    let x = Math.floor(EX[e]) + rand(-8, 8), z = Math.floor(EZ[e]) + rand(-8, 8), y = Math.min(WY - 4, Math.floor(EY[e]) + 6), ye = Math.max(1, Math.floor(EY[e]) - 6);
+    if (cOK(x, z) == 1) {
+      while (y >= ye && done == 0) {
+        // ((v3.2) its feet may be in water, as the genre's: a floor under running water takes it where one wants it)
+        if (BSOL[blockAt(x, y - 1, z) + 1] == 1 && (blockAt(x, y, z) == 0 || BLQ[blockAt(x, y, z) + 1] == 7) && blockAt(x, y + 1, z) == 0 && blockAt(x, y + 2, z) == 0) { mobAdd(M_GOLEM, x + 0.5, y + 0.02, z + 0.5); done = 1; }
+        y = y - 1;
+      }
+    }
+    k = k + 1;
+  }
+}
+// ---------------------------------------------------------------- (v3.2) hens and sheep
+// a grown hen lays an egg every 5 to 10 minutes (ECNV: the seconds till the next)
+function chickenEgg(e, dt) {
+  if (isBaby(e) == 0) {
+    if (ECNV[e] <= 0) { ECNV[e] = rand(300, 600); }
+    else { ECNV[e] = ECNV[e] - dt; if (ECNV[e] <= 0) { ECNV[e] = rand(300, 600); dropItem(I_egg, 1, 0, EX[e], EY[e] + 0.3, EZ[e], 0); sndPlay(1); } }
+  }
+}
+// a sheep eats the grass it stands on now and then (a grown one about every 50 s, a lamb every 4): the
+// grass is dirt (tall grass is gone), a shorn coat is back, a lamb is a minute older. (On a server the
+// ground stays as it is: only what players do to blocks is told there.)
+function sheepGraze(e) {
+  let go = 0;
+  if (isBaby(e) == 1) { if (rand(1, 2) == 1) { go = 1; } } else { if (rand(1, 25) == 1) { go = 1; } }
+  if (go == 1 && EGND[e] == 1) {
+    let x = Math.floor(EX[e]), y = Math.floor(EY[e] + 0.1), z = Math.floor(EZ[e]), ate = 0;
+    if (y > 0 && y < WY) {
+      if (blockAt(x, y, z) == 28) { ate = 1; if (netSrv == 0) { setBlock(x, y, z, 0); } }
+      else { if (blockAt(x, y - 1, z) == 2) { ate = 1; if (netSrv == 0) { setBlock(x, y - 1, z, 3); } } }
+    }
+    if (ate == 1) {
+      if (mod(EVAR[e], 2) == 0) { EVAR[e] = EVAR[e] + 1; }
+      if (isBaby(e) == 1) { EAGE[e] = Math.min(0 - 1, EAGE[e] + 60); }
+    }
+  }
+}
+// shears on a sheep with its coat (blocks.js useKey0): 1 to 3 wool
+function sheepShear(e) {
+  let r = 0;
+  if (mod(EVAR[e], 2) == 1 && isBaby(e) == 0) { EVAR[e] = EVAR[e] - 1; dropItem(32, rand(1, 3), 0, EX[e], EY[e] + 1, EZ[e], 0); wearHeld(1); sndPlay(6); r = 1; }
+  return r;
 }

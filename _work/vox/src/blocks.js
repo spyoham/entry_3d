@@ -54,7 +54,8 @@ function useKey0() {
       if (gameMode != 3) { if (mobUse(mobPick, id) == 1) { used = 1; placeCool = 0.3; et = 0; } }
       if (et == 13 || isCart(et) == 1) { riding = mobPick; used = 1; placeCool = 0.4; }
       if (et == M_TRADER) { tradeOpen(mobPick); used = 1; }
-      if (et == 3) { if (ITTK[id + 1] == 5) { if (EST[mobPick] != 9) { EST[mobPick] = 9; dropItem(32, rand(1, 3), 0, EX[mobPick], EY[mobPick] + 1, EZ[mobPick], 0); wearHeld(1); sndPlay(6); used = 1; placeCool = 0.3; } } }
+      // ((v3.2) a shorn sheep stays shorn till it has grazed (fauna.js): the coat was back in seconds)
+      if (et == 3) { if (ITTK[id + 1] == 5) { if (sheepShear(mobPick) == 1) { used = 1; placeCool = 0.3; } } }
       if (et == M_VILLAGER) { tradeOpen(mobPick); used = 1; }
       // ((v2.9) flint and steel or a fire charge lights a bursting mushroom: it goes off in 1.5 s)
       if (MAI[et] == 6) { if (id == 122 || id == I_fireCharge) { if (EST[mobPick] != 6) {
@@ -682,6 +683,20 @@ function boneMeal(x, y, z, b) {
   let used = 0;
   if (BCROP[b + 1] >= 0 && BCROP[b + 1] < 3) { setBlock(x, y, z, BKIND[b + 1] + Math.min(3, BCROP[b + 1] + rand(1, 2))); used = 1; }
   if (BTREE[b + 1] >= 0) { if (rand(1, 3) == 1) { treeFrom(x, y, z, b); } used = 1; }
+  // ((v3.2) as the genre's: bamboo a cell or two up (to 16), kelp one (into water); cane and cactus nothing)
+  if (b == I_bamboo || b == I_kelp) {
+    let ty = y, h = 1, g = 1;
+    while (ty + 1 < WY - 1 && blockAt(x, ty + 1, z) == b) { ty = ty + 1; }
+    while (y - h >= 0 && blockAt(x, y - h, z) == b) { h = h + 1; }
+    h = h + ty - y;
+    if (b == I_bamboo) { g = rand(1, 2); }
+    while (g > 0 && ty + 1 < WY - 1) {
+      let ub = blockAt(x, ty + 1, z), ok = 0;
+      if (b == I_bamboo) { if (ub == 0 && h < 16) { ok = 1; } } else { if (BLQ[ub + 1] == 7 && BLV[ub + 1] == 0 && h < 25) { ok = 1; } }
+      if (ok == 1) { setBlock(x, ty + 1, z, b); ty = ty + 1; h = h + 1; used = 1; }
+      g = g - 1;
+    }
+  }
   if (b == 2) {
     let k = 0;
     while (k < 12) {
@@ -741,14 +756,16 @@ let SGX = [], SGY = [], SGZ = [], SGT = [], SGD = [];
 function signUse(x, y, z, id) {
   let k = signFind(x, y, z);
   if (k == 0 || sneaking == 1) {
-    mouseFree();
-    ask('표지판에 쓸 글을 입력하세요');
-    let s = answer();
-    askDone();
-    if (k == 0) { SGX.push(x); SGY.push(y); SGZ.push(z); SGT.push(s); SGD.push(dim); } else { SGT[k] = s; }
-    netSign(x, y, z, s);
-    lockReq();
+    // ((v3.2) typed into the game's own box, what is on it now there to change)
+    ibX = x; ibY = y; ibZ = z;
+    gS2 = ''; if (k > 0) { gS2 = SGT[k]; }
+    inboxOpen(12, '표지판에 쓸 글', gS2, 60);
   } else { msgShow(SGT[k], 4); }
+}
+function signTyped() {
+  let k = signFind(ibX, ibY, ibZ);
+  if (k == 0) { SGX.push(ibX); SGY.push(ibY); SGZ.push(ibZ); SGT.push(ansS); SGD.push(dim); } else { SGT[k] = ansS; }
+  netSign(ibX, ibY, ibZ, ansS);
 }
 function signFind(x, y, z) {
   let i = 1, r = 0;
@@ -897,15 +914,16 @@ function commandBlockEdit(x, y, z) {
   // (v2.4.4: on a server only its ops: a command block runs with every right)
   if (netSrv > 0 && iAmOp() == 0) { msgShow('서버에서는 관리자만 명령 블록을 고칠 수 있습니다', 2); }
   else { if (gameMode == 1) {
-    mouseFree();
-    ask('명령 블록에 넣을 명령어 (전원이 들어오면 실행)');
-    let s = answer();
-    askDone();
+    ibX = x; ibY = y; ibZ = z;
     let k = cbFind(x, y, z);
-    if (k == 0) { CBX.push(x); CBY.push(y); CBZ.push(z); CBT.push(s); CBD.push(dim); } else { CBT[k] = s; }
-    lockReq();
-    msgShow('명령을 넣었습니다', 2);
+    gS2 = ''; if (k > 0) { gS2 = CBT[k]; }
+    inboxOpen(13, '명령 블록에 넣을 명령어 (전원이 들어오면 실행)', gS2, 240);
   } else { msgShow('명령 블록은 크리에이티브에서만 고칠 수 있습니다', 2); } }
+}
+function cbTyped() {
+  let k = cbFind(ibX, ibY, ibZ);
+  if (k == 0) { CBX.push(ibX); CBY.push(ibY); CBZ.push(ibZ); CBT.push(ansS); CBD.push(dim); } else { CBT[k] = ansS; }
+  msgShow('명령을 넣었습니다', 2);
 }
 function cbFind(x, y, z) {
   let i = 1, r = 0;
@@ -939,8 +957,9 @@ function throwIt(k) {
   if (s > 0) {
     AXX[s] = camX + lookX * 0.4; AYY[s] = camY - 0.1 + lookY * 0.4; AZZ[s] = camZ + lookZ * 0.4;
     AVX[s] = lookX * 22; AVY[s] = lookY * 22 + 2; AVZ[s] = lookZ * 22; AAGE[s] = 0; ASTK[s] = 0;
-    AON[s] = 6 + k;
+    AON[s] = 6 + k; AEN[s] = 0; APW[s] = 0;
     swingT = 0.3; sndPlay(1);
+    netArrowSay(s);
   }
 }
 // ((v2.7) a thing thrown by a dispenser: from (x, y, z) the way (dx, dy, dz))
@@ -948,7 +967,7 @@ let bmFree = 0;
 function throwFrom(k, x, y, z, dx, dy, dz) {
   let a = 1, s = 0;
   while (a <= NARR) { if (s == 0) { if (AON[a] == 0) { s = a; } } a = a + 1; }
-  if (s > 0) { AXX[s] = x; AYY[s] = y; AZZ[s] = z; AVX[s] = dx * 22; AVY[s] = dy * 22 + 2; AVZ[s] = dz * 22; AAGE[s] = 0; ASTK[s] = 0; AON[s] = 6 + k; }
+  if (s > 0) { AXX[s] = x; AYY[s] = y; AZZ[s] = z; AVX[s] = dx * 22; AVY[s] = dy * 22 + 2; AVZ[s] = dz * 22; AAGE[s] = 0; ASTK[s] = 0; AON[s] = 6 + k; AEN[s] = 0; APW[s] = 0; netArrowSay(s); }
 }
 // where a thrown thing lands (AON 7 snowball, 8 egg, 9 void pearl)
 function thrownHit(a) {
@@ -1054,7 +1073,92 @@ let TRBN = [1, 1, 1, 1, 1, 1, 6, 1, 4, 1, 1, 8, 1, 1, 1, 2, 3, 8, 4, 1, 1, 1, 2,
 let trMob = 0, trSel = 0;
 function tradeOpen(e) { trMob = e; uiMode = 10; mouseFree(); txClear(); }
 function tradeOffer(k) { let r = mod(trMob * 5 + k * 4 + seed + k * k, 16) + 1; if (ET[trMob] == M_TRADER) { r = mod(trMob * 3 + k * 5 + seed, 8) + 17; } return r; }
+// (v3.2) offer k (0..9: level k / 2 + 1, its first or second) of the villager unpacked by villGet (fauna.js),
+// from its own seed: voA x voAN -> voB x voBN (voD: a book's charm), voM times, voU of them used
+let voA = 0, voAN = 0, voB = 0, voBN = 0, voD = 0, voM = 0, voU = 0;
+let VLN = ['견습', '수습', '기능공', '전문가', '장인'], VXL = [2, 6, 12, 20, 30], VXT = [10, 70, 150, 250, 250];
+function vPow(k) { let r = 1; while (k > 0) { r = r * 16; k = k - 1; } return r; }
+function vOffer(k) {
+  let j = idiv(k, 2), ix = (vP - 1) * 5 + j + 1, n = VTN[ix];
+  let i1 = mod(vS + j * 7, n), r = VT0[ix] + i1;
+  if (mod(k, 2) == 1) { r = VT0[ix] + mod(i1 + 1 + mod(idiv(vS, 16) + j * 3, n - 1), n); }
+  voA = VTA[r]; voAN = VTAN[r]; voB = VTB[r]; voBN = VTBN[r]; voM = VTM[r]; voD = 0;
+  if (voBN == 0) {
+    // a charmed book: the charm and its level of the seed, the price by the level
+    if (ENL.length < 28) { enInit(); }
+    let c = mod(vS * 31 + j * 11 + idiv(vS, 64) * 5, 26) + 1, q = 1;
+    let lv = mod(vS * 7 + j * 13 + idiv(vS, 8), ENMAX[c]) + 1;
+    while (q <= 28) { ENL[q] = 0; q = q + 1; }
+    ENL[c] = lv;
+    voD = enEnc(I_enchantedBook, 0); voBN = 1;
+    voAN = Math.min(64, 2 + 3 * lv + mod(vS * 13 + j * 29 + c * 7, 5 + lv * 10));
+  }
+  // a cured one's thanks: three tenths off for each cure
+  if (vD > 0) { voAN = Math.max(1, Math.round(voAN * (1 - 0.3 * vD))); }
+  voU = mod(idiv(mod(ETG[trMob], VFD), vPow(k)), 16);
+}
+function villScreen() {
+  penAlpha(45); box(-245, 140, 245, -140, '#000000'); fillStop(); penAlpha(0);
+  villGet(EVAR[trMob]);
+  trSel = 0;
+  if (vP == 0 || isBaby(trMob) == 1) {
+    panel(-200, 30, 200, -24);
+    tx(20, '일자리가 없는 마을 사람입니다 · E 닫기', -192, 22, 8, '#404040', 1);
+    tx(21, '작업 블록(퇴비통·독서대·용광로·훈연기·통 …)을 가까이 놓으면 직업을 얻습니다', -192, 4, 7, '#202020', 1);
+  } else {
+    let rows = vL * 2, k = 0, mx = mouseX(), my = mouseY();
+    panel(-145, 128, 145, 96 - rows * 21);
+    gS = `${VPNAME[vP]} · ${VLN[vL]}`;
+    if (vL < 5) { gS = `${gS} (${vX}/${VXT[vL]})`; }
+    if (vD > 0) { gS = `${gS} · 할인`; }
+    tx(20, `${gS} · 클릭해 바꾸기 · E 닫기`, -137, 122, 8, '#404040', 1);
+    while (k < rows) {
+      vOffer(k);
+      let y0 = 106 - k * 21, y1 = y0 - 19, c = '#8b8b8b';
+      if (voU >= voM) { c = '#7a6a6a'; }
+      if (mx >= -135 && mx <= 135 && my <= y0 && my >= y1) { trSel = k + 1; if (voU < voM) { c = '#a8b8e8'; } }
+      box(-135, y0, 135, y1, c);
+      slotItem(-121, y0 - 10, voA, voAN, 0, 21 + k * 3);
+      gS = `${ITNAME[voB + 1]} ${voBN}개`;
+      if (voD > 0) { enDesc(I_enchantedBook, voD); gS = `책: ${enS}`; }
+      if (voU >= voM) { gS = `${gS} (품절)`; }
+      tx(22 + k * 3, `${ITNAME[voA + 1]} ${voAN}개 → ${gS}`, -105, y0 - 6, 7, '#202020', 1);
+      slotItem(121, y0 - 10, voB, voBN, voD, 23 + k * 3);
+      k = k + 1;
+    }
+  }
+}
+function villClick() {
+  if (trSel > 0 && ERK[trMob] == 0) {
+    villGet(EVAR[trMob]);
+    if (vP > 0 && trSel <= vL * 2) {
+      vOffer(trSel - 1);
+      if (voU >= voM) { msgShow('품절입니다 (작업 블록 곁에 있으면 다시 채웁니다)', 2); }
+      else {
+        let have = 0, k = 1;
+        while (k <= 36) { if (INVI[k] == voA) { have = have + INVN[k]; } k = k + 1; }
+        if (have >= voAN || mod(gameMode, 2) == 1) {
+          let n = voAN;
+          k = 1;
+          while (k <= 36 && n > 0) { if (INVI[k] == voA) { let t = Math.min(n, INVN[k]); INVN[k] = INVN[k] - t; n = n - t; if (INVN[k] <= 0) { INVI[k] = 0; INVN[k] = 0; INVD[k] = 0; } } k = k + 1; }
+          addItem(voB, voBN, voD); if (addLeft > 0) { dropItem(voB, addLeft, voD, px, py + 1, pz, 0); }
+          // its offer used once more; it has traded (its work and offers are its own now) and learns
+          ETG[trMob] = ETG[trMob] + vPow(trSel - 1);
+          vK = 1; vX = Math.min(250, vX + VXL[idiv(trSel - 1, 2) + 1]);
+          let nl = 1;
+          if (vX >= 10) { nl = 2; } if (vX >= 70) { nl = 3; } if (vX >= 150) { nl = 4; } if (vX >= 250) { nl = 5; }
+          if (nl > vL) { vL = nl; msgShow(`${VPNAME[vP]}이(가) ${VLN[vL]}이(가) 되었습니다: 새 거래가 생겼습니다`, 3); }
+          EVAR[trMob] = villPack();
+          sndPlay(6); xpAdd(rand(3, 6));
+        } else { msgShow(`${ITNAME[voA + 1]}이(가) ${voAN}개 필요합니다`, 2); }
+      }
+    }
+  }
+}
 function tradeScreen() {
+  if (ET[trMob] == M_VILLAGER) { villScreen(); } else { traderScreen(); }
+}
+function traderScreen() {
   penAlpha(45); box(-245, 140, 245, -140, '#000000'); fillStop(); penAlpha(0);
   panel(-110, 92, 110, -40);
   tx(20, `${MNAME[ET[trMob]]}과 바꾸기 (클릭) · E 닫기`, -102, 86, 8, '#404040', 1);
@@ -1075,7 +1179,7 @@ function tradeScreen() {
 function tradeInput() {
   if (keyHit(69) == 1 || keyHit(27) == 1 || (ET[trMob] != M_VILLAGER && ET[trMob] != M_TRADER)) { uiMode = 0; txClear(); lockReq(); }
   else {
-    if (clickLatch == 1) { if (trSel > 0) {
+    if (clickLatch == 1) { if (ET[trMob] == M_VILLAGER) { villClick(); } else { if (trSel > 0) {
       let o = tradeOffer(trSel - 1), have = 0, k = 1;
       while (k <= 36) { if (INVI[k] == TRA[o]) { have = have + INVN[k]; } k = k + 1; }
       if (have >= TRAN[o] || mod(gameMode, 2) == 1) {
@@ -1085,6 +1189,6 @@ function tradeInput() {
         addItem(TRB[o], TRBN[o], 0); if (addLeft > 0) { dropItem(TRB[o], addLeft, 0, px, py + 1, pz, 0); }
         sndPlay(6); xpAdd(rand(1, 3));
       } else { msgShow(`${ITNAME[TRA[o] + 1]}이(가) ${TRAN[o]}개 필요합니다`, 2); }
-    } }
+    } } }
   }
 }

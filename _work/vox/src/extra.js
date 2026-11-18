@@ -196,6 +196,7 @@ function eyeThrow() {
       AVX[s] = dx / l * sp; AVZ[s] = dz / l * sp; AVY[s] = 2.5;
       if (l < 12) { AVY[s] = 0 - 1.5; }
     } else { AVX[s] = 0; AVZ[s] = 0; AVY[s] = 1; }
+    AEN[s] = 0; APW[s] = 0; netArrowSay(s);
     takeHeld(1); placeCool = 0.5; sndPlay(1);
   }
 }
@@ -368,8 +369,10 @@ function fireworkAdd(x, y, z) {
   while (a <= NARR) { if (s == 0) { if (AON[a] == 0) { s = a; } } a = a + 1; }
   if (s > 0) {
     AXX[s] = x; AYY[s] = y; AZZ[s] = z; AVX[s] = rand(-10, 10) / 20; AVY[s] = 4; AVZ[s] = rand(-10, 10) / 20;
-    AAGE[s] = 0; ASTK[s] = 1.1 + rand(0, 6) / 10; AON[s] = 10;
+    // ((v3.2) its colour chosen as it goes up (AEN), so every screen's burst is the same)
+    AAGE[s] = 0; ASTK[s] = 1.1 + rand(0, 6) / 10; AON[s] = 10; AEN[s] = rand(1, 6); APW[s] = 0;
     sndPlay(8);
+    netArrowSay(s);
   }
   return s;
 }
@@ -380,7 +383,7 @@ function fireworkStep(a, dt) {
     let hb = blockAt(Math.floor(nx), Math.floor(ny), Math.floor(nz)), up = 1;
     if (ny >= WY) { hb = 0; }
     if (BSOL[hb + 1] > 0) { up = 0; } else { AXX[a] = nx; AYY[a] = ny; AZZ[a] = nz; }
-    if (AAGE[a] >= ASTK[a] || up == 0) { AON[a] = 11; AAGE[a] = 0; AVX[a] = rand(1, 6); AVY[a] = 0; AVZ[a] = 0; sndPlay(9); }
+    if (AAGE[a] >= ASTK[a] || up == 0) { AON[a] = 11; AAGE[a] = 0; AVX[a] = AEN[a]; AVY[a] = 0; AVZ[a] = 0; sndPlay(9); }
   } else { if (AAGE[a] > 1.8) { AON[a] = 0; } }
 }
 
@@ -484,15 +487,18 @@ function wanderTeleport(e) {
 // the shell-bug: sits still, opens and shoots a slow bolt that follows you
 function shellStep(e, dt) {
   ETM[e] = ETM[e] - dt; EHURT[e] = EHURT[e] - dt; EATK[e] = EATK[e] - dt;
-  let dx = px - EX[e], dy = py + 1 - EY[e], dz = pz - EZ[e];
+  // ((v3.2) at the nearest player of the server, as the other monsters)
+  mobTarget(e);
+  let dx = tgX - EX[e], dy = tgY + 1 - EY[e], dz = tgZ - EZ[e], can = 1;
   let d = Math.sqrt(dx * dx + dy * dy + dz * dz);
   EYAW[e] = atan2d(dx, dz);
+  if (tgK == 0) { if (mod(gameMode, 2) != 0 || dead != 0) { can = 0; } }
   // ((v3.0) it opens to shoot, and now and then to look; shut, blows hardly reach it)
   let op = 0;
-  if (d < 16 && mod(gameMode, 2) == 0 && dead == 0) {
-    if (sightLine(EX[e], EY[e] + 0.8, EZ[e], px, py + 1.2, pz) == 1) {
+  if (d < 16 && can == 1) {
+    if (sightLine(EX[e], EY[e] + 0.8, EZ[e], tgX, tgY + 1.2, tgZ) == 1) {
       op = 1;
-      if (EATK[e] <= 0 && EVAR[e] > 40) { arrowShoot(EX[e], EY[e] + 1.1, EZ[e], px, py + 1.2, pz, 4); EATK[e] = 2 + rand(0, 20) / 10; }
+      if (EATK[e] <= 0 && EVAR[e] > 40) { arrowShoot(EX[e], EY[e] + 1.1, EZ[e], tgX, tgY + 1.2, tgZ, 4); EATK[e] = 2 + rand(0, 20) / 10; if (lastArr > 0) { ASTK[lastArr] = tgK; netArrowSay(lastArr); } }
     }
   }
   shellLid(e, dt, op);
@@ -500,28 +506,35 @@ function shellStep(e, dt) {
 // the bolt (AON 5) and the eye (AON 6), each frame
 function boltStep(a, dt) {
   if (AON[a] == 5) {
-    let dx = px - AXX[a], dy = py + 1 - AYY[a], dz = pz - AZZ[a], d = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.01;
+    // ((v3.2) ASTK: the slot of the player it goes for (0: me). Only the one it goes for is hit by it, on
+    // their own screen; on the others it flies to where they are and is gone)
+    let bx = px, by = py, bz = pz, k = ASTK[a];
+    if (k > 0) { bx = NPX[k]; by = NPY[k]; bz = NPZ[k]; if (NLIVE[k] == 0) { AON[a] = 0; } }
+    let dx = bx - AXX[a], dy = by + 1 - AYY[a], dz = bz - AZZ[a], d = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.01;
     let f = Math.min(1, 1.6 * dt);
     AVX[a] = AVX[a] + (dx / d * 5 - AVX[a]) * f; AVY[a] = AVY[a] + (dy / d * 5 - AVY[a]) * f; AVZ[a] = AVZ[a] + (dz / d * 5 - AVZ[a]) * f;
     AXX[a] = AXX[a] + AVX[a] * dt; AYY[a] = AYY[a] + AVY[a] * dt; AZZ[a] = AZZ[a] + AVZ[a] * dt;
     if (BSOL[blockAt(Math.floor(AXX[a]), Math.floor(AYY[a]), Math.floor(AZZ[a])) + 1] == 1) { AON[a] = 0; }
-    if (Math.abs(AXX[a] - px) < 0.5 && Math.abs(AZZ[a] - pz) < 0.5 && AYY[a] > py && AYY[a] < py + 1.8) {
-      hurtM(4, '껍질벌레의 탄환에 맞았습니다'); effectAdd(10, 10, 1); AON[a] = 0;
+    if (Math.abs(AXX[a] - bx) < 0.5 && Math.abs(AZZ[a] - bz) < 0.5 && AYY[a] > by && AYY[a] < by + 1.8) {
+      if (k == 0) { hurtM(4, '껍질벌레의 탄환에 맞았습니다'); effectAdd(10, 10, 1); }
+      AON[a] = 0;
     }
     if (AAGE[a] > 10) { AON[a] = 0; }
   }
   if (AON[a] == 6) {
     AXX[a] = AXX[a] + AVX[a] * dt; AYY[a] = AYY[a] + AVY[a] * dt; AZZ[a] = AZZ[a] + AVZ[a] * dt;
     if (AAGE[a] > 1.8) {
-      if (rand(1, 5) == 1) { msgShow('공허의 눈이 부서졌습니다', 2); sndPlay(7); }
-      else { dropItem(171, 1, 0, AXX[a], AYY[a], AZZ[a], 0); }
+      if (APW[a] >= 0) {
+        if (rand(1, 5) == 1) { msgShow('공허의 눈이 부서졌습니다', 2); sndPlay(7); }
+        else { dropItem(171, 1, 0, AXX[a], AYY[a], AZZ[a], 0); }
+      }
       AON[a] = 0;
     }
   }
 }
 // in the void: wanderers on the islands, shell-bugs about the cities near
 function spawnVoid() {
-  if (nHostile + nPassive < 14) {
+  if (nHostile + nPassive < 14 && difficulty > 0) {
     let a = rand(0, 359), r = rand(14, 36);
     let x = Math.floor(px + sind(a) * r), z = Math.floor(pz + cosd(a) * r);
     if (cOK(x, z) == 1) {

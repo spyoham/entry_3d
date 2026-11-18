@@ -101,7 +101,8 @@ run(6);
 const crater = (C) => { let r = '', n = 0; for (let x = X - 6; x <= X + 6; x++) for (let y = Y; y <= Y + 4; y++) for (let z = Z + 2; z <= Z + 8; z++) { const b = blk(C, x, y, z); r += b + ','; if (b === 0) n++; } return [r, n]; };
 const [ca, na] = crater(A), [cb, nb] = crater(B);
 ok(na > 20 && ca === cb, `alice's TNT: ${na} blocks gone on her screen, the same crater on bob's (${nb})`);
-const drops = (C) => C.g('IID').filter((q) => q > 0).length;
+// ((v3.1) a thing lies on every screen, as its owner's: counted where it is its own)
+const drops = (C) => { const R = C.g('IRK'); return C.g('IID').filter((q, i) => q > 0 && +R[i] === 0).length; };
 ok(drops(A) > 0 && drops(B) === 0, `its blocks fell as items once: alice ${drops(A)}, bob ${drops(B)}`);
 // 3 a dispenser fed by a lever: one item, on the host's screen only, and its chest the same on both
 cmd(A, `/setblock ${X + 4} ${Y} ${Z - 4} dispenser[facing=north]`); run(1);

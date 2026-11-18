@@ -851,7 +851,7 @@ function pushHow(c) {
     // (v2.5) as the genre: what keeps things in it stays (a jukebox, a lectern, a hive, a command
     // block, a light sensor, glinting obsidian); a bell and a cake break
     if (c == I_jukebox || c == I_lectern || c == I_beehive || c == I_beeNest || c == I_glintObsidian || BUSE[c + 1] == U_COMMAND || BSPEC[c + 1] == 9 || BRS[c + 1] == RS_MOVING) { r = 3; }
-    if (c == I_bell || c == I_cake) { r = 2; }
+    if (c == I_bell || c == I_cake || c == 19 || BKIND[c + 1] == I_bamboo) { r = 2; }
     if (BRS[c + 1] == RS_RAIL) { r = 1; }
   }
   return r;
@@ -918,6 +918,7 @@ function psBuild(sx, sy, sz, d) {
 function psPut(x, y, z, b) {
   let old = blockAt(x, y, z);
   logOn = 1; wput(x, y, z, b); logOn = 0;
+  psNote(x, y, z, b);
   markDirty(x, y, z);
   // ((v2.6) the light from this cell alone, when it changes it)
   psLight(x, y, z, old, b);
@@ -929,10 +930,20 @@ function psLight(x, y, z, a, b) {
     else { if (BLIT[a + 1] != BLIT[b + 1]) { blockLightSet(x, y, z, BLIT[b + 1]); } }
   }
 }
+// ((v3.2) what a piston broke flies on the way it pushed (the things just made in that cell, and over it:
+// the rest of a cane falls with the part cut): a cane cut by a piston lands in the stream before it, as
+// the genre's farms have it)
+function psFling(x, y, z, dx, dz) {
+  let i = 1;
+  while (i <= NITM) {
+    if (IID[i] > 0) { if (IAGE[i] == 0 && Math.floor(IXX[i]) == x && Math.floor(IZZ[i]) == z && IYY[i] >= y && IYY[i] < y + 4) { IVX[i] = dx * 4; IVZ[i] = dz * 4; IVY[i] = 2; } }
+    i = i + 1;
+  }
+}
 // the blocks found move one cell the way psMove; the cells left behind (not the head's) get their after-effects
 function psDo(hx, hy, hz, head) {
   let d = psMove, dx = DX6[d + 1], dy = DY6[d + 1], dz = DZ6[d + 1], i = 1;
-  while (i <= PDX.length) { let c = blockAt(PDX[i], PDY[i], PDZ[i]); rsDrop(PDX[i], PDY[i], PDZ[i], c); partnerGone(PDX[i], PDY[i], PDZ[i], c, 0); i = i + 1; }
+  while (i <= PDX.length) { let c = blockAt(PDX[i], PDY[i], PDZ[i]); if (worldDrops() == 1) { dropBare = 1; blockDrops(c, PDX[i], PDY[i], PDZ[i]); dropBare = 0; } setBlock(PDX[i], PDY[i], PDZ[i], 0); psFling(PDX[i], PDY[i], PDZ[i], dx, dz); psNote(PDX[i], PDY[i], PDZ[i], 0); partnerGone(PDX[i], PDY[i], PDZ[i], c, 0); i = i + 1; }
   // ((v2.6) a part's waiting tick stays where it was, as the genre's (it is dropped there: another
   // kind of block); an observer that lands fires, or goes off if it came on: mvPlace)
   i = 1;
@@ -953,7 +964,7 @@ function pistonOut(x, y, z, b, f) {
   let dx = DX6[f + 1], dy = DY6[f + 1], dz = DZ6[f + 1];
   psPX = x; psPY = y; psPZ = z; psKey = hsKey(x, y, z); psExt = 1;
   if (psBuild(x + dx, y + dy, z + dz, f) == 1) {
-    setBlock(x, y, z, b + 1);
+    setBlock(x, y, z, b + 1); psNote(x, y, z, b + 1);
     psDo(x + dx, y + dy, z + dz, I_pistonHead + mod(f + 3, 6) * 2 + BAUX[b + 1]);
     sndPlay(1);
   }
@@ -992,14 +1003,14 @@ function pistonIn(x, y, z, b, f, t) {
     if (let2 == 0 && t == 1 && ty >= 0 && ty < WY) {
       let c = blockAt(tx, ty, tz);
       if (c != 0 && pushHow(c) == 1) {
-        if (BRS[blockAt(hx, hy, hz) + 1] == RS_HEAD) { setBlock(hx, hy, hz, 0); }
+        if (BRS[blockAt(hx, hy, hz) + 1] == RS_HEAD) { setBlock(hx, hy, hz, 0); psNote(hx, hy, hz, 0); }
         psPX = x; psPY = y; psPZ = z;
         if (psBuild(tx, ty, tz, OP6[f + 1]) == 1) { psDo(0, 0 - 1, 0, 0); }
         pulled = 1;
       }
     }
   }
-  if (pulled == 0) { if (BRS[blockAt(hx, hy, hz) + 1] == RS_HEAD) { setBlock(hx, hy, hz, 0); } }
+  if (pulled == 0) { if (BRS[blockAt(hx, hy, hz) + 1] == RS_HEAD) { setBlock(hx, hy, hz, 0); psNote(hx, hy, hz, 0); } }
   sndPlay(1);
 }
 // the player, the mobs and (v2.5) the items in the cells moved into (and the arm's) go along, each
@@ -1057,6 +1068,7 @@ let psKey = 0, psExt = 1, psSrc = 0, mvPX = 0, mvPY = 0, mvPZ = 0;
 function psPutMv(x, y, z, b) {
   let old = blockAt(x, y, z);
   logOn = 1; wput(x, y, z, b); logOn = 0;
+  psNote(x, y, z, b);
   wput(x, y, z, I_moving);
   markDirty(x, y, z);
   psLight(x, y, z, old, I_moving);
@@ -1080,7 +1092,7 @@ function mvLand(i) {
 }
 function mvPlace(x, y, z, b) {
   if (BRS[b + 1] == RS_OBSERVER) {
-    if (BON[b + 1] == 1) { setBlock(x, y, z, b - 1); } else { setBlock(x, y, z, b); rsSchedule(x, y, z, 0.1, 1); }
+    if (BON[b + 1] == 1) { setBlock(x, y, z, b - 1); psNote(x, y, z, b - 1); } else { setBlock(x, y, z, b); rsSchedule(x, y, z, 0.1, 1); }
   } else { setBlock(x, y, z, b); }
 }
 // (v2.6) the genre's finalTick: done at once (a piston's own arm going out is then gone: air)
@@ -1088,7 +1100,7 @@ function mvFinal(i) {
   let x = MVX[i], y = MVY[i], z = MVZ[i], b = MVB[i], d = MVD[i], gone = 0;
   if (MVS[i] == 1 && MVE[i] == 1) { gone = 1; }
   mvDel(i);
-  if (d == dim) { if (blockAt(x, y, z) == I_moving) { if (gone == 1) { setBlock(x, y, z, 0); } else { mvPlace(x, y, z, b); } } }
+  if (d == dim) { if (blockAt(x, y, z) == I_moving) { if (gone == 1) { setBlock(x, y, z, 0); psNote(x, y, z, 0); } else { mvPlace(x, y, z, b); } } }
 }
 // the tick's end: the ones two ticks old land (another world's are let go)
 function mvStep() {

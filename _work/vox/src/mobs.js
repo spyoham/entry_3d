@@ -32,7 +32,8 @@ function mobAdd(t, x, y, z) {
 let lastMob = 0;
 // animals on the grass of a chunk just made (a few chunks in ten)
 function chunkAnimals(cx, cz) {
-  if (nPassive < ANIMALS) {
+  // ((v3.2) in the overworld only: the islands of the void had pigs and cows)
+  if (nPassive < ANIMALS && dim == 0) {
     chunkSeed(cx, cz, 4);
     if (rnd() < 0.18) {
       let x = cx * 16 + rndI(3, 12), z = cz * 16 + rndI(3, 12);
@@ -42,6 +43,8 @@ function chunkAnimals(cx, cz) {
       if (BLQ[W[i] + 1] == 7) { wt = 1; y0 = topY - 1.5; }
       let t = animalKind(BIOM[wcol(x, z)], wt);
       if (wt == 0) { if (BSOL[W[i] + 1] != 1 || (W[i + 1] != 0 && W[i + 1] != 28)) { t = 0; } }
+      // ((v3.2) once: the ones made before are kept (fauna.js), not made again)
+      if (t > 0) { if (keptOnce(dim * 100000000 + (cx + 5000) * 10000 + cz + 5000) == 1) { t = 0; } }
       if (t > 0) {
         let n = rndI(2, 4), j = 0;
         if (t == M_PANDA || t == M_WHITEBEAR || t == M_DOLPHIN) { n = rndI(1, 2); }
@@ -67,38 +70,69 @@ function spawnStep(dt) {
       if (ET[i] > 0) {
         if (MHOST[ET[i]] == 1) {
           nHostile = nHostile + 1;
-          // far away ones go
-          if ((EX[i] - px) * (EX[i] - px) + (EZ[i] - pz) * (EZ[i] - pz) > 56 * 56) { if (EOWN[i] == 0 && ERK[i] == 0) { ET[i] = 0; } }
+          // far away ones go ((v3.2) as the genre's: beyond 32 blocks one in sixty goes each time (half a
+          // minute or so), beyond 56 at once; in peaceful all of them but the bosses)
+          // (the distance up and down counts too: one who waits high over the land is rid of the caves' ones)
+          let dd = (EX[i] - px) * (EX[i] - px) + (EZ[i] - pz) * (EZ[i] - pz) + (EY[i] - py) * (EY[i] - py);
+          if (EOWN[i] == 0 && ERK[i] == 0 && ET[i] != 10 && ET[i] != M_BONEKING && ET[i] != M_ELDERGUARDIAN) {
+            if (dd > 56 * 56 || (dd > 1024 && rand(1, 60) == 1) || difficulty == 0) { ET[i] = 0; nHostile = nHostile - 1; }
+          }
         } else { if (isProxy(i) == 0) { nPassive = nPassive + 1; } if (MNEU[ET[i]] == 1 || ET[i] == 12 || MSWIM[ET[i]] == 1 || MAI[ET[i]] == 11) { if ((EX[i] - px) * (EX[i] - px) + (EZ[i] - pz) * (EZ[i] - pz) > 64 * 64) { if (EOWN[i] == 0 && ERK[i] == 0) { ET[i] = 0; } } } }
       }
       i = i + 1;
     }
     if (BENCH == 0 && grMobs == 1) { if (dim == 1) { spawnDepths(); } if (dim == 2) { spawnVoid(); } if (dim == 0) { spawnMore(); } }
-    if (BENCH == 0 && grMobs == 1) { if (dim == 0) { if (mod(gameMode, 2) == 0 || SPAWNC == 1) {
-      if (nHostile < 10) {
-        let a = rand(0, 359), r = rand(18, 40);
-        let x = Math.floor(px + sind(a) * r), z = Math.floor(pz + cosd(a) * r);
-        if (cOK(x, z) == 1) {
-          // a spot: on the surface (night) or deep in a cave
-          findTop(x, z);
-          let y = topY + 1, sky = 1;
-          if (rand(1, 3) == 1) { y = rand(5, Math.max(6, topY - 4)); sky = 0; }
-          let i2 = wi(x, y, z);
-          // ((v3.0) the drowned in the seas at night, under the water)
-          if (sky == 1 && BLQ[W[wi(x, topY, z)] + 1] == 7) { if (rand(1, 2) == 1 && difficulty > 0) { if (Math.max(idiv(LT[wi(x, topY, z)], 16) - dark, mod(LT[wi(x, topY, z)], 16)) <= 7) { mobAdd(M_DROWNED, x + 0.5, topY - rand(1, 3), z + 0.5); } } }
-          if (y > 1 && y < WY - 2) {
-            if (W[i2] == 0 && W[i2 + 1] == 0 && BSOL[W[i2 - 1] + 1] == 1 && W[i2 - 1] != 19) {
-              let lv = Math.max(idiv(LT[i2], 16) - dark, mod(LT[i2], 16));
-              if (lv <= 7) {
-                let t = nightKind(x, y, z, sky);
-                if (difficulty > 0) { mobAdd(t, x + 0.5, y + 0.02, z + 0.5); }
-              }
-            }
-          }
-        }
-      }
+    if (BENCH == 0 && grMobs == 1 && difficulty > 0) { if (dim == 0) { if (mod(gameMode, 2) == 0 || SPAWNC == 1) {
+      let k = 0;
+      while (k < 60) { if (nHostile < 20) { spawnTry(); } k = k + 1; }
     } } }
   }
+}
+// (v3.2) One try at a monster, as the genre makes them: a cell picked at random in the box round the
+// player - any height, as likely as another; one in the air comes down to the floor under it - takes one
+// when it is 24 blocks or more from the player
+// and no more than 48 (44 across: where mobs still move; so one who waits 48 blocks over the land has
+// them only in what is built up there), is dark (light 7 or less) and has room (air for
+// the whole body) over a whole opaque block. So they come in caves, at night on the land, and in any
+// dark room one builds - a floor of slabs, glass, leaves, or anything put on it (a torch for its light,
+// a button, a carpet) keeps them off. Up to three of a kind come together. (Before: 2 of 3 tries on the
+// top of a column, the rest somewhere under it, from 18 blocks, 10 monsters at most.)
+function spawnTry() {
+  let x = Math.floor(px) + rand(-44, 44), z = Math.floor(pz) + rand(-44, 44), y = rand(3, WY - 4);
+  let dx = x + 0.5 - px, dy = 0, dz = z + 0.5 - pz, far = 0, i2 = 0;
+  if (dx * dx + dz * dz <= 1936) { if (cOK(x, z) == 1) {
+    // (a cell in the air comes down to the floor under it, 8 cells at most: a try is not lost on the air of a room)
+    i2 = wi(x, y, z);
+    let k = 0;
+    while (k < 8 && y > 3 && W[i2] == 0 && W[i2 - 1] == 0) { y = y - 1; i2 = i2 - 1; k = k + 1; }
+    dy = y - py;
+    let d3 = dx * dx + dy * dy + dz * dz;
+    if (d3 >= 576 && d3 <= 2304) { far = 1; }
+  } }
+  if (far == 1) { if (y > 1) {
+    // (the drowned in dark water)
+    if (BLQ[W[i2] + 1] == 7) { if (BLQ[W[i2 + 1] + 1] == 7 && rand(1, 12) == 1) { if (Math.max(idiv(LT[i2], 16) - dark, mod(LT[i2], 16)) <= 7) { mobAdd(M_DROWNED, x + 0.5, y, z + 0.5); nHostile = nHostile + 1; } } }
+    else { if (spawnSpot(x, y, z, 2) == 1) {
+      // (under the open sky: the kinds of the land; else those of the caves)
+      let sky = 0;
+      if (idiv(LT[i2], 16) >= 14) { sky = 1; }
+      let t = nightKind(x, y, z, sky), n = rand(1, 3), j = 0;
+      while (j < n) {
+        let ax = x, az = z;
+        if (j > 0) { ax = x + rand(-3, 3); az = z + rand(-3, 3); }
+        if (cOK(ax, az) == 1) { if (spawnSpot(ax, y, az, MH[t]) == 1) { mobAdd(t, ax + 0.5, y + 0.02, az + 0.5); nHostile = nHostile + 1; } }
+        j = j + 1;
+      }
+    } }
+  } }
+}
+// may a monster h blocks tall be made with its feet in cell (x, y, z)
+function spawnSpot(x, y, z, h) {
+  let i = wi(x, y, z), r = 0, fb = W[i - 1];
+  if (W[i] == 0 && W[i + 1] == 0) { if (BSOL[fb + 1] == 1 && BLOP[fb + 1] == 1 && BSHP[fb + 1] == 0 && fb != 19 && fb != 6) {
+    if (Math.max(idiv(LT[i], 16) - dark, mod(LT[i], 16)) <= 7) { r = 1; if (h > 2) { if (W[i + 2] != 0) { r = 0; } } }
+  } }
+  return r;
 }
 // in the depths: on any floor near, in any light (a wraith floats, a toad sits)
 function spawnDepths() {
@@ -133,11 +167,13 @@ function mobsStep(dt) {
   while (e <= NMOB) {
     // (far from the player they rest: only the ones near are worth the time)
     if (ET[e] > 0) {
-      if (cOK(Math.floor(EX[e]), Math.floor(EZ[e])) == 0) { if (EOWN[e] < 1) { ET[e] = 0; } }
+      // ((v3.2) its chunk out of the window: one to keep is kept (fauna.js keptPut), the rest are gone - not the
+      // warden: seen from the island's edge it flew out of the window, was gone and made again in the middle)
+      if (cOK(Math.floor(EX[e]), Math.floor(EZ[e])) == 0) { if (EOWN[e] < 1 && ET[e] != 10) { if (keptKind(e) == 1) { keptPut(e); } ET[e] = 0; } }
       else {
         // (v2.4.3) mobs and the other players press plates too
         // (v2.5: a minecart presses as an item does: wooden plates, not stone ones; string)
-        if (ET[e] != 13) { let wh = 0; if (isCart(ET[e]) == 1) { wh = 1; } plateHit(Math.floor(EX[e]), Math.floor(EY[e] + 0.05), Math.floor(EZ[e]), wh); } if (ET[e] != 10 && isProxy(e) == 0 && ERK[e] == 0) { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 1600) { mobStep(e, dt); } } }
+        if (ET[e] != 13) { let wh = 0; if (isCart(ET[e]) == 1) { wh = 1; } plateHit(Math.floor(EX[e]), Math.floor(EY[e] + 0.05), Math.floor(EZ[e]), wh); } if (ET[e] != 10 && isProxy(e) == 0 && ERK[e] == 0) { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 2116) { mobStep(e, dt); } } }
     }
     e = e + 1;
   }
@@ -175,7 +211,9 @@ function mobStep0(e, dt) {
     let near = 16;
     if (EOWN[e] == 0 - 1) { near = 64; }
     if (t == 7 || t == M_CAVESPIDER) { if (EST[e] != 4) { if (mod(frameNo + e, 10) == 0) { if (lightAt(EX[e], EY[e] + 0.5, EZ[e]) >= 12) { EVAR[e] = 2; } else { EVAR[e] = 0; } } if (EVAR[e] == 2) { near = 0; } } }
-    if (dist < near && (tgK > 0 || (mod(gameMode, 2) == 0 && dead == 0)) && difficulty > 0) {
+    // ((v3.2) how far up or down counts too: a monster 25 blocks under one's feet does not see one (it stood
+    // looking up, an archer for good - it only keeps its distance - and never walked into a farm's water))
+    if (dist * dist + dyp * dyp < near * near && (tgK > 0 || (mod(gameMode, 2) == 0 && dead == 0)) && difficulty > 0) {
       wy = atan2d(dxp, dzp);
       want = 1;
       if (ai == 3) {
@@ -266,6 +304,12 @@ function mobStep0(e, dt) {
   else {
   EVX[e] = EVX[e] + (tx - EVX[e]) * a; EVZ[e] = EVZ[e] + (tz - EVZ[e]) * a;
   bodyIn(EX[e], EY[e], EZ[e], w, h);
+  // ((v3.2) cactus, fire, a hot floor, a block round the head: twice a second)
+  if (mod(frameNo + e, 15) == 0) { if (inC > 0 || underB == I_magma || EY[e] + h < WY) { mobHazard(e, t, h); } }
+  // ((v3.2) flowing water carries them (it carried only the player and boats): their speed goes to the
+  // water's, so they drift on a little past its edge (pushed only while their middle was in the water, one
+  // came to rest half over a hole, held up by the water its other half was in))
+  if (inW == 1) { if (MSWIM[t] == 0) { flowAt(Math.floor(EX[e]), Math.floor(EY[e] + 0.1), Math.floor(EZ[e])); if (flX != 0 || flZ != 0) { let fw = Math.min(1, 5 * dt); EVX[e] = EVX[e] + (flX * 2.4 - EVX[e]) * fw; EVZ[e] = EVZ[e] + (flZ * 2.4 - EVZ[e]) * fw; } } }
   if (MFLY[t] == 1) {
     let ty = tgY + 2.5 + sind(frameNo * 3 + e * 40) * 0.8;
     if (dist > 24) { ty = EY[e]; }
@@ -291,6 +335,12 @@ function mobStep0(e, dt) {
   if (bmHitX == 1 || bmHitZ == 1) { hit = 1; }
   if (bmHitY == 1) { EVY[e] = 0; }
   EGND[e] = bmGround;
+  // ((v3.2) a fall hurts: a point for each block beyond three, from the highest it was since it last stood
+  // (not into water, not onto a bouncing block; not those that fly or flutter down))
+  if (bmGround == 1 || inW == 1 || inL == 1 || inClimb == 1 || MFLY[t] == 1 || EFALL[e] < 0 - 900) {
+    if (bmGround == 1 && inW == 0) { if (EFALL[e] - bmY > 3.5) { mobFell(e, t, EFALL[e] - bmY); } }
+    EFALL[e] = bmY;
+  } else { if (bmY > EFALL[e]) { EFALL[e] = bmY; } }
   // a wall in the way: jump it ((v3.0) spiders climb it)
   if (hit == 1) { if (bmGround == 1) { if (want != 0) { EVY[e] = 8.4; } } if (want != 0) { if (t == 7 || t == M_CAVESPIDER) { EVY[e] = 3; } } }
   EX[e] = bmX; EY[e] = bmY; EZ[e] = bmZ;
@@ -298,6 +348,24 @@ function mobStep0(e, dt) {
   let sp = Math.sqrt(EVX[e] * EVX[e] + EVZ[e] * EVZ[e]);
   EWALK[e] = EWALK[e] + sp * dt * 3.2;
   if (EY[e] < -10) { ET[e] = 0; }
+}
+function mobHazard(e, t, h) {
+  if (inC == 1) { EHURT[e] = 0; mobHurt(e, 1, 0, 0); }
+  if (inC == 2) { if (MFIRE[t] == 0) { EFIR[e] = Math.max(EFIR[e], 8.99); } }
+  if (ET[e] > 0) { if (underB == I_magma) { if (MFIRE[t] == 0) { EHURT[e] = 0; mobHurt(e, 1, 0, 0); } } }
+  if (ET[e] > 0) { if (EY[e] + h - 0.15 < WY) {
+    let hb = blockAt(Math.floor(EX[e]), Math.floor(EY[e] + h - 0.15), Math.floor(EZ[e]));
+    if (BSOL[hb + 1] == 1 && BLOP[hb + 1] == 1 && BSHP[hb + 1] == 0) { EHURT[e] = 0; mobHurt(e, 1, 0, 0); }
+  } }
+}
+function mobFell(e, t, d) {
+  if (t != M_CHICKEN && t != M_GOLEM && t != M_CAT && t != M_OCELOT && t != M_BOAT && isCart(t) == 0 && t != 10 && t != 12) {
+    let ub = blockAt(Math.floor(EX[e]), Math.floor(bmY - 0.05), Math.floor(EZ[e]));
+    if (BMOVE[ub + 1] != 4 && BLQ[blockAt(Math.floor(EX[e]), Math.floor(bmY + 0.2), Math.floor(EZ[e])) + 1] != 7) {
+      let n = Math.floor(d - 3);
+      if (n > 0) { EHURT[e] = 0; mobHurt(e, n, 0, 0); }
+    }
+  }
 }
 function headIn(e) {
   let b = blockAt(Math.floor(EX[e]), Math.floor(EY[e] + MH[ET[e]] - 0.2), Math.floor(EZ[e]));
@@ -468,8 +536,9 @@ function arrowShoot(x, y, z, tx, ty, tz, own) {
       AVX[a] = dx / d * sp; AVY[a] = dy / d * sp; AVZ[a] = dz / d * sp;
     }
     AAGE[a] = 0; ASTK[a] = 0; AEN[a] = shotEn; APW[a] = shotPow;
-    // ((v3.1) seen flying on the other screens of a server)
-    netArrowSay(a);
+    // ((v3.1) seen flying on the other screens of a server; (v3.2) a bolt and fangs: told by who makes them,
+    // once they are set up)
+    if (own != 4 && own != 11) { netArrowSay(a); }
   }
   lastArr = a;
 }
@@ -484,7 +553,7 @@ function arrowsStep(dt) {
         let nx = AXX[a] + AVX[a] * dt, ny = AYY[a] + AVY[a] * dt, nz = AZZ[a] + AVZ[a] * dt;
         let hb = blockAt(Math.floor(nx), Math.floor(ny), Math.floor(nz));
         // the player's arrow breaks a warding crystal
-        if (hb == 57) { if (AON[a] == 2) { crystalBreak(Math.floor(nx), Math.floor(ny), Math.floor(nz)); AON[a] = 0; } }
+        if (hb == 57) { if (AON[a] == 2 && APW[a] >= 0) { crystalBreak(Math.floor(nx), Math.floor(ny), Math.floor(nz)); AON[a] = 0; } }
         // (v2.4.4) a wooden button with an arrow in it is pressed (it stops there)
         if (BRS[hb + 1] == RS_BUTTON) { if (BAUX[hb + 1] >= 15) { if (AON[a] <= 2) { ASTK[a] = 1; AAGE[a] = 0; pressAdd(Math.floor(nx), Math.floor(ny), Math.floor(nz), 1.5); } } }
         if (BSOL[hb + 1] > 0) { ASTK[a] = 1; AAGE[a] = 0; if (AON[a] == 1 || AON[a] == 3) { shotStop(a); } if (AON[a] == 3) { AON[a] = 0; } if (AON[a] == 2 && AEN[a] < 0) { if (APW[a] >= 0) { tridentDrop(a); } else { AON[a] = 0; } } if (hb == I_target) { targetHit(nx, ny, nz, a); } if (hb == I_tnt) { if (AON[a] == 3) { tntPrime(Math.floor(nx), Math.floor(ny), Math.floor(nz)); } } }
@@ -549,6 +618,15 @@ function dropItem(id, n, du, x, y, z, thrown) {
   netItemNew(s); lastItem = s;
 }
 let lastItem = 0;
+function itemJoin(i) {
+  let j = 1, id = IID[i], cap = ITST[id + 1];
+  while (j <= NITM) {
+    if (j != i) { if (IID[j] == id && IRK[j] == 0 && IDU[j] == IDU[i] && INN[i] + INN[j] <= cap) {
+      if (Math.abs(IXX[j] - IXX[i]) < 0.7 && Math.abs(IZZ[j] - IZZ[i]) < 0.7 && Math.abs(IYY[j] - IYY[i]) < 0.7) { INN[i] = INN[i] + INN[j]; IID[j] = 0; if (IAGE[j] < IAGE[i]) { IAGE[i] = IAGE[j]; } }
+    } }
+    j = j + 1;
+  }
+}
 function itemsStep(dt) {
   let i = 1;
   while (i <= NITM) {
@@ -557,8 +635,13 @@ function itemsStep(dt) {
     if (IID[i] > 0 && IRK[i] == 0) {
       IAGE[i] = IAGE[i] + dt;
       IVY[i] = IVY[i] - 20 * dt;
+      // ((v3.2) flowing water carries it (to a hopper, say); it sinks slowly in water)
+      let wb = blockAt(Math.floor(IXX[i]), Math.floor(IYY[i] + 0.1), Math.floor(IZZ[i])), wx = 0, wz = 0;
+      if (BLQ[wb + 1] == 7) { flowAt(Math.floor(IXX[i]), Math.floor(IYY[i] + 0.1), Math.floor(IZZ[i])); wx = flX * 2.4; wz = flZ * 2.4; if (IVY[i] < 0 - 2) { IVY[i] = 0 - 2; } }
+      // ((v3.2) two heaps of the same thing lying together are one)
+      if (mod(frameNo + i, 30) == 0) { itemJoin(i); }
       bmX = IXX[i]; bmY = IYY[i]; bmZ = IZZ[i]; bmW = 0.12; bmH = 0.25;
-      bodyMove(IVX[i] * dt, IVY[i] * dt, IVZ[i] * dt);
+      bodyMove((IVX[i] + wx) * dt, IVY[i] * dt, (IVZ[i] + wz) * dt);
       IXX[i] = bmX; IYY[i] = bmY; IZZ[i] = bmZ;
       plateHit(Math.floor(IXX[i]), Math.floor(IYY[i] + 0.05), Math.floor(IZZ[i]), 1);
       if (bmHitY == 1) { IVY[i] = 0; IVX[i] = IVX[i] * 0.5; IVZ[i] = IVZ[i] * 0.5; }
@@ -600,6 +683,8 @@ function bucketThings() {
     if (ET[e] > 0) {
       let h = MH[ET[e]];
       if ((EX[e] - camX) * (EX[e] - camX) + (EZ[e] - camZ) * (EZ[e] - camZ) < viewR2) {
+        // ((v3.2) the warden's wings and tail reach far past its body)
+        if (ET[e] == 10) { h = 7; }
         inView(EX[e], EY[e] + h / 2, EZ[e], h);
         if (inV == 1) { bucketThing(0 - e, EX[e], EY[e] + Math.min(h / 2, 0.9), EZ[e]); }
       }
@@ -645,10 +730,10 @@ function lightAt(x, y, z) {
 // a box model: corners turned by the mob's yaw (and the limb's swing), boxes far to near.
 // Whole numbers: model units are 1/160 block (BX0 ..), turns x1024, so a corner is in
 // 1/160 x 2^20 block (MK a block) before the camera's turn.
-let BXS = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], BXD = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let BXS = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], BXD = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 let PSX = [0, 0, 0, 0, 0, 0, 0, 0], PSY = [0, 0, 0, 0, 0, 0, 0, 0];
 let mdX = 0, mdY = 0, mdZ = 0, mdSy = 0, mdCy = 1, mdSwing = 0, mdLv = 15, mdFog = 0, mdTint = 0;
-let mdOX = 0, mdOY = 0, mdOZ = 0, mdSs = 0, mdCs = 1024, behindAny = 0, mdYs = 1024, mdLift = 0, mdShow = 0;
+let mdOX = 0, mdOY = 0, mdOZ = 0, mdSs = 0, mdCs = 1024, behindAny = 0, mdYs = 1024, mdLift = 0, mdShow = 0, mdWs = 0, mdWc = 1024;
 function drawMob(e, fog) {
   let t = ET[e];
   mdX = EX[e]; mdY = EY[e]; mdZ = EZ[e];
@@ -659,6 +744,8 @@ function drawMob(e, fog) {
   if (t == M_WOLF || t == M_CAT) { mdShow = 0; if (EOWN[e] > 0) { mdShow = 1; } }
   let sw = sind(EWALK[e] * 57) * 35 * Math.min(1, Math.sqrt(EVX[e] * EVX[e] + EVZ[e] * EVZ[e]));
   if (MFLY[t] == 1) { sw = sind(frameNo * 40 + e * 20) * 40; }
+  // ((v3.2) the warden: its great wings beat slowly (parts 8, 9), its legs hang, its tail's end sways)
+  if (t == 10) { sw = sind(frameNo * 5) * 6; let wa = sind(frameNo * 7) * 30 + 6; mdWs = Math.round(sind(wa) * 1024); mdWc = Math.round(cosd(wa) * 1024); mdLift = sind(frameNo * 4) * 25; }
   mdSs = Math.round(sind(sw) * 1024); mdCs = Math.round(cosd(sw) * 1024);
   mdOX = Math.round((mdX - camX) * MK); mdOY = Math.round((mdY - camY) * MK); mdOZ = Math.round((mdZ - camZ) * MK);
   mdLv = lightAt(mdX, mdY + 0.5, mdZ); mdFog = fog;
@@ -667,7 +754,11 @@ function drawMob(e, fog) {
   if (MAI[t] == 6) { if (EST[e] == 5 || EST[e] == 6) { if (mod(frameNo, 8) < 4) { mdTint = 1; } } }
   if (EBURN[e] == 1 || EFIR[e] > 0) { if (mod(frameNo, 10) < 2) { mdTint = 2; } }
   if (ELOVE[e] > 0 || (t == M_ZOMBIEVILLAGER && EVAR[e] == 2) || (t == M_BOMBSHROOM && EVAR[e] == 1)) { if (mod(frameNo, 12) < 3) { mdTint = 3; } }
-  if (MSHOT[t] == 8 && EST[e] == 7) { fwSeg(EX[e], EY[e] + MH[t] * 0.5, EZ[e], px, py + 1.2, pz, 0.03 + 0.03 * (3 - ETM[e]), CBEAM, 23, fog); }
+  if (MSHOT[t] == 8 && EST[e] == 7) {
+    let bk = ETG[e], bx = px, by = py, bz = pz;
+    if (bk > 0) { bx = NPX[bk]; by = NPY[bk]; bz = NPZ[bk]; }
+    fwSeg(EX[e], EY[e] + MH[t] * 0.5, EZ[e], bx, by + 1.2, bz, 0.03 + 0.03 * (3 - ETM[e]), CBEAM, 23, fog);
+  }
   // order the boxes by distance of their middles (in the camera's depth)
   let b = MB0[t], be = b + MBN[t], n = 0, cxm = 0, cym = 0, czm = 0, wx = 0, wz = 0, dd = 0, j = 0;
   while (b < be) {
@@ -689,16 +780,20 @@ function drawBox(b) {
   if (part == 6) { y0 = y0 + mdLift; y1 = y1 + mdLift; }
   if (part == 1 || part == 4) { ss = mdSs; cs = mdCs; } if (part == 2 || part == 3) { ss = 0 - mdSs; cs = mdCs; }
   let pyv = y1, pzv = idiv(z0 + z1, 2);
-  let k = 0, lx = 0, ly = 0, lz = 0, ry = 0, rz = 0, wx = 0, wy = 0, wz = 0, vz = 0, behind = 0, sy = mdSy, cy = mdCy;
+  // ((v3.2) a wing turns about its root (x 120 on its side, y 320), up and down
+  let ws = 0, wpx = 120;
+  if (part >= 8) { ws = mdWs; if (part == 8) { ws = 0 - mdWs; wpx = 0 - 120; } }
+  let k = 0, lx = 0, ly = 0, lz = 0, rx = 0, ry = 0, rz = 0, wx = 0, wy = 0, wz = 0, vz = 0, behind = 0, sy = mdSy, cy = mdCy;
   let a1 = r11, a3 = r13, b1 = r21, b2 = r22, b3 = r23, c1 = r31, c2 = r32, c3 = r33, foc = FOC, ox = mdOX, oy = mdOY, oz = mdOZ;
   while (k < 8) {
     if (k >= 4) { lx = x1; } else { lx = x0; }
     if (mod(k, 4) >= 2) { ly = y1; } else { ly = y0; }
     if (mod(k, 2) == 1) { lz = z1; } else { lz = z0; }
     // the limb swings about its top
-    ry = ly * 1024; rz = lz * 1024;
+    rx = lx * 1024; ry = ly * 1024; rz = lz * 1024;
     if (ss != 0) { ry = pyv * 1024 + (ly - pyv) * cs - (lz - pzv) * ss; rz = pzv * 1024 + (ly - pyv) * ss + (lz - pzv) * cs; }
-    wx = ox + lx * 1024 * cy + rz * sy; wy = oy + ry * mdYs; wz = oz + rz * cy - lx * 1024 * sy;
+    if (ws != 0) { rx = wpx * 1024 + (lx - wpx) * mdWc - (ly - 320) * ws; ry = 327680 + (lx - wpx) * ws + (ly - 320) * mdWc; }
+    wx = ox + rx * cy + rz * sy; wy = oy + ry * mdYs; wz = oz + rz * cy - rx * sy;
     vz = c1 * wx + c2 * wy + c3 * wz;
     if (vz < 40000000000) { behind = 1; vz = 40000000000; }
     PSX[k + 1] = (a1 * wx + a3 * wz) * foc / vz; PSY[k + 1] = (b1 * wx + b2 * wy + b3 * wz) * foc / vz;
@@ -945,12 +1040,18 @@ function thrownStep(a, dt) {
   if (BSOL[hb + 1] > 0 || BLQ[hb + 1] == 7) { hit = 1; }
   else { AXX[a] = nx; AYY[a] = ny; AZZ[a] = nz; }
   let e = 1;
+  // ((v3.2) one flown here to look at starts inside its thrower: it meets no mob for a moment)
+  if (APW[a] < 0 && AAGE[a] < 0.3) { e = NMOB + 1; }
   while (e <= NMOB && hit == 0) {
     if (ET[e] > 0) {
       let w = MW[ET[e]] / 2 + 0.1;
-      if (Math.abs(AXX[a] - EX[e]) < w && Math.abs(AZZ[a] - EZ[e]) < w && AYY[a] > EY[e] && AYY[a] < EY[e] + MH[ET[e]]) { hit = 1; let dmg = 0; if (ET[e] == M_FLAMESPIRIT && AON[a] == 7) { dmg = 3; } EHURT[e] = 0; mobHurt(e, Math.max(dmg, 0), AVX[a], AVZ[a]); }
+      if (Math.abs(AXX[a] - EX[e]) < w && Math.abs(AZZ[a] - EZ[e]) < w && AYY[a] > EY[e] && AYY[a] < EY[e] + MH[ET[e]]) {
+        hit = 1;
+        // ((v3.2) one flown here to look at (APW < 0) hurts nothing; mine on another's mob goes to its owner)
+        if (APW[a] >= 0) { let dmg = 0; if (ET[e] == M_FLAMESPIRIT && AON[a] == 7) { dmg = 3; } EHURT[e] = 0; pKill = 1; mobHurt(e, Math.max(dmg, 0), AVX[a], AVZ[a]); pKill = 0; }
+      }
     }
     e = e + 1;
   }
-  if (hit == 1) { thrownHit(a); }
+  if (hit == 1) { if (APW[a] >= 0) { thrownHit(a); } else { AON[a] = 0; } }
 }

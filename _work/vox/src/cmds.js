@@ -547,11 +547,6 @@ function chatRun(s) {
     }
   }
 }
-// after one of tessvm's answer boxes (signs, command blocks, the search) the keys come back with a click
-function askDone() {
-  hideAnswer();
-  if (isTess == 1) { keysLost = 1; msgShow('화면을 한 번 클릭하면 키보드가 다시 듣습니다', 999); }
-}
 // big words in the middle of the screen
 let titleT = 0, titleS = '', subT = '', actT = 0, actS = '';
 

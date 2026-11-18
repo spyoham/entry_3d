@@ -1,5 +1,6 @@
 // The game in tessvm's own vm (Node, no picture): ms a tick while playing
-//   node test/tess.mjs [seed] [ticks] [K=V ...]   (pose: X= Y= Z= YAW= PITCH=)
+//   node test/tess.mjs [seed] [ticks] [K=V ...]   (pose: X= Y= Z= YAW= PITCH=; DIM=1|2 the other worlds,
+//   GENVER=0 their land as before v3.2; STAGES=1 REPS=n the chunk stages' ms)
 import fs from 'node:fs';
 import path from 'node:path';
 import url from 'node:url';
@@ -42,7 +43,8 @@ console.log(`generated: ${n} ticks ${(performance.now() - t0).toFixed(0)} ms (lo
 if (kv.X !== undefined) { set('tX', kv.X); set('tY', kv.Y); set('tZ', kv.Z); set('tYaw', kv.YAW || 0); set('tPitch', kv.PITCH || 0); set('testCmd', 1); }
 if (kv.VIEW) { set('viewWant', kv.VIEW); set('autoView', 0); vm.tick(); set('viewR', kv.VIEW); set('viewR2', kv.VIEW * kv.VIEW); set('kMax', Math.floor(kv.VIEW * 1.45) + 66); }
 for (let i = 0; i < 120; i++) vm.tick();
-if (kv.DIM) { set('tStage', kv.DIM); set('tX', 1.5); set('tZ', 1.5); set('testCmd', 4); let k = 0; vm.tick(); while (Vv('gState') != 2 && k < 3000) { vm.tick(); k++; } for (let i = 0; i < 240; i++) vm.tick(); console.log('in world', Vv('dim')); }
+if (kv.GENVER !== undefined) { set('genVer', kv.GENVER); }
+if (kv.DIM) { set('tStage', kv.DIM); set('tX', 1.5); set('tZ', 1.5); set('testCmd', 4); let k = 0; const tt = performance.now(); vm.tick(); while (Vv('gState') != 2 && k < 3000) { vm.tick(); k++; } const t1 = performance.now() - tt; const t2 = performance.now(); for (let i = 0; i < 240; i++) vm.tick(); console.log('in world', Vv('dim'), `(the way there ${k} ticks ${t1.toFixed(0)} ms, the next 240 ticks ${(performance.now() - t2).toFixed(0)} ms, chunks ${Vv('nChunks')})`); }
 if (kv.STAGES) {
   const tick = () => { const t = performance.now(); vm.tick(); return performance.now() - t; };
   const med = (a) => a.sort((x, y) => x - y)[a.length >> 1];
@@ -50,7 +52,7 @@ if (kv.STAGES) {
   const base = med(idle);
   for (const st of [0, 1, 2, 3, 4]) {
     const ts = [];
-    for (let r = 0; r < 15; r++) { set('tStage', st); set('testCmd', 3); ts.push(tick()); tick(); }
+    for (let r = 0; r < (kv.REPS || 15); r++) { set('tStage', st); set('testCmd', 3); ts.push(tick()); tick(); }
     console.log('stage', st, 'ms', (med(ts) - base).toFixed(2), '(idle tick', base.toFixed(2) + ')');
   }
   process.exit(0);

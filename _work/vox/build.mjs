@@ -7,11 +7,11 @@ import { compileProgram } from './ejs.mjs';
 import { expandMacros, declareImplicit } from './inline.mjs';
 import { packEnt } from './pack.mjs';
 import { legacyMath, slimBlocks } from './legacy.mjs';
-import { TEX, CRACK, BLOCKS, NBLOCK, ITEMS, TIERS, KINDS, SMITH, toolId, NITEM, RECIPES, SMELT, MOBS, ARMT, ARMP, armorId, CATS } from './blocks.mjs';
+import { TEX, CRACK, BLOCKS, NBLOCK, ITEMS, TIERS, KINDS, SMITH, toolId, NITEM, RECIPES, SMELT, MOBS, ARMT, ARMP, armorId, CATS, TRADES } from './blocks.mjs';
 import { MODELS, ARMS, ARMCOL, pottedModel } from './models.mjs';
 import { makeSounds } from './sounds.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '3.1';
+export const VERSION = '3.2';
 // how many servers Entry Sync holds (each one two ?! lists; the slot line carries the number in two digits)
 export const NSRV = 99;
 export const NAME = '블록 월드';
@@ -28,7 +28,7 @@ export const consts = {
     WS, NCH, CR, WY, UH: 64, SEA: 30, LAVAY: 5, NSX: WS / 8, NSY: WY / 8, NSEC: (WS / 8) * (WS / 8) * (WY / 8), SXS: WS * WY, OFF: 32768,
     NOFF: chunkOffsets(CR).length, CVN: 24, FORTY: 30, NSTART: chunkOffsets(2).length,
     NEARZ: Math.round(0.05 * 256 * 16384), DEC2: 20, PLANT2: 225, CLOUDY: 110, MK: 160 * 1048576,
-    NMOB: 48, NITM: 64, NARR: 24, NFUR: 32, NCHEST: 256, ANIMALS: 36, SMELTT: 8, NTX: 145, NTX0: 123,
+    NMOB: 96, NITM: 96, NARR: 24, NFUR: 32, NCHEST: 256, ANIMALS: 60, SMELTT: 8, NTX: 145, NTX0: 123,
     SPAWNC: 0, BENCH: 0, NOCAVE: 0, AUTOSEED: 0, AUTOMODE: 0, TESTRUN: 0, SIMRUN: 0, LEGACY: 0, SLIM: 1, SPLIT: 0,
 };
 
@@ -544,6 +544,20 @@ export function makeData() {
         for (let i = 0; i < m.drop.length; i += 3) { L.MDI.push(idOf(m.drop[i])); L.MDLO.push(m.drop[i + 1]); L.MDHI.push(m.drop[i + 2]); }
     }
 
+    // (v3.2) the village folk's trades (blocks.mjs TRADES): VJOB a profession's job block, VPNAME its name;
+    // VT0 / VTN the offers of profession p at level l (at (p - 1) * 5 + l), each VTA x VTAN -> VTB x VTBN,
+    // VTM times (VTBN 0: a charmed book)
+    L.VJOB = []; L.VPNAME = []; L.VT0 = []; L.VTN = []; L.VTA = []; L.VTAN = []; L.VTB = []; L.VTBN = []; L.VTM = [];
+    for (const p of TRADES) {
+        L.VJOB.push(idOf(p.job)); L.VPNAME.push(p.ko);
+        if (p.lv.length !== 5) throw new Error('trades: five levels ' + p.ko);
+        for (const lv of p.lv) {
+            if (lv.length < 2) throw new Error('trades: two offers a level ' + p.ko);
+            L.VT0.push(L.VTA.length + 1); L.VTN.push(lv.length);
+            for (const [a, an, b, bn, m] of lv) { L.VTA.push(idOf(a)); L.VTAN.push(an); L.VTB.push(idOf(b === 'BOOK' ? 'enchantedBook' : b)); L.VTBN.push(bn); L.VTM.push(m); }
+        }
+    }
+
     // brightness: light level x face direction -> one of 24 steps (x0.02 .. x1, geometric)
     const LF = (l) => 0.04 + 0.96 * Math.pow(l / 15, 1.5);
     const DF = [0.6, 0.6, 0.5, 1.0, 0.8, 0.8, 0.85, 1.0];
@@ -593,7 +607,7 @@ export function makeData() {
 }
 
 // ------------------------------------------------------------------ sources
-export const FILES = ['world.js', 'flat.js', 'fluid.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'rails.js', 'save.js', 'net.js', 'netmob.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'fauna.js', 'items.js', 'hud.js', 'extra.js', 'ench.js', 'cmds.js', 'wedit.js', 'keyin.js', 'swear.js', 'je.js', 'main.js', 'test.js'];
+export const FILES = ['world.js', 'flat.js', 'fluid.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'rails.js', 'save.js', 'net.js', 'netmob.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'fauna.js', 'items.js', 'hud.js', 'extra.js', 'ench.js', 'cmds.js', 'wedit.js', 'keyin.js', 'swear.js', 'je.js', 'mapdata.js', 'main.js', 'test.js'];
 export function allConsts(more = {}) {
     const { C } = makeData();
     return { ...consts, ...C, ...more };

@@ -262,7 +262,12 @@ function svWrite() {
   // ((v2.8) world edit on or off in this world)
   svN('WEDIT'); svN(weSingle);
   // ((v3.0) the tamed and the built keepers)
-  petsPack(); svN('PETS'); M_svL(KPT); M_svL(KPX); M_svL(KPY); M_svL(KPZ); M_svL(KPH); M_svL(KPO); M_svL(KPV); M_svL(KPS); M_svL(KPD);
+  // ((v3.2) with the living ones to keep, for the writing only; the rest of what a kept mob is, the chunks
+  // whose animals were made, the kind of the land)
+  let kn = KPT.length;
+  keptAll(0); svN('PETS'); M_svL(KPT); M_svL(KPX); M_svL(KPY); M_svL(KPZ); M_svL(KPH); M_svL(KPO); M_svL(KPV); M_svL(KPS); M_svL(KPD);
+  svN('KEPT'); M_svL(KPG); M_svL(KPC); M_svL(CAK); svN(genVer);
+  while (KPT.length > kn) { petsDel(KPT.length); }
   svN('CHEAT'); svN(cheatsOn);
   svN('FLAT'); svN(flatKept());
   worldPut(worldCur);
@@ -295,7 +300,7 @@ function loadGame(k) {
   gameMode = rdN(); defMode = rdN();
   thingsInit();
   genStart(s);
-  genPhase = 0;
+  genPhase = 0; genVer = 0;
   difficulty = rdN();
   svDim = rdN(); svX = rdN(); svY = rdN(); svZ = rdN(); svYaw = rdN(); svPitch = rdN(); flying = rdN();
   hp = rdN(); food = rdN(); sat = rdN(); air = rdN(); xpPts = rdN(); xpLevel = rdN();
@@ -334,6 +339,8 @@ function loadGame(k) {
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'JE27') { svP = svP + 2; M_rdL(KVX); M_rdL(KVY); M_rdL(KVZ); M_rdL(KVK); M_rdL(KVV); M_rdL(LPX); M_rdL(LPY); M_rdL(LPZ); svP = svP - 1; } }
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'WEDIT') { svP = svP + 2; weSingle = rdN(); svP = svP - 1; } }
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'PETS') { svP = svP + 2; M_rdL(KPT); M_rdL(KPX); M_rdL(KPY); M_rdL(KPZ); M_rdL(KPH); M_rdL(KPO); M_rdL(KPV); M_rdL(KPS); M_rdL(KPD); svP = svP - 1; } }
+  if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'KEPT') { svP = svP + 2; M_rdL(KPG); M_rdL(KPC); M_rdL(CAK); genVer = rdN(); svP = svP - 1; } }
+  while (KPG.length < KPT.length) { KPG.push(0); } while (KPC.length < KPT.length) { KPC.push(0); }
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'CHEAT') { svP = svP + 2; cheatsOn = rdN(); svP = svP - 1; } }
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'FLAT') { svP = svP + 2; let fbad = flatSet(rdN()); } }
   curI = 0; curN = 0; curD = 0;

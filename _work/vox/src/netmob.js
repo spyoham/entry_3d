@@ -70,7 +70,7 @@ function nmTaken(u) {
 // does this mob go in my line
 function nmShared(e) {
   let r = 0;
-  if (ET[e] > 0) { if (ERK[e] == 0) { if (ET[e] != 10) { if (isProxy(e) == 0) { r = 1; } } } }
+  if (ET[e] > 0) { if (ERK[e] == 0) { if (isProxy(e) == 0) { r = 1; } } }
   return r;
 }
 
@@ -108,6 +108,7 @@ function netMobsStep(dt) {
       EVX[e] = (EX[e] - ox) / Math.max(dt, 0.01); EVZ[e] = (EZ[e] - oz) / Math.max(dt, 0.01);
       EWALK[e] = EWALK[e] + Math.sqrt((EX[e] - ox) * (EX[e] - ox) + (EZ[e] - oz) * (EZ[e] - oz)) * 3.2;
       if (EHURT[e] > 0) { EHURT[e] = EHURT[e] - dt; }
+      if (EST[e] == 7) { ETM[e] = Math.max(0, ETM[e] - dt); }
     } }
     e = e + 1;
   }
@@ -124,9 +125,11 @@ function nmWrite() {
   gS = `${netSid}|${dim}|`;
   let e = 1, n = 0;
   while (e <= NMOB) {
-    if (nmShared(e) == 1) { if (n < 40) { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 2304) {
+    if (nmShared(e) == 1) { if (n < 40) { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 2304 || ET[e] == 10) {
       let fl = 0;
       if (EHURT[e] > 0.2) { fl = fl + 1; } if (EBURN[e] == 1 || EFIR[e] > 0) { fl = fl + 2; } if (ELOVE[e] > 0) { fl = fl + 4; } if (EOWN[e] > 0) { fl = fl + 8; }
+      // ((v3.2) a deep guardian's beam: the slot of the one it is on, from 16 up)
+      if (MSHOT[ET[e]] == 8) { if (EST[e] == 7) { if (ETG[e] > 0) { fl = fl + 16 * ETG[e]; } else { fl = fl + 16 * netMy; } } }
       gS = `${gS};${EUID[e]},${ET[e]},${Math.round(EX[e] * 10) / 10},${Math.round(EY[e] * 10) / 10},${Math.round(EZ[e] * 10) / 10},${Math.round(EYAW[e])},${Math.ceil(EHP[e])},${EST[e]},${Math.round(EVAR[e])},${ESZ[e]},${fl}`;
       n = n + 1;
     } } }
@@ -167,8 +170,10 @@ function nmRead(k, s) {
             if (e == 0) { if (cOK(Math.floor(x), Math.floor(z)) == 1) { mobAdd(t, x, y, z); e = lastMob; if (e > 0) { ERK[e] = k; ERU[e] = u; EUID[e] = 0; } } }
             if (e > 0) {
               if (ET[e] != t) { ET[e] = t; }
+              if (SPL[8] * 1 == 7) { if (EST[e] != 7) { ETM[e] = 3; } }
               QMX[e] = x; QMY[e] = y; QMZ[e] = z; QMW[e] = SPL[6] * 1; EHP[e] = SPL[7] * 1; EST[e] = SPL[8] * 1; EVAR[e] = SPL[9] * 1; ESZ[e] = SPL[10] * 1;
               let fl = SPL[11] * 1;
+              if (fl >= 16) { ETG[e] = idiv(fl, 16); if (ETG[e] == netMy) { ETG[e] = 0; } }
               if (mod(fl, 2) == 1) { EHURT[e] = 0.4; }
               EBURN[e] = mod(idiv(fl, 2), 2); EFIR[e] = 0;
               ELOVE[e] = mod(idiv(fl, 4), 2);
@@ -272,6 +277,7 @@ function nmHurtMe(f) {
 // (mobs.js mobHurt: a blow on a stand-in goes to its owner, when a player (or a pet) dealt it; the
 // rest - a blast, fire, a fall - runs on the owner's screen too)
 function netMobHit(e, n, hx, hz) {
+  if (ET[e] == 10) { if (nCrystal > 0) { n = 0; if (pKill == 1) { msgShow('수호 수정이 수호자를 지키고 있습니다', 1.5); } } }
   if (pKill == 1 && n > 0 && EHURT[e] <= 0) {
     if (netSrv > 0 && netSt == 2) { evAdd('g', `${NNICK[ERK[e]]}^${ERU[e]}^${Math.round(n * 10) / 10}^${Math.round(hx * 100) / 100}^${Math.round(hz * 100) / 100}^${hitKb}^${hitFire}^${lootLv}`); }
     EHURT[e] = 0.5; sndPlay(4);
@@ -315,9 +321,10 @@ function nmLoot(f) {
 
 // ---------------------------------------------------------------- giving mobs to another player
 let NMG = [];
-// my mob e as it goes in a 'M' event: number,kind,x,y,z,yaw,hp,state,marks,size,age,own,love
+// my mob e as it goes in a 'M' event: number,kind,x,y,z,yaw,hp,state,marks,size,age,own,love,
+// ((v3.2) and what a villager's trades and work hang on) its ETG and ECNV
 function nmPack(e) {
-  return `${EUID[e]},${ET[e]},${Math.round(EX[e] * 100) / 100},${Math.round(EY[e] * 100) / 100},${Math.round(EZ[e] * 100) / 100},${Math.round(EYAW[e])},${EHP[e]},${EST[e]},${EVAR[e]},${ESZ[e]},${EAGE[e]},${EOWN[e]},${ELOVE[e]}`;
+  return `${EUID[e]},${ET[e]},${Math.round(EX[e] * 100) / 100},${Math.round(EY[e] * 100) / 100},${Math.round(EZ[e] * 100) / 100},${Math.round(EYAW[e])},${EHP[e]},${EST[e]},${EVAR[e]},${ESZ[e]},${EAGE[e]},${EOWN[e]},${ELOVE[e]},${ETG[e]},${ECNV[e]}`;
 }
 // may e change hands (not tamed, not ridden, not a raid's or the bone king's)
 function nmGivable(e) {
@@ -330,11 +337,13 @@ function nmGiveFar(far, all) {
   let e = 1, cnt = 0;
   NMG = []; let to = 0;
   while (e <= NMOB) {
-    if (nmGivable(e) == 1) {
+    // ((v3.2) the warden changes hands only when its owner goes (then however far the next player is))
+    if (nmGivable(e) == 1 && (ET[e] != 10 || all == 1)) {
       let dm = (EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz);
       if (dm > far * far || all == 1) {
         let best = 576, bk = 0, i = 1;
         if (all == 1) { best = 1600; }
+        if (ET[e] == 10) { best = 99999999; }
         while (i <= NSLOT) {
           if (i != netMy) { if (NLIVE[i] == 1) { if (NSRVk[i] == netSrv) { if (NSTT[i] >= 2) { if (NDIM[i] == dim) {
             let d = (NPX[i] - EX[e]) * (NPX[i] - EX[e]) + (NPZ[i] - EZ[e]) * (NPZ[i] - EZ[e]);
@@ -383,6 +392,7 @@ function nmTake(k, f) {
           if (u >= 1000000) { EUID[e] = u; } else { nmUid = nmUid + 1; if (nmUid > 999999) { nmUid = 10001; } EUID[e] = nmUid; }
           ET[e] = SPL[2] * 1; EX[e] = SPL[3] * 1; EY[e] = SPL[4] * 1; EZ[e] = SPL[5] * 1; EYAW[e] = SPL[6] * 1; EWY[e] = EYAW[e];
           EHP[e] = SPL[7] * 1; EST[e] = SPL[8] * 1; EVAR[e] = SPL[9] * 1; ESZ[e] = SPL[10] * 1; EAGE[e] = SPL[11] * 1; EOWN[e] = SPL[12] * 1; ELOVE[e] = SPL[13] * 1;
+          if (SPL.length >= 15) { ETG[e] = SPL[14] * 1; ECNV[e] = SPL[15] * 1; }
           EHURT[e] = 0; EBURN[e] = 0; EFIR[e] = 0; EVX[e] = 0; EVY[e] = 0; EVZ[e] = 0; ETM[e] = 1;
         }
       }
@@ -403,7 +413,7 @@ function nmAsked(k, f) {
   if (SPL.length >= 2) { if (SPL[1] == netNick) {
     let u = SPL[2] * 1, i = 1;
     NMG = [];
-    while (i <= NMOB) { if (ET[i] > 0) { if (ERK[i] == 0 && EUID[i] == u) { if (nmGivable(i) == 1) { NMG.push(nmPack(i)); ET[i] = 0; } } } i = i + 1; }
+    while (i <= NMOB) { if (ET[i] > 0) { if (ERK[i] == 0 && EUID[i] == u) { if (nmGivable(i) == 1 && ET[i] != 10) { NMG.push(nmPack(i)); ET[i] = 0; } } } i = i + 1; }
     if (NMG.length > 0) { nmSend(k); nmWT = 99; }
   } }
 }
@@ -483,34 +493,63 @@ function nmItemAsked(k, f) {
   if (SPL.length >= 2) { if (SPL[1] == netNick) {
     let u = SPL[2] * 1, i = 1, s = 0;
     while (i <= NITM) { if (IID[i] > 0) { if (IRK[i] == 0 && IUID[i] == u) { s = i; } } i = i + 1; }
-    if (s > 0) { evAdd('T', `${NNICK[k]}^${IID[s]}^${INN[s]}^${IDU[s]}`); IID[s] = 0; nmWT = 99; }
+    // ((v3.2) a third field: the host's hopper it is for, sent back with it)
+    let tag = 0; if (SPL.length >= 3) { tag = SPL[3] * 1; }
+    if (s > 0) { evAdd('T', `${NNICK[k]}^${IID[s]}^${INN[s]}^${IDU[s]}^${tag}`); IID[s] = 0; nmWT = 99; }
   } }
+}
+// (v3.2) the host's hopper c under another's thing (items.js hopperWork): asked for when it has room
+function netItemHopper(i, c) {
+  if (IAGE[i] > 0.5) { if (chestRoom(c, IID[i], IDU[i]) == 1) { evAdd('P', `${NNICK[IRK[i]]}^${IRU[i]}^${c}`); IAGE[i] = 0 - 1; } }
+}
+// (it came: into that hopper; what does not go in lies on it, mine now)
+function hopperGot(c, id, n, du) {
+  let ok = 0, a0 = netApplying;
+  if (c <= CHON.length) { if (CHON[c] == 1) { if (idiv(CHY[c], 1000) == dim) { ok = 1; } } }
+  netApplying = 0;
+  if (ok == 1) {
+    let go = 1;
+    while (n > 0 && go == 1) { if (chestTake(c, id, 1, du) == 1) { n = n - 1; } else { go = 0; } }
+    if (n > 0) { dropItem(id, n, du, CHX[c] + 0.5, CHY[c] - dim * 1000 + 1.1, CHZ[c] + 0.5, 0); }
+  } else { dropItem(id, n, du, px, py + 1, pz, 0); }
+  netApplying = a0;
 }
 // given to me (what does not fit falls here, mine)
 function nmItemGot(f) {
   splitBy(f, '^');
   if (SPL.length >= 4) { if (SPL[1] == netNick) {
-    let id = SPL[2] * 1, n = SPL[3] * 1, du = SPL[4] * 1;
-    addItem(id, n, du);
-    if (addLeft < n) { sndPlay(6); }
-    if (addLeft > 0) { dropItem(id, addLeft, du, px, py + 1, pz, 0); if (lastItem > 0) { IAGE[lastItem] = 0 - 2; } }
+    let id = SPL[2] * 1, n = SPL[3] * 1, du = SPL[4] * 1, tag = 0;
+    if (SPL.length >= 5) { tag = SPL[5] * 1; }
+    if (tag > 0) { hopperGot(tag, id, n, du); }
+    else {
+      addItem(id, n, du);
+      if (addLeft < n) { sndPlay(6); }
+      if (addLeft > 0) { dropItem(id, addLeft, du, px, py + 1, pz, 0); if (lastItem > 0) { IAGE[lastItem] = 0 - 2; } }
+    }
   } }
 }
 // an arrow of mine flies off (arrowShoot): told to the others
+// ((v3.2) with what else it carries: ASTK (a rocket's fuse, the slot a shell-bug's bolt goes for) and its
+// age (fangs wait under the ground); so thrown things, rockets, bolts and fangs are seen too)
 function netArrowSay(a) {
-  if (netSrv > 0) { if (netSt == 2) { if (netApplying == 0) {
-    evAdd('S', `${dim}^${Math.round(AXX[a] * 100) / 100}^${Math.round(AYY[a] * 100) / 100}^${Math.round(AZZ[a] * 100) / 100}^${Math.round(AVX[a] * 100) / 100}^${Math.round(AVY[a] * 100) / 100}^${Math.round(AVZ[a] * 100) / 100}^${AON[a]}^${AEN[a]}`);
-  } } }
+  if (a > 0) { if (netSrv > 0) { if (netSt == 2) { if (netApplying == 0) {
+    let st = ASTK[a];
+    if (AON[a] == 5) { if (st == 0) { st = netMy; } }
+    evAdd('S', `${dim}^${Math.round(AXX[a] * 100) / 100}^${Math.round(AYY[a] * 100) / 100}^${Math.round(AZZ[a] * 100) / 100}^${Math.round(AVX[a] * 100) / 100}^${Math.round(AVY[a] * 100) / 100}^${Math.round(AVZ[a] * 100) / 100}^${AON[a]}^${AEN[a]}^${st}^${Math.round(AAGE[a] * 100) / 100}`);
+  } } } }
 }
 // another's arrow: one to look at here (APW -1: it hurts nothing, drops nothing)
-function nmArrow(f) {
+function nmArrow(k, f) {
   splitBy(f, '^');
   if (SPL.length >= 9) { if (SPL[1] * 1 == dim) { if (cOK(Math.floor(SPL[2] * 1), Math.floor(SPL[4] * 1)) == 1) {
     let i = 1, a = 0;
     while (i <= NARR) { if (a == 0) { if (AON[i] == 0) { a = i; } } i = i + 1; }
     if (a > 0) {
       AXX[a] = SPL[2] * 1; AYY[a] = SPL[3] * 1; AZZ[a] = SPL[4] * 1; AVX[a] = SPL[5] * 1; AVY[a] = SPL[6] * 1; AVZ[a] = SPL[7] * 1;
-      AON[a] = SPL[8] * 1; AEN[a] = SPL[9] * 1; AAGE[a] = 0; ASTK[a] = 0; APW[a] = 0 - 1;
+      AON[a] = SPL[8] * 1; AEN[a] = SPL[9] * 1; AAGE[a] = 0; ASTK[a] = 0; APW[a] = 0 - k;
+      if (SPL.length >= 11) { ASTK[a] = SPL[10] * 1; AAGE[a] = SPL[11] * 1; }
+      // (a bolt for me: mine to be hit by; for another: the slot it goes for)
+      if (AON[a] == 5) { if (ASTK[a] == netMy) { ASTK[a] = 0; } }
     }
   } } }
 }

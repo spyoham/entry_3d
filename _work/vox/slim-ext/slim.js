@@ -22,6 +22,9 @@
       if (Array.isArray(b.statements) && !b.statements.length) { delete b.statements; st.n++; }
       // (v3.1) the nulls at the end of the params: a missing one is filled from the block's schema as a null one is
       if (Array.isArray(b.params)) { while (b.params.length && b.params[b.params.length - 1] === null) { b.params.pop(); st.n++; } }
+      // (v1.2) the block's id, in a big work only (st.ids): Entry gives a block without one a new id as it
+      // loads it. A function's local-variable blocks keep theirs (the editor finds their function by it).
+      if (st.ids && b.id !== undefined && b.type !== 'get_func_variable' && b.type !== 'set_func_variable') { delete b.id; st.n++; }
     }
     if (Array.isArray(b.params)) for (const p of b.params) slimWalk(p, st);
     if (Array.isArray(b.statements)) for (const s of b.statements) slimWalk(s, st);
@@ -36,8 +39,13 @@
     slimWalk(s, st); return s;
   }
   function slimProject(p) {
-    const st = { n: 0 };
+    const st = { n: 0, ids: false };
     if (!p || typeof p !== 'object') return 0;
+    // (ids are taken out only where it matters: a work whose scripts are over 4 million letters)
+    let size = 0;
+    for (const f of Array.isArray(p.functions) ? p.functions : []) if (f && typeof f.content === 'string') size += f.content.length;
+    for (const o of Array.isArray(p.objects) ? p.objects : []) if (o && typeof o.script === 'string') size += o.script.length;
+    st.ids = size > 4000000;
     for (const f of Array.isArray(p.functions) ? p.functions : []) if (f && f.content) f.content = slimScript(f.content, st);
     for (const o of Array.isArray(p.objects) ? p.objects : []) if (o && o.script) o.script = slimScript(o.script, st);
     return st.n;

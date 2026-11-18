@@ -296,3 +296,92 @@ function acTab(sh) {
     else { if (ACL.length > 1) { acI = 1; if (sh == 1) { acI = ACL.length; } tline = `${acBase}${ACL[acI]}`; acCyc = 1; } }
   }
 }
+
+// ===================================================================== (v3.2) the game's own box to write in
+// Entry's ask-and-wait is gone (its grey box over the stage, and tessvm's lost the keys until a click):
+// a name, a seed, a sign's words, a command block's command, the search are typed into this box, with
+// the keys of the chat's line (typing, tline, KQ) and its Korean. Nothing waits: the one who asks opens
+// it (inboxOpen: who asks, the words over it, what is there now, how long it may be) and goes on; Enter
+// (or 확인) hands the line (ansS) to inboxDone, Esc (or 취소) changes nothing. While it is open the
+// screen behind is not run (the menus), or the game takes no keys (uiMode 14).
+let ibOn = 0, ibWho = 0, ibAsk = '', ibMax = 40, ibBack = 0, ibNew = 0, ibHot = 0, ibX = 0, ibY = 0, ibZ = 0, ibK = 0;
+function inboxOpen(who, words, init, max) {
+  tline = init;
+  ibOn = 1; ibWho = who; ibAsk = words; ibMax = max; ibNew = 1; ibHot = 0;
+  // (2: the key that opened it is not typed; from the next frame 1)
+  typing = 2; KQ = []; KQS = []; tBlink = 0; hanClear(); clickLatch = 0;
+  if (gState == 2) { ibBack = uiMode; uiMode = 14; }
+}
+// (the box gone, however: the keys are the game's again)
+function inboxEnd() { ibOn = 0; typing = 0; KQ = []; KQS = []; hanClear(); }
+function inboxClose() {
+  inboxEnd();
+  if (gState == 2) { uiMode = ibBack; }
+  txClear();
+  // (the Enter or Esc that shut it, the click on its button: not the screen's behind as well)
+  clickLatch = 0; KHIT[13] = 0; KHIT[27] = 0; KW[13] = 1; KW[27] = 1;
+}
+// the keys typed since the last frame
+function inboxStep(dt) {
+  let i = 1, end = 0;
+  while (i <= KQ.length) {
+    if (end == 0 && typing == 1) {
+      let c = KQ[i], sh = KQS[i], room = strlen(tline);
+      if (hcC >= 0 || hcV >= 0) { room = room - 1; }
+      if (c == 13) { end = 1; }
+      else { if (c == 27) { end = 2; }
+      else { if (c == 21 || c == 18) { hanCommit(); hanMode = 1 - hanMode; }
+      else { if (c == 8) { if (hanBack() == 0) { if (strlen(tline) <= 1) { tline = ''; } else { tline = substr(tline, 1, strlen(tline) - 1); } } }
+      else { if (c != 9 && c != 33 && c != 34 && c != 38 && c != 40) { if (room < ibMax) { if (hanMode == 1 && c >= 65 && c <= 90) { hanKey(c, sh); } else { hanCommit(); typeKey(c, sh); } } } } } } }
+    }
+    i = i + 1;
+  }
+  KQ = []; KQS = [];
+  if (typing == 2) { typing = 1; }
+  tBlink = tBlink + dt;
+  if (clickLatch == 1) { if ($M_LOCK != 1) { if (end == 0) { end = ibHot; } } }
+  if (end == 1) {
+    hanCommit();
+    ansS = tline;
+    if (strlen(ansS) > ibMax) { ansS = substr(ansS, 1, ibMax); }
+    inboxClose();
+    inboxDone(ibWho);
+  }
+  if (end == 2) { inboxClose(); }
+}
+// the line typed (ansS) to the one who asked
+function inboxDone(w) {
+  if (w <= 11) { menuTyped(w); }
+  if (w == 12) { signTyped(); }
+  if (w == 13) { cbTyped(); }
+  if (w == 14) { palFound(); }
+}
+// the end of a line that fits w half-width letters (gS)
+function ibTail(s, w) {
+  let n = strlen(s), i = n, u = 0;
+  while (i >= 1 && u <= w) { if (indexOf(ASCII, charAt(s, i)) > 0) { u = u + 1; } else { u = u + 2; } i = i - 1; }
+  gS = s;
+  if (u > w) { gS = `…${substr(s, i + 3, n)}`; }
+}
+function inboxDraw() {
+  if (ibNew == 1) { ibNew = 0; txClear(); }
+  penAlpha(50); box(-245, 140, 245, -140, '#000000'); fillStop(); penAlpha(0);
+  box(-192, 58, 192, -58, '#000000');
+  box(-190, 56, 190, -56, '#2e2e2e');
+  box(-190, 56, 190, 54, '#6a6a6a');
+  box(-190, -54, 190, -56, '#161616');
+  tx(96, ibAsk, 0, 40, 8, '#ffffff', 0);
+  box(-180, 28, 180, 4, '#a0a0a0'); box(-179, 27, 179, 5, '#000000');
+  hanStr();
+  ibTail(`${tline}${hcS}`, 72);
+  let cur = ' '; if (mod(Math.floor(tBlink * 2), 2) == 0) { cur = '_'; }
+  tx(97, `${gS}${cur}`, -174, 17, 9, '#ffffff', 1);
+  let md = 'A'; if (hanMode == 1) { md = '한'; }
+  tx(98, `[${md}]  한/영 키: 한글·영어   Enter: 확인   Esc: 취소`, 0, -7, 7, '#a0a0a0', 0);
+  ibHot = 0;
+  // (the buttons: with the pointer free - the menus, the inventory)
+  if ($M_LOCK != 1) {
+    button(-100, -22, -4, -44, '확인', 99, 1); if (btnHot == 1) { ibHot = 1; }
+    button(4, -22, 100, -44, '취소', 100, 1); if (btnHot == 1) { ibHot = 2; }
+  } else { txOff(99); txOff(100); }
+}

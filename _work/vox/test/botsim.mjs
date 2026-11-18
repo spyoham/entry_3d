@@ -1,4 +1,5 @@
-// the bot in the simulator: node test/botsim.mjs [seed] [maxMinutes]
+// the bot in the simulator: node test/botsim.mjs [seed] [maxMinutes]   (GENVER=0 in the environment: the
+// depths and the void as before v3.2 - the bot's way through them was found on that land)
 let __rs = 12345; Math.random = () => { __rs = (__rs * 48271) % 2147483647; return __rs / 2147483647; };
 import { createSim } from '../sim.mjs';
 import { createRequire } from 'node:module';
@@ -18,6 +19,7 @@ const bot = makeBot(io);
 const t0 = Date.now();
 let i = 0;
 for (; i < maxMin * 3600; i++) {
+  if (process.env.GENVER !== undefined && s.peek('dim') === 0) { s.poke('genVer', Number(process.env.GENVER)); }
   try { bot.step(); s.frame(); } catch (e) { console.log('ERROR', e.message, e.stack.split('\n').slice(1, 4).join(' | ')); break; }
   if (s.peek('botDone') === 1) break;
   if (s.peek('dead') === 1) { console.log('DIED:', s.peek('deathMsg'), 'at', i / 60); break; }

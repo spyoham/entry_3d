@@ -805,7 +805,10 @@ function pendingMobs() {
       if (CKST[slotOf(idiv(Math.floor(PMX[k]), 16), idiv(Math.floor(PMZ[k]), 16))] == 5) {
         // ((v3.0, 11-18) its number from its place: one in another player's line is not made again)
         let u = nmDetOf(PMX[k], PMY[k], PMZ[k]);
-        if (nmTaken(u) == 0) {
+        // ((v3.2) one that is kept (no monster) is made once in a world, not every time it is opened)
+        let once = 0;
+        if (MHOST[mod(PMT[k], 1000)] == 0) { once = keptOnce(5000000000 + dim * 1000000000 + u); }
+        if (nmTaken(u) == 0 && once == 0) {
           nmDet = u; mobAdd(mod(PMT[k], 1000), PMX[k], PMY[k], PMZ[k]); nmDet = 0;
           if (lastMob > 0) { EST[lastMob] = 0; if (PMT[k] > 1000) { EVAR[lastMob] = 1; } }
         }

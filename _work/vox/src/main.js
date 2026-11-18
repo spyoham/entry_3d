@@ -187,6 +187,8 @@ function playLook(dt) {
 function playKeys(dt) {
   // (what the player does here goes out to the server: net.js)
   netUserAct = 1;
+  // ((v3.2) the box to write in shut by something else (a death): the keys are the game's again)
+  if (ibOn == 1) { if (uiMode != 14) { inboxEnd(); } }
   if (dead == 0) {
     if (uiMode == 0) {
       // the hotbar: number keys, the wheel (the spectator: the speed)
@@ -229,12 +231,13 @@ function playKeys(dt) {
   netUserAct = 0;
   wheelAcc = 0;
   if (keyHit(114) == 1) { showDbg = 1 - showDbg; }
-  if (keyHit(72) == 1) { helpT = 12 - helpT; if (helpT < 0) { helpT = 0; } }
+  // ((v3.2) not an h typed into a line)
+  if (keyHit(72) == 1) { if (typing == 0) { helpT = 12 - helpT; if (helpT < 0) { helpT = 0; } } }
 }
 // the world goes on: mobs, items, blocks, chunks, the sky
 function playWorld(dt) {
   mobsStep(dt); itemsStep(dt); arrowsStep(dt); furnacesStep(dt); spawnStep(dt); randomTicks(dt); fluidStep(dt);
-  blocksStep(dt); pendingMobs(); weatherStep(dt);
+  blocksStep(dt); pendingMobs(); keptStep(dt); weatherStep(dt);
   gameTicks = gameTicks + dt * 20;
   worldFlush();
   if (LRQ.length > 0) { lightRedoStep(); }
@@ -291,6 +294,7 @@ function drawUI(dt) {
   if (uiMode == 6) { pauseScreen(); }
   if (uiMode == 10) { tradeScreen(); }
   if (uiMode == 7) { deathScreen(); }
+  if (uiMode == 14) { inboxDraw(); }
   if (netOn == 1) { netHud(); }
   if (helpT > 0) { helpT = helpT - dt; helpText(); } else { if (uiMode == 0) { txOff(15); txOff(16); txOff(17); txOff(18); txOff(19); } }
   if (lkNow == 0) { if (uiMode == 0) { if (dead == 0) { tx(19, '화면을 클릭하면 마우스로 둘러봅니다', 0, -60, 9, '#ffffff', 0); } } }
@@ -378,6 +382,7 @@ function uiInput() {
       // ((v2.8) the texture distance: the right column's halves (x 10 .. 200)
       if (menuSel == 11) { if (mouseX() > 105) { texSet(texI + 1); } else { texSet(texI - 1); } }
       if (menuSel == 7) { if (netSrv == 0) { saveGame(1); } }
+      if (menuSel == 12) { mapCopy(); }
       if (menuSel == 6) { if (netSrv > 0) { netLeave(); } else { if (canSave() == 1) { saveGame(1); } } uiMode = 0; gState = 0; txClear(); }
     }
   }
@@ -387,6 +392,9 @@ function uiInput() {
       if (menuSel == 2) { respawn(); gState = 0; txClear(); }
     }
   }
+  // ((v3.2) the box to write in (a sign, a command block, the search): last, so the screen it gives
+  // back to does not take this frame's keys)
+  if (uiMode == 14) { inboxStep(uiDt); }
 }
 
 // ---------------------------------------------------------------- title and loading
@@ -414,6 +422,8 @@ function loadFrame() {
     txClear();
     findSpawn();
     storesInit(); startKit();
+    // ((v3.2) a world made from a pasted map: its chests)
+    mapLate();
     setView(viewWant);
     respawn();
     yaw = 45; pitch = -10; flying = 0; FOC = 210;

@@ -329,8 +329,9 @@ export const MOBS = [
         [-4, 16, 9, 4, 24, 15, '5a3a24', 5], [-3, 16, 15, 3, 19, 16, 'd8b8a0', 5], [-3, 21, 15, -1, 23, 15.5, '202020', 5], [1, 21, 15, 3, 23, 15.5, '202020', 5], [-6, 23, 11, -4, 25, 12, 'e8e2d8', 5], [4, 23, 11, 6, 25, 12, 'e8e2d8', 5],
         [-6, 0, 5, -2, 12, 9, '4a2e1c', 1], [2, 0, 5, 6, 12, 9, '4a2e1c', 2], [-6, 0, -9, -2, 12, -5, '4a2e1c', 3], [2, 0, -9, 6, 12, -5, '4a2e1c', 4]] },
     { n: 'sheep', ai: 0, ko: '양', hp: 8, w: 0.9, h: 1.3, speed: 1.4, drop: ['wool', 1, 1], boxes: [
-        [-6, 11, -8, 6, 21, 8, 'eeeeee', 0],
-        [-3, 15, 8, 3, 22, 14, 'c8b8a8', 5], [-2, 18, 14, -0.5, 20, 14.5, '202020', 5], [0.5, 18, 14, 2, 20, 14.5, '202020', 5], [-4, 19, 8, 4, 23, 11, 'eeeeee', 5],
+        // ((v3.2) its coat is part 7, shown while EVAR is odd: a shorn one is seen shorn till it has grazed)
+        [-5.5, 11.5, -7.5, 5.5, 20.5, 7.5, 'd8c8b8', 0], [-6, 11, -8, 6, 21, 8, 'eeeeee', 7],
+        [-3, 15, 8, 3, 22, 14, 'c8b8a8', 5], [-2, 18, 14, -0.5, 20, 14.5, '202020', 5], [0.5, 18, 14, 2, 20, 14.5, '202020', 5], [-4, 19, 8, 4, 23, 11, 'eeeeee', 7],
         [-5, 0, 4, -1, 11, 8, 'c8b8a8', 1], [1, 0, 4, 5, 11, 8, 'c8b8a8', 2], [-5, 0, -8, -1, 11, -4, 'c8b8a8', 3], [1, 0, -8, 5, 11, -4, 'c8b8a8', 4]] },
     { n: 'chicken', ai: 0, ko: '닭', hp: 4, w: 0.5, h: 0.7, speed: 1.2, drop: ['chickenRaw', 1, 1, 'feather', 0, 2], boxes: [
         [-3, 4, -4, 3, 10, 4, 'f4f4f4', 0], [-4, 5, -3, -3, 9, 3, 'e4e4e4', 0], [3, 5, -3, 4, 9, 3, 'e4e4e4', 0],
@@ -358,10 +359,10 @@ export const MOBS = [
     { n: 'toad', ai: 4, ko: '용암 두꺼비', hp: 12, w: 1.0, h: 0.8, speed: 2.4, hostile: 1, fireproof: 1, dmg: 4, drop: ['fireStone', 0, 1, 'ashSand', 0, 2], boxes: [
         [-7, 2, -6, 7, 11, 7, '8a2a14', 0], [-6, 11, -4, 6, 13, 6, 'b8401c', 0], [-5, 9, 7, -1, 12, 8, 'ffd040', 5], [1, 9, 7, 5, 12, 8, 'ffd040', 5], [-4, 4, 7, 4, 6, 7.5, '3a0a04', 5],
         [-8, 0, 3, -4, 4, 7, '6a1c0c', 1], [4, 0, 3, 8, 4, 7, '6a1c0c', 2], [-9, 0, -6, -4, 5, -1, '6a1c0c', 3], [4, 0, -6, 9, 5, -1, '6a1c0c', 4]] },
-    // the void's warden: a great eye in a dark husk, four vanes beating round it
+    // the void's warden: (v3.2) a dragon - long neck and tail, crystal spines down its back, two great wings
+    // beating (parts 8 the left wing, 9 the right: they turn about their roots at x 12, y 32; mobs.js drawBox)
     { n: 'warden', ai: 9, ko: '공허의 수호자', hp: 200, w: 3.0, h: 3.0, speed: 9, hostile: 1, fly: 1, fireproof: 1, dmg: 5, drop: ['heartCore', 1, 1], boxes: [
-        [-20, 6, -20, 20, 42, 20, '2a1c3c', 0], [-14, 12, 20, 14, 36, 22, '1a1028', 5], [-10, 16, 22, 10, 32, 23, 'e8e0ff', 5], [-5, 20, 23, 5, 28, 24, 'c040ff', 5], [-2, 22, 24, -0, 26, 24.5, '100818', 5],
-        [-44, 20, -8, -20, 24, 10, '4a3068', 1], [20, 20, -8, 44, 24, 10, '4a3068', 2], [-8, 42, -8, 8, 52, 8, '3a2850', 3], [-8, -4, -8, 8, 6, 8, '3a2850', 4]] },
+        [-12, 14, -24, 12, 34, 24, '4a3a7a', 0], [-9, 12, -20, 9, 14, 20, 'c8b8e8', 0], [-1.5, 34, 12, 1.5, 39, 18, 'e890ff', 0], [-1.5, 34, -2, 1.5, 41, 4, 'e890ff', 0], [-1.5, 34, -16, 1.5, 38, -10, 'e890ff', 0], [-6, 19, 24, 6, 31, 35, '5a4890', 0], [-5, 22, 35, 5, 33, 46, '5a4890', 0], [-8, 24, 46, 8, 37, 62, '4a3a7a', 5], [-6, 27, 62, 6, 33, 74, '5a4890', 5], [-6, 23.5, 60, 6, 27, 73, 'c8b8e8', 5], [-8.4, 31, 54, -8, 34.5, 59, 'a8f4ff', 5], [8, 31, 54, 8.4, 34.5, 59, 'a8f4ff', 5], [-7, 37, 47, -4, 44, 50, 'f0ecff', 5], [4, 37, 47, 7, 44, 50, 'f0ecff', 5], [-2, 37, 54, 2, 38.5, 59, 'e890ff', 5], [-7, 17, -40, 7, 30, -24, '5a4890', 0], [-1, 30, -36, 1, 34, -30, 'e890ff', 0], [-5, 19, -56, 5, 27, -40, '4a3a7a', 0], [-3, 20, -72, 3, 25, -56, '5a4890', 6], [-7, 21.5, -86, 7, 23.5, -72, 'e890ff', 6], [-14, 3, 10, -8, 16, 18, '382a60', 1], [8, 3, 10, 14, 16, 18, '382a60', 2], [-15, 3, -20, -8, 18, -10, '382a60', 3], [8, 3, -20, 15, 18, -10, '382a60', 4], [-76, 31, 6, -12, 34, 11, '7262a8', 8], [-34, 32, -26, -12, 33, 6, '8a6cb8', 8], [-56, 32, -18, -34, 33, 6, '9c80c8', 8], [-76, 32, -8, -56, 33, 6, 'ae94d6', 8], [-78, 30, 10, -73, 35, 14, 'f0ecff', 8], [12, 31, 6, 76, 34, 11, '7262a8', 9], [12, 32, -26, 34, 33, 6, '8a6cb8', 9], [34, 32, -18, 56, 33, 6, '9c80c8', 9], [56, 32, -8, 76, 33, 6, 'ae94d6', 9], [73, 30, 10, 78, 35, 14, 'f0ecff', 9]] },
     // v1.4: a tall dark wanderer (leaves you be until you meet its eyes or hit it; it slips away when hurt),
     // a shell-bug that sits on the void city walls and shoots floating bolts, and a boat
     { n: 'wanderer', ai: 5, ko: '방랑자', hp: 40, w: 0.6, h: 2.9, speed: 3.2, neutral: 1, dmg: 5, drop: ['voidPearl', 0, 1], boxes: [
@@ -676,3 +677,88 @@ MB('pig').push([-5.3, 13, -4, 5.3, 14.4, 3, '5a3a1a', 7]);
 NBLOCK = BLOCKS.length;
 NITEM = Math.max(...ITEMS.map(i => i.id)) + 1;
 
+// ------------------------------------------------------------------ (v3.2) the village folk's trades
+// A profession comes of the job block a villager takes (job); its offers by level (five levels, two
+// offers each, picked from the level's list by the villager's own seed): [what it wants, how many,
+// what it gives, how many, how often before it is sold out]. 'BOOK': a book with a charm of the
+// villager's seed, its price by the charm's level (src/blocks.js vOffer).
+export const TRADES = [
+    { ko: '농부', job: 'composter', lv: [
+        [['wheat', 20, 'jade', 1, 15], ['potato', 26, 'jade', 1, 15], ['carrot', 22, 'jade', 1, 15], ['beetroot', 15, 'jade', 1, 15], ['jade', 1, 'bread', 6, 15]],
+        [['pumpkin', 6, 'jade', 1, 12], ['jade', 1, 'pumpkinPie', 4, 12], ['jade', 1, 'apple', 4, 15]],
+        [['melon', 4, 'jade', 1, 12], ['jade', 3, 'cookie', 18, 12]],
+        [['egg', 16, 'jade', 1, 12], ['jade', 1, 'mushStew', 1, 12], ['jade', 1, 'beetSoup', 1, 12]],
+        [['jade', 3, 'goldenCarrot', 3, 12], ['jade', 4, 'melonSlice', 9, 12], ['jade', 8, 'goldenApple', 1, 6]]] },
+    { ko: '사서', job: 'lectern', lv: [
+        [['paper', 24, 'jade', 1, 15], ['jade', 9, 'bookshelf', 1, 12], ['jade', 0, 'BOOK', 0, 12]],
+        [['book', 4, 'jade', 1, 12], ['jade', 1, 'lantern', 1, 12], ['jade', 0, 'BOOK', 0, 12]],
+        [['inkSac', 5, 'jade', 1, 12], ['jade', 1, 'glass', 4, 12], ['jade', 0, 'BOOK', 0, 12]],
+        [['jade', 5, 'clock', 1, 12], ['jade', 4, 'compass', 1, 12], ['jade', 0, 'BOOK', 0, 12]],
+        [['jade', 8, 'lodestone', 1, 12], ['jade', 0, 'BOOK', 0, 12], ['jade', 6, 'bookshelf', 3, 12]]] },
+    { ko: '도구 대장장이', job: 'smithTable', lv: [
+        [['coal', 15, 'jade', 1, 15], ['jade', 1, 'axeStone', 1, 12], ['jade', 1, 'shovelStone', 1, 12], ['jade', 1, 'pickStone', 1, 12], ['jade', 1, 'hoeStone', 1, 12]],
+        [['ingotIron', 4, 'jade', 1, 12], ['jade', 36, 'bell', 1, 12], ['jade', 4, 'hoeIron', 1, 12]],
+        [['flint', 30, 'jade', 1, 12], ['jade', 6, 'axeIron', 1, 3], ['jade', 7, 'shovelIron', 1, 3], ['jade', 8, 'pickIron', 1, 3]],
+        [['diamond', 1, 'jade', 1, 12], ['jade', 17, 'axeDiamond', 1, 3], ['jade', 10, 'shovelDiamond', 1, 3]],
+        [['jade', 18, 'pickDiamond', 1, 3], ['jade', 4, 'hoeDiamond', 1, 3]]] },
+    { ko: '갑옷 대장장이', job: 'blastFurnace', lv: [
+        [['coal', 15, 'jade', 1, 15], ['jade', 7, 'LegsIron', 1, 12], ['jade', 4, 'BootsIron', 1, 12], ['jade', 5, 'HelmetIron', 1, 12], ['jade', 9, 'ChestIron', 1, 12]],
+        [['ingotIron', 4, 'jade', 1, 12], ['jade', 36, 'bell', 1, 12], ['jade', 3, 'LegsChain', 1, 12], ['jade', 1, 'BootsChain', 1, 12]],
+        [['lavaBucket', 1, 'jade', 1, 12], ['diamond', 1, 'jade', 1, 12], ['jade', 1, 'HelmetChain', 1, 12], ['jade', 4, 'ChestChain', 1, 12]],
+        [['jade', 19, 'LegsDiamond', 1, 3], ['jade', 13, 'BootsDiamond', 1, 3]],
+        [['jade', 13, 'HelmetDiamond', 1, 3], ['jade', 21, 'ChestDiamond', 1, 3]]] },
+    { ko: '도축업자', job: 'smoker', lv: [
+        [['chickenRaw', 14, 'jade', 1, 15], ['porkRaw', 7, 'jade', 1, 15], ['rabbitRaw', 4, 'jade', 1, 15]],
+        [['coal', 15, 'jade', 1, 15], ['jade', 1, 'porkCooked', 5, 15], ['jade', 1, 'chickenCooked', 8, 15]],
+        [['muttonRaw', 7, 'jade', 1, 15], ['beefRaw', 10, 'jade', 1, 15]],
+        [['driedKelp', 10, 'jade', 1, 12], ['jade', 1, 'steak', 4, 12]],
+        [['berries', 10, 'jade', 1, 12], ['jade', 1, 'muttonCooked', 4, 12]]] },
+    { ko: '어부', job: 'barrel', lv: [
+        [['string', 20, 'jade', 1, 15], ['coal', 10, 'jade', 1, 15], ['jade', 1, 'codCooked', 6, 15]],
+        [['codRaw', 15, 'jade', 1, 15], ['jade', 2, 'campfire', 1, 12]],
+        [['salmonRaw', 13, 'jade', 1, 15], ['jade', 1, 'salmonCooked', 6, 15]],
+        [['tropicalFish', 6, 'jade', 1, 12], ['jade', 3, 'kelpItem', 8, 12]],
+        [['pufferfish', 4, 'jade', 1, 12], ['boat', 1, 'jade', 1, 12]]] },
+    { ko: '지도 제작자', job: 'cartography', lv: [
+        [['paper', 24, 'jade', 1, 15], ['jade', 7, 'compass', 1, 12]],
+        [['glassPane', 11, 'jade', 1, 15], ['jade', 8, 'clock', 1, 12]],
+        [['compass', 1, 'jade', 1, 12], ['jade', 13, 'lodestone', 1, 12]],
+        [['jade', 3, 'whiteBed', 1, 12], ['jade', 2, 'whiteCarpet', 6, 12]],
+        [['jade', 8, 'glowDust', 8, 12], ['jade', 14, 'voidPearl', 1, 12]]] },
+    { ko: '화살 제작자', job: 'fletching', lv: [
+        [['stick', 32, 'jade', 1, 15], ['jade', 1, 'arrow', 16, 12], ['jade', 1, 'flint', 10, 12]],
+        [['flint', 26, 'jade', 1, 12], ['jade', 2, 'bow', 1, 12]],
+        [['string', 14, 'jade', 1, 15], ['jade', 3, 'arrow', 32, 12]],
+        [['feather', 24, 'jade', 1, 15], ['bone', 16, 'jade', 1, 12]],
+        [['gunpowder', 12, 'jade', 1, 12], ['jade', 2, 'arrow', 24, 12]]] },
+    { ko: '성직자', job: 'brewingStand', lv: [
+        [['flesh', 32, 'jade', 1, 15], ['jade', 1, 'sparkDust', 2, 12]],
+        [['ingotGold', 3, 'jade', 1, 12], ['jade', 1, 'lapis', 1, 12]],
+        [['rabbitFoot', 2, 'jade', 1, 12], ['jade', 4, 'glowDust', 4, 12]],
+        [['bone', 20, 'jade', 1, 12], ['jade', 5, 'voidPearl', 1, 12]],
+        [['magmaCream', 2, 'jade', 1, 12], ['jade', 3, 'blazePowder', 1, 12], ['ghostTear', 1, 'jade', 4, 12]]] },
+    { ko: '가죽 세공인', job: 'cauldron', lv: [
+        [['leather', 6, 'jade', 1, 15], ['jade', 3, 'LegsLeather', 1, 12], ['jade', 7, 'ChestLeather', 1, 12]],
+        [['flint', 26, 'jade', 1, 12], ['jade', 5, 'HelmetLeather', 1, 12], ['jade', 4, 'BootsLeather', 1, 12]],
+        [['rabbitHide', 9, 'jade', 1, 12], ['jade', 7, 'ChestLeather', 1, 12]],
+        [['string', 20, 'jade', 1, 12], ['jade', 5, 'HelmetLeather', 1, 12]],
+        [['jade', 6, 'saddle', 1, 12], ['shell', 4, 'jade', 1, 12]]] },
+    { ko: '무기 대장장이', job: 'grindstone', lv: [
+        [['coal', 15, 'jade', 1, 15], ['jade', 3, 'axeIron', 1, 12], ['jade', 7, 'swordIron', 1, 3]],
+        [['ingotIron', 4, 'jade', 1, 12], ['jade', 36, 'bell', 1, 12]],
+        [['flint', 24, 'jade', 1, 12], ['jade', 2, 'arrow', 16, 12]],
+        [['diamond', 1, 'jade', 1, 12], ['jade', 17, 'axeDiamond', 1, 3]],
+        [['jade', 13, 'swordDiamond', 1, 3], ['jade', 9, 'swordIron', 1, 3]]] },
+    { ko: '양치기', job: 'loom', lv: [
+        [['wool', 18, 'jade', 1, 15], ['jade', 2, 'shears', 1, 12]],
+        [['whiteDye', 12, 'jade', 1, 15], ['blackDye', 12, 'jade', 1, 15], ['jade', 1, 'wool', 1, 15], ['jade', 1, 'whiteCarpet', 4, 15]],
+        [['yellowDye', 12, 'jade', 1, 15], ['redDye', 12, 'jade', 1, 15], ['jade', 3, 'whiteBed', 1, 12]],
+        [['greenDye', 12, 'jade', 1, 15], ['blueDye', 12, 'jade', 1, 15], ['jade', 3, 'redBed', 1, 12]],
+        [['orangeDye', 12, 'jade', 1, 15], ['jade', 2, 'redCarpet', 4, 12]]] },
+    { ko: '석공', job: 'stonecutter', lv: [
+        [['clayBall', 10, 'jade', 1, 15], ['jade', 1, 'brick', 10, 15]],
+        [['stone', 20, 'jade', 1, 15], ['jade', 1, 'stoneBricks', 4, 15]],
+        [['granite', 16, 'jade', 1, 15], ['cobble', 32, 'jade', 1, 15], ['jade', 1, 'smoothStone', 4, 15]],
+        [['quartz', 12, 'jade', 1, 12], ['jade', 1, 'terracotta', 1, 12], ['jade', 1, 'whiteTerracotta', 1, 12]],
+        [['jade', 1, 'quartzBlock', 1, 12], ['jade', 1, 'bricks', 2, 12]]] },
+];

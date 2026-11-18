@@ -19,7 +19,8 @@ const norm = (b) => {
   if (Array.isArray(b)) return b.map(norm);
   const o = {};
   for (const k of Object.keys(b).sort()) {
-    if (k === 'id') continue;
+    // ((v3.2) the build leaves ids only on a function's local-variable blocks: those must come back the same)
+    if (k === 'id' && b.type !== 'get_func_variable' && b.type !== 'set_func_variable') continue;
     if (k in DEF && (b[k] === DEF[k] || b[k] === undefined)) continue;
     if ((k === 'extensions' || k === 'statements') && Array.isArray(b[k]) && !b[k].length) continue;
     if (k === 'params') { const p = b[k].map(norm); while (p.length && (p[p.length - 1] === null || p[p.length - 1] === undefined)) p.pop(); o[k] = p; continue; }
@@ -54,6 +55,7 @@ for (const f of orig.functions) {
   else { diff++; if (!first) { let i = 0; while (i < a.length && a[i] === b[i]) i++; first = `${f.id}: ...${a.slice(Math.max(0, i - 80), i + 80)} | ...${b.slice(Math.max(0, i - 80), i + 80)}`; } }
 }
 console.log(`functions ${orig.functions.length}: the same after the editor ${same}, different ${diff}${first ? '\n' + first : ''}`);
+{ const ids = new Set(); let dup = 0, four = 0; for (const f of orig.functions) for (const m of f.content.matchAll(/"id":"([^"]+)"/g)) { if (ids.has(m[1])) dup++; ids.add(m[1]); if (m[1].length === 4) four++; } console.log(`ids kept in the build: ${ids.size}, the same twice: ${dup}, 4 letters long (as the editor makes them): ${four}`); if (dup || four) errors.push('ids'); }
 console.log('page errors', errors.length, errors.slice(0, 3).join(' | '));
 await browser.close();
 fs.rmSync(tmp, { recursive: true, force: true });

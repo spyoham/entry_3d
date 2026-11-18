@@ -106,6 +106,8 @@ const same = () => {
   return { both, off, onlyA, onlyB };
 };
 let s = same();
+// ((v3.2) a monster made this very moment is not in the other's reading yet: looked at again)
+for (let k = 0; k < 4 && (s.onlyA.length || s.onlyB.length); k++) { console.log('   only on one screen just now:', JSON.stringify(s.onlyA.map((q) => [q, byKey(A).get(q)])), JSON.stringify(s.onlyB.map((q) => [q, byKey(B).get(q)]))); run(1); s = same(); }
 ok(s.both > 0 && s.off === 0 && s.onlyA.length === 0 && s.onlyB.length === 0, `the chunks' animals the same on both (${s.both} shared, ${s.off} off, only alice ${s.onlyA.length}, only bob ${s.onlyB.length})`);
 // no animal twice on one screen (made by both games from the same chunk)
 const twice = (c) => { const seen = new Map(); let n = 0; for (const m of mobs(c)) { const u = m.key.split(':')[1]; if (+u < 1000000) continue; if (seen.has(u)) n++; seen.set(u, 1); } return n; };

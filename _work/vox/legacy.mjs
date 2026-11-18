@@ -22,6 +22,9 @@ export function legacyMath(prog) {
 // their default say nothing, and with tens of thousands of blocks they are most of the
 // project's size. Entry (and tessvm) fill a missing field with the same default.
 const DEFAULTS = { x: 0, y: 0, movable: null, deletable: 1, emphasized: false, readOnly: null, copyable: true, assemble: true };
+let slimN = 0, slimIds = false;
+const ID62 = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+function shortId(n) { let r = ''; do { r = ID62[n % 62] + r; n = Math.floor(n / 62); } while (n > 0); if (r.length > 3) throw new Error('too many local-variable blocks for 3-letter ids'); return r; }
 function slimWalk(b) {
     if (!b || typeof b !== 'object') return;
     if (Array.isArray(b)) { for (const x of b) slimWalk(x); return; }
@@ -32,11 +35,19 @@ function slimWalk(b) {
         // (v3.1) the nulls at the end of the params (a text or an indicator's place): a missing one is filled
         // from the block's schema as a null one is (entryjs block.js _updateSchema; tessvm reads by index)
         if (Array.isArray(b.params)) { while (b.params.length && b.params[b.params.length - 1] === null) b.params.pop(); }
+        // (v3.2) the block's id: one without is given a new one as it is loaded (entryjs block.js load:
+        // if (!block.id) block.id = generateId()). Only a function's local-variable blocks keep one: the
+        // editor finds their function by it (block_func.js menuName -> getFunctionByBlockId) and, shown
+        // with another function's variables, would change the variable. Theirs are 1 to 3 letters, never
+        // one the editor makes (always 4), so no block made on loading can be taken for them.
+        if (b.type === 'get_func_variable' || b.type === 'set_func_variable') { if (slimIds) b.id = shortId(slimN++); }
+        else delete b.id;
     }
     if (b.params) for (const p of b.params) slimWalk(p);
     if (b.statements) for (const s of b.statements) slimWalk(s);
 }
 export function slimBlocks(prog) {
+    slimN = 0; slimIds = true;
     for (const f of prog.functions) { const c = JSON.parse(f.content); slimWalk(c); f.content = JSON.stringify(c); }
     for (const k of Object.keys(prog.objectScripts)) slimWalk(prog.objectScripts[k]);
     return prog;

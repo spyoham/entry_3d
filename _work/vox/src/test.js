@@ -14,6 +14,12 @@ function testStep() {
   // ((v2.8) a firework rocket 3 blocks ahead of the player)
   if (testCmd == 16) { testCmd = 0; tStage = fireworkAdd(px + sind(yaw) * 3, py + 1, pz + cosd(yaw) * 3); }
   if (testCmd == 15) { testCmd = 0; netLeave(); gState = 0; txClear(); menuGo(4); }
+  // ((v3.2) 17: the input box with tCmd in it; 18: the trade screen of mob tStage - for pictures)
+  if (testCmd == 17) { testCmd = 0; inboxOpen(14, '찾을 아이템 이름 (한국어나 영어 일부)', tCmd, 30); }
+  if (testCmd == 18) { testCmd = 0; tradeOpen(tStage); }
+  // (19: the map copied (as the game menu's button); 20: the new-world screen)
+  if (testCmd == 19) { testCmd = 0; mapCopy(); }
+  if (testCmd == 20) { testCmd = 0; menuGo(2); }
   if (testCmd == 13) { testCmd = 0; netUserAct = 1; chatRun(tCmd); netUserAct = 0; }
   // 9: the kept world again (as 이어하기 on the title)
   if (testCmd == 9) { testCmd = 0; txClear(); loadGame(tStage); }

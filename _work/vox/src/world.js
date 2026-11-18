@@ -1117,15 +1117,18 @@ function worldInit() {
 
 // ---------------------------------------------------------------- a new world
 let genPhase = 0, genN = 0, genMsg = '';
+// (v3.2) the kind of the other worlds' land: 0 as before v3.2 (a world or a server made before keeps its
+// land), 1 the new depths and void (dims.js)
+let genVer = 1;
 function genStart(s) {
-  seed = s;
+  seed = s; genVer = 1;
   fluidInit();
   noiseInit();
   worldInit();
   let i = 1;
   while (i <= NCH * NCH) { if (CKST[i] > 0) { chunkDrop(i); } i = i + 1; }
   EDX = []; EDY = []; EDZ = []; EDB = []; EDD = []; edIndex();
-  logOn = 0; dim = 0; bossDead = 0; bossWake = 0;
+  logOn = 0; dim = 0; bossDead = 0; bossWake = 0; bossHP = 0; bossE = 0;
   worldExtraInit();
   cavesInit();
   px = 8.5; pz = 8.5; pcxW = -99999; pczW = -99999;

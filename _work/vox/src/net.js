@@ -150,7 +150,7 @@ function evAdd(t, f) {
 // in those seconds reached nobody's record - whoever is host next puts them in (rgReplay))
 let RGT = [], RGK = [], RGE = [], RGF = [];
 function rgAdd(k, t, f) {
-  if (t == 'b' || t == 'x' || t == 's' || t == 'K' || t == 'F' || t == 'u') {
+  if (t == 'b' || t == 'x' || t == 's' || t == 'K' || t == 'F' || t == 'u' || t == 'B') {
     RGT.push(netClock); RGK.push(k); RGE.push(t); RGF.push(f);
     while (RGT.length > 600) { RGT.removeAt(1); RGK.removeAt(1); RGE.removeAt(1); RGF.removeAt(1); }
   }
@@ -250,10 +250,10 @@ function sidKeep(s, v) {
 let shName = '', shOwner = '', shMotd = '', shSeed = 0, shMode = 0, shPvp = 1, shMax = 16, shWl = 0, shRev = 0, shFlat = '-', shId = '', shDay = 0, shLava = 1, shTnt = 1, shWe = 1;
 // ((v3.1) the 17th: who wrote the settings and their how-manieth write (sid 's' count). Two writers (a host
 // back from a still tab, the owner's edit in the menu) could write the same revision and nobody read again)
-let shStamp = '-', metaStamp = '-', metaWrites = 0;
+let shStamp = '-', metaStamp = '-', metaWrites = 0, shGen = 0, shBoss = 0;
 function srvHas(k) {
   let h = metaItem(k, 1), r = 0;
-  shName = ''; shOwner = ''; shMotd = ''; shSeed = 0; shMode = 0; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shFlat = '-'; shId = ''; shDay = 0; shLava = 1; shTnt = 1; shWe = 1; shStamp = '-';
+  shName = ''; shOwner = ''; shMotd = ''; shSeed = 0; shMode = 0; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shFlat = '-'; shId = ''; shDay = 0; shLava = 1; shTnt = 1; shWe = 1; shStamp = '-'; shGen = 0; shBoss = 0;
   if (strlen(h) > 3) { if (charAt(h, 1) == 'H') {
     splitBy(h, '^');
     if (SPL.length >= 10) {
@@ -267,6 +267,8 @@ function srvHas(k) {
       // ((v2.8) may the admins use world edit here)
       if (SPL.length >= 16) { shWe = SPL[16] * 1; }
       if (SPL.length >= 17) { shStamp = SPL[17]; }
+      // ((v3.2) the kind of its other worlds (dims.js genVer), the warden of the void gone)
+      if (SPL.length >= 19) { shGen = SPL[18] * 1; shBoss = SPL[19] * 1; }
       r = 1;
     }
   } }
@@ -321,7 +323,7 @@ function metaRead(k) {
     i = i + 1;
   }
 }
-function headLine() { return `H^${shName}^${shOwner}^${shMotd}^${shSeed}^${shMode}^${shPvp}^${shMax}^${shWl}^${shRev}^${shFlat}^${shId}^${shDay}^${shLava}^${shTnt}^${shWe}^${shStamp}`; }
+function headLine() { return `H^${shName}^${shOwner}^${shMotd}^${shSeed}^${shMode}^${shPvp}^${shMax}^${shWl}^${shRev}^${shFlat}^${shId}^${shDay}^${shLava}^${shTnt}^${shWe}^${shStamp}^${shGen}^${shBoss}`; }
 // the host writes them back (after a change)
 function metaWrite(k) {
   shRev = shRev + 1; metaRev = shRev;
@@ -398,7 +400,7 @@ function srvCreate(name, motd, seedv, mode, flat) {
   let k = 1, r = 0;
   while (k <= NSRV) { if (r == 0) { if (srvHas(k) == 0) { r = k; } } k = k + 1; }
   if (r > 0) {
-    shName = netClean(name); shOwner = netNick; shMotd = netClean(motd); shSeed = seedv; shMode = mode; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shLava = 1; shTnt = 1; shFlat = netClean(flat); shId = `${rand(100000, 999999)}${rand(100000, 999999)}`; shDay = dayNow();
+    shName = netClean(name); shOwner = netNick; shMotd = netClean(motd); shSeed = seedv; shMode = mode; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shLava = 1; shTnt = 1; shGen = 1; shBoss = 0; shFlat = netClean(flat); shId = `${rand(100000, 999999)}${rand(100000, 999999)}`; shDay = dayNow();
     MOP = []; MBAN = []; MBANR = []; MWL = []; PLN = []; PLO = []; PLE = []; PLC = []; PLT = []; PLX = []; MUN = []; MUD = []; MCK = []; MCD = []; MSK = []; MST = [];
     MPC = []; MPL = []; MGN = []; MGC = []; MLN = []; MLC = []; MLD = []; MLP = [];
     // a plugin to start from: a greeting
@@ -520,6 +522,7 @@ function netJoin(k) {
   let fbad = flatSet(shFlat);
   genStart(shSeed);
   genPhase = 0;
+  bossDead = shBoss; genVer = shGen;
   storesInit(); invInit();
   let n = editLen(k), i = 1;
   while (i + 4 <= n) { edPushD(editItem(k, i), editItem(k, i + 1), editItem(k, i + 2), editItem(k, i + 3), editItem(k, i + 4)); i = i + 5; }
@@ -698,6 +701,8 @@ function netInServer(dt) {
     // ((v3.0, 11-18) the mobs: one owner each, seen by all (netmob.js))
     if (dim != nmDim) { nmDim = dim; netMobsClear(); }
     netMobsStep(dt);
+    pnT = pnT + dt;
+    if (pnT >= 2) { pnT = 0; pnFlush(); }
     netChestWatch();
     if (netHost == 1) { hostStep(dt); }
   }
@@ -744,7 +749,9 @@ function netEvent(k, t, f) {
   // ((v3.1) things on the ground asked for and given, an arrow flown off)
   if (t == 'P') { nmItemAsked(k, f); }
   if (t == 'T') { nmItemGot(f); }
-  if (t == 'S') { nmArrow(f); }
+  if (t == 'S') { nmArrow(k, f); }
+  if (t == 'B') { netPistonLog(f, 0); }
+  if (t == 'W') { bossFall(); }
   if (t == 's') { splitBy(f, '^'); if (SPL.length >= 5) { netSignSet(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, netDec(SPL[5])); } }
   netApplying = 0;
 }
@@ -783,6 +790,60 @@ function netEdit(x, y, z, b) {
     if (netHost == 1) { hostKeepEdit(x, y, z, b, dim); }
   } } } }
 }
+// (v3.2) The blocks a piston moved were in nobody's record: the circuits run on every screen, so they
+// were told to no one, and a server played again (or a player coming later) had the lever down and the
+// blocks where they were before. Now every screen that runs a piston notes the cells it wrote (power.js
+// psNote: the last block of each cell), and every 2 s the host keeps them, the others tell them to the
+// host in one event ('B': world^x,y,z,block;... 16 cells at most). Nobody puts them in their world from
+// that event (each screen moved them itself) - only where the chunk or the world is not made here.
+let PNX = [], PNY = [], PNZ = [], PNB = [], pnT = 0, pnDim = 0;
+function psNote(x, y, z, b) {
+  if (netSrv > 0) { if (netSt == 2) {
+    if (pnDim != dim) { pnFlush(); pnDim = dim; }
+    let i = 1, f = 0;
+    while (i <= PNX.length) { if (PNX[i] == x && PNY[i] == y && PNZ[i] == z) { f = i; } i = i + 1; }
+    if (f > 0) { PNB[f] = b; } else { if (PNX.length < 96) { PNX.push(x); PNY.push(y); PNZ.push(z); PNB.push(b); } }
+  } }
+}
+function pnFlush() {
+  if (PNX.length > 0) {
+    if (netHost == 1) {
+      let i = 1;
+      while (i <= PNX.length) { hostKeepEdit(PNX[i], PNY[i], PNZ[i], PNB[i], pnDim); i = i + 1; }
+      PNX = []; PNY = []; PNZ = []; PNB = [];
+    } else {
+      gS2 = `${pnDim}^`;
+      let n = 0;
+      while (PNX.length > 0 && n < 16) {
+        if (n > 0) { gS2 = `${gS2};`; }
+        gS2 = `${gS2}${PNX[1]},${PNY[1]},${PNZ[1]},${PNB[1]}`;
+        PNX.removeAt(1); PNY.removeAt(1); PNZ.removeAt(1); PNB.removeAt(1);
+        n = n + 1;
+      }
+      evAdd('B', gS2);
+    }
+  }
+}
+// (heard: keep 1 the host's record, 0 the log of a place not made here)
+function netPistonLog(f, keep) {
+  splitBy(f, '^');
+  if (SPL.length >= 2) {
+    let d = SPL[1] * 1, i = 1;
+    splitBy(SPL[2], ';');
+    NMR = [];
+    while (i <= SPL.length) { NMR.push(SPL[i]); i = i + 1; }
+    i = 1;
+    while (i <= NMR.length) {
+      splitBy(NMR[i], ',');
+      if (SPL.length >= 4) {
+        let x = SPL[1] * 1, y = SPL[2] * 1, z = SPL[3] * 1, b = SPL[4] * 1;
+        if (keep == 1) { hostKeepEdit(x, y, z, b, d); }
+        else { if (d != dim || cOK(x, z) == 0) { edPushD(x, y, z, b, d); } }
+      }
+      i = i + 1;
+    }
+  }
+}
 // a command a plugin (or the host) runs here, with every right
 function netRunAs(cmd) {
   netApplying = 0;
@@ -798,6 +859,8 @@ function hostEvent(k, t, f) {
   if (t == 'u') { let c = indexOf(f, '^'); if (c > 1) { if (substr(f, 1, c - 1) * 1 == netSrv) { hostKeepUser(NNICK[k], substr(f, c + 1, strlen(f))); } } }
   if (t == 'q') { hostWish(NNICK[k], f); }
   if (t == 'x') { hostKeepChest(f); }
+  if (t == 'B') { netPistonLog(f, 1); }
+  if (t == 'W') { shBoss = 1; metaWrite(netSrv); }
   if (t == 'F') { splitBy(f, '^'); if (SPL.length >= 10) { hostKeepBox(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, SPL[5] * 1, SPL[6] * 1, SPL[10] * 1); } }
   if (t == 'K') { splitBy(f, '^'); if (SPL.length >= 12) {
     let w0 = Math.abs(SPL[4] * 1 - SPL[1] * 1), h0 = Math.abs(SPL[5] * 1 - SPL[2] * 1), d0 = Math.abs(SPL[6] * 1 - SPL[3] * 1), gx = SPL[7] * 1, gy = SPL[8] * 1, gz = SPL[9] * 1, gd = SPL[12] * 1;

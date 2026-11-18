@@ -182,6 +182,12 @@ function chestTake(c, id, n, d) {
   if (f > 0) { if (CHI[base + f] == 0) { CHI[base + f] = id; CHN[base + f] = 0; CHD[base + f] = d; } CHN[base + f] = CHN[base + f] + n; r = 1; chestTouched(c); chestSay(c, f); }
   return r;
 }
+// ((v3.2) would one of that item go into chest c)
+function chestRoom(c, id, d) {
+  let k = 1, r = 0, base = (c - 1) * 27, cap = chestCap(c);
+  while (k <= cap) { if (CHI[base + k] == 0 || (CHI[base + k] == id && CHD[base + k] == d && CHN[base + k] < ITST[id + 1])) { r = 1; } k = k + 1; }
+  return r;
+}
 // (v2.4.4) a slot of chest c changed by the world (a dispenser, a hopper): the others hear it
 function chestSay(c, k) {
   if (netSrv > 0) { if (netSt == 2) {
@@ -251,10 +257,14 @@ function hopperWork(c, x, y, z, hf) {
     else {
       let i = 1;
       while (i <= NITM) {
-        if (IID[i] > 0 && IRK[i] == 0) { if (Math.floor(IXX[i]) == x && Math.floor(IZZ[i]) == z && IYY[i] >= y && IYY[i] < y + 1.6) {
-          let n = INN[i];
-          while (n > 0) { if (chestTake(c, IID[i], 1, IDU[i]) == 1) { n = n - 1; } else { INN[i] = n; n = 0 - 1; } }
-          if (n == 0) { IID[i] = 0; }
+        if (IID[i] > 0) { if (Math.floor(IXX[i]) == x && Math.floor(IZZ[i]) == z && IYY[i] >= y && IYY[i] < y + 2) {
+          // ((v3.2) another player's thing: asked of its owner for this hopper (netmob.js))
+          if (IRK[i] > 0) { netItemHopper(i, c); }
+          else {
+            let n = INN[i];
+            while (n > 0) { if (chestTake(c, IID[i], 1, IDU[i]) == 1) { n = n - 1; } else { INN[i] = n; n = 0 - 1; } }
+            if (n == 0) { IID[i] = 0; }
+          }
         } }
         i = i + 1;
       }
@@ -618,11 +628,9 @@ function palAt(k) {
   if (k >= 1 && k <= palLen()) { if (uiTab < NCAT) { r = PALC[PALC0[uiTab + 1] + k - 1]; } else { r = SRCH[k]; } }
   return r;
 }
-function palSearch() {
-  mouseFree();
-  ask('찾을 아이템 이름 (한국어나 영어 일부)');
-  let s = lower(answer());
-  askDone();
+function palSearch() { inboxOpen(14, '찾을 아이템 이름 (한국어나 영어 일부)', '', 30); }
+function palFound() {
+  let s = lower(ansS);
   SRCH = [];
   if (strlen(s) > 0) {
     let id = 1;
