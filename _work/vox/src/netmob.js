@@ -49,6 +49,7 @@ function netMobInit() {
   EUID = []; ERK = []; ERU = []; QMX = []; QMY = []; QMZ = []; QMW = []; QMG = [];
   let i = 0;
   while (i < NMOB) { EUID.push(0); ERK.push(0); ERU.push(0); QMX.push(0); QMY.push(0); QMZ.push(0); QMW.push(0); QMG.push(0); i = i + 1; }
+  netItemInit();
   if (NQS.length == 0) { i = 0; while (i < NSLOT) { NQS.push(''); NQON.push(0); i = i + 1; } }
   i = 1; while (i <= NSLOT) { NQS[i] = ''; NQON[i] = 0; i = i + 1; }
   nmLast = '';
@@ -131,10 +132,12 @@ function nmWrite() {
     } } }
     e = e + 1;
   }
+  nmItemsLine();
   if (gS != nmLast) { nmLast = gS; nqPut(netMy, gS); }
 }
 // the stand-ins of slot k all gone
 function nmDrop(k) {
+  nmItemsDrop(k);
   let e = 1;
   while (e <= NMOB) { if (ET[e] > 0) { if (ERK[e] == k) { ET[e] = 0; ERK[e] = 0; } } e = e + 1; }
 }
@@ -147,6 +150,7 @@ function nmRead(k, s) {
     if (SPL[2] * 1 != dim) { nmDrop(k); }
     else {
       nmGen = nmGen + 1;
+      nmIts = ' '; if (SPL.length >= 4) { nmIts = SPL[4]; }
       splitBy(SPL[3], ';');
       NMR = [];
       let i = 2;
@@ -178,6 +182,7 @@ function nmRead(k, s) {
       // what is no longer in it: dead, gone or given away
       let e2 = 1;
       while (e2 <= NMOB) { if (ET[e2] > 0) { if (ERK[e2] == k) { if (QMG[e2] != nmGen) { ET[e2] = 0; ERK[e2] = 0; } } } e2 = e2 + 1; }
+      nmItemsRead(k);
     }
   }
 }
@@ -189,6 +194,7 @@ function nmAdopter() {
   return r;
 }
 function nmAdopt(k) {
+  nmItemsAdopt(k);
   let e = 1;
   while (e <= NMOB) {
     if (ET[e] > 0) { if (ERK[e] == k) {
@@ -204,6 +210,7 @@ function nmAdopt(k) {
 function netMobsClear() {
   let e = 1;
   while (e <= NMOB) { if (ET[e] > 0) { if (ERK[e] > 0) { ET[e] = 0; } } ERK[e] = 0; e = e + 1; }
+  nmItemsDrop(0);
   if (netMy > 0) { nqPut(netMy, ''); }
   nmLast = ''; let k = 1; while (k <= NSLOT) { NQS[k] = ''; NQON[k] = 0; k = k + 1; }
 }
@@ -360,7 +367,7 @@ function nmTake(k, f) {
   if (SPL.length >= 3) { if (SPL[1] == netNick) { if (netSt == 2 && SPL[2] * 1 == dim) {
     splitBy(SPL[3], ';');
     NMR = [];
-    let i = 1;
+    let i = 1, useE = 0;
     while (i <= SPL.length) { NMR.push(SPL[i]); i = i + 1; }
     i = 1;
     while (i <= NMR.length) {
@@ -370,6 +377,7 @@ function nmTake(k, f) {
         while (f2 <= NMOB) { if (ET[f2] > 0) { if (ERK[f2] == k && ERU[f2] == u) { e = f2; } } f2 = f2 + 1; }
         if (e == 0) { mobAdd(SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, SPL[5] * 1); e = lastMob; }
         if (e > 0) {
+          if (k == nmWantK && u == nmWantU && netClock - nmWantT < 3) { useE = e; }
           ERK[e] = 0; ERU[e] = 0;
           // (a chunk's animal keeps its number; one made by a player gets one of mine)
           if (u >= 1000000) { EUID[e] = u; } else { nmUid = nmUid + 1; if (nmUid > 999999) { nmUid = 10001; } EUID[e] = nmUid; }
@@ -381,11 +389,13 @@ function nmTake(k, f) {
       i = i + 1;
     }
     nmWT = 99;
+    if (useE > 0) { nmWantK = 0; if (mobPick == useE && uiMode == 0) { let a0 = netApplying; netApplying = 0; placeCool = 0; useKey0(); netApplying = a0; } }
   } } }
 }
 // a stand-in used (blocks.js useKey0): asked of its owner
 function netMobAsk(e) {
-  if (netSrv > 0 && netSt == 2 && ERK[e] > 0) { evAdd('m', `${NNICK[ERK[e]]}^${ERU[e]}`); msgShow('다른 플레이어 곁의 생물입니다 - 한 번 더 누르세요', 1); }
+  // ((v3.1) remembered: when it comes (nmTake) and I still look at it, the click goes on by itself - it took two)
+  if (netSrv > 0 && netSt == 2 && ERK[e] > 0) { evAdd('m', `${NNICK[ERK[e]]}^${ERU[e]}`); nmWantK = ERK[e]; nmWantU = ERU[e]; nmWantT = netClock; }
 }
 // the owner, asked by slot k for my mob
 function nmAsked(k, f) {
@@ -396,4 +406,111 @@ function nmAsked(k, f) {
     while (i <= NMOB) { if (ET[i] > 0) { if (ERK[i] == 0 && EUID[i] == u) { if (nmGivable(i) == 1) { NMG.push(nmPack(i)); ET[i] = 0; } } } i = i + 1; }
     if (NMG.length > 0) { nmSend(k); nmWT = 99; }
   } }
+}
+
+// ===================================================================== (v3.1) things lying about, and arrows
+// The things on the ground were each screen's own: what one player dropped or dug nobody else saw.
+// Now they go in the owner's line after the mobs (sid|world|mobs|;number,id,count,wear,x,y,z;...): the
+// screen a thing fell on owns it and runs it; the others show a stand-in (IRK the owner's slot, IRU its
+// number) with no weight of its own. Walking onto a stand-in asks the owner for it ('P'); the owner, if
+// it is still there, takes it away and gives it ('T') - so two players never both get it.
+// Arrows (and what else arrowShoot sends: fireballs, potions, tridents) are told as they fly off ('S'):
+// the other screens fly a harmless one (APW -1) to look at; what it hits is still the shooter's to say.
+let IUID = [], IRK = [], IRU = [], IRG = [], IQX = [], IQY = [], IQZ = [];
+let niUid = 0, nmIts = '', nmWantK = 0, nmWantU = 0, nmWantT = 0 - 99;
+function netItemInit() {
+  IUID = []; IRK = []; IRU = []; IRG = []; IQX = []; IQY = []; IQZ = [];
+  let i = 0;
+  while (i < NITM) { IUID.push(0); IRK.push(0); IRU.push(0); IRG.push(0); IQX.push(0); IQY.push(0); IQZ.push(0); i = i + 1; }
+}
+// (dropItem: a new thing is mine)
+function netItemNew(s) { niUid = niUid + 1; if (niUid > 99999) { niUid = 1; } IUID[s] = niUid; IRK[s] = 0; IRU[s] = 0; }
+// a stand-in each frame (itemsStep): to where its owner says; mine to ask for when I stand on it
+function netItemStep(i, dt) {
+  let a = Math.min(1, 12 * dt);
+  IAGE[i] = IAGE[i] + dt;
+  IXX[i] = IXX[i] + (IQX[i] - IXX[i]) * a; IYY[i] = IYY[i] + (IQY[i] - IYY[i]) * a; IZZ[i] = IZZ[i] + (IQZ[i] - IZZ[i]) * a;
+  if (dead == 0 && gameMode != 3) { if (IAGE[i] > 0.5) {
+    let dx = px - IXX[i], dy = py + 0.8 - IYY[i], dz = pz - IZZ[i];
+    if (dx * dx + dy * dy + dz * dz < 0.8) { if (netSrv > 0 && netSt == 2) { evAdd('P', `${NNICK[IRK[i]]}^${IRU[i]}`); IAGE[i] = 0 - 1; } }
+  } }
+}
+// (nmWrite: my things near me, after the mobs)
+function nmItemsLine() {
+  let i = 1, n = 0;
+  gS = `${gS}|`;
+  while (i <= NITM) {
+    if (IID[i] > 0) { if (IRK[i] == 0) { if (n < 40) { if ((IXX[i] - px) * (IXX[i] - px) + (IZZ[i] - pz) * (IZZ[i] - pz) < 2304) {
+      gS = `${gS};${IUID[i]},${IID[i]},${INN[i]},${IDU[i]},${Math.round(IXX[i] * 10) / 10},${Math.round(IYY[i] * 10) / 10},${Math.round(IZZ[i] * 10) / 10}`;
+      n = n + 1;
+    } } } }
+    i = i + 1;
+  }
+}
+// (nmRead: slot k's things, nmIts)
+function nmItemsRead(k) {
+  splitBy(nmIts, ';');
+  NMR = [];
+  let i = 2;
+  while (i <= SPL.length) { NMR.push(SPL[i]); i = i + 1; }
+  i = 1;
+  while (i <= NMR.length) {
+    splitBy(NMR[i], ',');
+    if (SPL.length >= 7) {
+      let u = SPL[1] * 1, f = 0, free = 0, j = 1;
+      while (j <= NITM) { if (IID[j] > 0) { if (IRK[j] == k && IRU[j] == u) { f = j; } } else { if (free == 0) { free = j; } } j = j + 1; }
+      if (f == 0) { if (free > 0) { f = free; IRK[f] = k; IRU[f] = u; IUID[f] = 0; IXX[f] = SPL[5] * 1; IYY[f] = SPL[6] * 1; IZZ[f] = SPL[7] * 1; IVX[f] = 0; IVY[f] = 0; IVZ[f] = 0; IAGE[f] = 0; } }
+      if (f > 0) { IID[f] = SPL[2] * 1; INN[f] = SPL[3] * 1; IDU[f] = SPL[4] * 1; IQX[f] = SPL[5] * 1; IQY[f] = SPL[6] * 1; IQZ[f] = SPL[7] * 1; IRG[f] = nmGen; }
+    }
+    i = i + 1;
+  }
+  i = 1;
+  while (i <= NITM) { if (IID[i] > 0) { if (IRK[i] == k) { if (IRG[i] != nmGen) { IID[i] = 0; IRK[i] = 0; } } } i = i + 1; }
+}
+function nmItemsDrop(k) {
+  let i = 1;
+  // (k 0: every stand-in)
+  while (i <= NITM) { if (IRK[i] > 0) { if (k == 0 || IRK[i] == k) { IID[i] = 0; IRK[i] = 0; } } i = i + 1; }
+}
+// (an owner gone without a word: its things are mine, with its mobs)
+function nmItemsAdopt(k) {
+  let i = 1;
+  while (i <= NITM) { if (IID[i] > 0) { if (IRK[i] == k) { netItemNew(i); IXX[i] = IQX[i]; IYY[i] = IQY[i]; IZZ[i] = IQZ[i]; } } i = i + 1; }
+}
+// the owner: slot k stands on my thing - theirs, if it is still here
+function nmItemAsked(k, f) {
+  splitBy(f, '^');
+  if (SPL.length >= 2) { if (SPL[1] == netNick) {
+    let u = SPL[2] * 1, i = 1, s = 0;
+    while (i <= NITM) { if (IID[i] > 0) { if (IRK[i] == 0 && IUID[i] == u) { s = i; } } i = i + 1; }
+    if (s > 0) { evAdd('T', `${NNICK[k]}^${IID[s]}^${INN[s]}^${IDU[s]}`); IID[s] = 0; nmWT = 99; }
+  } }
+}
+// given to me (what does not fit falls here, mine)
+function nmItemGot(f) {
+  splitBy(f, '^');
+  if (SPL.length >= 4) { if (SPL[1] == netNick) {
+    let id = SPL[2] * 1, n = SPL[3] * 1, du = SPL[4] * 1;
+    addItem(id, n, du);
+    if (addLeft < n) { sndPlay(6); }
+    if (addLeft > 0) { dropItem(id, addLeft, du, px, py + 1, pz, 0); if (lastItem > 0) { IAGE[lastItem] = 0 - 2; } }
+  } }
+}
+// an arrow of mine flies off (arrowShoot): told to the others
+function netArrowSay(a) {
+  if (netSrv > 0) { if (netSt == 2) { if (netApplying == 0) {
+    evAdd('S', `${dim}^${Math.round(AXX[a] * 100) / 100}^${Math.round(AYY[a] * 100) / 100}^${Math.round(AZZ[a] * 100) / 100}^${Math.round(AVX[a] * 100) / 100}^${Math.round(AVY[a] * 100) / 100}^${Math.round(AVZ[a] * 100) / 100}^${AON[a]}^${AEN[a]}`);
+  } } }
+}
+// another's arrow: one to look at here (APW -1: it hurts nothing, drops nothing)
+function nmArrow(f) {
+  splitBy(f, '^');
+  if (SPL.length >= 9) { if (SPL[1] * 1 == dim) { if (cOK(Math.floor(SPL[2] * 1), Math.floor(SPL[4] * 1)) == 1) {
+    let i = 1, a = 0;
+    while (i <= NARR) { if (a == 0) { if (AON[i] == 0) { a = i; } } i = i + 1; }
+    if (a > 0) {
+      AXX[a] = SPL[2] * 1; AYY[a] = SPL[3] * 1; AZZ[a] = SPL[4] * 1; AVX[a] = SPL[5] * 1; AVY[a] = SPL[6] * 1; AVZ[a] = SPL[7] * 1;
+      AON[a] = SPL[8] * 1; AEN[a] = SPL[9] * 1; AAGE[a] = 0; ASTK[a] = 0; APW[a] = 0 - 1;
+    }
+  } } }
 }

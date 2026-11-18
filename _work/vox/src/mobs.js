@@ -468,6 +468,8 @@ function arrowShoot(x, y, z, tx, ty, tz, own) {
       AVX[a] = dx / d * sp; AVY[a] = dy / d * sp; AVZ[a] = dz / d * sp;
     }
     AAGE[a] = 0; ASTK[a] = 0; AEN[a] = shotEn; APW[a] = shotPow;
+    // ((v3.1) seen flying on the other screens of a server)
+    netArrowSay(a);
   }
   lastArr = a;
 }
@@ -485,10 +487,10 @@ function arrowsStep(dt) {
         if (hb == 57) { if (AON[a] == 2) { crystalBreak(Math.floor(nx), Math.floor(ny), Math.floor(nz)); AON[a] = 0; } }
         // (v2.4.4) a wooden button with an arrow in it is pressed (it stops there)
         if (BRS[hb + 1] == RS_BUTTON) { if (BAUX[hb + 1] >= 15) { if (AON[a] <= 2) { ASTK[a] = 1; AAGE[a] = 0; pressAdd(Math.floor(nx), Math.floor(ny), Math.floor(nz), 1.5); } } }
-        if (BSOL[hb + 1] > 0) { ASTK[a] = 1; AAGE[a] = 0; if (AON[a] == 1 || AON[a] == 3) { shotStop(a); } if (AON[a] == 3) { AON[a] = 0; } if (AON[a] == 2 && AEN[a] < 0) { tridentDrop(a); } if (hb == I_target) { targetHit(nx, ny, nz, a); } if (hb == I_tnt) { if (AON[a] == 3) { tntPrime(Math.floor(nx), Math.floor(ny), Math.floor(nz)); } } }
+        if (BSOL[hb + 1] > 0) { ASTK[a] = 1; AAGE[a] = 0; if (AON[a] == 1 || AON[a] == 3) { shotStop(a); } if (AON[a] == 3) { AON[a] = 0; } if (AON[a] == 2 && AEN[a] < 0) { if (APW[a] >= 0) { tridentDrop(a); } else { AON[a] = 0; } } if (hb == I_target) { targetHit(nx, ny, nz, a); } if (hb == I_tnt) { if (AON[a] == 3) { tntPrime(Math.floor(nx), Math.floor(ny), Math.floor(nz)); } } }
         else { AXX[a] = nx; AYY[a] = ny; AZZ[a] = nz; }
-        // the player
-        if (AON[a] == 1 || AON[a] == 3) {
+        // the player ((v3.1) not one flown here to look at, APW -1: its shooter's screen says what it hit)
+        if ((AON[a] == 1 || AON[a] == 3) && APW[a] >= 0) {
           if (Math.abs(AXX[a] - px) < 0.45 && Math.abs(AZZ[a] - pz) < 0.45 && AYY[a] > py && AYY[a] < py + 1.8) {
             shotHit(a);
             pvx = pvx + AVX[a] * 0.2; pvz = pvz + AVZ[a] * 0.2;
@@ -498,7 +500,7 @@ function arrowsStep(dt) {
           if (AON[a] > 0 && NPLN > 0) { if (netShotHits(a) == 1) { AON[a] = 0; } }
         }
         // the player's arrow: the mobs
-        if (AON[a] == 2) {
+        if (AON[a] == 2 && APW[a] >= 0) {
           let e = 1;
           while (e <= NMOB) {
             if (ET[e] > 0) { if (AON[a] == 2) {
@@ -511,7 +513,7 @@ function arrowsStep(dt) {
                 // ((v3.0) the wanderer is not hit by arrows (it slips away), a shut shell, the king below half
                 // nor; a tamed one is not)
                 if (ET[e] == 11 || (ET[e] == 12 && EVAR[e] < 20) || (ET[e] == M_BONEKING && EHP[e] < 150) || EOWN[e] == 1 || EOWN[e] == 2) { if (ET[e] == 11) { wanderTeleport(e); } AON[a] = 0; }
-                else { pKill = 1; if (EOWN[e] == 0) { petTgt = e; } mobHurt(e, dm, AVX[a], AVZ[a]); pKill = 0; }
+                else { if (isProxy(e) == 1) { netHit(e, dm); } else { pKill = 1; if (EOWN[e] == 0) { petTgt = e; } mobHurt(e, dm, AVX[a], AVZ[a]); pKill = 0; } }
                 hitKb = 0; hitFire = 0;
                 if (AEN[a] < 0) { tridentDrop(a); } AON[a] = 0;
               }
@@ -524,7 +526,7 @@ function arrowsStep(dt) {
         // (v2.4.4) an arrow on a wooden or weighted plate keeps it down
         plateHit(Math.floor(AXX[a]), Math.floor(AYY[a]), Math.floor(AZZ[a]), 1);
         // a stuck arrow can be picked up
-        if (Math.abs(AXX[a] - px) < 1 && Math.abs(AZZ[a] - pz) < 1 && Math.abs(AYY[a] - py - 0.5) < 1.5) { if (AON[a] <= 2) { if (mod(gameMode, 2) == 0) { if ((rand(1, 2) == 1 || AON[a] == 2) && mod(AEN[a], 10) == 0 && AEN[a] >= 0 && AEN[a] < 100000) { addItem(115, 1, 0); } } } AON[a] = 0; }
+        if (Math.abs(AXX[a] - px) < 1 && Math.abs(AZZ[a] - pz) < 1 && Math.abs(AYY[a] - py - 0.5) < 1.5) { if (AON[a] <= 2 && APW[a] >= 0) { if (mod(gameMode, 2) == 0) { if ((rand(1, 2) == 1 || AON[a] == 2) && mod(AEN[a], 10) == 0 && AEN[a] >= 0 && AEN[a] < 100000) { addItem(115, 1, 0); } } } AON[a] = 0; }
       }
       } } } }
       if (AAGE[a] > 20) { AON[a] = 0; }
@@ -543,11 +545,16 @@ function dropItem(id, n, du, x, y, z, thrown) {
   IVX[s] = rand(-10, 10) / 10; IVZ[s] = rand(-10, 10) / 10; IVY[s] = 3;
   if (thrown == 1) { IVX[s] = rand(-30, 30) / 10; IVZ[s] = rand(-30, 30) / 10; IVY[s] = 4; }
   if (thrown == 2) { IVX[s] = lookX * 6; IVY[s] = lookY * 6 + 2; IVZ[s] = lookZ * 6; IAGE[s] = 0 - 1.5; }
+  // ((v3.1) mine, with a number for my line: the others on a server see it (netmob.js))
+  netItemNew(s); lastItem = s;
 }
+let lastItem = 0;
 function itemsStep(dt) {
   let i = 1;
   while (i <= NITM) {
-    if (IID[i] > 0) {
+    // ((v3.1) another player's thing: no weight here, it goes where its owner says)
+    if (IID[i] > 0 && IRK[i] > 0) { netItemStep(i, dt); }
+    if (IID[i] > 0 && IRK[i] == 0) {
       IAGE[i] = IAGE[i] + dt;
       IVY[i] = IVY[i] - 20 * dt;
       bmX = IXX[i]; bmY = IYY[i]; bmZ = IZZ[i]; bmW = 0.12; bmH = 0.25;

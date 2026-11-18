@@ -151,7 +151,9 @@ export function compileProgram(sources, { consts: extConsts = {}, funcWeights = 
     function declareLocal(scope, name, node) {
         if (scope.fn) {
             if (scope.fn.params.includes(name) && !(scope.shadow && scope.shadow.has(name))) err(node, 'local shadows param ' + name);
-            if (!scope.fn.locals.has(name)) scope.fn.locals.set(name, `${scope.fn.id}_${newId(4)}`);
+            // (vox v3.1) the function's id and the local's number in it (Entry finds the function by the part
+            // before the _; four random letters each made the work 0.1 MB larger)
+            if (!scope.fn.locals.has(name)) scope.fn.locals.set(name, `${scope.fn.id}_${scope.fn.locals.size.toString(36)}`);
         } else {
             if (!scope.hlocals.has(name)) {
                 const gname = `${scope.handlerKey}$${name}`;

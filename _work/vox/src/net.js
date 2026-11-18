@@ -36,6 +36,17 @@ let NHELD = [], NFLG = [], NHP = [], NMODE = [], NNICK = [], NENT = [], NWALL = 
 let NCHG = [];
 // my last events (EVI ids, EVT lines)
 let EVI = [], EVT = [], evN = 0;
+// ((v3.1) EVC when each was made: the line carried the last 12 whatever their age, so a thirteenth in one
+// frame (/give @a to 13, a burst of chest slots) pushed the first out before it was ever sent. Now an
+// event stays 2 s at least, 48 at most, and never fewer than the last 12)
+let EVC = [];
+function evTrim() {
+  let go = 1;
+  while (go == 1) {
+    go = 0;
+    if (EVI.length > 12) { if (EVI.length > 48 || netClock - EVC[1] > 2) { EVI.removeAt(1); EVT.removeAt(1); EVC.removeAt(1); go = 1; } }
+  }
+}
 let SPL = [], SPL2 = [];
 // (texts built from nothing: globals, as a function's local holding '' reads 0 in Entry)
 let gS = '', gS2 = '', ansS = '';
@@ -119,6 +130,7 @@ function slotLine() {
   return gS;
 }
 function netWrite() {
+  evTrim();
   netSeq = mod(netSeq + 1, 100000);
   let s = slotLine();
   netLastWrite = s;
@@ -128,8 +140,8 @@ function netWrite() {
 // an event of mine (type: b block, c chat, w whisper, r run, t title, k kick, h hit, x chest, s sign, q wish, u my things)
 function evAdd(t, f) {
   evN = mod(evN + 1, 100000);
-  EVI.push(evN); EVT.push(`${t}:${f}`);
-  while (EVI.length > 12) { EVI.removeAt(1); EVT.removeAt(1); }
+  EVI.push(evN); EVT.push(`${t}:${f}`); EVC.push(netClock);
+  evTrim();
   netWriteT = 99;
   if (netSrv > 0) { rgAdd(netMy, t, f); }
 }
@@ -194,12 +206,15 @@ function slotEvents(k, evs, first) {
   SPL2 = [];
   let i = 1;
   while (i <= SPL.length) { SPL2.push(SPL[i]); i = i + 1; }
-  let last = NLE[k], top = last;
+  let last = NLE[k], top = last, seenAny = 0;
   i = 1;
   while (i <= SPL2.length) {
     let e = SPL2[i], c1 = indexOf(e, ':');
     if (c1 > 1) {
       let id = substr(e, 1, c1 - 1) * 1, rest = substr(e, c1 + 1, strlen(e));
+      // ((v3.1) the oldest one in the line is not the one after the last I heard: some were missed (this
+      // screen stood still too long) - the end of the server's record is put here again in a moment)
+      if (seenAny == 0) { seenAny = 1; if (last >= 0) { if (NSRVk[k] == netSrv && netSrv > 0 && netSt == 2) { let gap = mod(id - last, 100000); if (gap > 1 && gap < 50000) { netTailAsk(200, 1.5); } } } }
       let t = charAt(rest, 1), f = ' ';
       if (strlen(rest) > 2) { f = substr(rest, 3, strlen(rest)); }
       let isNew = 0;
@@ -233,9 +248,12 @@ function sidKeep(s, v) {
 // (metaLen metaItem metaPut editLen editItem editsPut: written by build.mjs, one branch per place)
 // a server's header read into SH*: does it exist
 let shName = '', shOwner = '', shMotd = '', shSeed = 0, shMode = 0, shPvp = 1, shMax = 16, shWl = 0, shRev = 0, shFlat = '-', shId = '', shDay = 0, shLava = 1, shTnt = 1, shWe = 1;
+// ((v3.1) the 17th: who wrote the settings and their how-manieth write (sid 's' count). Two writers (a host
+// back from a still tab, the owner's edit in the menu) could write the same revision and nobody read again)
+let shStamp = '-', metaStamp = '-', metaWrites = 0;
 function srvHas(k) {
   let h = metaItem(k, 1), r = 0;
-  shName = ''; shOwner = ''; shMotd = ''; shSeed = 0; shMode = 0; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shFlat = '-'; shId = ''; shDay = 0; shLava = 1; shTnt = 1; shWe = 1;
+  shName = ''; shOwner = ''; shMotd = ''; shSeed = 0; shMode = 0; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shFlat = '-'; shId = ''; shDay = 0; shLava = 1; shTnt = 1; shWe = 1; shStamp = '-';
   if (strlen(h) > 3) { if (charAt(h, 1) == 'H') {
     splitBy(h, '^');
     if (SPL.length >= 10) {
@@ -248,6 +266,7 @@ function srvHas(k) {
       if (SPL.length >= 15) { shLava = SPL[14] * 1; shTnt = SPL[15] * 1; }
       // ((v2.8) may the admins use world edit here)
       if (SPL.length >= 16) { shWe = SPL[16] * 1; }
+      if (SPL.length >= 17) { shStamp = SPL[17]; }
       r = 1;
     }
   } }
@@ -280,7 +299,7 @@ let MLN = [], MLC = [], MLD = [], MLP = [];
 let NMW = [], NEW = [], metaRev = 0 - 1, metaDirty = 0, metaT = 0, editDirty = 0, editT = 0, plugT = 0;
 function metaRead(k) {
   srvHead(k);
-  metaRev = shRev;
+  metaRev = shRev; metaStamp = shStamp;
   MOP = []; MBAN = []; MBANR = []; MWL = []; PLN = []; PLO = []; PLE = []; PLC = []; PLT = []; PLX = []; MUN = []; MUD = []; MCK = []; MCD = []; MSK = []; MST = [];
   MPC = []; MPL = []; MGN = []; MGC = []; MLN = []; MLC = []; MLD = []; MLP = [];
   let i = 2, n = metaLen(k);
@@ -302,10 +321,11 @@ function metaRead(k) {
     i = i + 1;
   }
 }
-function headLine() { return `H^${shName}^${shOwner}^${shMotd}^${shSeed}^${shMode}^${shPvp}^${shMax}^${shWl}^${shRev}^${shFlat}^${shId}^${shDay}^${shLava}^${shTnt}^${shWe}`; }
+function headLine() { return `H^${shName}^${shOwner}^${shMotd}^${shSeed}^${shMode}^${shPvp}^${shMax}^${shWl}^${shRev}^${shFlat}^${shId}^${shDay}^${shLava}^${shTnt}^${shWe}^${shStamp}`; }
 // the host writes them back (after a change)
 function metaWrite(k) {
   shRev = shRev + 1; metaRev = shRev;
+  metaWrites = metaWrites + 1; if (netSid == 0) { netSid = rand(100000, 999999); } shStamp = `${netSid}s${metaWrites}`; metaStamp = shStamp;
   NMW = [];
   NMW.push(headLine());
   let i = 1;
@@ -493,7 +513,7 @@ function netJoin(k) {
   netSrv = k; netSt = 1; netHost = 0;
   svAck(); RGT = []; RGK = []; RGE = []; RGF = [];
   metaRead(k); srvHead(k);
-  EVI = []; EVT = []; netUserLast = ''; netUserCore = ''; netUserT = 0; netUserT2 = 0; netFresh = 0;
+  EVI = []; EVT = []; EVC = []; netTailT = 0; netUserLast = ''; netUserCore = ''; netUserT = 0; netUserT2 = 0; netFresh = 0;
   // a new world from the server's seed, its changed blocks put in the log (they come back as the chunks are made)
   gameMode = shMode; defMode = shMode;
   thingsInit(); petsClear();
@@ -503,6 +523,9 @@ function netJoin(k) {
   storesInit(); invInit();
   let n = editLen(k), i = 1;
   while (i + 4 <= n) { edPushD(editItem(k, i), editItem(k, i + 1), editItem(k, i + 2), editItem(k, i + 3), editItem(k, i + 4)); i = i + 5; }
+  // ((v3.1) what the host writes in the next seconds (blocks changed just before I came, heard by nobody
+  // here yet) is read too)
+  netTailFrom = n + 1; netTailT = 3; netTailLen = n;
   // chests and signs kept by the server
   i = 1;
   while (i <= MCK.length) { netChestLoad(MCK[i], MCD[i]); i = i + 1; }
@@ -553,6 +576,32 @@ function netDisconnect(why) {
   menuMsg('서버와 연결이 끊겼습니다', why); menuKeep = 1;
 }
 
+// ---------------------------------------------------------------- (v3.1) the server's record caught up with
+// netTailAsk(cells, secs): in `secs` s the last `cells` changes of the record are put here again (only
+// cells that differ change); after joining, what was added since it was read. Not for the host (its own
+// record), not when the record was made short meanwhile (its places moved).
+let netTailT = 0, netTailFrom = 0, netTailLen = 0;
+function netTailAsk(cells, secs) {
+  if (netHost == 0) { if (netTailT <= 0) {
+    let n = editLen(netSrv);
+    netTailFrom = Math.max(0, idiv(n, 5) - cells) * 5 + 1; netTailLen = 0; netTailT = secs;
+  } }
+}
+function netTailStep(dt) {
+  if (netTailT > 0) {
+    netTailT = netTailT - dt;
+    if (netTailT <= 0) {
+      netTailT = 0;
+      let n = editLen(netSrv), i = netTailFrom;
+      if (netHost == 0 && n >= netTailLen) {
+        netApplying = 1;
+        while (i + 4 <= n) { netEditApply(editItem(netSrv, i) * 1, editItem(netSrv, i + 1) * 1, editItem(netSrv, i + 2) * 1, editItem(netSrv, i + 3) * 1, editItem(netSrv, i + 4) * 1); i = i + 5; }
+        netApplying = 0;
+      }
+    }
+  }
+}
+
 // ---------------------------------------------------------------- my things (by nickname): packed for the host to keep
 // (v3.0, 11-18) kept: by the host itself (in the record, written within a second), by the others as a 'u'
 // event the host keeps; only when they changed, unless `must`
@@ -573,7 +622,7 @@ function netUserSave(must) {
 // a 'u' event: only the last one counts, so an older one still in my line goes (the line stays short)
 function evUser(f) {
   let i = 1;
-  while (i <= EVT.length) { if (charAt(EVT[i], 1) == 'u') { EVI.removeAt(i); EVT.removeAt(i); } else { i = i + 1; } }
+  while (i <= EVT.length) { if (charAt(EVT[i], 1) == 'u') { EVI.removeAt(i); EVT.removeAt(i); EVC.removeAt(i); } else { i = i + 1; } }
   evAdd('u', f);
 }
 function netUserPack() {
@@ -633,7 +682,8 @@ function netInServer(dt) {
   // the settings changed (the host wrote them): read again; banned now: out
   if (srvHas(netSrv) == 0) { if (netSt == 2) { netDisconnect('서버가 삭제되었습니다'); } }
   else {
-    if (shRev != metaRev) { metaRead(netSrv); srvHead(netSrv); if (isBanned(netNick) > 0) { netDisconnect(`이 서버에서 차단되었습니다: ${MBANR[isBanned(netNick)]}`); } }
+    // ((v3.1) or its stamp: written by another; a host that reads again keeps its own things for the next write)
+    if (shRev != metaRev || shStamp != metaStamp) { metaRead(netSrv); srvHead(netSrv); if (netHost == 1) { netUserLast = ''; } if (isBanned(netNick) > 0) { netDisconnect(`이 서버에서 차단되었습니다: ${MBANR[isBanned(netNick)]}`); } }
   }
   if (netSt == 2) {
     // my things every 10 s when they changed ((v3.0, 11-18) was every 30 s, and the host's never: its own
@@ -651,6 +701,7 @@ function netInServer(dt) {
     netChestWatch();
     if (netHost == 1) { hostStep(dt); }
   }
+  netTailStep(dt);
   // ((v2.7.2) banned from every server while on one: out, within a second)
   gbT = gbT + dt;
   if (gbT >= 1) { gbT = 0; let g = gbanOf(netNick); if (g > 0) { if (netSt >= 1) { netDisconnect(`모든 서버에서 차단되었습니다: ${gbanWhy(g)}`); } } }
@@ -690,6 +741,10 @@ function netEvent(k, t, f) {
   if (t == 'D') { nmLoot(f); }
   if (t == 'M') { nmTake(k, f); }
   if (t == 'm') { nmAsked(k, f); }
+  // ((v3.1) things on the ground asked for and given, an arrow flown off)
+  if (t == 'P') { nmItemAsked(k, f); }
+  if (t == 'T') { nmItemGot(f); }
+  if (t == 'S') { nmArrow(f); }
   if (t == 's') { splitBy(f, '^'); if (SPL.length >= 5) { netSignSet(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, netDec(SPL[5])); } }
   netApplying = 0;
 }

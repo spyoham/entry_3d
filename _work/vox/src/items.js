@@ -251,7 +251,7 @@ function hopperWork(c, x, y, z, hf) {
     else {
       let i = 1;
       while (i <= NITM) {
-        if (IID[i] > 0) { if (Math.floor(IXX[i]) == x && Math.floor(IZZ[i]) == z && IYY[i] >= y && IYY[i] < y + 1.6) {
+        if (IID[i] > 0 && IRK[i] == 0) { if (Math.floor(IXX[i]) == x && Math.floor(IZZ[i]) == z && IYY[i] >= y && IYY[i] < y + 1.6) {
           let n = INN[i];
           while (n > 0) { if (chestTake(c, IID[i], 1, IDU[i]) == 1) { n = n - 1; } else { INN[i] = n; n = 0 - 1; } }
           if (n == 0) { IID[i] = 0; }

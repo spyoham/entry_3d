@@ -418,18 +418,22 @@ function drawNear(t, kb, fog, d2) {
   if (d2 > texD2) { if (re > r + TRF[t]) { re = r + TRF[t]; } }
   let u0 = 0, v0 = 0, u1 = 0, v1 = 0, px = 0, py = 0, pz = 0, nk = 0 - kb - fog - 1;
   let nfx = 0 - fx, nfy = 0 - fy, nfz = 0 - fz;
+  let ax0 = 0, ay0 = 0, az0 = 0, ax1 = 0, ay1 = 0, az1 = 0, bx0 = 0, by0 = 0, bz0 = 0, bx1 = 0, by1 = 0, bz1 = 0;
   while (r < re) {
     u0 = RU0[r]; v0 = RV0[r]; u1 = RU1[r]; v1 = RV1[r];
     fillStop();
-    px = ox + ex * u0 - nfx * v0; py = oy + ey * u0 - nfy * v0; pz = oz + ez * u0 - nfz * v0;
-    goto(px * foc / pz, py * foc / pz);
+    // ((v3.1) the two u and the two v parts of the corners once each: 12 products a rect, not 24)
+    ax0 = ox + ex * u0; ay0 = oy + ey * u0; az0 = oz + ez * u0; ax1 = ox + ex * u1; ay1 = oy + ey * u1; az1 = oz + ez * u1;
+    bx0 = nfx * v0; by0 = nfy * v0; bz0 = nfz * v0; bx1 = nfx * v1; by1 = nfy * v1; bz1 = nfz * v1;
+    pz = az0 - bz0;
+    goto((ax0 - bx0) * foc / pz, (ay0 - by0) * foc / pz);
     fillColorHex(CT[RCOL[r] - nk]); fillStart();
-    px = ox + ex * u1 - nfx * v0; py = oy + ey * u1 - nfy * v0; pz = oz + ez * u1 - nfz * v0;
-    goto(px * foc / pz, py * foc / pz);
-    px = ox + ex * u1 - nfx * v1; py = oy + ey * u1 - nfy * v1; pz = oz + ez * u1 - nfz * v1;
-    goto(px * foc / pz, py * foc / pz);
-    px = ox + ex * u0 - nfx * v1; py = oy + ey * u0 - nfy * v1; pz = oz + ez * u0 - nfz * v1;
-    goto(px * foc / pz, py * foc / pz);
+    pz = az1 - bz0;
+    goto((ax1 - bx0) * foc / pz, (ay1 - by0) * foc / pz);
+    pz = az1 - bz1;
+    goto((ax1 - bx1) * foc / pz, (ay1 - by1) * foc / pz);
+    pz = az0 - bz1;
+    goto((ax0 - bx1) * foc / pz, (ay0 - by1) * foc / pz);
     nFill = nFill + 1;
     r = r + 1;
   }
@@ -577,38 +581,53 @@ function drawStars() {
 let starHex = '#ffffff';
 // clouds: a flat layer of 8-block cells above the world, drifting along x
 function drawClouds() {
+  // ((v3.1) whole numbers (1/32 of a block from the eye), the corners worked out here (it was four calls
+  // of cloudPt a cloud, each writing three globals, on numbers with fractions: a tenth of a standing tick,
+  // a fifth of a flying one), a row's products once a row, and nothing for a cloud behind the eye or off
+  // the screen)
   if (camY < CLOUDY - 1) {
-    let cy = CLOUDY - camY;
     let r = viewR + 40, cs = 8;
     let x0 = Math.floor((camX - r - cloudOff) / cs), x1 = Math.floor((camX + r - cloudOff) / cs);
     let z0 = Math.floor((camZ - r) / cs), z1 = Math.floor((camZ + r) / cs);
-    let gx = x0, gz = 0, wx = 0, wz = 0, dd = 0, fog = 0, foc = FOC;
-    let p0 = 0, ok = 0, cOne = 0;
+    let gx = x0, gz = 0, wx = 0, wz = 0, wz2 = 0, wzm = 0, dd = 0, fog = 0, foc = FOC, cOne = 0, run = 0, cb = 0;
+    let cyS = Math.round((CLOUDY - camY) * 32), r2 = r * r * 1024, near = 262144, zOff = Math.round((4 - camZ) * 32), xOff = (cloudOff + 4 - camX) * 32;
+    let m11 = r11, m13 = r13, m21 = r21, m23 = r23, m31 = r31, m33 = r33, d3 = r32 * cyS, d2 = r22 * cyS;
+    let xa = 0, xb = 0, za = 0, zb = 0, a3 = 0, b3 = 0, a1 = 0, b1 = 0, a2 = 0, b2 = 0, c3 = 0, e3 = 0;
+    let v1 = 0, v2 = 0, v3 = 0, v4 = 0, ax = 0, ay = 0, bx = 0, by = 0, ccx = 0, ccy = 0, ex = 0, ey = 0, on = 0;
     while (gx <= x1) {
-      gz = z0;
+      gz = z0; cb = mod(gx, 32) * 32 + 1;
+      wx = Math.round(gx * 256 + xOff); xa = wx - 128; xb = wx + 128;
+      a3 = m31 * xa + d3; b3 = m31 * xb + d3; a1 = m11 * xa; b1 = m11 * xb; a2 = m21 * xa + d2; b2 = m21 * xb + d2;
       while (gz <= z1) {
-        if (CLOUD[mod(gx, 32) * 32 + mod(gz, 32) + 1] == 1) {
+        if (CLOUD[cb + mod(gz, 32)] == 1) {
           // ((v2.6.1) up to four clouds in a row along z as one quad (one fill, four corners: a cloud
           // cell each was 160 fills); its fog by its middle)
-          let run = 1, cb = mod(gx, 32) * 32 + 1;
+          run = 1;
           if (cOne == 0) { while (run < 4 && gz + run <= z1 && CLOUD[cb + mod(gz + run, 32)] == 1) { run = run + 1; } }
           cOne = 0;
-          wx = gx * cs + cloudOff + cs / 2 - camX; wz = gz * cs + cs / 2 - camZ;
-          let wz2 = wz + (run - 1) * cs, wzm = (wz + wz2) / 2;
+          wz = gz * 256 + zOff; wz2 = wz + (run - 1) * 256; wzm = (wz + wz2) / 2;
           dd = wx * wx + wzm * wzm;
-          if (dd < r * r) {
-            fog = Math.min(7, Math.floor(Math.sqrt(dd) / r * 9));
-            ok = 1;
-            cloudPt(wx - 4, cy, wz - 4); let ax = dsx, ay = dsy; if (dirOn == 0) { ok = 0; }
-            cloudPt(wx + 4, cy, wz - 4); let bx = dsx, by = dsy; if (dirOn == 0) { ok = 0; }
-            cloudPt(wx + 4, cy, wz2 + 4); let ccx = dsx, ccy = dsy; if (dirOn == 0) { ok = 0; }
-            cloudPt(wx - 4, cy, wz2 + 4); let ex = dsx, ey = dsy; if (dirOn == 0) { ok = 0; }
-            if (ok == 1) {
-              fillStop(); goto(ax, ay); fillColorHex(CT[CCLOUD + 22 * 8 + fog + 1]); fillStart(); goto(bx, by); goto(ccx, ccy); goto(ex, ey);
-              nFill = nFill + 1;
+          if (dd < r2) {
+            za = wz - 128; zb = wz2 + 128; c3 = m33 * za; e3 = m33 * zb;
+            v1 = a3 + c3; v2 = b3 + c3; v3 = b3 + e3; v4 = a3 + e3;
+            if (v1 > near && v2 > near && v3 > near && v4 > near) {
+              ax = (a1 + m13 * za) * foc / v1; bx = (b1 + m13 * za) * foc / v2; ccx = (b1 + m13 * zb) * foc / v3; ex = (a1 + m13 * zb) * foc / v4;
+              on = 1;
+              if (ax > 250 && bx > 250 && ccx > 250 && ex > 250) { on = 0; }
+              if (ax < -250 && bx < -250 && ccx < -250 && ex < -250) { on = 0; }
+              if (on == 1) {
+                ay = (a2 + m23 * za) * foc / v1; by = (b2 + m23 * za) * foc / v2; ccy = (b2 + m23 * zb) * foc / v3; ey = (a2 + m23 * zb) * foc / v4;
+                if (ay > 145 && by > 145 && ccy > 145 && ey > 145) { on = 0; }
+                if (ay < -145 && by < -145 && ccy < -145 && ey < -145) { on = 0; }
+                if (on == 1) {
+                  fog = Math.min(7, Math.floor(Math.sqrt(dd) / 32 / r * 9));
+                  fillStop(); goto(ax, ay); fillColorHex(CT[CCLOUD + 22 * 8 + fog + 1]); fillStart(); goto(bx, by); goto(ccx, ccy); goto(ex, ey);
+                  nFill = nFill + 1;
+                }
+              }
             } else {
-              // (a long one reaching behind the eye: its first cell alone, then on)
-              if (run > 1) { run = 0; cOne = 1; }
+              // (a long one reaching behind the eye: its first cell alone, then on; all of it behind: none)
+              if (run > 1) { if (v1 > near || v2 > near || v3 > near || v4 > near) { run = 0; cOne = 1; } }
             }
           } else { if (run > 1) { run = 0; cOne = 1; } }
           gz = gz + run;
@@ -617,11 +636,6 @@ function drawClouds() {
       gx = gx + 1;
     }
   }
-}
-function cloudPt(dx, dy, dz) {
-  let vz = r31 * dx + r32 * dy + r33 * dz;
-  dirOn = 0;
-  if (vz > 16384 * 0.5) { dsx = (r11 * dx + r13 * dz) * FOC / vz; dsy = (r21 * dx + r22 * dy + r23 * dz) * FOC / vz; dirOn = 1; }
 }
 
 // ---------------------------------------------------------------- the picked block

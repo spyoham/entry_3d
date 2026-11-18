@@ -17,6 +17,8 @@ function slimWalk(b) {
         for (const k in DEFAULTS) if (k in b && b[k] === DEFAULTS[k]) { delete b[k]; removed++; }
         if (Array.isArray(b.extensions) && !b.extensions.length) { delete b.extensions; removed++; }
         if (Array.isArray(b.statements) && !b.statements.length) { delete b.statements; removed++; }
+        // (v3.1) the nulls at the end of the params: a missing one is filled from the block's schema as a null one is
+        if (Array.isArray(b.params)) { while (b.params.length && b.params[b.params.length - 1] === null) { b.params.pop(); removed++; } }
     }
     if (b.params) for (const p of b.params) slimWalk(p);
     if (b.statements) for (const s of b.statements) slimWalk(s);

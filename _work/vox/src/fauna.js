@@ -298,7 +298,7 @@ function shotEffect(a) {
     let ef = mod(idiv(k, 1000), 100), sec = mod(k, 1000);
     if (ef == 99) { hurtM(6, '마법에 당했습니다'); } else { if (ef > 0 && EFT[ef] < sec) { effectAdd(ef, sec, 1); } }
   }
-  if (k == 0 - 3 || k == 17010) { explodeShared(AXX[a], AYY[a], AZZ[a], 1101); }
+  if (k == 0 - 3 || k == 17010) { if (APW[a] >= 0) { explodeShared(AXX[a], AYY[a], AZZ[a], 1101); } }
 }
 // a thrown potion breaking near the player splashes; a blast where a fireball stops
 function shotStop(a) {

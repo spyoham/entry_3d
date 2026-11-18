@@ -29,6 +29,9 @@ function slimWalk(b) {
         for (const k in DEFAULTS) if (b[k] === DEFAULTS[k]) delete b[k];
         if (Array.isArray(b.extensions) && !b.extensions.length) delete b.extensions;
         if (Array.isArray(b.statements) && !b.statements.length) delete b.statements;
+        // (v3.1) the nulls at the end of the params (a text or an indicator's place): a missing one is filled
+        // from the block's schema as a null one is (entryjs block.js _updateSchema; tessvm reads by index)
+        if (Array.isArray(b.params)) { while (b.params.length && b.params[b.params.length - 1] === null) b.params.pop(); }
     }
     if (b.params) for (const p of b.params) slimWalk(p);
     if (b.statements) for (const s of b.statements) slimWalk(s);
