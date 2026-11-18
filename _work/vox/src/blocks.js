@@ -46,6 +46,8 @@ function useKey0() {
       used = 1;
       if (mobPick > 0) { specMob = mobPick; msgShow(`${MNAME[ET[mobPick]]}의 눈으로 봅니다 (Shift: 그만)`, 3); }
     }
+    // ((v3.0, 11-18) another player's mob: asked of them first (netmob.js), then it is mine to use)
+    if (used == 0) { if (mobPick > 0) { if (ERK[mobPick] > 0) { netMobAsk(mobPick); used = 1; placeCool = 0.3; } } }
     if (used == 0) { if (mobPick > 0) {
       let et = ET[mobPick];
       // ((v3.0) feeding, taming, saddling, sitting, shearing a mushroom cow, curing, getting on a horse)
@@ -458,6 +460,16 @@ function tntStep(dt) {
     i = i + 1;
   }
 }
+function exSay() {
+  let q = 1, x0 = XBX[1], x1 = XBX[1], y0 = XBY[1], y1 = XBY[1], z0 = XBZ[1], z1 = XBZ[1];
+  while (q <= XBX.length) { x0 = Math.min(x0, XBX[q]); x1 = Math.max(x1, XBX[q]); y0 = Math.min(y0, XBY[q]); y1 = Math.max(y1, XBY[q]); z0 = Math.min(z0, XBZ[q]); z1 = Math.max(z1, XBZ[q]); q = q + 1; }
+  weX0 = x0; weY0 = y0; weZ0 = z0; weX1 = x1; weY1 = y1; weZ1 = z1;
+  weFill(0 - 1);
+  q = 1;
+  while (q <= XBX.length) { if (cOK(XBX[q], XBZ[q]) == 1) { if (blockAt(XBX[q], XBY[q], XBZ[q]) == 0) { WEN[weIx(XBX[q], XBY[q], XBZ[q])] = 0; } } q = q + 1; }
+  let r = weRunsOf(0);
+  if (strlen(r) <= 4000) { evAdd('R', `${dim}^${x0}^${y0}^${z0}^${x1}^${y1}^${z1}^${r}`); }
+}
 // (v2.4.4) a blast a player or a mob of mine made: here, and the same blast on the other screens
 function explodeShared(cx, cy, cz, r) {
   netSay('e', `${cx}^${cy}^${cz}^${r}^${dim}`);
@@ -536,6 +548,9 @@ function explode(cx, cy, cz, r, breakIt) {
       q = q + 1;
     }
     logOn = 0;
+    // ((v3.0, 11-18) the one who set it off (not the host): the crater to the host, kept where the host has
+    // not made the chunks)
+    if (netSrv > 0 && netSt == 2 && netHost == 0 && exDrops == 1 && XBX.length > 0) { exSay(); }
     // ((v2.7) the world round the hole answers: water and lava run in, what stood on a broken block
     // comes off, sand falls, leaves of a broken tree fall away; fire on a third of the floor)
     q = 1;

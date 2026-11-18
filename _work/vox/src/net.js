@@ -32,6 +32,8 @@ let netQuiet = 0;
 // what each slot said (NSS) and when it last changed (NST), read into fields
 let NSS = [], NST = [], NSID = [], NLE = [], NLIVE = [], NSRVk = [], NSTT = [], NDIM = [], NPX = [], NPY = [], NPZ = [], NYAW = [], NPIT = [];
 let NHELD = [], NFLG = [], NHP = [], NMODE = [], NNICK = [], NENT = [], NWALL = [], NSEEN = [], NTD = [];
+// ((v3.0, 11-18) how many times a slot changed after it was first seen: one that never did may be a ghost)
+let NCHG = [];
 // my last events (EVI ids, EVT lines)
 let EVI = [], EVT = [], evN = 0;
 let SPL = [], SPL2 = [];
@@ -43,7 +45,7 @@ function netInit() {
     let k = 0;
     while (k < NSLOT) {
       NSS.push(''); NST.push(0 - 999); NSID.push(0); NLE.push(0); NLIVE.push(0); NSRVk.push(0); NSTT.push(0); NDIM.push(0); NPX.push(0); NPY.push(0); NPZ.push(0); NYAW.push(0); NPIT.push(0);
-      NHELD.push(0); NFLG.push(0); NHP.push(20); NMODE.push(0); NNICK.push(''); NENT.push(0); NWALL.push(0); NSEEN.push(0); NTD.push(0);
+      NHELD.push(0); NFLG.push(0); NHP.push(20); NMODE.push(0); NNICK.push(''); NENT.push(0); NWALL.push(0); NSEEN.push(0); NTD.push(0); NCHG.push(0);
       k = k + 1;
     }
   }
@@ -166,9 +168,12 @@ function slotRead(k) {
         let sid = substr(s, 2, 7) * 1;
         let wall = substr(s, 13, 17) * 1;
         NST[k] = netClock; NWALL[k] = wall;
-        // a value left over from long ago (Entry Sync keeps the last one): not anybody here
-        if (first == 1) { if (wallDiff(wall, wallNow()) > 20) { NST[k] = 0 - 999; } }
-        if (sid != NSID[k]) { NSID[k] = sid; NLE[k] = 0 - 1; }
+        // a value left over (Entry Sync keeps the last one): on first sight it is as old as its clock
+        // says ((v3.0, 11-18) it counted as new for NSTALE s, so a tab closed and opened again within 20 s
+        // saw its own ghost: '같은 닉네임이 이미 접속해 있습니다', and the ghost was host for 8 s)
+        if (first == 1) { NST[k] = netClock - wallDiff(wall, wallNow()); NCHG[k] = 0; } else { NCHG[k] = Math.min(9, NCHG[k] + 1); }
+        // ((v3.0, 11-18) a session seen before (in this slot or another) goes on from its last event heard)
+        if (sid != NSID[k]) { NSID[k] = sid; NLE[k] = sidLast(sid); }
         let oldSrv = NSRVk[k];
         NSTT[k] = substr(s, 18, 18) * 1; NSRVk[k] = substr(s, 19, 20) * 1; NDIM[k] = substr(s, 21, 21) * 1;
         if (k != netMy) { if (netSrv > 0) { if (oldSrv == netSrv) { if (NSRVk[k] != netSrv) { if (NLIVE[k] == 1) { chatAdd(`${NNICK[k]} 님이 나갔습니다`); if (netHost == 1) { plugRun('quit', ' ', NNICK[k]); } } } } } }
@@ -202,7 +207,8 @@ function slotEvents(k, evs, first) {
       if (isNew == 1) {
         let lasting = 0;
         if (t == 'b' || t == 'x' || t == 's') { lasting = 1; }
-        if (first == 0 || last >= 0 || lasting == 1) { if (NSRVk[k] == netSrv) { if (netSrv > 0) { netEvent(k, t, f); } } }
+        // ((v3.0, 11-18) mobs given by one leaving: their line already says they left)
+        if (first == 0 || last >= 0 || lasting == 1) { if (NSRVk[k] == netSrv || t == 'M') { if (netSrv > 0) { netEvent(k, t, f); } } }
         if (netHost == 1) { if (netSrv > 0) { if (NSRVk[k] == netSrv || t == 'u') { hostEvent(k, t, f); } } }
         if (netSrv > 0) { if (NSRVk[k] == netSrv) { rgAdd(k, t, f); } }
         top = id;
@@ -210,7 +216,15 @@ function slotEvents(k, evs, first) {
     }
     i = i + 1;
   }
-  NLE[k] = top;
+  NLE[k] = top; sidKeep(NSID[k], top);
+}
+// ((v3.0, 11-18) the last event heard of each session (64 kept))
+let SIDK = [], SIDV = [];
+function sidLast(s) { let r = 0 - 1, i = 1; while (i <= SIDK.length) { if (SIDK[i] == s) { r = SIDV[i]; } i = i + 1; } return r; }
+function sidKeep(s, v) {
+  let i = 1, f = 0;
+  while (i <= SIDK.length) { if (SIDK[i] == s) { f = i; } i = i + 1; }
+  if (f > 0) { SIDV[f] = v; } else { SIDK.push(s); SIDV.push(v); while (SIDK.length > 64) { SIDK.removeAt(1); SIDV.removeAt(1); } }
 }
 
 // ---------------------------------------------------------------- the servers (SY_m1..99, SY_e1..99)
@@ -250,7 +264,8 @@ function srvCount(k) {
 // the host of server k: its player in the lowest slot (0: nobody)
 function srvHost(k) {
   let j = 1, r = 0;
-  while (j <= NSLOT) { if (r == 0) { if (NLIVE[j] == 1) { if (NSRVk[j] == k) { if (NSTT[j] >= 2) { r = j; } } } } j = j + 1; }
+  // ((v3.0, 11-18) a line with my nickname that is not mine is what my closed tab left: never the host)
+  while (j <= NSLOT) { if (r == 0) { if (NLIVE[j] == 1) { if (NSRVk[j] == k) { if (NSTT[j] >= 2) { if (j == netMy || NNICK[j] != netNick || netSrv != k) { r = j; } } } } } j = j + 1; }
   return r;
 }
 
@@ -378,11 +393,24 @@ function srvEdit(k, name, motd) {
   if (srvHas(k) == 1) { if (shOwner == netNick || netNick == SUPER) {
     metaRead(k); srvHead(k);
     shName = netClean(name); shMotd = netClean(motd); shLava = esLava; shTnt = esTnt; shWe = esWe;
+    // ((v3.0, 11-18) past the host's next ones: with the same revision nobody read it again)
+    shRev = shRev + 10;
     metaWrite(k);
   } }
 }
+// ((v3.0, 11-18) another server's place emptied (deleted, too old, a copy twice) without touching NEW, the
+// record of the server I host: it was emptied with it and written over mine at the next write)
+let NEWK = [];
+function srvWipe(k) {
+  NEWK = []; let i = 1;
+  while (i <= NEW.length) { NEWK.push(NEW[i]); i = i + 1; }
+  NMW = []; metaPut(k); NEW = []; editsPut(k);
+  NEW = []; i = 1;
+  while (i <= NEWK.length) { NEW.push(NEWK[i]); i = i + 1; }
+  NEWK = [];
+}
 function srvDelete(k) {
-  if (srvHas(k) == 1) { if (shOwner == netNick || netNick == SUPER) { if (srvCount(k) == 0) { NMW = []; metaPut(k); NEW = []; editsPut(k); } } }
+  if (srvHas(k) == 1) { if (shOwner == netNick || netNick == SUPER) { if (srvCount(k) == 0) { srvWipe(k); } } }
 }
 
 // ---------------------------------------------------------------- each frame
@@ -392,7 +420,9 @@ function netStep(dt) {
   if (netSrv > 0) { weStep(dt); }
   if (netOn == 1) {
     netInit();
-    if (netMy == 0) { netClaim(); }
+    // ((v3.0, 11-18) only after a second of reading the slots: on the first frame none looked live, and a
+    // newcomer could take a player's slot - everyone then heard that player's last 12 events again)
+    if (netMy == 0) { if (netClock - netStartT > 1) { netClaim(); } }
     let k = 1;
     while (k <= NSLOT) {
       slotRead(k);
@@ -451,7 +481,8 @@ function netJoinCheck(k) {
       if (onWhitelist(netNick) == 0) { joinErr = '화이트리스트에 없습니다'; }
       if (srvCount(k) >= shMax && netNick != SUPER) { joinErr = '서버가 가득 찼습니다'; }
       let j = 1;
-      while (j <= NSLOT) { if (j != netMy) { if (NLIVE[j] == 1) { if (NSRVk[j] == k) { if (NNICK[j] == netNick) { joinErr = '같은 닉네임이 이미 접속해 있습니다'; } } } } j = j + 1; }
+      // ((v3.0, 11-18) only a line that changed since I first saw it: one left by my closed tab does not)
+      while (j <= NSLOT) { if (j != netMy) { if (NLIVE[j] == 1) { if (NSRVk[j] == k) { if (NNICK[j] == netNick) { if (NCHG[j] > 0) { joinErr = '같은 닉네임이 이미 접속해 있습니다'; } } } } } j = j + 1; }
       let g = gbanOf(netNick);
       if (g > 0) { joinErr = `모든 서버에서 차단되었습니다: ${gbanWhy(g)}`; }
     }
@@ -462,7 +493,7 @@ function netJoin(k) {
   netSrv = k; netSt = 1; netHost = 0;
   svAck(); RGT = []; RGK = []; RGE = []; RGF = [];
   metaRead(k); srvHead(k);
-  EVI = []; EVT = [];
+  EVI = []; EVT = []; netUserLast = ''; netUserCore = ''; netUserT = 0; netUserT2 = 0; netFresh = 0;
   // a new world from the server's seed, its changed blocks put in the log (they come back as the chunks are made)
   gameMode = shMode; defMode = shMode;
   thingsInit(); petsClear();
@@ -504,9 +535,12 @@ function netLeave() {
     if (netSt == 2) {
       // (the host keeps its own things and what is not written yet before it goes)
       if (netHost == 1) { hostKeepUser(netNick, netUserPack()); if (editDirty == 1) { editsWrite(); } metaWrite(netSrv); }
-      else { evAdd('u', `${netSrv}^${netUserPack()}`); }
+      else { evUser(`${netSrv}^${netUserPack()}`); }
+      // ((v3.0, 11-18) my mobs to the others near them; the others' go from here)
+      netMobsLeave();
       netWrite();
     }
+    netMobsClear(); NPLN = 0; nmDim = 0 - 1;
     netSrv = 0; netSt = 0; netHost = 0;
     netWrite();
     netRemoveEnts();
@@ -520,6 +554,28 @@ function netDisconnect(why) {
 }
 
 // ---------------------------------------------------------------- my things (by nickname): packed for the host to keep
+// (v3.0, 11-18) kept: by the host itself (in the record, written within a second), by the others as a 'u'
+// event the host keeps; only when they changed, unless `must`
+let netUserLast = '', netUserCore = '', netUserT2 = 0;
+function netUserSave(must) {
+  let d = netUserPack();
+  if (d != netUserLast) {
+    // (the fields after x^y^z)
+    let c = d, q = 0;
+    while (q < 3) { c = substr(c, indexOf(c, '^') + 1, strlen(c)); q = q + 1; }
+    // (the host's own go in the settings list, read again by everyone at each write: every 3 s at most)
+    if (must == 1 || (c != netUserCore && (netHost == 0 || netUserT > 3)) || netUserT > 10) {
+      netUserLast = d; netUserCore = c; netUserT = 0;
+      if (netHost == 1) { hostKeepUser(netNick, d); } else { evUser(`${netSrv}^${d}`); }
+    }
+  }
+}
+// a 'u' event: only the last one counts, so an older one still in my line goes (the line stays short)
+function evUser(f) {
+  let i = 1;
+  while (i <= EVT.length) { if (charAt(EVT[i], 1) == 'u') { EVI.removeAt(i); EVT.removeAt(i); } else { i = i + 1; } }
+  evAdd('u', f);
+}
 function netUserPack() {
   let s = `${Math.round(px * 10) / 10}^${Math.round(py * 10) / 10}^${Math.round(pz * 10) / 10}^${dim}^${Math.round(hp)}^${Math.round(food)}^${xpLevel}^${xpPts}^${gameMode}^${spawnX}^${spawnY}^${spawnZ}^${spawnSet}^`;
   let i = 1, n = 0;
@@ -528,7 +584,8 @@ function netUserPack() {
   // (v2.3.1) the effects: kind.seconds.level
   gS = '-'; i = 1; n = 0;
   while (i <= EFT.length) { if (EFT[i] > 0) { n = n + 1; let e = `${i}.${Math.ceil(EFT[i])}.${EFL[i]}`; if (n == 1) { gS = e; } else { gS = `${gS},${e}`; } } i = i + 1; }
-  return `${s}${gS2}^${gS}`;
+  // ((v3.0, 11-18) and the world one comes back to (an anchor in the deep): it was not kept)
+  return `${s}${gS2}^${gS}^${spawnDim}`;
 }
 function netUserLoad(d) {
   splitBy(d, '^');
@@ -538,6 +595,14 @@ function netUserLoad(d) {
     spawnX = SPL[10] * 1; spawnY = SPL[11] * 1; spawnZ = SPL[12] * 1; spawnSet = SPL[13] * 1;
     let inv = SPL[14], efs = '-';
     if (SPL.length >= 15) { efs = SPL[15]; }
+    spawnDim = 0;
+    if (SPL.length >= 16) { spawnDim = SPL[16] * 1; }
+    // ((v3.0, 11-18) kept while dead (the tab closed on the death screen): back alive where one comes back
+    // to - with hp 0 one came in dead, with no screen to come back from)
+    if (hp <= 0) {
+      if (spawnSet == 1) { dim = spawnDim; netArrX = spawnX; netArrY = spawnY; netArrZ = spawnZ; px = spawnX; pz = spawnZ; hp = 20; food = 20; }
+      else { dim = 0; px = 8.5; pz = 8.5; netFresh = 1; }
+    }
     if (inv != '-') {
       splitBy(inv, ',');
       SPL2 = [];
@@ -558,7 +623,7 @@ function netUserLoad(d) {
 }
 
 // ---------------------------------------------------------------- in a server, each frame
-let netTabOn = 0;
+let netTabOn = 0, nmDim = 0 - 1;
 function netInServer(dt) {
   let h = srvHost(netSrv), was = netHost;
   netHost = 0;
@@ -571,13 +636,18 @@ function netInServer(dt) {
     if (shRev != metaRev) { metaRead(netSrv); srvHead(netSrv); if (isBanned(netNick) > 0) { netDisconnect(`이 서버에서 차단되었습니다: ${MBANR[isBanned(netNick)]}`); } }
   }
   if (netSt == 2) {
-    // my things every half minute
-    netUserT = netUserT + dt;
-    if (netUserT > 30) { netUserT = 0; evAdd('u', `${netSrv}^${netUserPack()}`); }
+    // my things every 10 s when they changed ((v3.0, 11-18) was every 30 s, and the host's never: its own
+    // 'u' never reached its own record, so a host whose tab closed came back with nothing, where it began)
+    // (what one has: within a second of a change; only where one is: every 10 s)
+    netUserT = netUserT + dt; netUserT2 = netUserT2 + dt;
+    if (netUserT2 > 1) { netUserT2 = 0; netUserSave(0); }
     // the day follows the host's
     if (skyHoldT > 0) { skyHoldT = skyHoldT - dt; if (h > 0) { if (idiv(NFLG[h], 16) == skyHoldW && Math.abs(NTD[h] - skyHoldD) < 0.02) { skyHoldT = 0; } } }
     if (h > 0) { if (h != netMy) { if (skyHoldT <= 0) { if (Math.abs(NTD[h] - tday) > 0.01) { tday = NTD[h]; } if (idiv(NFLG[h], 16) != wthr) { wthr = idiv(NFLG[h], 16); } } } }
     netEnts(dt);
+    // ((v3.0, 11-18) the mobs: one owner each, seen by all (netmob.js))
+    if (dim != nmDim) { nmDim = dim; netMobsClear(); }
+    netMobsStep(dt);
     netChestWatch();
     if (netHost == 1) { hostStep(dt); }
   }
@@ -592,12 +662,16 @@ function netEvent(k, t, f) {
   if (t == 'b') { splitBy(f, '^'); if (SPL.length >= 5) { netEditApply(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, SPL[5] * 1); } }
   if (t == 'c') { chatAdd(netDec(f)); }
   if (t == 'w') { splitBy(f, '^'); if (SPL.length >= 2) { if (SPL[1] == netNick) { chatAdd(`${NNICK[k]} 님의 귓속말: ${netDec(SPL[2])}`); } } }
-  if (t == 'r') { splitBy(f, '^'); if (SPL.length >= 2 && k == srvHost(netSrv)) { if (SPL[1] == '*' || SPL[1] == netNick) { let cmd = netDec(SPL[2]); netQuiet = 1; netRunAs(cmd); netQuiet = 0; } } }
+  // ((v3.0, 11-18) from whoever a plugin's event happened to (join, chat, break...), not only the host: then
+  // only a command an 'all' plugin that is on could give)
+  if (t == 'r') { splitBy(f, '^'); if (SPL.length >= 2) { if (SPL[1] == '*' || SPL[1] == netNick) { let cmd = netDec(SPL[2]); if (k == srvHost(netSrv) || plugAllHas(cmd) == 1) { netQuiet = 1; netRunAs(cmd); netQuiet = 0; } } } }
   if (t == 't') { titleS = netDec(f); titleT = 4; }
   // ((v2.6.1) /time or /weather by someone: here too (the host's is followed after it))
   if (t == 'y') { splitBy(f, '^'); if (SPL.length >= 3) { tday = SPL[1] * 1; wthr = SPL[2] * 1; wthrT = SPL[3] * 1; } }
   // (v2.3) a command for me from someone who may give it (cmdaim.js)
-  if (t == 'a') { splitBy(f, '^'); if (SPL.length >= 2) { if (SPL[1] == netNick) { let cmd = netDec(SPL[2]); cmdSplit(substr(cmd, 2, strlen(cmd))); if (permOk(NNICK[k], lower(bare(cw(1)))) == 1) { netRunAs(cmd); } } } }
+  // ((v3.0, 11-18) every command in it (/execute ... run ...) one the sender may give, and none of the server's
+  // own: /execute as <an op> run op me ran /op as the op)
+  if (t == 'a') { splitBy(f, '^'); if (SPL.length >= 2) { if (SPL[1] == netNick) { let cmd = netDec(SPL[2]); if (aCmdOk(NNICK[k], cmd) == 1) { netRunAs(cmd); } } } }
   if (t == 'k') { splitBy(f, '^'); if (SPL.length >= 2 && permOk(NNICK[k], 'kick') == 1) { if (SPL[1] == netNick && netNick != SUPER) { netDisconnect(netDec(SPL[2])); } } }
   if (t == 'h') { splitBy(f, '^'); if (SPL.length >= 4) { if (SPL[1] == netNick) { if (netSt == 2) { if (mod(gameMode, 2) == 0) { hurt(SPL[2] * 1, `${NNICK[k]} 님에게 당했습니다`); pvx = pvx + SPL[3] * 1; pvz = pvz + SPL[4] * 1; pvy = 4; } } } } }
   // (v2.4.4) a button pressed, TNT lit, a blast (an anchor, a bed, a creeper), a /fill or /clone: the same on every screen
@@ -606,9 +680,34 @@ function netEvent(k, t, f) {
   if (t == 'e') { splitBy(f, '^'); if (SPL.length >= 5) { if (SPL[5] * 1 == dim) { exDrops = 0; explode(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, 1); exDrops = 1; } } }
   if (t == 'F') { splitBy(f, '^'); if (SPL.length >= 10) { if (SPL[10] * 1 == dim) { netQuiet = 1; fillBox(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, SPL[5] * 1, SPL[6] * 1, SPL[7] * 1, SPL[8], SPL[9] * 1, 0); netQuiet = 0; } } }
   if (t == 'K') { splitBy(f, '^'); if (SPL.length >= 12) { if (SPL[12] * 1 == dim) { netQuiet = 1; cloneBox(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, SPL[5] * 1, SPL[6] * 1, SPL[7] * 1, SPL[8] * 1, SPL[9] * 1, SPL[10], SPL[11]); netQuiet = 0; } } }
-  if (t == 'x') { splitBy(f, '^'); if (SPL.length >= 7) { netChestSlot(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, SPL[5] * 1, SPL[6] * 1, SPL[7] * 1); } }
+  // ((v3.0, 11-18) with its world (8th): a chest in another world was put in this one)
+  if (t == 'x') { splitBy(f, '^'); if (SPL.length >= 7) { let cd = dim; if (SPL.length >= 8) { cd = SPL[8] * 1; } netChestSlot(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, SPL[5] * 1, SPL[6] * 1, SPL[7] * 1, cd); } }
+  // ((v3.0, 11-18) the cells a /fill, /clone or blast left, from the one who made it: kept where this world is not made)
+  if (t == 'R') { splitBy(f, '^'); if (SPL.length >= 8) { netRunsLog(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, SPL[5] * 1, SPL[6] * 1, SPL[7] * 1, SPL[8]); } }
+  // ((v3.0, 11-18) the mobs (netmob.js): a blow on mine, my mob's... their mob's blow on me, my kill's drops, mobs given, asked for)
+  if (t == 'g') { nmHitMine(k, f); }
+  if (t == 'H') { nmHurtMe(f); }
+  if (t == 'D') { nmLoot(f); }
+  if (t == 'M') { nmTake(k, f); }
+  if (t == 'm') { nmAsked(k, f); }
   if (t == 's') { splitBy(f, '^'); if (SPL.length >= 5) { netSignSet(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, netDec(SPL[5])); } }
   netApplying = 0;
+}
+function aCmdOk(who, cmd) {
+  cmdSplit(substr(cmd, 2, strlen(cmd)));
+  let r = 1, i = 1, at = 1;
+  while (i <= CMW.length) {
+    if (i == at) {
+      let w = lower(bare(`${CMW[i]}`));
+      if (charAt(w, 1) == '/') { w = substr(w, 2, strlen(w)); }
+      w = cmdCanon(w);
+      if (permOk(who, w) == 0) { r = 0; }
+      if (w == 'op' || w == 'deop' || w == 'ban' || w == 'pardon' || w == 'unban' || w == 'kick' || w == 'whitelist' || w == 'server' || w == 'plugin' || w == 'pl' || w == 'plugins' || w == 'perm' || w == 'permission' || w == 'perms' || w == 'lavalog' || w == 'say') { r = 0; }
+    }
+    if (lower(`${CMW[i]}`) == 'run') { at = i + 1; }
+    i = i + 1;
+  }
+  return r;
 }
 // a block someone changed: in this world now, or in the log for another
 function netEditApply(x, y, z, b, d) {
@@ -650,7 +749,29 @@ function hostEvent(k, t, f) {
     hostKeepBox(gx, gy, gz, gx + w0, gy + h0, gz + d0, gd);
     if (SPL[11] == 'move') { hostKeepBox(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, SPL[5] * 1, SPL[6] * 1, gd); }
   } }
+  if (t == 'R') { splitBy(f, '^'); if (SPL.length >= 8) { hostKeepRuns(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, SPL[5] * 1, SPL[6] * 1, SPL[7] * 1, SPL[8]); } }
   if (t == 's') { splitBy(f, '^'); if (SPL.length >= 5) { hostKeepSign(`${SPL[1]},${SPL[2]},${SPL[3]},${SPL[4]}`, SPL[5]); } }
+}
+// ((v3.0, 11-18) a box's cells as runs (wedit.js weRunsOf: -1 a cell not known), from the one who changed
+// them: the host had kept only the cells of the chunks made on its own screen, in its own world - a /fill,
+// //paste or blast far from it was lost when the server was played again)
+function hostKeepRuns(d, x0, y0, z0, x1, y1, z1, runs) {
+  weX0 = x0; weY0 = y0; weZ0 = z0; weX1 = x1; weY1 = y1; weZ1 = z1; weFromRuns(runs);
+  let x = x0, i = 1;
+  while (x <= x1) { let z = z0; while (z <= z1) { let y = y0; while (y <= y1) { if (i <= WEN.length) { if (WEN[i] >= 0) { hostKeepEdit(x, y, z, WEN[i], d); } } i = i + 1; y = y + 1; } z = z + 1; } x = x + 1; }
+}
+// (the others: the cells of a world or chunk not made here go in the log, they come when it is made)
+function netRunsLog(d, x0, y0, z0, x1, y1, z1, runs) {
+  weX0 = x0; weY0 = y0; weZ0 = z0; weX1 = x1; weY1 = y1; weZ1 = z1; weFromRuns(runs);
+  let x = x0, i = 1;
+  while (x <= x1) { let z = z0; while (z <= z1) { let y = y0; while (y <= y1) { if (i <= WEN.length) { if (WEN[i] >= 0) { if (d != dim || cOK(x, z) == 0) { edPushD(x, y, z, WEN[i], d); } } } i = i + 1; y = y + 1; } z = z + 1; } x = x + 1; }
+}
+// the one who did it (not the host): the box as it is here now, to the host (a box too varied to carry: as before)
+function netBoxSay(x0, y0, z0, x1, y1, z1) {
+  if (netSrv > 0) { if (netSt == 2) { if (netHost == 0) { if (netQuiet == 0) {
+    weX0 = x0; weY0 = y0; weZ0 = z0; weX1 = x1; weY1 = y1; weZ1 = z1;
+    if (weCells() <= 65536) { weFill(0); let r = weRunsOf(1); if (strlen(r) <= 4000) { evAdd('R', `${dim}^${x0}^${y0}^${z0}^${x1}^${y1}^${z1}^${r}`); } }
+  } } } }
 }
 // (v2.4.4) every cell of a box as it is here now (after a /fill or /clone ran here)
 function hostKeepBox(x0, y0, z0, x1, y1, z1, d) {
@@ -707,9 +828,11 @@ function editsWrite() {
     while (q <= EWK.length) { NEW.push(EWK[q]); q = q + 1; }
     EWK = [];
   }
-  // made short when long: the last of each cell
-  if (NEW.length > 30000) { hostEditsCompact(); }
-  editsPut(netSrv); editDirty = 0;
+  // made short when long: the last of each cell (and written whole); else ((v3.0, 11-18)) the shared record is
+  // NEW up to ewLen (just checked): only what came after it is pushed on
+  if (NEW.length > 30000) { hostEditsCompact(); editsPut(netSrv); }
+  else { let q = ewLen + 1; while (q <= NEW.length) { editsPush(netSrv, NEW[q]); q = q + 1; } }
+  editDirty = 0;
   ewLen = NEW.length; ewTail = editsTail();
 }
 function hostKeepUser(nick, d) {
@@ -737,12 +860,17 @@ function hostKeepSign(key, t) {
 function hostStep(dt) {
   netHostT = netHostT + dt; metaT = metaT + dt; editT = editT + dt;
   // (v2.4.1) the day it was last played, for the clearing of servers nobody plays (svback.js)
-  if (netHostT > 5) { netHostT = 0; let td = dayNow(); if (shDay != td) { shDay = td; metaDirty = 1; } }
+  // ((v3.0, 11-18) written at once: the sh* globals are read again from the list every frame (netInServer
+  // srvHas), so a day set here and written a frame later was the old day again - it showed once the host
+  // wrote its own things often and the settings' timer was seldom past due at that moment)
+  if (netHostT > 5) { netHostT = 0; let td = dayNow(); if (shDay != td) { shDay = td; metaWrite(netSrv); } }
   // the block changes and the settings written at most once a second / two
-  if (editDirty == 1) { if (editT > 1) {
+  // ((v3.0, 11-18) half a second / one: a tab closed right after a block lost it; the first change after a
+  // quiet spell goes at once)
+  if (editDirty == 1) { if (editT > 0.5) {
     editsWrite(); editT = 0;
   } }
-  if (metaDirty == 1) { if (metaT > 2) { metaWrite(netSrv); } }
+  if (metaDirty == 1) { if (metaT > 1) { metaWrite(netSrv); } }
   // timers of the plugins
   plugT = plugT + dt;
   if (plugT >= 1) { plugT = plugT - 1; plugTimers(); }
@@ -787,7 +915,18 @@ function hostEditsCompact() {
 // a wish to change the server from player `who` (they must be an op)
 function hostWish(who, f) {
   if (substr(f, 1, 5) == 'lava^') { splitBy(f, '^'); if (SPL.length >= 5) { hostKeepLava(who, `${SPL[2]},${SPL[3]},${SPL[4]},${SPL[5]}`); } }
-  if (isOp(who) == 1) {
+  splitBy(f, '^');
+  // ((v3.0, 11-18) the right the wish needs (/perm can give them to others than ops; it was isOp alone, so
+  // a right given by /perm was told yes and done by nobody); lava, TNT and world edit are the owner's
+  let wc = 'server', w0 = SPL[1];
+  if (w0 == 'op' || w0 == 'deop' || w0 == 'ban' || w0 == 'pardon') { wc = w0; }
+  if (w0 == 'wladd' || w0 == 'wldel') { wc = 'whitelist'; }
+  if (w0 == 'padd' || w0 == 'pdel' || w0 == 'pon' || w0 == 'poff') { wc = 'plugin'; }
+  if (w0 == 'pset' || w0 == 'pallow' || w0 == 'pdeny' || w0 == 'preset') { wc = 'perm'; }
+  let may = permOk(who, wc);
+  if (w0 == 'set') { if (SPL.length >= 2) { if (SPL[2] == 'lava' || SPL[2] == 'tnt' || SPL[2] == 'we') { if (who != shOwner && who != SUPER) { may = 0; } } } }
+  if (w0 == 'lava') { may = 0; }
+  if (may == 1) {
     splitBy(f, '^');
     let a = SPL[1], b = ' ';
     if (SPL.length >= 2) { b = SPL[2]; }
@@ -841,6 +980,17 @@ function plugDo(i, who, arg) {
   c = replace(c, '{server}', shName); c = replace(c, '{online}', `${srvCount(netSrv)}`);
   if (PLT[i] == 'all') { evAdd('r', `*^${netClean(c)}`); netQuiet = 1; netRunAs(c); netQuiet = 0; }
   else { netRunAs(c); }
+}
+// ((v3.0, 11-18) is there an 'all' plugin, on, whose command starts with the same word as cmd)
+function plugAllHas(cmd) {
+  let r = 0, i = 1, w = cmdFirst(cmd);
+  while (i <= PLN.length) { if (PLO[i] == 1) { if (PLT[i] == 'all') { if (cmdFirst(netDec(PLX[i])) == w) { r = 1; } } } i = i + 1; }
+  return r;
+}
+function cmdFirst(c) {
+  let s = `${c}`, sp = indexOf(s, ' ');
+  if (sp > 0) { s = substr(s, 1, sp - 1); }
+  return lower(s);
 }
 // a typed command a plugin answers (command:name): 1 when one did
 function plugCommand(name, rest) {
@@ -945,23 +1095,25 @@ function netChestWatch() {
         if (NCW[k] != CHI[base + k] || NCW[k + 27] != CHN[base + k] || NCW[k + 54] != CHD[base + k]) {
           NCW[k] = CHI[base + k]; NCW[k + 27] = CHN[base + k]; NCW[k + 54] = CHD[base + k];
           let y = CHY[c] - dim * 1000;
-          evAdd('x', `${CHX[c]}^${y}^${CHZ[c]}^${k}^${CHI[base + k]}^${CHN[base + k]}^${CHD[base + k]}`);
-          if (netHost == 1) { hostKeepChest(`${CHX[c]}^${y}^${CHZ[c]}^${k}^${CHI[base + k]}^${CHN[base + k]}^${CHD[base + k]}`); }
+          evAdd('x', `${CHX[c]}^${y}^${CHZ[c]}^${k}^${CHI[base + k]}^${CHN[base + k]}^${CHD[base + k]}^${dim}`);
+          if (netHost == 1) { hostKeepChest(`${CHX[c]}^${y}^${CHZ[c]}^${k}^${CHI[base + k]}^${CHN[base + k]}^${CHD[base + k]}^${dim}`); }
         }
         k = k + 1;
       }
     }
   } } } else { ncwC = 0; }
 }
-function netChestSlot(x, y, z, k, id, n, d) {
-  chestAt(x, y, z);
+function netChestSlot(x, y, z, k, id, n, d, cd) {
+  let d0 = dim;
+  dim = cd; chestAt(x, y, z); dim = d0;
   if (cFound > 0) { let s = (cFound - 1) * 27 + k; CHI[s] = id; CHN[s] = n; CHD[s] = d; chestTouched(cFound); if (cFound == ncwC) { NCW[k] = id; NCW[k + 27] = n; NCW[k + 54] = d; } }
 }
 // the host keeps a chest as `x,y,z,dim` and its 27 slots (id.n.d,...)
 function hostKeepChest(f) {
   splitBy(f, '^');
   if (SPL.length >= 7) {
-    let key = `${SPL[1]},${SPL[2]},${SPL[3]},${dim}`, k = SPL[4] * 1, v = `${SPL[5]}.${SPL[6]}.${SPL[7]}`;
+    let cd = dim; if (SPL.length >= 8) { cd = SPL[8] * 1; }
+    let key = `${SPL[1]},${SPL[2]},${SPL[3]},${cd}`, k = SPL[4] * 1, v = `${SPL[5]}.${SPL[6]}.${SPL[7]}`;
     let i = 1, f0 = 0;
     while (i <= MCK.length) { if (MCK[i] == key) { f0 = i; } i = i + 1; }
     if (f0 == 0) { let s = '0.0.0', j = 2; while (j <= 27) { s = `${s},0.0.0`; j = j + 1; } MCK.push(key); MCD.push(s); f0 = MCK.length; }

@@ -357,6 +357,8 @@ let travelTo = 0, travelKind = 0, gateT = 0, gateCool = 0;
 function startTravel(nd, x, z, kind) {
   // ((v3.0) the tamed of the world left are kept for when the player comes back)
   if (kind <= 5) { petsPack(); }
+  // ((v3.0, 11-18) on a server my mobs to the others near them first (they went with the world))
+  netMobsLeave();
   let s = 1;
   while (s <= NCH * NCH) { if (CKST[s] > 0) { chunkDrop(s); } s = s + 1; }
   thingsInit(); fluidInit();

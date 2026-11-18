@@ -1155,7 +1155,7 @@ function dispense(x, y, z, b) {
       if (how == 1) { CHN[s] = CHN[s] - 1; }
       if (CHN[s] <= 0) { CHI[s] = 0; CHN[s] = 0; CHD[s] = 0; }
       chestTouched(c);
-      if (netSrv > 0) { gS2 = `${x}^${y}^${z}^${pick}^${CHI[s]}^${CHN[s]}^${CHD[s]}`; netSay('x', gS2); hostKeepChest(gS2); }
+      if (netSrv > 0) { gS2 = `${x}^${y}^${z}^${pick}^${CHI[s]}^${CHN[s]}^${CHD[s]}^${dim}`; netSay('x', gS2); if (netHost == 1) { hostKeepChest(gS2); } }
       sndPlay(1);
     }
   }

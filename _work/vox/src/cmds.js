@@ -937,6 +937,7 @@ function cmdFill() {
       let q0 = netQuiet; netQuiet = 1;
       fillBox(x0, y0, z0, x1, y1, z1, b, md, flt, 1);
       netQuiet = q0;
+      netBoxSay(x0, y0, z0, x1, y1, z1);
       if (bxN == 0) { out = '바뀐 블록이 없습니다'; } else { out = `블록 ${bxN}개를 채웠습니다`; }
     }
   } }
@@ -1003,6 +1004,8 @@ function cmdClone() {
       let q0 = netQuiet; netQuiet = 1;
       cloneBox(x0, y0, z0, x1, y1, z1, dx, dy, dz, mk, md);
       netQuiet = q0;
+      netBoxSay(dx, dy, dz, dx + x1 - x0, dy + y1 - y0, dz + z1 - z0);
+      if (m2 == 'move') { netBoxSay(x0, y0, z0, x1, y1, z1); }
       out = `블록 ${bxN}개를 복제했습니다`;
     }
   }

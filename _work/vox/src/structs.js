@@ -803,8 +803,12 @@ function pendingMobs() {
   while (k >= 1) {
     if (cOK(Math.floor(PMX[k]), Math.floor(PMZ[k])) == 1) {
       if (CKST[slotOf(idiv(Math.floor(PMX[k]), 16), idiv(Math.floor(PMZ[k]), 16))] == 5) {
-        mobAdd(mod(PMT[k], 1000), PMX[k], PMY[k], PMZ[k]);
-        if (lastMob > 0) { EST[lastMob] = 0; if (PMT[k] > 1000) { EVAR[lastMob] = 1; } }
+        // ((v3.0, 11-18) its number from its place: one in another player's line is not made again)
+        let u = nmDetOf(PMX[k], PMY[k], PMZ[k]);
+        if (nmTaken(u) == 0) {
+          nmDet = u; mobAdd(mod(PMT[k], 1000), PMX[k], PMY[k], PMZ[k]); nmDet = 0;
+          if (lastMob > 0) { EST[lastMob] = 0; if (PMT[k] > 1000) { EVAR[lastMob] = 1; } }
+        }
         PMT.removeAt(k); PMX.removeAt(k); PMY.removeAt(k); PMZ.removeAt(k);
       }
     }

@@ -13,6 +13,7 @@ function faunaInit() {
   ESZ = []; EOWN = []; EAGE = []; ELOVE = []; EVAR = []; ETG = []; ECNV = [];
   let i = 0;
   while (i < NMOB) { ESZ.push(1); EOWN.push(0); EAGE.push(0); ELOVE.push(0); EVAR.push(0); ETG.push(0); ECNV.push(0); i = i + 1; }
+  netMobInit();
   petTgt = 0; kingE = 0; raidOn = 0;
 }
 function mobInit(e, t) {
@@ -434,13 +435,13 @@ function rideOk(t) { let r = 0; if (t == 13 || isCart(t) == 1 || MAI[t] == 13 ||
 // the rare drops and xp (only a player's kill), the jelly lumps falling apart, the villager turned
 function mobDies(e, t) {
   let bb = isBaby(e);
-  if (grLoot == 1 && pKill == 1 && bb == 0) {
+  if (grLoot == 1 && pKill == 1 && bb == 0 && nmKiller == 0) {
     let k = MR0[t];
     while (k < MR0[t] + MRN[t]) { if (rand(1, 1000) <= (MRP[k] + lootLv) * 10) { dropItem(MRI[k], 1, 0, EX[e], EY[e] + 0.5, EZ[e], 0); } k = k + 1; }
     if (MXP[t] > 0) { xpAdd(MXP[t]); }
   }
   if (MSPLIT[t] > 0) { let n = rand(2, 4), k = 0; while (k < n) { mobAdd(MSPLIT[t], EX[e] + rand(-5, 5) / 10, EY[e] + 0.3, EZ[e] + rand(-5, 5) / 10); k = k + 1; } }
-  if (t == M_RAIDER && EVAR[e] == 1 && pKill == 1 && raidOn == 0) { effectAdd(21, 6000, Math.min(5, fx(21) + 1)); msgShow('불길한 징조를 얻었습니다 (마을에 가면 습격이 옵니다)', 3); }
+  if (t == M_RAIDER && EVAR[e] == 1 && pKill == 1 && raidOn == 0 && nmKiller == 0) { effectAdd(21, 6000, Math.min(5, fx(21) + 1)); msgShow('불길한 징조를 얻었습니다 (마을에 가면 습격이 옵니다)', 3); }
   if (t == M_BONEKING) { kingE = 0; }
 }
 // a villager killed by the dead: one of them (half the times on normal, always on hard)
@@ -637,7 +638,7 @@ function petsPack() {
   while (k >= 1) { if (KPD[k] == dim) { petsDel(k); } k = k - 1; }
   let e = 1;
   while (e <= NMOB) {
-    if (ET[e] > 0 && EOWN[e] >= 1 && EOWN[e] <= 3) { KPT.push(ET[e]); KPX.push(EX[e]); KPY.push(EY[e]); KPZ.push(EZ[e]); KPH.push(EHP[e]); KPO.push(EOWN[e]); KPV.push(EVAR[e]); KPS.push(EAGE[e]); KPD.push(dim); }
+    if (ET[e] > 0 && EOWN[e] >= 1 && EOWN[e] <= 3 && ERK[e] == 0) { KPT.push(ET[e]); KPX.push(EX[e]); KPY.push(EY[e]); KPZ.push(EZ[e]); KPH.push(EHP[e]); KPO.push(EOWN[e]); KPV.push(EVAR[e]); KPS.push(EAGE[e]); KPD.push(dim); }
     e = e + 1;
   }
 }

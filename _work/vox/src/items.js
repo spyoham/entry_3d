@@ -186,7 +186,7 @@ function chestTake(c, id, n, d) {
 function chestSay(c, k) {
   if (netSrv > 0) { if (netSt == 2) {
     let base = (c - 1) * 27, y = CHY[c] - dim * 1000;
-    gS2 = `${CHX[c]}^${y}^${CHZ[c]}^${k}^${CHI[base + k]}^${CHN[base + k]}^${CHD[base + k]}`;
+    gS2 = `${CHX[c]}^${y}^${CHZ[c]}^${k}^${CHI[base + k]}^${CHN[base + k]}^${CHD[base + k]}^${dim}`;
     netSay('x', gS2); if (netHost == 1) { hostKeepChest(gS2); }
   } }
 }

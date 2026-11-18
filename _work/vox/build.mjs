@@ -593,7 +593,7 @@ export function makeData() {
 }
 
 // ------------------------------------------------------------------ sources
-export const FILES = ['world.js', 'flat.js', 'fluid.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'rails.js', 'save.js', 'net.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'fauna.js', 'items.js', 'hud.js', 'extra.js', 'ench.js', 'cmds.js', 'wedit.js', 'keyin.js', 'swear.js', 'je.js', 'main.js', 'test.js'];
+export const FILES = ['world.js', 'flat.js', 'fluid.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'rails.js', 'save.js', 'net.js', 'netmob.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'fauna.js', 'items.js', 'hud.js', 'extra.js', 'ench.js', 'cmds.js', 'wedit.js', 'keyin.js', 'swear.js', 'je.js', 'main.js', 'test.js'];
 export function allConsts(more = {}) {
     const { C } = makeData();
     return { ...consts, ...C, ...more };
@@ -659,10 +659,16 @@ export function sources(C) {
     };
     parts.push(`function metaLen(k) { let n = 0; if (k >= 1 && k <= NSRV) { ${tree(1, NSRV, (i) => `n = SY_m${i}.length;`)} } return n; }`);
     parts.push(`function metaItem(k, i) { let s = ''; if (i >= 1 && i <= metaLen(k)) { ${tree(1, NSRV, (j) => `s = SY_m${j}[i];`)} } return \`\${s}\`; }`);
-    parts.push(`function metaPut(k) { let q = 1; if (k >= 1 && k <= NSRV) { ${tree(1, NSRV, (j) => `SY_m${j} = []; q = 1; while (q <= NMW.length) { SY_m${j}.push(NMW[q]); q = q + 1; }`)} } }`);
+    // ((v3.0, 11-18) the copying loop once, the tree only clearing and pushing one: it was a loop in each of
+    // the 99 leaves (3277 blocks each for metaPut and editsPut; the work had grown near the site's size limit))
+    parts.push(`function metaClear(k) { if (k >= 1 && k <= NSRV) { ${tree(1, NSRV, (j) => `SY_m${j} = [];`)} } }`);
+    parts.push(`function metaPush(k, v) { if (k >= 1 && k <= NSRV) { ${tree(1, NSRV, (j) => `SY_m${j}.push(v);`)} } }`);
+    parts.push(`function metaPut(k) { metaClear(k); let q = 1; while (q <= NMW.length) { metaPush(k, NMW[q]); q = q + 1; } }`);
     parts.push(`function editLen(k) { let n = 0; if (k >= 1 && k <= NSRV) { ${tree(1, NSRV, (i) => `n = SY_e${i}.length;`)} } return n; }`);
     parts.push(`function editItem(k, i) { let v = 0; if (k >= 1 && k <= NSRV) { ${tree(1, NSRV, (j) => `v = SY_e${j}[i];`)} } return v; }`);
-    parts.push(`function editsPut(k) { let q = 1; if (k >= 1 && k <= NSRV) { ${tree(1, NSRV, (j) => `SY_e${j} = []; q = 1; while (q <= NEW.length) { SY_e${j}.push(NEW[q]); q = q + 1; }`)} } }`);
+    parts.push(`function editsClear(k) { if (k >= 1 && k <= NSRV) { ${tree(1, NSRV, (j) => `SY_e${j} = [];`)} } }`);
+    parts.push(`function editsPush(k, v) { if (k >= 1 && k <= NSRV) { ${tree(1, NSRV, (j) => `SY_e${j}.push(v);`)} } }`);
+    parts.push(`function editsPut(k) { editsClear(k); let q = 1; while (q <= NEW.length) { editsPush(k, NEW[q]); q = q + 1; } }`);
     parts.push(`function bigInit() {\n  let i = 0;\n${init.join('\n')}\n}`);
     const raw = parts.join('\n') + '\n' + files.map(f => fs.readFileSync(path.join(HERE, 'src', f), 'utf8')).join('\n') + stub;
     const { src, count } = expandMacros(raw);

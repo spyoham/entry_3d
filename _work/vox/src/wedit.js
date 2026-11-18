@@ -168,7 +168,8 @@ function weCommit(k) {
   if (k == 1) { WRD.push(entry); } else { WUN.push(entry); if (k == 0) { WRD = []; } }
   while (WUN.length > 12) { WUN.removeAt(1); } while (WRD.length > 12) { WRD.removeAt(1); }
   let n = wePut();
-  if (netSrv > 0) { if (netSt == 2) { weSend(weRunsOf(0)); if (netHost == 1) { hostKeepBox(weX0, weY0, weZ0, weX1, weY1, weZ1, dim); } } }
+  // ((v3.0, 11-18) the host keeps the runs (every cell, made on its screen or not), not what it can read here)
+  if (netSrv > 0) { if (netSt == 2) { let rr = weRunsOf(0); weSend(rr); if (netHost == 1) { hostKeepRuns(dim, weX0, weY0, weZ0, weX1, weY1, weZ1, rr); } } }
   return n;
 }
 function wePut() {
@@ -576,11 +577,12 @@ function weStep(dt) {
           let id = SPL[2];
           if (weWasSeen(id) == 0) {
             weSeen(id);
-            if (weJoin == 1 && SPL[3] * 1 == dim) {
-              weX0 = SPL[4] * 1; weY0 = SPL[5] * 1; weZ0 = SPL[6] * 1; weX1 = SPL[7] * 1; weY1 = SPL[8] * 1; weZ1 = SPL[9] * 1;
-              weFromRuns(SPL[10]);
-              let n = wePut();
-              if (netHost == 1) { hostKeepBox(weX0, weY0, weZ0, weX1, weY1, weZ1, dim); }
+            // ((v3.0, 11-18) in another world too: in the log here, and kept by the host whatever its world)
+            if (weJoin == 1) {
+              let d0 = SPL[3] * 1, rr = SPL[10], b0 = SPL[4] * 1, b1 = SPL[5] * 1, b2 = SPL[6] * 1, b3 = SPL[7] * 1, b4 = SPL[8] * 1, b5 = SPL[9] * 1;
+              if (d0 == dim) { weX0 = b0; weY0 = b1; weZ0 = b2; weX1 = b3; weY1 = b4; weZ1 = b5; weFromRuns(rr); let n = wePut(); }
+              else { netRunsLog(d0, b0, b1, b2, b3, b4, b5, rr); }
+              if (netHost == 1) { hostKeepRuns(d0, b0, b1, b2, b3, b4, b5, rr); }
             }
           }
         } }

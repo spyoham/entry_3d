@@ -94,6 +94,13 @@ ok(+(await V(B, 'tStage')) === gold, `alice's gold block is in bob's world (${aw
 await sleep(2500);
 const host = +(await V(A, 'netHost')) === 1 ? A : B;
 ok(((await Lst(host, '?!e1')) || []).length >= 5, `the host (${host.nick}) keeps the block in ?!e1 (${((await Lst(host, '?!e1')) || []).length} items)`);
+// ((v3.0, 11-18) a mob: alice's cow, drawn on bob's screen from her ?!q line (netmob.js))
+await cmd(A, 8, `/summon cow ${ax + 3} ${ay + 1} ${az + 2}`);
+await sleep(3000);
+const cowK = (await Lst(B, 'MKEY')).indexOf('cow') + 1;
+const etB = (await Lst(B, 'ET')) || [], erkB = (await Lst(B, 'ERK')) || [];
+const qA = String(await V(A, `?!q${sa}`) || '');
+ok(qA.includes(`,${cowK},`) && etB.some((t, i) => +t === cowK && +erkB[i] === sa), `alice's cow is in her line ?!q${sa} and stands on bob's screen as hers (${qA.length} chars)`);
 // a picture of bob from alice's side
 await set(B, 'yaw', 180);
 await set(A, 'yaw', +(await V(A, 'yaw')));

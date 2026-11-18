@@ -25,7 +25,7 @@ function mobAdd(t, x, y, z) {
   if (e > 0) {
     ET[e] = t; EX[e] = x; EY[e] = y; EZ[e] = z; EVX[e] = 0; EVY[e] = 0; EVZ[e] = 0; EYAW[e] = rand(0, 359); EWY[e] = EYAW[e];
     EHP[e] = MHP[t]; EST[e] = 0; ETM[e] = rand(1, 40) / 10; EHURT[e] = 0; EWALK[e] = 0; EATK[e] = 0; EBURN[e] = 0; EGND[e] = 0; EFIR[e] = 0;
-    mobInit(e, t);
+    mobInit(e, t); netMobNew(e);
   }
   lastMob = e;
 }
@@ -46,7 +46,9 @@ function chunkAnimals(cx, cz) {
         let n = rndI(2, 4), j = 0;
         if (t == M_PANDA || t == M_WHITEBEAR || t == M_DOLPHIN) { n = rndI(1, 2); }
         while (j < n) {
-          mobAdd(t, x + 0.5 + rndI(-10, 10) / 10, y0, z + 0.5 + rndI(-10, 10) / 10);
+          // ((v3.0, 11-18) its number from its place: not made here when another player's line has it (netmob.js))
+          let ax = x + 0.5 + rndI(-10, 10) / 10, az = z + 0.5 + rndI(-10, 10) / 10, u = 1000000 + mod(cx * 7919 + cz * 104729 + dim * 31, 9000000) * 8 + j;
+          if (nmTaken(u) == 0) { nmDet = u; mobAdd(t, ax, y0, az); nmDet = 0; }
           j = j + 1; nPassive = nPassive + 1;
         }
       }
@@ -66,8 +68,8 @@ function spawnStep(dt) {
         if (MHOST[ET[i]] == 1) {
           nHostile = nHostile + 1;
           // far away ones go
-          if ((EX[i] - px) * (EX[i] - px) + (EZ[i] - pz) * (EZ[i] - pz) > 56 * 56) { if (EOWN[i] == 0) { ET[i] = 0; } }
-        } else { if (isProxy(i) == 0) { nPassive = nPassive + 1; } if (MNEU[ET[i]] == 1 || ET[i] == 12 || MSWIM[ET[i]] == 1 || MAI[ET[i]] == 11) { if ((EX[i] - px) * (EX[i] - px) + (EZ[i] - pz) * (EZ[i] - pz) > 64 * 64) { if (EOWN[i] == 0) { ET[i] = 0; } } } }
+          if ((EX[i] - px) * (EX[i] - px) + (EZ[i] - pz) * (EZ[i] - pz) > 56 * 56) { if (EOWN[i] == 0 && ERK[i] == 0) { ET[i] = 0; } }
+        } else { if (isProxy(i) == 0) { nPassive = nPassive + 1; } if (MNEU[ET[i]] == 1 || ET[i] == 12 || MSWIM[ET[i]] == 1 || MAI[ET[i]] == 11) { if ((EX[i] - px) * (EX[i] - px) + (EZ[i] - pz) * (EZ[i] - pz) > 64 * 64) { if (EOWN[i] == 0 && ERK[i] == 0) { ET[i] = 0; } } } }
       }
       i = i + 1;
     }
@@ -135,7 +137,7 @@ function mobsStep(dt) {
       else {
         // (v2.4.3) mobs and the other players press plates too
         // (v2.5: a minecart presses as an item does: wooden plates, not stone ones; string)
-        if (ET[e] != 13) { let wh = 0; if (isCart(ET[e]) == 1) { wh = 1; } plateHit(Math.floor(EX[e]), Math.floor(EY[e] + 0.05), Math.floor(EZ[e]), wh); } if (ET[e] != 10 && isProxy(e) == 0) { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 1600) { mobStep(e, dt); } } }
+        if (ET[e] != 13) { let wh = 0; if (isCart(ET[e]) == 1) { wh = 1; } plateHit(Math.floor(EX[e]), Math.floor(EY[e] + 0.05), Math.floor(EZ[e]), wh); } if (ET[e] != 10 && isProxy(e) == 0 && ERK[e] == 0) { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 1600) { mobStep(e, dt); } } }
     }
     e = e + 1;
   }
@@ -151,7 +153,10 @@ function mobStep(e, dt) {
 function mobStep0(e, dt) {
   let t = ET[e];
   let w = MW[t] / 2 * ESZ[e], h = MH[t] * ESZ[e];
-  let dxp = px - EX[e], dzp = pz - EZ[e], dyp = py - EY[e];
+  // ((v3.0, 11-18) on a server the monsters go for the nearest player (netmob.js), not only for me
+  tgK = 0; tgX = px; tgY = py; tgZ = pz;
+  if (NPLN > 0) { if (MHOST[t] == 1 || EST[e] == 4) { mobTarget(e); } }
+  let dxp = tgX - EX[e], dzp = tgZ - EZ[e], dyp = tgY - EY[e];
   let dist = Math.sqrt(dxp * dxp + dzp * dzp);
   let want = 0, wy = EYAW[e], spd = MSPD[t];
   // ((v3.0) the young of the dead are quick)
@@ -170,15 +175,15 @@ function mobStep0(e, dt) {
     let near = 16;
     if (EOWN[e] == 0 - 1) { near = 64; }
     if (t == 7 || t == M_CAVESPIDER) { if (EST[e] != 4) { if (mod(frameNo + e, 10) == 0) { if (lightAt(EX[e], EY[e] + 0.5, EZ[e]) >= 12) { EVAR[e] = 2; } else { EVAR[e] = 0; } } if (EVAR[e] == 2) { near = 0; } } }
-    if (dist < near && mod(gameMode, 2) == 0 && dead == 0 && difficulty > 0) {
+    if (dist < near && (tgK > 0 || (mod(gameMode, 2) == 0 && dead == 0)) && difficulty > 0) {
       wy = atan2d(dxp, dzp);
       want = 1;
       if (ai == 3) {
         if (dist < 7) { want = 0 - 1; } else { if (dist < 13) { want = 0; } }
         if (EATK[e] <= 0) { if (dist < 22) {
-          if (sightLine(EX[e], EY[e] + 1.2, EZ[e], px, py + 1.5, pz) == 1) {
+          if (sightLine(EX[e], EY[e] + 1.2, EZ[e], tgX, tgY + 1.5, tgZ) == 1) {
             EATK[e] = 2.5 + rand(0, 10) / 10; if (t == M_BONEKING) { EATK[e] = 1; }
-            mobShoot(e, px, py + 1.2, pz);
+            mobShoot(e, tgX, tgY + 1.2, tgZ);
           }
         } }
       }
@@ -186,7 +191,7 @@ function mobStep0(e, dt) {
         want = 0;
         if (EGND[e] == 1) { if (ETM[e] <= 0) { ETM[e] = 0.9 + rand(0, 8) / 10; EVY[e] = 7.5; want = 1.8; EYAW[e] = wy; } }
         else { want = 1.8; }
-        if (dist < 0.9 + w) { if (Math.abs(dyp) < 1.2) { if (EATK[e] <= 0 && MDMG[t] > 0) { EATK[e] = 1; hurtM(MDMG[t], `${MNAME[t]}에게 당했습니다`); thornsHit(e); mobBite(e, t); pvx = pvx + dxp / (dist + 0.01) * 4; pvz = pvz + dzp / (dist + 0.01) * 4; pvy = 4; } } }
+        if (dist < 0.9 + w) { if (Math.abs(dyp) < 1.2) { if (EATK[e] <= 0 && MDMG[t] > 0) { EATK[e] = 1; if (tgK > 0) { netMobStrike(e, t, dxp / (dist + 0.01) * 4, dzp / (dist + 0.01) * 4); } else { hurtM(MDMG[t], `${MNAME[t]}에게 당했습니다`); thornsHit(e); mobBite(e, t); pvx = pvx + dxp / (dist + 0.01) * 4; pvz = pvz + dzp / (dist + 0.01) * 4; pvy = 4; } } } }
       }
       if (ai == 6) { if (EST[e] != 6) { bombStep(e, dist, dt); } if (EST[e] == 5 || EST[e] == 6) { want = 0; } }
       if (ai == 2) {
@@ -194,17 +199,20 @@ function mobStep0(e, dt) {
         if (dist < 6) { want = 0 - 1; }
         if (dist < 10) { if (dist > 3) { want = 0; } }
         if (EATK[e] <= 0) { if (dist < 14) {
-          if (sightLine(EX[e], EY[e] + 1.5, EZ[e], px, py + 1.5, pz) == 1) {
+          if (sightLine(EX[e], EY[e] + 1.5, EZ[e], tgX, tgY + 1.5, tgZ) == 1) {
             EATK[e] = 2 + rand(0, 10) / 10; if (t == M_WITCH) { EATK[e] = 3; } if (t == M_CONJURER) { EATK[e] = 4; }
-            mobShoot(e, px, py + 1.2, pz);
+            mobShoot(e, tgX, tgY + 1.2, tgZ);
           }
         } }
       } else { if (ai == 1 || ai == 5 || ai == 8) {
         if (dist < 1.2 + w) { if (Math.abs(dyp) < 1.5) { if (EATK[e] <= 0) {
           EATK[e] = 1;
+          if (tgK > 0) { netMobStrike(e, t, dxp / (dist + 0.01) * 5, dzp / (dist + 0.01) * 5); }
+          else {
           hurtM(MDMG[t], `${MNAME[t]}에게 당했습니다`); thornsHit(e); mobBite(e, t);
           // knocked back
           pvx = pvx + dxp / (dist + 0.01) * 5; pvz = pvz + dzp / (dist + 0.01) * 5; pvy = 4;
+          }
         } } }
         // the spider leaps
         if (t == 7 || t == M_ASHBOAR) { if (dist < 4) { if (EGND[e] == 1) { if (rand(1, 30) == 1) { EVY[e] = 6; } } } }
@@ -259,7 +267,7 @@ function mobStep0(e, dt) {
   EVX[e] = EVX[e] + (tx - EVX[e]) * a; EVZ[e] = EVZ[e] + (tz - EVZ[e]) * a;
   bodyIn(EX[e], EY[e], EZ[e], w, h);
   if (MFLY[t] == 1) {
-    let ty = py + 2.5 + sind(frameNo * 3 + e * 40) * 0.8;
+    let ty = tgY + 2.5 + sind(frameNo * 3 + e * 40) * 0.8;
     if (dist > 24) { ty = EY[e]; }
     // ((v3.0) the bats and parrots drift; a tamed parrot keeps by the player; the flame spirits hover lower)
     if (MHOST[t] == 0) { ty = EY[e] + sind(frameNo * 3 + e * 50) * 1.2; if (BSOL[blockAt(Math.floor(EX[e]), Math.floor(EY[e]) - 1, Math.floor(EZ[e])) + 1] == 1) { ty = EY[e] + 1.5; } if (EOWN[e] > 0) { ty = py + 1.6; } }
@@ -306,7 +314,9 @@ function atan2d(x, z) {
 // a mob hit (by the player: knocked away from (fx, fz))
 // ((v2.9) the hit's charms, set by the one who hits: knockback, fire aspect, looting)
 let hitKb = 0, hitFire = 0, lootLv = 0;
-function mobHurt(e, n, fx, fz) {
+// ((v3.0, 11-18) another player's mob (a stand-in, netmob.js): the blow goes to its owner)
+function mobHurt(e, n, fx, fz) { if (ERK[e] > 0) { netMobHit(e, n, fx, fz); } else { mobHurt0(e, n, fx, fz); } }
+function mobHurt0(e, n, fx, fz) {
   if (ET[e] == 10) { if (nCrystal > 0) { n = 0; msgShow('수호 수정이 수호자를 지키고 있습니다', 1.5); } }
   // ((v3.0) a shut shell takes a fifth; the king while it grows nothing)
   if (ET[e] == 12) { if (EVAR[e] < 20) { n = n * 0.2; } }
@@ -330,7 +340,9 @@ function mobHurt(e, n, fx, fz) {
       let turned = villagerTurn(e);
       // drops
       let k = MDROP0[t], n2 = 0;
-      if (grLoot == 1 && turned == 0 && isBaby(e) == 0) {
+      // ((v3.0, 11-18) killed by another player (its blow came from their screen): the drops are theirs)
+      if (nmKiller > 0) { netMobKilled(e, t, turned); }
+      if (grLoot == 1 && turned == 0 && isBaby(e) == 0 && nmKiller == 0) {
         while (k < MDROP0[t] + MDROPN[t]) {
           n2 = rand(MDLO[k], MDHI[k] + lootLv);
           if (n2 > 0) { dropItem(MDI[k], n2, 0, EX[e], EY[e] + 0.5, EZ[e], 0); }
@@ -482,6 +494,8 @@ function arrowsStep(dt) {
             pvx = pvx + AVX[a] * 0.2; pvz = pvz + AVZ[a] * 0.2;
             AON[a] = 0;
           }
+          // ((v3.0, 11-18) or another player on the server (my mobs shoot at them too)
+          if (AON[a] > 0 && NPLN > 0) { if (netShotHits(a) == 1) { AON[a] = 0; } }
         }
         // the player's arrow: the mobs
         if (AON[a] == 2) {

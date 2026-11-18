@@ -109,7 +109,7 @@ function bkCheck() {
   while (a <= NSRV) {
     if (BKID[a] != '-') {
       let b = a + 1;
-      while (b <= NSRV) { if (BKID[b] == BKID[a]) { if (srvCount(b) == 0 && b != netSrv) { NMW = []; metaPut(b); NEW = []; editsPut(b); BKID[b] = '-'; } } b = b + 1; }
+      while (b <= NSRV) { if (BKID[b] == BKID[a]) { if (srvCount(b) == 0 && b != netSrv) { srvWipe(b); BKID[b] = '-'; } } b = b + 1; }
     }
     a = a + 1;
   }
@@ -160,7 +160,7 @@ function srvAgeCheck() {
         if (today - shDay >= SRVDAYS && newest - shDay >= SRVDAYS) {
           gS2 = shName;
           svBackDrop(k);
-          NMW = []; metaPut(k); NEW = []; editsPut(k);
+          srvWipe(k);
           gone = gone + 1;
           if (gone == 1) { netMsg = `${SRVDAYS}일 넘게 아무도 들어오지 않은 서버 '${gS2}'을(를) 지웠습니다`; }
           else { netMsg = `${SRVDAYS}일 넘게 아무도 들어오지 않은 서버 ${gone}개를 지웠습니다`; }
