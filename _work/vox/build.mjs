@@ -11,7 +11,7 @@ import { TEX, CRACK, BLOCKS, NBLOCK, ITEMS, TIERS, KINDS, SMITH, toolId, NITEM, 
 import { MODELS, ARMS, ARMCOL, pottedModel } from './models.mjs';
 import { makeSounds } from './sounds.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '3.2';
+export const VERSION = '3.3';
 // how many servers Entry Sync holds (each one two ?! lists; the slot line carries the number in two digits)
 export const NSRV = 99;
 export const NAME = '블록 월드';
@@ -28,8 +28,8 @@ export const consts = {
     WS, NCH, CR, WY, UH: 64, SEA: 30, LAVAY: 5, NSX: WS / 8, NSY: WY / 8, NSEC: (WS / 8) * (WS / 8) * (WY / 8), SXS: WS * WY, OFF: 32768,
     NOFF: chunkOffsets(CR).length, CVN: 24, FORTY: 30, NSTART: chunkOffsets(2).length,
     NEARZ: Math.round(0.05 * 256 * 16384), DEC2: 20, PLANT2: 225, CLOUDY: 110, MK: 160 * 1048576,
-    NMOB: 96, NITM: 96, NARR: 24, NFUR: 32, NCHEST: 256, ANIMALS: 60, SMELTT: 8, NTX: 145, NTX0: 123,
-    SPAWNC: 0, BENCH: 0, NOCAVE: 0, AUTOSEED: 0, AUTOMODE: 0, TESTRUN: 0, SIMRUN: 0, LEGACY: 0, SLIM: 1, SPLIT: 0,
+    NMOB: 96, NITM: 96, NARR: 24, NFUR: 32, NCHEST: 256, ANIMALS: 60, SMELTT: 10, NTX: 145, NTX0: 123,
+    SPAWNC: 0, BENCH: 0, NOCAVE: 0, AUTOSEED: 0, AUTOMODE: 0, TESTRUN: 0, SIMRUN: 0, LEGACY: 0, SLIM: 1, SPLIT: 0, MESHFAST: 1,
 };
 
 // what F does on a block, how it is put down, what it must stand on, how it moves a body
@@ -239,6 +239,8 @@ export function makeData() {
         if (b.tool === 2 && /(^log|Log$|Wood$)/.test(nm)) je |= 1;
         if (['tallGrass', 'fern', 'deadBush', 'seagrass', 'vines', 'fire', 'wailFire', 'emberRoots', 'indigoRoots', 'ashSprouts'].includes(nm)) je |= 2;
         if ([RS.wire, RS.repeater, RS.comparator, RS.torch, RS.lever, RS.button, RS.rail, RS.hook, RS.trip].includes(rs)) je |= 4;
+        // ((v3.3) a block that says so itself: the pods on a trunk are a model, not a plant's shape)
+        if (b.wash) je |= 4;
         B.BJE.push(je);
         let res = b.hard;
         if (b.hard < 0) res = 3600000;
@@ -341,7 +343,7 @@ export function makeData() {
 
     // items
     const I = { ITKEY: [], ITNAME: [], ITK: [], ITST: [], ITFOOD: [], ITFUEL: [], ITTK: [], ITTT: [], ITDUR: [], ITDMG: [], ITISO: [], IC0: [], ICN: [], ITC1: [], ITC2: [], ITDEF: [], ITSLOT: [], ITTAG: [], ITPLB: [], ITSPAWN: [], ITTHROW: [], ITCAT: [], ITFP: [], ITREP: [], ITENC: [], ITECL: [] };
-    const SMELTT = 8;
+    const SMELTT = 10;
     const iconOf = (grid, p) => putRects(rectsOf(grid, (ch) => ch !== '.', (ch) => col(snap(p[ch]))));
     const iconCol = (grid, p) => { const c = {}; for (const r of grid) for (const ch of r) if (ch !== '.') c[ch] = (c[ch] || 0) + 1; return col(snap(p[Object.entries(c).sort((a, b) => b[1] - a[1])[0][0]])); };
     const TORCH = { g: ['...yy...', '...yo...', '...bb...', '...bb...', '...bb...', '...bb...', '...bb...', '........'], p: { y: 'ffd040', o: 'f08020', b: '7a5a30' } };
@@ -416,6 +418,11 @@ export function makeData() {
             if (it.n === 'igniter') ecl = 13;
             if (it.n === 'book' || it.n === 'enchantedBook') { ecl = 14; enc = it.n === 'book' ? 1 : 0; }
             if (it.n === 'glider') rep = idOf('leather');
+            // ((v3.3) 15 crossbow (loaded or not), 16 fishing rod, 17 trident, 18 the second book)
+            if (it.n === 'crossbow' || it.n === 'crossbowLoaded') { ecl = 15; enc = 1; }
+            if (it.n === 'fishingRod') { ecl = 16; enc = 1; }
+            if (it.n === 'trident') { ecl = 17; enc = 1; }
+            if (it.n === 'enchantedBook2') ecl = 18;
         }
         I.ITECL.push(ecl); I.ITENC.push(enc); I.ITREP.push(rep);
         I.ITFP.push((tool && tool.tier === 4) || (arm && ARMT[arm.tier].n === 'Abyss') || ['abyssIngot', 'scrap', 'debris', 'blockAbyss'].includes((b || it || {}).n) ? 1 : 0);
@@ -428,7 +435,7 @@ export function makeData() {
     // level more, treasure (not at the table), the group of those that exclude each other, and the
     // classes (ITECL 1 sword 2 axe 3 pickaxe 4 shovel 5 hoe 6 bow 7..10 helmet..boots 11 elytra 12 shears
     // 13 flint and steel 14 book) that take it at the anvil (ENOK) and at the table (ENTB)
-    const W = [1], T = [2, 3, 4, 5], AR = [7, 8, 9, 10], DUR = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+    const W = [1], T = [2, 3, 4, 5], AR = [7, 8, 9, 10], DUR = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17];
     const EN = [
         ['sharpness', '날카로움', 5, 10, 1, 11, 0, 1, [1, 2], W],
         ['smite', '강타', 5, 5, 5, 8, 0, 1, [1, 2], W],
@@ -458,14 +465,30 @@ export function makeData() {
         ['frost_walker', '차가운 걸음', 2, 2, 10, 10, 1, 5, [10], []],
         ['binding_curse', '귀속 저주', 1, 1, 25, 0, 1, 0, [...AR, 11], []],
         ['vanishing_curse', '소실 저주', 1, 1, 25, 0, 1, 0, DUR, []],
+        // ((v3.3) the genre's other ten, after the others (an item's number reads the charms in this
+        // order, so those kept stay as they are). Classes 15 crossbow, 16 fishing rod, 17 trident. A book's
+        // number has no room for them (all 28 take 51.9 of its 53 bits): they are a second book's
+        // (class 18, which takes these ten and no other; the first book takes the first 28).
+        // Riptide goes with neither loyalty (group 6) nor channeling (enClash, src/ench.js).)
+        ['loyalty', '충성', 3, 5, 12, 7, 0, 6, [17], [17]],
+        ['riptide', '급류', 3, 2, 17, 7, 0, 6, [17], [17]],
+        ['channeling', '집전', 1, 1, 25, 0, 0, 0, [17], [17]],
+        ['impaling', '찌르기', 5, 2, 1, 8, 0, 0, [17], [17]],
+        ['multishot', '다중 발사', 1, 2, 20, 0, 0, 7, [15], [15]],
+        ['quick_charge', '빠른 장전', 3, 5, 12, 20, 0, 0, [15], [15]],
+        ['piercing', '관통', 4, 10, 1, 10, 0, 7, [15], [15]],
+        ['lure', '미끼', 3, 2, 15, 9, 0, 0, [16], [16]],
+        ['luck_of_the_sea', '바다의 행운', 3, 2, 15, 9, 0, 0, [16], [16]],
+        ['soul_speed', '영혼 가속', 3, 1, 10, 10, 1, 0, [10], []],
     ];
+    const ENCLS = 18;
     L.ENKEY = EN.map(e => e[0]); L.ENKO = EN.map(e => e[1]); L.ENMAX = EN.map(e => e[2]); L.ENW = EN.map(e => e[3]);
     L.ENP0 = EN.map(e => e[4]); L.ENPS = EN.map(e => e[5]); L.ENTR = EN.map(e => e[6]); L.ENX = EN.map(e => e[7]);
     L.ENOK = []; L.ENTB = [];
-    for (const e of EN) for (let c = 1; c <= 14; c++) { L.ENOK.push(c === 14 || e[8].includes(c) ? 1 : 0); L.ENTB.push((c === 14 && !e[6]) || e[9].includes(c) ? 1 : 0); }
+    EN.forEach((e, k) => { for (let c = 1; c <= ENCLS; c++) { const bk = (c === 14 && k < 28) || (c === 18 && k >= 28); L.ENOK.push(bk || e[8].includes(c) ? 1 : 0); L.ENTB.push((bk && !e[6]) || e[9].includes(c) ? 1 : 0); } });
     // (the code: one number of mixed radix over the charms a class takes, under the damage x 4096; a
     // book's alone - it must stay under 2^53)
-    for (let c = 1; c <= 14; c++) { let p = 1; EN.forEach((e, k) => { if (L.ENOK[k * 14 + c - 1]) p *= e[2] + 1; }); if (p * (c === 14 ? 1 : 4096) > 2 ** 53) throw new Error('enchant code too big ' + c + ' ' + p); }
+    for (let c = 1; c <= ENCLS; c++) { let p = 1; EN.forEach((e, k) => { if (L.ENOK[k * ENCLS + c - 1]) p *= e[2] + 1; }); if (p * (c === 14 || c === 18 ? 1 : 4096) > 2 ** 53) throw new Error('enchant code too big ' + c + ' ' + p); }
     L.SMA = SMITH.map(p => p[0]); L.SMB = SMITH.map(p => p[1]);
     // the creative tabs
     L.PALC = []; L.PALC0 = []; L.PALCN = [];
@@ -498,10 +521,12 @@ export function makeData() {
     L.SMI = SMELT.map(s => idOf(s[0])); L.SMO = SMELT.map(s => idOf(s[1]));
 
     // loot of the structures' chests: [rolls min, max, [item, min, max, weight] ...] by table number
+    // ((v3.3) the enchanted golden apple, which cannot be made, in the tables that already held a golden apple and
+    // whose like in the genre has it: 3, 12 the broken veil, 13 the mine, 14, 15 the bastion)
     const LOOTS = {
         1: [3, 7, [['bread', 1, 4, 6], ['apple', 1, 5, 5], ['wheat', 1, 6, 6], ['ingotIron', 1, 3, 3], ['jade', 1, 2, 3], ['wheatSeeds', 2, 5, 5], ['potato', 1, 5, 4], ['carrot', 1, 5, 4], ['sapling', 1, 2, 2], ['book', 1, 1, 1]]],
         2: [3, 8, [['ingotIron', 1, 5, 8], ['ingotGold', 1, 3, 4], ['bread', 1, 3, 6], ['diamond', 1, 3, 2], ['jade', 1, 3, 3], ['pickIron', 1, 1, 2], ['swordIron', 1, 1, 2], ['ChestIron', 1, 1, 2], ['HelmetIron', 1, 1, 2], ['obsidian', 3, 7, 3]]],
-        3: [2, 6, [['saddle', 1, 1, 12], ['diamond', 1, 3, 3], ['ingotIron', 1, 5, 10], ['ingotGold', 2, 7, 10], ['jade', 1, 3, 10], ['bone', 4, 6, 15], ['flesh', 3, 7, 15], ['goldenApple', 1, 1, 3], ['gunpowder', 1, 8, 10], ['sand', 1, 8, 6], ['string', 1, 8, 10]]],
+        3: [2, 6, [['saddle', 1, 1, 12], ['diamond', 1, 3, 3], ['ingotIron', 1, 5, 10], ['ingotGold', 2, 7, 10], ['jade', 1, 3, 10], ['bone', 4, 6, 15], ['flesh', 3, 7, 15], ['goldenApple', 1, 1, 3], ['gunpowder', 1, 8, 10], ['sand', 1, 8, 6], ['string', 1, 8, 10], ['goldenAppleE', 1, 1, 2]]],
         4: [2, 6, [['saddle', 1, 1, 12], ['diamond', 1, 3, 3], ['ingotIron', 1, 5, 10], ['ingotGold', 2, 7, 15], ['jade', 1, 3, 2], ['bone', 4, 6, 20], ['flesh', 3, 7, 16], ['arrow', 2, 7, 10], ['bamboo', 1, 3, 5]]],
         5: [2, 6, [['apple', 1, 3, 15], ['coal', 1, 4, 15], ['goldNugget', 1, 3, 10], ['axeStone', 1, 1, 2], ['flesh', 1, 1, 10], ['wheat', 2, 3, 10], ['goldenApple', 1, 1, 1]]],
         6: [2, 4, [['wheat', 3, 5, 7], ['potato', 2, 5, 5], ['carrot', 3, 5, 5], ['arrow', 2, 7, 5], ['ingotIron', 1, 3, 3], ['string', 1, 6, 4], ['book', 1, 1, 1], ['bow', 1, 1, 2]]],
@@ -510,10 +535,10 @@ export function makeData() {
         9: [3, 6, [['ingotIron', 1, 5, 90], ['ingotGold', 1, 5, 10], ['jade', 1, 5, 40], ['diamond', 1, 1, 5], ['ironNugget', 1, 10, 50], ['goldNugget', 1, 10, 10], ['lapis', 1, 10, 20]]],
         10: [2, 4, [['coal', 1, 4, 10], ['wheat', 2, 3, 10], ['goldNugget', 1, 3, 5], ['jade', 1, 1, 3], ['flesh', 1, 2, 4], ['aquaCrystal', 1, 3, 4], ['book', 1, 1, 1]]],
         11: [4, 8, [['aquaCrystal', 1, 3, 5], ['ingotIron', 1, 4, 20], ['ingotGold', 1, 4, 10], ['tnt', 1, 2, 5], ['jade', 4, 8, 5], ['diamond', 1, 2, 5], ['bread', 1, 3, 10], ['goldenApple', 1, 1, 2]]],
-        12: [4, 8, [['obsidian', 1, 2, 40], ['flint', 1, 4, 40], ['ironNugget', 9, 18, 40], ['igniter', 1, 1, 40], ['fireCharge', 1, 1, 40], ['goldenApple', 1, 1, 15], ['goldNugget', 4, 24, 15], ['swordGold', 1, 1, 15], ['pickGold', 1, 1, 15], ['ingotGold', 2, 8, 5], ['glintObsidian', 1, 2, 5], ['blockGold', 1, 2, 1]]],
-        13: [3, 6, [['goldenApple', 1, 1, 20], ['ingotIron', 1, 5, 10], ['ingotGold', 1, 3, 5], ['sparkDust', 4, 9, 5], ['lapis', 4, 9, 5], ['diamond', 1, 2, 3], ['coal', 3, 8, 10], ['bread', 1, 3, 15], ['rail', 4, 8, 20], ['poweredRail', 1, 4, 5], ['torch', 1, 16, 15], ['beetSeeds', 2, 4, 10]]],
-        14: [3, 6, [['saddle', 1, 1, 14], ['bone', 1, 8, 10], ['gunpowder', 1, 8, 10], ['flesh', 1, 8, 10], ['string', 1, 8, 10], ['bread', 1, 1, 20], ['wheat', 1, 4, 20], ['bucket', 1, 1, 10], ['sparkDust', 1, 4, 15], ['coal', 1, 4, 15], ['goldenApple', 1, 1, 15], ['ingotIron', 1, 4, 10], ['ingotGold', 1, 4, 5], ['diamond', 1, 1, 2]]],
-        15: [3, 8, [['saddle', 1, 1, 6], ['ingotGold', 2, 9, 10], ['goldNugget', 4, 16, 10], ['blockGold', 1, 1, 3], ['abyssIngot', 1, 1, 2], ['scrap', 1, 2, 4], ['magmaCream', 1, 6, 8], ['ashBrick', 2, 8, 8], ['blackrock', 4, 16, 10], ['HelmetChain', 1, 1, 3], ['diamond', 1, 2, 3], ['wailSand', 4, 12, 6]]],
+        12: [4, 8, [['obsidian', 1, 2, 40], ['flint', 1, 4, 40], ['ironNugget', 9, 18, 40], ['igniter', 1, 1, 40], ['fireCharge', 1, 1, 40], ['goldenApple', 1, 1, 15], ['goldNugget', 4, 24, 15], ['swordGold', 1, 1, 15], ['pickGold', 1, 1, 15], ['ingotGold', 2, 8, 5], ['glintObsidian', 1, 2, 5], ['blockGold', 1, 2, 1], ['goldenAppleE', 1, 1, 1]]],
+        13: [3, 6, [['goldenApple', 1, 1, 20], ['ingotIron', 1, 5, 10], ['ingotGold', 1, 3, 5], ['sparkDust', 4, 9, 5], ['lapis', 4, 9, 5], ['diamond', 1, 2, 3], ['coal', 3, 8, 10], ['bread', 1, 3, 15], ['rail', 4, 8, 20], ['poweredRail', 1, 4, 5], ['torch', 1, 16, 15], ['beetSeeds', 2, 4, 10], ['goldenAppleE', 1, 1, 5]]],
+        14: [3, 6, [['saddle', 1, 1, 14], ['bone', 1, 8, 10], ['gunpowder', 1, 8, 10], ['flesh', 1, 8, 10], ['string', 1, 8, 10], ['bread', 1, 1, 20], ['wheat', 1, 4, 20], ['bucket', 1, 1, 10], ['sparkDust', 1, 4, 15], ['coal', 1, 4, 15], ['goldenApple', 1, 1, 15], ['ingotIron', 1, 4, 10], ['ingotGold', 1, 4, 5], ['diamond', 1, 1, 2], ['goldenAppleE', 1, 1, 2]]],
+        15: [3, 8, [['saddle', 1, 1, 6], ['ingotGold', 2, 9, 10], ['goldNugget', 4, 16, 10], ['blockGold', 1, 1, 3], ['abyssIngot', 1, 1, 2], ['scrap', 1, 2, 4], ['magmaCream', 1, 6, 8], ['ashBrick', 2, 8, 8], ['blackrock', 4, 16, 10], ['HelmetChain', 1, 1, 3], ['diamond', 1, 2, 3], ['wailSand', 4, 12, 6], ['goldenAppleE', 1, 1, 1]]],
     };
     L.LOOT0 = []; L.LOOTN = []; L.LOOTR0 = []; L.LOOTR1 = []; L.LOOTI = []; L.LOOTLO = []; L.LOOTHI = []; L.LOOTW = [];
     for (let t = 1; t <= 15; t++) {
@@ -607,7 +632,7 @@ export function makeData() {
 }
 
 // ------------------------------------------------------------------ sources
-export const FILES = ['world.js', 'flat.js', 'fluid.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'rails.js', 'save.js', 'net.js', 'netmob.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'fauna.js', 'items.js', 'hud.js', 'extra.js', 'ench.js', 'cmds.js', 'wedit.js', 'keyin.js', 'swear.js', 'je.js', 'mapdata.js', 'main.js', 'test.js'];
+export const FILES = ['world.js', 'flat.js', 'fluid.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'rails.js', 'save.js', 'net.js', 'netmob.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'fauna.js', 'items.js', 'hud.js', 'extra.js', 'ench.js', 'cmds.js', 'wedit.js', 'keyin.js', 'swear.js', 'je.js', 'mapdata.js', 'combat.js', 'plants.js', 'brew.js', 'world33.js', 'main.js', 'test.js'];
 export function allConsts(more = {}) {
     const { C } = makeData();
     return { ...consts, ...C, ...more };

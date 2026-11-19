@@ -277,7 +277,6 @@ function nmHurtMe(f) {
 // (mobs.js mobHurt: a blow on a stand-in goes to its owner, when a player (or a pet) dealt it; the
 // rest - a blast, fire, a fall - runs on the owner's screen too)
 function netMobHit(e, n, hx, hz) {
-  if (ET[e] == 10) { if (nCrystal > 0) { n = 0; if (pKill == 1) { msgShow('수호 수정이 수호자를 지키고 있습니다', 1.5); } } }
   if (pKill == 1 && n > 0 && EHURT[e] <= 0) {
     if (netSrv > 0 && netSt == 2) { evAdd('g', `${NNICK[ERK[e]]}^${ERU[e]}^${Math.round(n * 10) / 10}^${Math.round(hx * 100) / 100}^${Math.round(hz * 100) / 100}^${hitKb}^${hitFire}^${lootLv}`); }
     EHURT[e] = 0.5; sndPlay(4);

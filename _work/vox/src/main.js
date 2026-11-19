@@ -81,6 +81,8 @@ function btnTick() {
   if (b1 == 1 && mbL == 0) { clickLatch = 1; }
   if (b2 == 1 && mbR == 0) { rLatch = 1; }
   if (b4 == 1 && mbM == 0) { mLatch = 1; }
+  // ((v3.3) the buttons are told: F is free to change hands (src/combat.js))
+  if (mb > 0) { mbSeen = 1; }
   mbL = b1; mbR = b2; mbM = b4;
 }
 // the left button held (any press, where the buttons are not told)
@@ -90,8 +92,9 @@ function leftHeld() {
   return r;
 }
 // use (the right button or F): went down this frame / held
-function useHit() { let r = 0; if (keyHit(70) == 1 || rLatch == 1) { r = 1; } return r; }
-function useDown() { let r = 0; if (key(70) || mbR == 1) { r = 1; } return r; }
+// ((v3.3) F only where the buttons are not told (mbSeen 0): with them it changes hands)
+function useHit() { let r = 0; if ((keyHit(70) == 1 && mbSeen == 0) || rLatch == 1) { r = 1; } return r; }
+function useDown() { let r = 0; if ((key(70) && mbSeen == 0) || mbR == 1) { r = 1; } return r; }
 on('click', 'pen', function () {
   // (a press of the left button that tessvm told is caught by btnTick; this is for the rest: Entry,
   // an older tessvm, a press let go before the tick)
@@ -205,8 +208,10 @@ function playKeys(dt) {
       if (clickLatch == 1) { if (lkNow == 1) { attack(); } }
       breaking(dt);
       // the right button (or F): place, use; held, again every 0.2 s (the genre's 4 ticks)
-      if (useHit() == 1) { if (lkNow == 1 || keyHit(70) == 1) { useKey(); } }
-      else { if (useDown() == 1) { if (placeCool <= 0) { if (lkNow == 1 || key(70)) { useKey(); placeCool = Math.max(placeCool, 0.2); } } } }
+      // ((v3.3) useBoth: the hand, then the other hand if the hand did nothing; F changes hands)
+      if (useHit() == 1) { if (lkNow == 1 || keyHit(70) == 1) { useBoth(); } }
+      else { if (useDown() == 1) { if (placeCool <= 0) { if (lkNow == 1 || key(70)) { useBoth(); placeCool = Math.max(placeCool, 0.2); } } } }
+      if (keyHit(70) == 1 && mbSeen == 1) { handSwap(); }
       useHeldStep(dt);
       if (keyHit(81) == 1) { dropHeld(); }
       // the middle button (or C): pick block
@@ -225,6 +230,7 @@ function playKeys(dt) {
     }
     survival(dt);
     effectsStep(dt);
+    combatStep(dt);
     // ((v2.9) beacons, frost walker)
     beaconsStep(dt); frostStep(dt); raidStep(dt);
   } else { pickOn = 0; breakStage = 0; drawId = 0; drawT = 0; uiInput(); }
@@ -261,6 +267,8 @@ function playEye(dt) {
   if (swimming == 1) { eh = 0.4; }
   eyeH = eyeH + (eh - eyeH) * Math.min(1, 12 * dt);
   camX = px; camY = py + eyeH + Math.abs(sind(bob * 57)) * 0.06; camZ = pz; camYaw = yaw; camPitch = pitch;
+  // ((v3.3) nausea: the view sways)
+  if (EFT[26] > 0) { camYaw = camYaw + 4 * sind(EFT[26] * 150); camPitch = camPitch + 3 * cosd(EFT[26] * 110); }
   if (dead == 1) { camY = py + 0.3; }
   underWater = headWater;
   if (underWater != underWas) { underWas = underWater; if (underWater == 1) { setView(Math.min(viewR, 12)); } else { setView(viewWant); } }

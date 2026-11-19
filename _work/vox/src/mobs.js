@@ -184,6 +184,7 @@ function mobStep(e, dt) {
   else { if (t == 13) { boatStep(e, dt); } else { if (isCart(t) == 1) { cartStep(e, dt); } else { if (t == 11) { wanderStep(e, dt); }
     // ((v3.0) the new kinds' ways first (a mob may die or change there))
     golemT = 0; faunaStep(e, t, dt, Math.sqrt((px - EX[e]) * (px - EX[e]) + (pz - EZ[e]) * (pz - EZ[e])));
+    if (ET[e] == t) { worldMob(e, t, dt); }
     if (ET[e] > 0) { mobStep0(e, dt); } else { golemT = 0; } } } }
 }
 function mobStep0(e, dt) {
@@ -210,6 +211,8 @@ function mobStep0(e, dt) {
     // unless angered; a raid's raiders come from afar)
     let near = 16;
     if (EOWN[e] == 0 - 1) { near = 64; }
+    // ((v3.3) one who drank invisibility is seen from near only)
+    near = near * invisK;
     if (t == 7 || t == M_CAVESPIDER) { if (EST[e] != 4) { if (mod(frameNo + e, 10) == 0) { if (lightAt(EX[e], EY[e] + 0.5, EZ[e]) >= 12) { EVAR[e] = 2; } else { EVAR[e] = 0; } } if (EVAR[e] == 2) { near = 0; } } }
     // ((v3.2) how far up or down counts too: a monster 25 blocks under one's feet does not see one (it stood
     // looking up, an archer for good - it only keeps its distance - and never walked into a farm's water))
@@ -229,7 +232,7 @@ function mobStep0(e, dt) {
         want = 0;
         if (EGND[e] == 1) { if (ETM[e] <= 0) { ETM[e] = 0.9 + rand(0, 8) / 10; EVY[e] = 7.5; want = 1.8; EYAW[e] = wy; } }
         else { want = 1.8; }
-        if (dist < 0.9 + w) { if (Math.abs(dyp) < 1.2) { if (EATK[e] <= 0 && MDMG[t] > 0) { EATK[e] = 1; if (tgK > 0) { netMobStrike(e, t, dxp / (dist + 0.01) * 4, dzp / (dist + 0.01) * 4); } else { hurtM(MDMG[t], `${MNAME[t]}에게 당했습니다`); thornsHit(e); mobBite(e, t); pvx = pvx + dxp / (dist + 0.01) * 4; pvz = pvz + dzp / (dist + 0.01) * 4; pvy = 4; } } } }
+        if (dist < 0.9 + w) { if (Math.abs(dyp) < 1.2) { if (EATK[e] <= 0 && MDMG[t] > 0) { EATK[e] = 1; if (tgK > 0) { netMobStrike(e, t, dxp / (dist + 0.01) * 4, dzp / (dist + 0.01) * 4); } else { shHit = 0; hurtM(MDMG[t], `${MNAME[t]}에게 당했습니다`); if (shHit == 0) { thornsHit(e); mobBite(e, t); kbKeep(); pvx = pvx + dxp / (dist + 0.01) * 4 * kbK; pvz = pvz + dzp / (dist + 0.01) * 4 * kbK; pvy = 4 * kbK; } } } } }
       }
       if (ai == 6) { if (EST[e] != 6) { bombStep(e, dist, dt); } if (EST[e] == 5 || EST[e] == 6) { want = 0; } }
       if (ai == 2) {
@@ -247,9 +250,14 @@ function mobStep0(e, dt) {
           EATK[e] = 1;
           if (tgK > 0) { netMobStrike(e, t, dxp / (dist + 0.01) * 5, dzp / (dist + 0.01) * 5); }
           else {
-          hurtM(MDMG[t], `${MNAME[t]}에게 당했습니다`); thornsHit(e); mobBite(e, t);
+          // ((v3.3) a blow the shield stopped (shHit) neither bites nor knocks; the abyss armour holds its
+          // wearer against a tenth of the knock a piece (kbK): src/combat.js)
+          shHit = 0; hurtM(MDMG[t], `${MNAME[t]}에게 당했습니다`);
+          if (shHit == 0) {
+          thornsHit(e); mobBite(e, t);
           // knocked back
-          pvx = pvx + dxp / (dist + 0.01) * 5; pvz = pvz + dzp / (dist + 0.01) * 5; pvy = 4;
+          kbKeep(); pvx = pvx + dxp / (dist + 0.01) * 5 * kbK; pvz = pvz + dzp / (dist + 0.01) * 5 * kbK; pvy = 4 * kbK;
+          }
           }
         } } }
         // the spider leaps
@@ -385,7 +393,6 @@ let hitKb = 0, hitFire = 0, lootLv = 0;
 // ((v3.0, 11-18) another player's mob (a stand-in, netmob.js): the blow goes to its owner)
 function mobHurt(e, n, fx, fz) { if (ERK[e] > 0) { netMobHit(e, n, fx, fz); } else { mobHurt0(e, n, fx, fz); } }
 function mobHurt0(e, n, fx, fz) {
-  if (ET[e] == 10) { if (nCrystal > 0) { n = 0; msgShow('수호 수정이 수호자를 지키고 있습니다', 1.5); } }
   // ((v3.0) a shut shell takes a fifth; the king while it grows nothing)
   if (ET[e] == 12) { if (EVAR[e] < 20) { n = n * 0.2; } }
   if (ET[e] == M_BONEKING) { if (EST[e] == 8) { n = 0; } }
@@ -404,13 +411,15 @@ function mobHurt0(e, n, fx, fz) {
     if (t == 11) { EST[e] = 4; ETM[e] = 30; if (EHP[e] > 0) { if (rand(1, 10) <= 6) { wanderTeleport(e); } } }
     if (EHP[e] <= 0) {
       if (t == 10) { bossDies(e); }
+      // ((v3.3) a cart's store falls out, the wanderer's block drops: world33.js)
+      worldDied(e, t);
       // ((v3.0) a villager the dead killed may rise as one of them; a young one drops nothing)
       let turned = villagerTurn(e);
       // drops
       let k = MDROP0[t], n2 = 0;
       // ((v3.0, 11-18) killed by another player (its blow came from their screen): the drops are theirs)
       if (nmKiller > 0) { netMobKilled(e, t, turned); }
-      if (grLoot == 1 && turned == 0 && isBaby(e) == 0 && nmKiller == 0) {
+      if (dropsOn(t) == 1 && turned == 0 && isBaby(e) == 0 && nmKiller == 0) {
         while (k < MDROP0[t] + MDROPN[t]) {
           n2 = rand(MDLO[k], MDHI[k] + lootLv);
           if (n2 > 0) { dropItem(MDI[k], n2, 0, EX[e], EY[e] + 0.5, EZ[e], 0); }
@@ -418,7 +427,10 @@ function mobHurt0(e, n, fx, fz) {
         }
       }
       if (turned == 0) {
+        // ((v3.3) its experience falls as orbs where it died: xpAdd, src/combat.js)
+        xpAt = 1; xpX = EX[e]; xpY = EY[e] + 0.5; xpZ = EZ[e];
         mobDies(e, t);
+        xpAt = 0;
         if (specMob == e) { specMob = 0; }
         if (riding == e) { riding = 0; }
         ET[e] = 0;
@@ -464,24 +476,33 @@ function mobInCell(x, y, z) {
   return r;
 }
 // the player's swing at the picked mob
+// ((v3.3) as 1.16.5: no fixed wait between blows - a blow does 0.2 + f x f x 0.8 of its hurt, f the
+// share of the weapon's time gone by since the last one (src/combat.js: the sword is ready in 0.625 s,
+// an axe in 1 to 1.25 s), a charm's hurt f of it; a blow in the air starts the time again too. A
+// critical hit (x 1.5, it was any fall) only with f over 0.9, falling, not sprinting, not in water,
+// on a ladder or riding; a sprinting blow that is ready knocks a level further and ends the sprint;
+// the sweep only when ready. A mob takes no blow within half a second of the last (the tool is not
+// worn then); a tool that is no sword (nor the trident) wears by 2.)
 function attack() {
-  if (mobPick > 0) { if (attackCool <= 0) {
-    let id = INVI[hotSel], dmg = 1;
+  let id = INVI[hotSel], f = atkCharge();
+  if (mobPick > 0) { if (isProxy(mobPick) == 1 || EHURT[mobPick] <= 0) {
+    let dmg = 1;
     // ((v2.9) the weapon's charms (read before it wears, it may break), strength)
     let bon = enBonus(mobPick), kb = ENL[4], fa = ENL[5], lo = ENL[6], sw = ENL[7];
-    if (ITTK[id + 1] >= 0) { dmg = ITDMG[id + 1]; wearHeld(1); }
-    dmg = dmg + bon + 3 * fx(14);
-    if (gameMode == 1) { dmg = 99; }
+    if (ITTK[id + 1] >= 0) { dmg = ITDMG[id + 1]; if (ITTK[id + 1] == 3 || ITTK[id + 1] == 7) { wearHeld(1); } else { wearHeld(2); } }
+    dmg = Math.max(0, dmg + 3 * fx(14) - 4 * fx(18)) * (0.2 + f * f * 0.8);
     let crit = 0;
-    if (onGround == 0) { if (pvy < 0) { crit = 1; dmg = Math.floor(dmg * 1.5); } }
+    if (f > 0.9 && onGround == 0 && pvy < 0 && sprinting == 0 && inWater == 0 && inClimb == 0 && riding == 0) { crit = 1; dmg = dmg * 1.5; }
+    dmg = Math.round((dmg + bon * f) * 10) / 10;
+    if (gameMode == 1) { dmg = 99; }
+    if (sprinting == 1 && f > 0.9) { kb = kb + 1; crit = 2; sprinting = 0; }
     hitKb = kb; hitFire = fa; lootLv = lo;
     let tg = mobPick, tx0 = EX[mobPick], tz0 = EZ[mobPick], ty0 = EY[mobPick];
-    dmg = Math.max(0, dmg - 4 * fx(18));
     if (EOWN[mobPick] == 0) { petTgt = mobPick; }
     pKill = 1;
     if (isProxy(mobPick) == 1) { netHit(mobPick, dmg); } else { mobHurt(mobPick, dmg, EX[mobPick] - px, EZ[mobPick] - pz); }
     // a sword's sweep on the ground (not a critical hit, not sprinting): the mobs by the one hit
-    if (ITTK[id + 1] == 3 && onGround == 1 && crit == 0 && sprinting == 0) {
+    if (ITTK[id + 1] == 3 && onGround == 1 && crit == 0 && f > 0.9) {
       let f = 1, sd = 1; if (sw > 0) { sd = 1 + dmg * sw / (sw + 1); }
       hitKb = 0;
       while (f <= NMOB) {
@@ -493,8 +514,8 @@ function attack() {
     }
     hitKb = 0; hitFire = 0; lootLv = 0; pKill = 0;
     exhaust = exhaust + 0.1;
-    attackCool = 0.45; swingT = 0.3;
   } }
+  attackCool = 1 / atkSpeed(id); atkSel = hotSel; atkId = INVI[hotSel]; swingT = 0.3;
 }
 // a straight line between two points free of opaque blocks?
 function sightLine(x0, y0, z0, x1, y1, z1) {
@@ -547,7 +568,7 @@ function arrowsStep(dt) {
   while (a <= NARR) {
     if (AON[a] > 0) {
       AAGE[a] = AAGE[a] + dt;
-      if (AON[a] == 12) { fangStep(a, dt); } else { if (AON[a] >= 10) { fireworkStep(a, dt); } else { if (AON[a] >= 7) { thrownStep(a, dt); } else { if (AON[a] >= 5) { boltStep(a, dt); } else {
+      if (AON[a] >= 12) { if (AON[a] == 12) { fangStep(a, dt); } else { if (AON[a] == 19) { cloudStep(a, dt); } else { brewShotStep(a, dt); } } } else { if (AON[a] >= 10) { fireworkStep(a, dt); } else { if (AON[a] >= 7) { thrownStep(a, dt); } else { if (AON[a] >= 5) { boltStep(a, dt); } else {
       if (ASTK[a] == 0) {
         if (AON[a] != 3) { AVY[a] = AVY[a] - 20 * dt; }
         let nx = AXX[a] + AVX[a] * dt, ny = AYY[a] + AVY[a] * dt, nz = AZZ[a] + AVZ[a] * dt;
@@ -561,7 +582,8 @@ function arrowsStep(dt) {
         // the player ((v3.1) not one flown here to look at, APW -1: its shooter's screen says what it hit)
         if ((AON[a] == 1 || AON[a] == 3) && APW[a] >= 0) {
           if (Math.abs(AXX[a] - px) < 0.45 && Math.abs(AZZ[a] - pz) < 0.45 && AYY[a] > py && AYY[a] < py + 1.8) {
-            shotHit(a);
+            // ((v3.3) shotSrc: the shot a raised shield may stop (src/combat.js))
+            shotSrc = a; shotHit(a); shotSrc = 0;
             pvx = pvx + AVX[a] * 0.2; pvz = pvz + AVZ[a] * 0.2;
             AON[a] = 0;
           }
@@ -578,13 +600,13 @@ function arrowsStep(dt) {
                 let pw = idiv(AEN[a], 1000), dm = 7; if (pw > 0) { dm = 7 * (1 + 0.25 * (pw + 1)); }
                 dm = Math.max(1, Math.round(dm * APW[a]));
                 hitKb = mod(idiv(AEN[a], 100), 10); if (mod(idiv(AEN[a], 10), 10) > 0) { hitFire = 1; }
-                if (AEN[a] < 0) { dm = 8; hitKb = 0; hitFire = 0; }
+                if (AEN[a] < 0) { dm = 8 + tridentHits(a, e); hitKb = 0; hitFire = 0; }
                 // ((v3.0) the wanderer is not hit by arrows (it slips away), a shut shell, the king below half
                 // nor; a tamed one is not)
-                if (ET[e] == 11 || (ET[e] == 12 && EVAR[e] < 20) || (ET[e] == M_BONEKING && EHP[e] < 150) || EOWN[e] == 1 || EOWN[e] == 2) { if (ET[e] == 11) { wanderTeleport(e); } AON[a] = 0; }
+                if (ET[e] == 11 || (ET[e] == 10 && EST[e] == 2) || (ET[e] == 12 && EVAR[e] < 20) || (ET[e] == M_BONEKING && EHP[e] < 150) || EOWN[e] == 1 || EOWN[e] == 2) { if (ET[e] == 11) { wanderTeleport(e); } AON[a] = 0; }
                 else { if (isProxy(e) == 1) { netHit(e, dm); } else { pKill = 1; if (EOWN[e] == 0) { petTgt = e; } mobHurt(e, dm, AVX[a], AVZ[a]); pKill = 0; } }
                 hitKb = 0; hitFire = 0;
-                if (AEN[a] < 0) { tridentDrop(a); } AON[a] = 0;
+                if (AEN[a] < 0) { tridentDrop(a); } else { if (pierceOn(a, e) == 0) { AON[a] = 0; } }
               }
             } }
             e = e + 1;
@@ -651,9 +673,10 @@ function itemsStep(dt) {
       solidHit = 0;
       if (BSOL[blockAt(Math.floor(IXX[i]), Math.floor(IYY[i] + 0.1), Math.floor(IZZ[i])) + 1] == 1) { solidHit = 1; }
       if (solidHit == 1) { IYY[i] = Math.floor(IYY[i] + 0.1) + 1; }
-      // ((v2.9) in lava, fire or a lit campfire it burns (it lay there); the abyss things float up out of lava)
+      // ((v2.9) in lava or fire it burns (it lay there); the abyss things float up out of lava. (v3.3) Not on
+      // a campfire, as the genre: what a campfire had cooked fell on it and burnt)
       let fb = blockAt(Math.floor(IXX[i]), Math.floor(IYY[i] + 0.1), Math.floor(IZZ[i]));
-      if (BLQ[fb + 1] == 35 || BSPEC[fb + 1] == 10 || fb == I_wailFire || fb == I_campfire || fb == I_wailCampfire) {
+      if (BLQ[fb + 1] == 35 || BSPEC[fb + 1] == 10 || fb == I_wailFire) {
         if (ITFP[IID[i] + 1] == 1) { if (BLQ[fb + 1] == 35) { IVY[i] = Math.max(IVY[i], 1.5); } }
         else { IID[i] = 0; sndPlay(5); }
       }
@@ -661,7 +684,8 @@ function itemsStep(dt) {
       if (dead == 0 && gameMode != 3) { if (IAGE[i] > 0.5) {
         let dx = px - IXX[i], dy = py + 0.8 - IYY[i], dz = pz - IZZ[i];
         let d2 = dx * dx + dy * dy + dz * dz;
-        if (d2 < 2.6) {
+        // ((v3.3) an orb of experience flies to the player from 7 blocks, and is taken as xp (addItem))
+        if (d2 < 2.6 || (d2 < 49 && IID[i] == I_xpOrb)) {
           if (d2 < 0.8) {
             addItem(IID[i], INN[i], IDU[i]);
             if (addLeft < INN[i]) { sndPlay(6); }
@@ -754,6 +778,7 @@ function drawMob(e, fog) {
   if (MAI[t] == 6) { if (EST[e] == 5 || EST[e] == 6) { if (mod(frameNo, 8) < 4) { mdTint = 1; } } }
   if (EBURN[e] == 1 || EFIR[e] > 0) { if (mod(frameNo, 10) < 2) { mdTint = 2; } }
   if (ELOVE[e] > 0 || (t == M_ZOMBIEVILLAGER && EVAR[e] == 2) || (t == M_BOMBSHROOM && EVAR[e] == 1)) { if (mod(frameNo, 12) < 3) { mdTint = 3; } }
+  if (t == 10) { if (EVAR[e] > 0) { wardenBeam(e, fog); } }
   if (MSHOT[t] == 8 && EST[e] == 7) {
     let bk = ETG[e], bx = px, by = py, bz = pz;
     if (bk > 0) { bx = NPX[bk]; by = NPY[bk]; bz = NPZ[bk]; }
@@ -937,7 +962,7 @@ function drawMoving1(m, fog) {
     }
   }
 }
-function drawArrow(a, fog) { if (AON[a] == 12) { drawFang(a, fog); } else { if (AON[a] >= 10) { drawFirework(a, fog); } else { drawArrow0(a, fog); } } }
+function drawArrow(a, fog) { if (AON[a] >= 12) { if (AON[a] == 12) { drawFang(a, fog); } else { if (AON[a] == 19) { drawCloud(a, fog); } else { brewShotDraw(a, fog); } } } else { if (AON[a] >= 10) { drawFirework(a, fog); } else { drawArrow0(a, fog); } } }
 // ((v2.8) a firework rocket: its red stick and the flame under it; its burst: 32 sparks flying out
 // from where it burst, slowing and falling, fading)
 function drawFirework(a, fog) {

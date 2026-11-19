@@ -28,6 +28,8 @@ function standsOn(b, under, x, y, z) {
   if (n == N_BELOW) { if (under == 0 || BSHP[under + 1] == 1 || BLQ[under + 1] > 0) { r = 0; } }
   if (n == N_ASHEN) { r = 0; if (under == 48 || under == I_emberMoss || under == I_indigoMoss || under == I_wailSoil || under == I_wailSand) { r = 1; } }
   if (n == N_FARM) { r = 0; if (under == I_farmland || under == I_farmlandWet) { r = 1; } }
+  // ((v3.3) the depths' wart: on wail sand alone)
+  if (BKIND[b + 1] == I_wartCrop) { r = 0; if (under == I_wailSand) { r = 1; } }
   if (n == N_REED) { r = 0; if (soilAt(under) == 1 || under == 8 || under == I_redSand || under == b) { r = 1; } if (b == I_reed && under != b) { if (reedWater(x, y - 1, z) == 0) { r = 0; } } }
   if (n == N_DARK) { if (BSOL[under + 1] == 0) { r = 0; } }
   if (n == N_WATER) { r = 0; if (BLQ[under + 1] == 7 || BSOL[under + 1] > 0) { r = 1; } }
@@ -51,7 +53,11 @@ function useKey0() {
     if (used == 0) { if (mobPick > 0) {
       let et = ET[mobPick];
       // ((v3.0) feeding, taming, saddling, sitting, shearing a mushroom cow, curing, getting on a horse)
-      if (gameMode != 3) { if (mobUse(mobPick, id) == 1) { used = 1; placeCool = 0.3; et = 0; } }
+      // ((v3.3) a cart with a chest or a hopper opens; one a mob sits in lets it out to a sneaking empty
+      // hand; an ash-folk takes a gold ingot: world33.js)
+      if (gameMode != 3) { if (cartClick(mobPick) == 1) { used = 1; placeCool = 0.3; et = 0; } }
+      if (et == M_ASHPIG) { if (id == I_ingotGold) { if (ashGive(mobPick) == 1) { used = 1; placeCool = 0.3; et = 0; } } }
+      if (et > 0) { if (gameMode != 3) { if (mobUse(mobPick, id) == 1) { used = 1; placeCool = 0.3; et = 0; } } }
       if (et == 13 || isCart(et) == 1) { riding = mobPick; used = 1; placeCool = 0.4; }
       if (et == M_TRADER) { tradeOpen(mobPick); used = 1; }
       // ((v3.2) a shorn sheep stays shorn till it has grazed (fauna.js): the coat was back in seconds)
@@ -84,6 +90,8 @@ function useKey0() {
     if (used == 0) { if (id > 0) {
       if (gameMode != 2) { if (ITPLB[id + 1] > 0) { if (pickOn == 1) { placeBlock(ITPLB[id + 1], id); } } }
     } }
+    // ((v3.3) did the hand do anything? if not the other hand may: useBoth, src/combat.js)
+    useDid = used;
   }
 }
 // F on a block: 1 when something happened
@@ -91,7 +99,7 @@ function useBlock(x, y, z, b, id) {
   let u = BUSE[b + 1], used = 1;
   if (u == U_CRAFT) { uiOpen(2); }
   else { if (u == U_FURNACE) { furnaceOpen(x, y, z); }
-  else { if (u == U_CHEST) { if (b == I_voidChest) { voidChestOpen(); } else { chestOpen(x, y, z); } }
+  else { if (u == U_CHEST) { if (b == I_voidChest) { voidChestOpen(); } else { if (b == I_brewingStand) { brewOpen(x, y, z); } else { chestOpen(x, y, z); } } }
   else { if (u == U_SMITH) { uiOpen(8); }
   else { if (u == U_SHELL) { shellBoxOpen(x, y, z); }
   else { if (u == U_DOOR) { doorToggle(x, y, z, b); }
@@ -113,6 +121,8 @@ function useBlock(x, y, z, b, id) {
   else { if (u == U_ANCHOR) { anchorUse(x, y, z, id); }
   else { if (u == U_RS) { rsUse(x, y, z, b); }
   else { used = 0; } } } } } } } } } } } } } } } } } } } } } } }
+  // ((v3.3) a cauldron's water, berries picked, a pumpkin carved: plants.js)
+  if (used == 0) { used = plantUse(x, y, z, b, id); }
   if (used == 0) { used = toolOnBlock(x, y, z, b, id); }
   if (used == 1) { placeCool = Math.max(placeCool, 0.25); swingT = 0.3; }
   return used;
@@ -122,6 +132,8 @@ function useBlock(x, y, z, b, id) {
 function invHas(id) { let r = 0, i = 1; while (i <= 36) { if (INVI[i] == id) { r = 1; } i = i + 1; } return r; }
 function useItem(id) {
   let used = 0;
+  // ((v3.3) bottles and potions, the rod, the crossbow: src/brew.js)
+  if (brewUse(id) == 1) { used = 1; }
   if (ITFOOD[id + 1] > 0) { eatStart(id); used = 1; }
   // ((v2.7.4) in creative the milk bucket stays full)
   if (id == I_milkBucket) { effectsInit(); if (mod(gameMode, 2) == 0) { INVI[hotSel] = I_bucket; } used = 1; placeCool = 0.4; sndPlay(5); }
@@ -136,7 +148,7 @@ function useItem(id) {
   // old one here, so a flag)
   let noCart = 0;
   if (id == I_tntMinecart) { if (srvForbids(2) == 1) { noCart = 1; used = 1; placeCool = 0.3; msgShow('이 서버에서는 TNT를 놓을 수 없습니다', 2); } }
-  if ((id == I_minecart || id == I_tntMinecart) && noCart == 0) { used = 1; if (pickOn == 1) { if (BRS[pickB + 1] == RS_RAIL) { let t = M_MINECART; if (id == I_tntMinecart) { t = M_TNTCART; } cartPlace(t, pickX, pickY, pickZ); if (mod(gameMode, 2) == 0) { takeHeld(1); } placeCool = 0.4; } } }
+  if (cartKind(id) > 0 && noCart == 0) { used = 1; if (pickOn == 1) { if (BRS[pickB + 1] == RS_RAIL) { let t = cartKind(id); cartPlace(t, pickX, pickY, pickZ); if (mod(gameMode, 2) == 0) { takeHeld(1); } placeCool = 0.4; } } }
   if (id == I_compass) { used = 1; placeCool = 0.5; compassShow(); }
   if (id == I_fireworkRocket) { used = 1; placeCool = 0.3; fireworkUse(); }
   if (id == I_trident) { used = 1; drawStart(I_trident); }
@@ -162,23 +174,30 @@ function toolOnBlock(x, y, z, b, id) {
 // The genre's pick block: the item of the block looked at goes into the hand. A hotbar slot that
 // has it already is chosen; else the slot in hand if it is empty, else the first empty one, else
 // the one in hand is replaced (a full stack). Only in creative.
+// ((v3.3) out of creative, as the genre's: the block comes to the hand out of the inventory if it is
+// there (changing places with what the hotbar slot held); it was creative only)
 function pickCopy() {
-  if (gameMode != 1) { msgShow('블록 복사(C)는 크리에이티브 모드에서만 됩니다', 1.5); }
-  else { if (pickOn == 1) {
+  if (pickOn == 1) {
     let id = pickItem(pickB);
     if (id > 0) {
-      let k = 1, at = 0;
+      let k = 1, at = 0, from = 0;
       while (k <= 9) { if (at == 0) { if (INVI[k] == id) { at = k; } } k = k + 1; }
       if (at == 0) {
-        if (INVI[hotSel] == 0) { at = hotSel; }
-        else { k = 1; while (k <= 9) { if (at == 0) { if (INVI[k] == 0) { at = k; } } k = k + 1; } }
-        if (at == 0) { at = hotSel; }
-        INVI[at] = id; INVN[at] = ITST[id + 1]; INVD[at] = 0;
+        if (gameMode != 1) { k = 10; while (k <= 36) { if (from == 0) { if (INVI[k] == id) { from = k; } } k = k + 1; } }
+        if (gameMode == 1 || from > 0) {
+          if (INVI[hotSel] == 0) { at = hotSel; }
+          else { k = 1; while (k <= 9) { if (at == 0) { if (INVI[k] == 0) { at = k; } } k = k + 1; } }
+          if (at == 0) { at = hotSel; }
+          if (from > 0) {
+            let ti = INVI[at], tn = INVN[at], td = INVD[at];
+            INVI[at] = INVI[from]; INVN[at] = INVN[from]; INVD[at] = INVD[from];
+            INVI[from] = ti; INVN[from] = tn; INVD[from] = td;
+          } else { INVI[at] = id; INVN[at] = ITST[id + 1]; INVD[at] = 0; }
+        }
       }
-      hotSel = at;
-      msgShow(`${ITNAME[id + 1]}`, 1);
+      if (at > 0) { hotSel = at; msgShow(`${ITNAME[id + 1]}`, 1); }
     }
-  } }
+  }
 }
 // the item a block is (its kind; a part with no item of its own: what it drops), 0 none
 function pickItem(b) {
@@ -249,6 +268,8 @@ function placeBlock(b, id) {
     if (pickF != 2 && pickF != 3) { if (BSOL[pickB + 1] == 1 && BSHP[pickB + 1] == 0) { wt = wallTorch(b, OP6[pickF + 1]); } }
     if (wt > 0) { put = wt; } else { if (BSOL[under + 1] == 0) { ok = 0; } }
   }
+  // ((v3.3) cocoa leans on the side of a mahogany log; berries are planted as a seedling (plants.js))
+  if (b == I_cocoa || b == I_berryBush) { put = plantPut(b, id); if (put < 0) { ok = 0; put = b; } }
   // ((v2.7) a server's owner may forbid TNT)
   if (b == I_tnt) { if (srvForbids(2) == 1) { ok = 0; msgShow('이 서버에서는 TNT를 놓을 수 없습니다', 2); } }
   if (ok == 1) {
@@ -710,6 +731,8 @@ function boneMeal(x, y, z, b) {
     }
     used = 1;
   }
+  // ((v3.3) cocoa and berry bushes: plants.js)
+  if (used == 0) { used = plantMeal(x, y, z, b); }
   if (used == 1) { if (mod(gameMode, 2) == 0 && bmFree == 0) { takeHeld(1); } sndPlay(5); }
   return used;
 }
@@ -739,9 +762,11 @@ let spawnDim = 0, dayN = 0, spawnSet = 0;
 function bedUse(x, y, z, b) {
   if (dim != 0) { msgShow('여기서는 잘 수 없습니다! 침대가 터집니다', 2); setBlock(x, y, z, 0); partnerGone(x, y, z, b, 0); explodeShared(x + 0.5, y + 0.5, z + 0.5, 1005); }
   else {
-    spawnX = x + 0.5; spawnY = y + 1; spawnZ = z + 0.5; spawnDim = 0; spawnSet = 1;
+    // ((v3.3) spawnSet 2: a bed, looked for again when one comes back (3: an anchor; 1: a place only))
+    spawnX = x + 0.5; spawnY = y + 1; spawnZ = z + 0.5; spawnDim = 0; spawnSet = 2;
     if (dark >= 7 || wthr == 2) {
-      if (nearHostile(8) == 0) { tday = 0.0; dayN = dayN + 1; sleptDay = dayN; weatherClear(); msgShow('잠을 자고 아침이 되었습니다 (되살아날 곳을 정했습니다)', 3); }
+      // ((v3.3) the night is slept through in 5 s lying still, not at once: sleepStep, src/combat.js)
+      if (nearHostile(8) == 0) { sleepT = 5; sleepX = px; sleepZ = pz; sleepHp = hp; msgShow('잠이 듭니다... (Shift: 일어나기)', 5); }
       else { msgShow('근처에 몬스터가 있어 잘 수 없습니다', 2); }
     } else { msgShow('되살아날 곳을 정했습니다 (밤에만 잘 수 있습니다)', 2); }
   }
@@ -799,9 +824,9 @@ function compostChance(id) {
   let r = 0;
   // (the block tables only for block ids: items are 2000 on)
   let blk = 0; if (id < BSOL.length) { blk = id; }
-  if (id == I_wheatSeeds || id == I_beetSeeds || id == I_berries || id == I_kelpItem || id == 28 || BLEAF[blk + 1] == 1 || BTREE[blk + 1] >= 0) { r = 30; }
+  if (id == I_wheatSeeds || id == I_beetSeeds || id == I_melonSeeds || id == I_pumpkinSeeds || id == I_berries || id == I_kelpItem || id == 28 || BLEAF[blk + 1] == 1 || BTREE[blk + 1] >= 0) { r = 30; }
   if (id == I_melonSlice || id == I_reed || id == 19 || id == I_vines || id == I_driedKelp) { r = 50; }
-  if (id == I_wheat || id == I_carrot || id == I_potato || id == I_beetroot || id == 105 || id == I_melon || id == I_pumpkin || (r == 0 && blk > 0 && BSHP[blk + 1] == 1)) { r = 65; }
+  if (id == I_wheat || id == I_carrot || id == I_potato || id == I_beetroot || id == I_cocoaBeans || id == I_wailWart || id == I_carvedPumpkin || id == 105 || id == I_melon || id == I_pumpkin || (r == 0 && blk > 0 && BSHP[blk + 1] == 1)) { r = 65; }
   if (id == I_bread || id == I_bakedPotato || id == I_cookie || id == I_hayBale) { r = 85; }
   if (id == I_cake || id == I_pumpkinPie) { r = 100; }
   return r;
@@ -876,7 +901,7 @@ function anchorUse(x, y, z, id) {
   anchorCh = pvGet(3, x, y, z);
   if (id == I_glowCrystal && anchorCh < 4) { anchorCh = anchorCh + 1; pvSet(3, x, y, z, anchorCh); powerAround(x, y, z); if (mod(gameMode, 2) == 0) { takeHeld(1); } msgShow(`되살아남 닻 충전 ${anchorCh} / 4`, 2); }
   else {
-    if (dim == 1) { if (anchorCh > 0) { spawnX = x + 0.5; spawnY = y + 1; spawnZ = z + 0.5; spawnDim = 1; spawnSet = 1; msgShow('잿빛 심연에서 되살아납니다', 2); } else { msgShow('빛수정으로 충전하세요', 2); } }
+    if (dim == 1) { if (anchorCh > 0) { spawnX = x + 0.5; spawnY = y + 1; spawnZ = z + 0.5; spawnDim = 1; spawnSet = 3; msgShow('잿빛 심연에서 되살아납니다', 2); } else { msgShow('빛수정으로 충전하세요', 2); } }
     else { msgShow('닻이 터집니다!', 2); setBlock(x, y, z, 0); explodeShared(x + 0.5, y + 0.5, z + 0.5, 1005); }
   }
 }
@@ -944,10 +969,14 @@ function xpNeed(l) {
   return r;
 }
 function xpAdd(n) {
-  // ((v2.9) mending drinks it first)
-  n = mendXp(n);
-  xpPts = xpPts + n;
-  while (xpPts >= xpNeed(xpLevel)) { xpPts = xpPts - xpNeed(xpLevel); xpLevel = xpLevel + 1; if (mod(xpLevel, 5) == 0) { sndPlay(6); } }
+  // ((v3.3) won at a place (a mob's death, an ore): it falls there as an orb and comes when taken)
+  if (xpAt == 1) { orbDrop(n, xpX, xpY, xpZ); }
+  else {
+    // ((v2.9) mending drinks it first)
+    n = mendXp(n);
+    xpPts = xpPts + n;
+    while (xpPts >= xpNeed(xpLevel)) { xpPts = xpPts - xpNeed(xpLevel); xpLevel = xpLevel + 1; if (mod(xpLevel, 5) == 0) { sndPlay(6); } }
+  }
 }
 
 // ---------------------------------------------------------------- things thrown: snowballs, eggs, void pearls
@@ -979,7 +1008,7 @@ function thrownHit(a) {
     solidBox(px - 0.3, px + 0.3, py, py + 1.8, pz - 0.3, pz + 0.3);
     while (solidHit == 1 && n < 4) { py = py + 1; n = n + 1; solidBox(px - 0.3, px + 0.3, py, py + 1.8, pz - 0.3, pz + 0.3); }
     pvx = 0; pvy = 0; pvz = 0; fallTop = py;
-    hurtT = 0; hurt(3, '공허 진주에 다쳤습니다');
+    hurtT = 0; hurtR(5, '공허 진주에 다쳤습니다');
     if (rand(1, 20) == 1) { mobAdd(M_VOIDMITE, px, py, pz); }
     sndPlay(7);
   }

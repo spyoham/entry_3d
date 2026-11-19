@@ -130,5 +130,13 @@ M('chestm', [[1, 0, 1, 15, 14, 15]]);
 M('path', [[0, 0, 0, 16, 15, 16]]);
 M('honey', [[1, 0, 1, 15, 15, 15]]);
 M('turtle', [[3, 0, 3, 13, 7, 13]], 'none');
+// (v3.3) a cauldron holding water (a third, two thirds, full): the body hits the cauldron alone
+for (let L = 1; L <= 3; L++) M('cauldron_w' + L, [...MODELS.cauldron.boxes, [2, 4, 2, 14, 6 + 3 * L, 14, 'water']], MODELS.cauldron.boxes);
+// (v3.3) cocoa leaning on the block at its side (0 -x, 1 +x, 4 -z, 5 +z): a pod 4, 6, 8 wide hanging under y 12
+for (let s = 0; s < 3; s++) {
+    const w = 4 + 2 * s, h = 5 + 2 * s, lo = 8 - w / 2, hi = 8 + w / 2;
+    M(`cocoa_${s}_0`, [[1, 12 - h, lo, 1 + w, 12, hi]], 'none'); M(`cocoa_${s}_1`, [[15 - w, 12 - h, lo, 15, 12, hi]], 'none');
+    M(`cocoa_${s}_4`, [[lo, 12 - h, 1, hi, 12, 1 + w]], 'none'); M(`cocoa_${s}_5`, [[lo, 12 - h, 15 - w, hi, 12, 15]], 'none');
+}
 // a pot with a plant in it
 export function pottedModel(tex) { return { boxes: [[5, 0, 5, 11, 6, 11, 'potT'], [4, 5, 4, 12, 15, 12, tex, 'X']], col: [[5, 0, 5, 11, 6, 11]] }; }

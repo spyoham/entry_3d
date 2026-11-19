@@ -217,10 +217,12 @@ export const TIERS = [
     { n: 'Gold', ko: '금', col: 'f2d23a', dark: 'c99a10', dur: 32, speed: 12, mat: 'ingotGold', lv: 0 },
 ];
 TIERS.forEach((t, i) => { if (t.lv === undefined) t.lv = i; });
+// ((v3.3) what a blow of each does when it is full, as the genre's: the axe 7 9 9 9 10 (gold 7; it was
+// 3..7), the shovel 2.5 .. 6.5 (it was 1..5); how fast each is ready again is in src/combat.js)
 export const KINDS = [
     { n: 'pick', ko: '곡괭이', dmg: [2, 3, 4, 5, 6, 2], icon: ['.hhhhh..', 'h.d..hh.', '...d..h.', '....d.h.', '.....d..', '......d.', '.......d', '........'] },
-    { n: 'axe', ko: '도끼', dmg: [3, 4, 5, 6, 7, 3], icon: ['...hh...', '..hhhd..', '..hhd...', '...d....', '..d.....', '.d......', 'd.......', '........'].map(r => r.split('').reverse().join('')) },
-    { n: 'shovel', ko: '삽', dmg: [1, 2, 3, 4, 5, 1], icon: ['......hh', '.....hhh', '.....hh.', '....d...', '...d....', '..d.....', '.d......', 'd.......'] },
+    { n: 'axe', ko: '도끼', dmg: [7, 9, 9, 9, 10, 7], icon: ['...hh...', '..hhhd..', '..hhd...', '...d....', '..d.....', '.d......', 'd.......', '........'].map(r => r.split('').reverse().join('')) },
+    { n: 'shovel', ko: '삽', dmg: [2.5, 3.5, 4.5, 5.5, 6.5, 2.5], icon: ['......hh', '.....hhh', '.....hh.', '....d...', '...d....', '..d.....', '.d......', 'd.......'] },
     { n: 'sword', ko: '검', dmg: [4, 5, 6, 7, 8, 4], icon: ['......hh', '.....hhh', '....hhh.', '.d.hhh..', '..ddh...', '..dd....', '.d..d...', 'd.......'] },
     { n: 'hoe', ko: '괭이', dmg: [1, 1, 1, 1, 1, 1], icon: ['..hhhh..', '.....hd.', '......d.', '.....d..', '....d...', '...d....', '..d.....', '.d......'] },
 ];
@@ -428,6 +430,10 @@ export const MOBS = [
 
 // ------------------------------------------------------------------ v2.0: the families of blocks and items (content.mjs)
 export const CONTENT = makeContent(BLOCKS, ITEMS, RECIPES, SMELT);
+// (v3.3) the items makeContent makes after the last of v3.2's there (tinyNote, 2062) are v3.3's (its
+// markers at its end): taken out here and put back after every other item (LATE33 below), or they
+// would take the ids of the spawn eggs and of all that was added after them (saves and servers hold ids)
+const LATE33 = ITEMS.splice(ITEMS.findIndex((i) => i.n === 'tinyNote') + 1);
 // a spawn egg for each mob (but the warden, the shell-bug and the boat)
 MOBS.forEach((m, i) => {
     if (!m || m.ai === 9) return;
@@ -617,6 +623,15 @@ const NEWMOBS = [
         [-4, 28, -4, 4, 36, 4, '2a2a2e', 5], [-3, 31, 4, -1, 33, 4.3, 'c8d0ff', 5], [1, 31, 4, 3, 33, 4.3, 'c8d0ff', 5], [-12, 24, -3, -6, 30, 3, '2a2a2e', 5], [6, 24, -3, 12, 30, 3, '2a2a2e', 5],
         [-11, 26, 3, -9.5, 27.5, 3.3, 'c8d0ff', 5], [9.5, 26, 3, 11, 27.5, 3.3, 'c8d0ff', 5], [-12, 22, -2, 12, 24, 2, '1e1e22', 0], [-1, 10, -1, 1, 22, 1, '1e1e22', 0],
         [-5, 18, -1, 5, 19.5, 1, '1e1e22', 0], [-5, 15, -1, 5, 16.5, 1, '1e1e22', 0], [-5, 12, -1, 5, 13.5, 1, '1e1e22', 0], [-1, 2, -1, 1, 10, 1, '1e1e22', 0]], 1.5) },
+    // (v3.3) minecarts with a chest and with a hopper (src/world33.js): always the last two kinds but for what comes after
+    { n: 'chestCart', ai: 9, noegg: 1, ko: '상자 광산 수레', hp: 4, w: 0.98, h: 0.7, speed: 0, still: 1, drop: ['chestMinecart', 1, 1], boxes: [
+        [-7, 1, -10, 7, 2, 10, '5a5a5a', 0], [-8, 1, -10, -7, 10, 10, '7a7a7a', 0], [7, 1, -10, 8, 10, 10, '7a7a7a', 0], [-7, 1, 9, 7, 10, 10, '6a6a6a', 0], [-7, 1, -10, 7, 10, -9, '6a6a6a', 0],
+        [-6, 2, -7, 6, 13, 7, '9a6a30', 0], [-6.2, 9, -7.2, 6.2, 10, 7.2, '5a3a14', 0], [-1, 7, 7, 1, 10, 7.5, 'e8d060', 0],
+        [-8.5, 0, -7, -7.5, 2, -4, '2a2a2a', 0], [7.5, 0, -7, 8.5, 2, -4, '2a2a2a', 0], [-8.5, 0, 4, -7.5, 2, 7, '2a2a2a', 0], [7.5, 0, 4, 8.5, 2, 7, '2a2a2a', 0]] },
+    { n: 'hopperCart', ai: 9, noegg: 1, ko: '깔때기 광산 수레', hp: 4, w: 0.98, h: 0.7, speed: 0, still: 1, drop: ['hopperMinecart', 1, 1], boxes: [
+        [-7, 1, -10, 7, 2, 10, '5a5a5a', 0], [-8, 1, -10, -7, 10, 10, '7a7a7a', 0], [7, 1, -10, 8, 10, 10, '7a7a7a', 0], [-7, 1, 9, 7, 10, 10, '6a6a6a', 0], [-7, 1, -10, 7, 10, -9, '6a6a6a', 0],
+        [-4, 2, -4, 4, 8, 4, '3a3a3e', 0], [-7, 8, -7, 7, 13, 7, '4a4a50', 0], [-5, 12.5, -5, 5, 13.2, 5, '1a1a1e', 0],
+        [-8.5, 0, -7, -7.5, 2, -4, '2a2a2a', 0], [7.5, 0, -7, 8.5, 2, -4, '2a2a2a', 0], [-8.5, 0, 4, -7.5, 2, 7, '2a2a2a', 0], [7.5, 0, 4, 8.5, 2, 7, '2a2a2a', 0]] },
 ];
 MOBS.push(...NEWMOBS);
 // a raid captain is a raider marked: its banner (part 7)
@@ -671,11 +686,17 @@ MB('pig').push([-5.3, 13, -4, 5.3, 14.4, 3, '5a3a1a', 7]);
     M('zombie').rare = ['ingotIron', 2.5, 'carrot', 2.5, 'potato', 2.5];
     M('wanderer').dmg = 7;
     Object.assign(M('pig'), { food: 2 }); Object.assign(M('cow'), { food: 1 }); Object.assign(M('sheep'), { food: 1 }); Object.assign(M('chicken'), { food: 3 }); Object.assign(M('ashboar'), { food: 14 });
-    for (const [n, x] of [['zombie', 5], ['skeleton', 5], ['spider', 5], ['wraith', 5], ['toad', 2], ['wanderer', 5], ['shellbug', 5], ['bombshroom', 5], ['raider', 5], ['ashpig', 5], ['ashboar', 5], ['blackskel', 5], ['warden', 500], ['golem', 0], ['villager', 0]]) M(n).xp = x;
+    for (const [n, x] of [['zombie', 5], ['skeleton', 5], ['spider', 5], ['wraith', 5], ['toad', 2], ['wanderer', 5], ['shellbug', 5], ['bombshroom', 5], ['raider', 5], ['ashpig', 5], ['ashboar', 5], ['blackskel', 5], ['warden', 12000], ['golem', 0], ['villager', 0]]) M(n).xp = x;
     M('skeleton').shot = 0; M('raider').shot = 0; M('wraith').shot = 10;
 }
+// (v3.3) the ids from 2063 again, as if LATE33's had never been made, and LATE33's after them
+{
+    let id = ITEMS.find((i) => i.n === 'tinyNote').id + 1;
+    for (const it of ITEMS) if (it.id >= id) it.id = id++;
+    for (const it of LATE33) { it.id = id++; ITEMS.push(it); }
+}
 NBLOCK = BLOCKS.length;
-NITEM = Math.max(...ITEMS.map(i => i.id)) + 1;
+NITEM =Math.max(...ITEMS.map(i => i.id)) + 1;
 
 // ------------------------------------------------------------------ (v3.2) the village folk's trades
 // A profession comes of the job block a villager takes (job); its offers by level (five levels, two

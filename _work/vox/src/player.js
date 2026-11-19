@@ -232,6 +232,7 @@ function playerMove2(dt) {
   if (key(82)) { if (fw > 0) { sprinting = 1; } }
   if (fw <= 0) { sprinting = 0; }
   if (mod(gameMode, 2) == 0) { if (food <= 6) { sprinting = 0; } }
+  if (EFT[25] > 0) { sprinting = 0; }
   sneaking = 0;
   if (key(16)) { if (uiMode == 0) { sneaking = 1; sprinting = 0; } }
   // ((v2.7) sneaking the body is 1.5 high: it stays down under a ceiling lower than 1.8)
@@ -273,7 +274,7 @@ function playerMove2(dt) {
   // ((v3.0) a dolphin's grace: much faster in water)
   if (fx(20) > 0 && inWater == 1) { sp = sp * 1.8; }
   if (wasHitX == 1) { sprinting = 0; }
-  if (eatId > 0 || drawId > 0) { if (flying == 0) { sp = sp * 0.2; } sprinting = 0; }
+  if (eatId > 0 || drawId > 0 || shT > 0) { if (flying == 0) { sp = sp * 0.2; } sprinting = 0; }
   // what is under the feet or round the body: sand that holds, honey, a web
   let mv = BMOVE[underB + 1];
   if (flying == 0) {
@@ -283,7 +284,7 @@ function playerMove2(dt) {
     if (inBush == 1) { sp = sp * 0.37; }
     if (inWeb == 1) { sp = sp * 0.15; }
   }
-  sp = sp * (1 + 0.2 * fx(1)) * Math.max(0.1, 1 - 0.15 * fx(2));
+  sp = sp * (1 + 0.2 * fx(1)) * Math.max(0.1, 1 - 0.15 * fx(2)) * soulSp;
   let l = Math.sqrt(fw * fw + st * st);
   let wx = 0, wz = 0;
   if (l > 0) {
@@ -423,7 +424,9 @@ function hurt(n, why) {
   if (mod(gameMode, 2) == 0) { if (dead == 0) {
     if (hurtMob == 1) { if (difficulty == 0) { n = 0; } if (difficulty == 1) { n = Math.min(n, n / 2 + 1); } if (difficulty == 3) { n = n * 1.5; } }
     let go = 1;
-    if (hurtT > 0) { if (n > lastDmg) { let d0 = lastDmg; lastDmg = n; n = n - d0; go = 2; } else { go = 0; } }
+    // ((v3.3) a raised shield stops a mob's blow or a shot from the front: src/combat.js)
+    if (shUp == 1) { if (hurtMob == 1 || indexOf(why, '님에게 당했') > 0) { if (shieldStop(n) == 1) { go = 0; } } }
+    if (go == 1 && hurtT > 0) { if (n > lastDmg) { let d0 = lastDmg; lastDmg = n; n = n - d0; go = 2; } else { go = 0; } }
     if (go > 0) {
       if (go == 1) { lastDmg = n; }
       let def = 0; if (hurtRaw == 0) { def = armorDef(); }
@@ -438,7 +441,7 @@ function hurt(n, why) {
       if (n > 0) {
         hp = hp - n; hurtFlash = 0.35; exhaust = exhaust + 0.1;
         sndPlay(3);
-        if (hp <= 0) { if (totemSave() == 0) { hp = 0; die(why); } }
+        if (hp <= 0) { if (totemAny() == 0) { hp = 0; die(why); } }
       }
       if (go == 1) { hurtT = 0.5; }
     }
@@ -502,11 +505,12 @@ function die(why) {
   dead = 1; deathMsg = why; uiClose(); uiMode = 7;
   if (netSrv > 0) { evAdd('c', `${netNick}: ${netClean(why)}`); plugRun('death', ' ', netNick); }
   let i = 1;
-  while (i <= 40) {
+  // ((v3.3) the other hand's slot too; the experience falls as orbs worth 7 a level, 100 at most (it was gone))
+  while (i <= 41) {
     if (grKeep == 0) { if (INVI[i] > 0) { if (enLv(INVI[i], INVD[i], 28) == 0) { dropItem(INVI[i], INVN[i], INVD[i], px, py + 1, pz, 1); } INVI[i] = 0; INVN[i] = 0; INVD[i] = 0; } }
     i = i + 1;
   }
-  if (grKeep == 0) { xpLevel = 0; xpPts = 0; }
+  if (grKeep == 0) { orbDrop(Math.min(100, 7 * xpLevel), px, py + 1, pz); xpLevel = 0; xpPts = 0; }
   riding = 0; gliding = 0; effectsInit();
   mouseFree();
   if (grImmediate == 1) { respawn(); }
@@ -522,14 +526,16 @@ function respawn0() {
   solidBox(px - 0.3, px + 0.3, py, py + 1.8, pz - 0.3, pz + 0.3);
   while (solidHit == 1 && k < WY) { py = py + 1; k = k + 1; solidBox(px - 0.3, px + 0.3, py, py + 1.8, pz - 0.3, pz + 0.3); }
   uiMode = 0;
+  // ((v3.3) is the bed or the anchor still there? looked at once its chunk is in: src/combat.js)
+  spChk = 1;
 }
 // ((v2.7) eating takes 1.6 s with F held (slow walking meanwhile); it was at once; (v3.0) the right button held)
 function eatStart(id) {
-  if (food < 20 || mod(gameMode, 2) == 1 || id == I_goldenApple) { if (eatId != id) { eatId = id; eatT = 0; } }
+  if (food < 20 || mod(gameMode, 2) == 1 || id == I_goldenApple || id == I_goldenAppleE) { if (eatId != id) { eatId = id; eatT = 0; } }
 }
 function eatStep(dt) {
   if (eatId > 0) {
-    if (useDown() == 1 && uiMode == 0 && INVI[hotSel] == eatId && dead == 0) {
+    if (useDown() == 1 && uiMode == 0 && (INVI[hotSel] == eatId || INVI[41] == eatId) && dead == 0) {
       eatT = eatT + dt; swingT = Math.max(swingT, 0.1);
       if (mod(Math.floor(eatT * 5), 2) == 0) { if (frac(eatT * 5) < dt * 5) { sndPlay(5); } }
       if (eatT >= 1.6) { let e = eatId; eatId = 0; eatT = 0; eat(e); }
@@ -540,19 +546,24 @@ function eatStep(dt) {
 function satOf(id) {
   let m = 0.6;
   if (id == I_porkCooked || id == I_steak) { m = 0.8; }
-  if (id == I_goldenApple || id == I_goldenCarrot) { m = 1.2; }
+  if (id == I_goldenApple || id == I_goldenCarrot || id == I_goldenAppleE) { m = 1.2; }
   if (id == I_flesh || id == I_cookie || id == I_berries) { m = 0.1; }
   if (id == I_melonSlice || id == I_pumpkinPie || id == I_potato || id == I_porkRaw || id == I_beefRaw || id == I_chickenRaw || id == I_apple || id == I_driedKelp) { m = 0.3; }
   return m;
 }
 function eat(id) {
   let f = ITFOOD[id + 1];
-  if (food < 20 || mod(gameMode, 2) == 1 || id == I_goldenApple) {
+  if (food < 20 || mod(gameMode, 2) == 1 || id == I_goldenApple || id == I_goldenAppleE) {
     food = Math.min(20, food + f); sat = Math.min(food, sat + f * satOf(id) * 2);
     if (id == 112) { if (rand(1, 10) <= 8) { exhaust = exhaust + 12; msgShow('배가 아픕니다...', 2); } }
-    if (id == I_goldenApple) { effectAdd(5, 5, 2); effectAdd(6, 120, 1); }
-    takeHeld(1);
-    if (id == I_beetSoup || id == I_mushStew) { if (INVI[hotSel] == 0) { INVI[hotSel] = 0; } }
+    // ((v3.3) as 1.16.5: absorption (2 gold hearts, 2 min) and regeneration II 5 s (it was resistance);
+    // the one that is found: absorption IV, regeneration II 20 s, fire resistance and resistance 5 min)
+    if (id == I_goldenApple) { effectAdd(5, 5, 2); effectAdd(13, 120, 1); }
+    if (id == I_goldenAppleE) { effectAdd(5, 20, 2); effectAdd(13, 120, 4); effectAdd(7, 300, 1); effectAdd(6, 300, 1); }
+    // ((v3.3) eaten out of the other hand)
+    if (INVI[hotSel] == id) { takeHeld(1); } else { offTake(); }
+    // ((v3.3) a stew leaves its bowl; what some food does: src/brew.js)
+    brewAte(id);
     sndPlay(5);
     swingT = 0.3;
   }
@@ -805,7 +816,7 @@ function blockDrops0(b, x, y, z) {
     if (k == I_beetCrop) { dropItem(I_beetSeeds, rand(1, 3), 0, x + 0.5, y + 0.3, z + 0.5, 0); }
     if (k == I_carrotCrop || k == I_potatoCrop) { n = rand(2, 4); }
   }
-  if (d != b) { let xp = oreXp(b); if (xp > 0) { xpAdd(xp); } }
+  if (d != b) { let xp = oreXp(b); if (xp > 0) { xpAt = 1; xpX = x + 0.5; xpY = y + 0.3; xpZ = z + 0.5; xpAdd(xp); xpAt = 0; } }
   if (dropFort > 0 && d > 0 && d != b) {
     if (BXP[b + 1] > 0 || b == 12 || b == 16 || b == I_oreJade || b == 40 || b == I_oreQuartz || b == I_oreSpark || b == I_oreAshGold) { let m = rand(0, dropFort + 1) - 1; if (m > 0) { n = n * (m + 1); } }
     if (b == I_glowCrystal) { n = Math.min(4, n + rand(0, dropFort)); } if (b == I_melon) { n = Math.min(9, n + rand(0, dropFort)); }
@@ -850,6 +861,9 @@ function setBlock(x, y, z, b) {
       if (y + 1 < WY) {
         // (a spark part hung on a wall is not stood on)
         let hangs = 1; if (BATT[up + 1] >= 0) { if (BATT[up + 1] != 2) { hangs = 0; } }
+        // ((v3.3) nor is a vine, which holds on to a wall or hangs: one put under another - by hand, or grown
+        // down - took the upper one away)
+        if (up == I_vines || up == I_emberVines) { hangs = 0; }
         if (hangs == 1) { if (BSHP[up + 1] == 1 || BSHP[up + 1] == 2 || up == 19 || (BNEED[up + 1] > 0 && BNEED[up + 1] != N_ANY)) {
           if (BPLC[up + 1] != P_DOOR || BSHP[b + 1] == 0) { if (mod(gameMode, 2) == 0 && netApplying == 0) { blockDrops(up, x, y + 1, z); } setBlock(x, y + 1, z, 0); }
         } }

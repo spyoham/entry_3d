@@ -116,11 +116,11 @@ export const CATS = ['건축 블록', '장식 블록', '자연', '기능 블록'
 // Block ids of the new kinds start at NEW0 (their variants right after each kind); items at ITEM0.
 export const NEW0 = 200, ITEM0 = 2000;
 export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
-    let nextId = NEW0, nextItem = ITEM0;
+    let nextId = NEW0, nextItem = ITEM0, idLimit = 1900;
     const tex = (name, t) => { if (TEX[name]) throw new Error('texture twice ' + name); if (t.g.length !== 8 || t.g.some(r => r.length !== 8)) throw new Error('texture size ' + name); TEX[name] = t; return name; };
     const byKey = new Map();
     for (const b of BLOCKS) if (b) byKey.set(b.n, b);
-    const add = (b) => { b.id = nextId++; BLOCKS[b.id] = b; if (byKey.has(b.n)) throw new Error('block twice ' + b.n); byKey.set(b.n, b); if (nextId >= ITEM0) throw new Error('block ids run into items'); if (nextId >= 1900) throw new Error('block ids run into the new tools (XTOOL 1900)'); return b; };
+    const add = (b) => { b.id = nextId++; BLOCKS[b.id] = b; if (byKey.has(b.n)) throw new Error('block twice ' + b.n); byKey.set(b.n, b); if (nextId >= ITEM0) throw new Error('block ids run into items'); if (nextId > idLimit) throw new Error('block ids past the end of their stretch (' + idLimit + ')'); return b; };
     const item = (it) => { it.id = nextItem++; ITEMS.push(it); return it; };
     const R = (r, out, n = 1, m = 0) => RECIPES.push({ r, out, n, m });
     const S = (a, b) => SMELT.push([a, b]);
@@ -925,5 +925,98 @@ export function makeContent(BLOCKS, ITEMS, RECIPES, SMELT) {
     // (v3.0) the spawners of the mines (small poisoned spiders), the strongholds (crawlers) and the forts
     // (spirits of flame): the last free ids but one
     for (const [m, ko] of [['caveSpider', '동굴 거미'], ['silverfish', '좀벌레'], ['flameSpirit', '불꽃 정령']]) add({ n: 'spawner_' + m, key: 'spawner_' + m.replace(/[A-Z]/g, (x) => '_' + x.toLowerCase()), ko: `${ko} 생성기`, t: ['spawnerT'], hard: 5, tool: 1, tier: 0, shape: 4, hide: 0, lop: 0, drop: 'none', hidden: 1, nokind: 1, item: 'spawner', spawns: m, xp: 20 });
+    // ================================================================ (v3.3) more ids for blocks
+    // The ids from 200 are used up to 1898 (1900 on are the later tools', 2000 on the items'). Two stretches
+    // below them were never used, 66..99 and 175..199: gap(from, to) sets where the next blocks go. The tables
+    // are as long as before (these ids are under NBLOCK). Nothing is ever put in before an id in use: a world
+    // kept, a server and example_map.txt hold ids.
+    // More room when these are full: 1910..1939 and 1948..1999 lie among the later tools' ids and are free
+    // too (82 ids; tried - a block there is put, given, kept and loaded as any other, the tools by it keep
+    // their rows empty as the items 100..174 always have). The tables then grow up to the highest block id,
+    // 58 rows for each id on the way.
+    const gap = (from, to) => { nextId = from; idLimit = to + 1; };
+    // ---- 66..99: plants and what grows (v3.3-plants)
+    gap(66, 99);
+    {
+        // stems (a kind each, four stages as the crops: the last one ripe, a fruit comes beside it): 66..73
+        [['........', '........', '........', '........', '........', '...g....', '...gg...', '...g....'],
+            ['........', '........', '........', '...g....', '..gg....', '...g.g..', '...gg...', '...g....'],
+            ['........', '...g....', '..gg.g..', '...ggg..', '.g.g....', '..gg.g..', '...gg...', '...g....'],
+            ['..y.....', '.yy..y..', '..yy.yy.', '...yyy..', '.y.y....', '..yy.y..', '...yy...', '...y....']].forEach((g, i) => tex('stemT' + i, plant(g, { g: '5aa030', y: 'b8a040' })));
+        for (const [n, key, ko, seed] of [['melonStem', 'melon_stem', '수박 줄기', 'melonSeeds'], ['pumpkinStem', 'pumpkin_stem', '호박 줄기', 'pumpkinSeeds']])
+            variants({ n, key, ko, hard: 0, shape: 1, cat: 2, need: 'farm', hiddenAll: 1, hidden: 1 }, [0, 1, 2, 3].map(i => ({ t: ['stemT' + i], v: i ? `${i}` : undefined, crop: i, drop: i ? seed : 'none', dropN: i === 3 ? 2 : 1 })));
+        // cocoa on the side of a mahogany log: three sizes by the four sides it leans on (att): 74..85
+        [['6a9a2a', '4a7a1a'], ['c89a30', 'a87a20'], ['b0602a', '8a4418']].forEach((c, i) => tex('cocoaT' + i, pat(['aabaaaba', 'abaaabaa', 'aaabaaab', 'baaabaaa', 'aabaaaba', 'abaaabaa', 'aaabaaab', 'baaabaaa'], { a: c[0], b: c[1] })));
+        const CO = [];
+        for (let st = 0; st < 3; st++) for (const a of [0, 1, 4, 5]) CO.push({ t: ['cocoaT' + st], model: `cocoa_${st}_${a}`, att: a, v: st || a ? `${st}${a}` : undefined, drop: 'cocoaBeans', dropN: st === 2 ? 3 : 1 });
+        variants({ n: 'cocoa', key: 'cocoa', ko: '카카오 열매', hard: 0.2, tool: 2, shape: 5, hide: 0, lop: 0, cat: 2, hidden: 1, wash: 1 }, CO);
+        // the depths' wart on wail sand, four stages (the two in the middle look alike): 86..89
+        [['........', '........', '........', '........', '........', '.r...r..', '.rr.rr..', 'rrrrrrr.'],
+            ['........', '........', '........', '.r...r..', '.rd.dr..', 'rrr.rrr.', 'rdrrrdr.', 'rrrrrrrr'],
+            ['.r...r..', 'rdr.rdr.', 'rrr.rrr.', 'rdrrrdrr', 'rrrdrrrd', 'rdrrrdrr', 'rrrrrrrr', 'rrdrrdrr']].forEach((g, i) => tex('wartT' + i, plant(g, { r: 'a01828', d: '6a0c18' })));
+        variants({ n: 'wartCrop', key: 'wail_wart_crop', ko: '심은 흐느낌 혹버섯', hard: 0, shape: 1, cat: 2, need: 'ashen', hidden: 1 }, [0, 1, 2, 3].map(i => ({ t: ['wartT' + [0, 1, 1, 2][i]], v: i ? `${i}` : undefined, drop: 'wailWart', dropN: i === 3 ? 3 : 1 })));
+        // a berry bush growing (the bush there was is the ripe one): a seedling, a bush, a bush with a few berries: 90..92
+        [['........', '........', '........', '........', '...g....', '..ggg...', '...g.g..', '...g....'],
+            ['........', '.g.g.g..', 'ggggggg.', '.gggggg.', 'ggggggg.', '.gggggg.', '..g.gg..', '...g....'],
+            ['........', '.g.g.g..', 'gggggrg.', '.gggggg.', 'ggggggg.', '.grgggg.', '..g.gg..', '...g....']].forEach((g, i) =>
+            add({ n: 'berryBush_' + i, key: 'sweet_berry_bush_' + i, ko: '달콤한 열매 덤불', t: [tex('berryT' + i, plant(g, { g: '2e5a2a', r: 'd02040' }))], hard: 0, shape: 1, cat: 2, need: 'soil', slow: 1, hurt: i ? 1 : 0, drop: i === 2 ? 'berries' : 'none', hidden: 1, nokind: 1, item: 'berryBush' }));
+        byKey.get('berryBush').dropN = 2;
+        // a cauldron holding water, a third, two thirds, full (each still a cauldron: the leather worker's): 93..95
+        for (let L = 1; L <= 3; L++) add({ n: 'cauldron_w' + L, key: 'cauldron_w' + L, ko: '가마솥', t: ['cauldronT'], hard: 2, tool: 1, tier: 0, shape: 5, model: 'cauldron_w' + L, hide: 0, lop: 0, cat: 3, hidden: 1, nokind: 1, item: 'cauldron', drop: 'cauldron' });
+    }
+    // ---- 175..199: the rest (v3.3-world)
+    gap(175, 199);
+    // the warden's egg, left on the gate home when it falls (175)
+    stone('wardenEgg', 'warden_egg', '수호자의 알', tc('wEggT', ['kkkkkkkk', 'kkpkkkkk', 'kkkkkpkk', 'kpkkkkkk', 'kkkkpkkk', 'kkkkkkpk', 'kkpkkkkk', 'kkkkkkkk'], { k: '15101c', p: '7a30b0' }), { hard: 3, light: 1, cat: 3 });
+    // ---- new items, always at the end, in this order: combat, brewing and fishing, world (v3.3)
+    // (v3.3-plants-items)
+    I('melonSeeds', 'melon_seeds', '수박 씨앗', ICON.seeds, { a: '3a2a1a' }, { placeBlock: 'melonStem' });
+    I('pumpkinSeeds', 'pumpkin_seeds', '호박 씨앗', ICON.seeds, { a: 'e8dca8' }, { placeBlock: 'pumpkinStem' });
+    I('cocoaBeans', 'cocoa_beans', '카카오 콩', ['........', '..aa....', '.abba...', '.abba.a.', '..aa.aba', '....abba', '.....aa.', '........'], { a: '6a3a1a', b: '8a5228' }, { placeBlock: 'cocoa' });
+    I('wailWart', 'wail_wart', '흐느낌 혹버섯', ['........', '..r..r..', '.rdr.rr.', '.rrrrdr.', '..rdrrr.', '.rrrrr..', '..r.r...', '........'], { r: 'a01828', d: '6a0c18' }, { placeBlock: 'wartCrop' });
+    R(['melonSlice'], 'melonSeeds', 1); R(['pumpkin'], 'pumpkinSeeds', 4); R(['cocoaBeans'], 'brownDye', 1); R(['wheat cocoaBeans wheat'], 'cookie', 8);
+    // (v3.3-combat-items)
+    // the shield (336 uses), the orb of experience that lies on the ground (never in a slot: taken as
+    // xp, src/combat.js) and the golden apple that is found and not made
+    I('shield', 'shield', '방패', ['.bbbbbb.', 'bwwiiwwb', 'bwwiiwwb', 'bwwiiwwb', 'bwwiiwwb', '.bwiiwb.', '..bwwb..', '...bb...'], { b: '5a4020', w: 'a7834f', i: 'd8d8d8' }, { dur: 336 });
+    I('xpOrb', 'experience_orb', '경험치 구슬', ['........', '...gg...', '..gyyg..', '.gywyyg.', '.gyyyyg.', '..gyyg..', '...gg...', '........'], { g: '4ad020', y: 'c8ff40', w: 'ffffd0' }, { st: 30000, cat: -1 });
+    I('goldenAppleE', 'enchanted_golden_apple', '마법이 깃든 황금 사과', ['....b...', '...bg...', '.pyyyp..', 'pywyyyp.', 'yyyyyyy.', 'pyyyyyk.', '.pyyyk..', '..pyp...'], { y: 'f2d23a', k: 'c99a10', w: 'fff0a0', b: '6b4518', g: '4b8a2c', p: 'e070ff' }, { food: 4 });
+    R(['planks ingotIron planks', 'planks planks planks', '_ planks _'], 'shield', 1);
+    // (v3.3-brew-items)
+    // bottles and potions (one item each for the drunk and the thrown: which potion it is lies in the
+    // slot's number, src/brew.js), what is brewed with, the rod, the crossbow (another item while it is
+    // loaded), the bowl, and the book of the charms that have no room in the first book's number
+    {
+        const BOTTLE = ['...kk...', '...bb...', '..b..b..', '.b....b.', '.bccccb.', '.bccccb.', '.bccccb.', '..bbbb..'];
+        const FLASK = ['...kk...', '..kbbk..', '...bb...', '..bccb..', '.bccccb.', '.bccccb.', '..bccb..', '...bb...'];
+        I('glassBottle', 'glass_bottle', '유리병', BOTTLE, { k: 'b8c8d0', b: 'd8e8f0', c: 'eef6fa' });
+        I('waterBottle', 'water_bottle', '물병', BOTTLE, { k: '8a6a3a', b: 'd8e8f0', c: '3a6ad8' }, { st: 1 });
+        I('potion', 'potion', '물약', BOTTLE, { k: '8a6a3a', b: 'd8e8f0', c: 'c040c0' }, { st: 1, cat: -1 });
+        I('splashPotion', 'splash_potion', '투척용 물약', FLASK, { k: '8a6a3a', b: 'd8e8f0', c: 'c040c0' }, { st: 1, cat: -1 });
+        I('fermentedEye', 'fermented_spider_eye', '발효된 거미 눈', ['........', '..aaaa..', '.abbbba.', '.abccba.', '.abccba.', '.abbbba.', '..aaaa..', '........'], { a: '6a3a2a', b: '9a5a3a', c: '2a0a0a' });
+        I('glisterMelon', 'glistering_melon_slice', '반짝이는 수박 조각', ICON.slice, { a: 'c99a10', b: 'f2d23a', c: 'fff0a0' });
+        I('fishingRod', 'fishing_rod', '낚싯대', ['......a.', '.....aw.', '....a.w.', '...a..w.', '..a...w.', '.a....w.', 'a.....r.', '........'], { a: '7a5a30', w: 'e0e0e0', r: 'd02020' }, { st: 1, cat: 6, dur: 64, fuel: 15 });
+        I('crossbow', 'crossbow', '쇠뇌', ['kaa..aak', 'a.wwww.a', 'a..bb..a', '...bb...', '...bb...', '...kk...', '...bb...', '...bb...'], { a: '7a5a30', b: '5a3a1a', w: 'e0e0e0', k: '8a8a8a' }, { st: 1, cat: 6, dur: 326, fuel: 15 });
+        I('crossbowLoaded', 'crossbow_loaded', '쇠뇌 (장전됨)', ['kaaffaak', 'a.wffw.a', 'a..ff..a', '...ff...', '...bb...', '...kk...', '...bb...', '...bb...'], { a: '7a5a30', b: '5a3a1a', w: 'e0e0e0', k: '8a8a8a', f: 'd8d8d8' }, { st: 1, cat: -1, dur: 326 });
+        I('bowl', 'bowl', '그릇', ICON.bowl, { a: '6a4a2a', b: '8a5a3a', c: '7a5230' }, { fuel: 5 });
+        I('enchantedBook2', 'enchanted_book_2', '마법이 부여된 책', ['........', '.kkkkkk.', '.kpppppk', '.kpwpppk', '.kppppyk', '.kppyppk', '.kkkkkk.', '........'], { k: '1a4a6a', p: '40a0c0', w: 'e0f8ff', y: 'ffe060' }, { st: 1, cat: -1 });
+        R(['glass _ glass', '_ glass _'], 'glassBottle', 3);
+        R(['spiderEye mushBrown sugar'], 'fermentedEye', 1, 1);
+        R(['goldNugget goldNugget goldNugget', 'goldNugget melonSlice goldNugget', 'goldNugget goldNugget goldNugget'], 'glisterMelon', 1);
+        R(['blazePowder jellyBall'], 'magmaCream', 1, 1);
+        R(['_ _ stick', '_ stick string', 'stick _ string'], 'fishingRod', 1);
+        R(['stick ingotIron stick', 'string tripwireHook string', '_ stick _'], 'crossbow', 1);
+        R(['#planks _ #planks', '_ #planks _'], 'bowl', 4);
+        // a stew wants its bowl (and gives it back, eaten)
+        for (const r of RECIPES) { if (r.out === 'mushStew') r.r = ['mushBrown mushRed bowl']; if (r.out === 'beetSoup') r.r = ['beetroot beetroot beetroot', 'beetroot beetroot beetroot', '_ bowl _']; }
+        // the brewing stand holds its five things as a chest does (so worlds, servers and the map text keep them)
+        byKey.get('brewingStand').use = 'chest';
+        ITEMS.find((it) => it.n === 'blazeRod').fuel = 120;
+    }
+    // (v3.3-world-items)
+    // minecarts with a chest and with a hopper (src/world33.js)
+    item({ n: 'chestMinecart', key: 'chest_minecart', ko: '상자 광산 수레', cat: 4, st: 1, icon: ['........', '..bbbb..', '..byyb..', 'kbbbbbbk', 'kaaaaaak', 'kaaaaaak', '.kkkkkk.', '.w....w.'], p: { a: '7a7a7a', k: '4a4a4a', w: '2a2a2a', b: '9a6a30', y: 'e8d060' } });
+    item({ n: 'hopperMinecart', key: 'hopper_minecart', ko: '깔때기 광산 수레', cat: 4, st: 1, icon: ['........', '.dddddd.', '..dddd..', 'k..dd..k', 'kaaaaaak', 'kaaaaaak', '.kkkkkk.', '.w....w.'], p: { a: '7a7a7a', k: '4a4a4a', w: '2a2a2a', d: '3a3a3e' } });
+    R(['chest', 'minecart'], 'chestMinecart', 1, 1); R(['hopper', 'minecart'], 'hopperMinecart', 1, 1);
     return { item, I, R, S, ICON, kinds, byKey };
 }

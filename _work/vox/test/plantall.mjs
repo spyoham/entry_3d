@@ -10,7 +10,7 @@ const KEY = s.peek('ITKEY'), PLB = s.peek('ITPLB'), FOOD = s.peek('ITFOOD'), SHP
 const id = (k) => KEY.indexOf(k);
 s.poke('gameMode', 0);
 const X = Math.floor(s.peek('px')), Z = Math.floor(s.peek('pz')), Y = 90;
-const GROUNDS = ['farmland', 'grass_block', 'dirt', 'sand', 'ashstone', 'ember_moss', 'wail_soil', 'stone'];
+const GROUNDS = ['farmland', 'grass_block', 'dirt', 'sand', 'ashstone', 'ember_moss', 'wail_soil', 'wail_sand', 'stone'];
 const WAT = s.peek('BWATER'), LQ = s.peek('BLQ');
 // the items to try: a placeBlock of another id (seeds, carrot, potato, berries ...) or a plant block itself
 const items = [];

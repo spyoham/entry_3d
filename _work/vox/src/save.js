@@ -195,7 +195,7 @@ function edCompact() {
   let n = EDX.length, k = 1, used = 0;
   // the last place of each cell
   while (k <= n) {
-    let key = hsKey(EDX[k], EDY[k], EDZ[k]) + EDD[k] * 1000000000000, h = mod(key, EHN) + 1, go = 1, t = 0;
+    let key = hsKey(EDX[k], EDY[k], EDZ[k]) + EDD[k] * 4000000000000, h = mod(key, EHN) + 1, go = 1, t = 0;
     while (go == 1 && t < EHN) {
       if (EHG[h] != ehGen) { EHG[h] = ehGen; EHK[h] = key; EHV[h] = k; go = 0; used = used + 1; }
       else { if (EHK[h] == key) { EHV[h] = k; go = 0; } else { h = h + 1; if (h > EHN) { h = 1; } t = t + 1; } }
@@ -206,7 +206,7 @@ function edCompact() {
   let w = 0;
   k = 1;
   while (k <= n) {
-    let key = hsKey(EDX[k], EDY[k], EDZ[k]) + EDD[k] * 1000000000000, h = mod(key, EHN) + 1, go = 1, t = 0, last = 0;
+    let key = hsKey(EDX[k], EDY[k], EDZ[k]) + EDD[k] * 4000000000000, h = mod(key, EHN) + 1, go = 1, t = 0, last = 0;
     while (go == 1 && t < EHN) {
       if (EHG[h] != ehGen) { go = 0; }
       else { if (EHK[h] == key) { last = EHV[h]; go = 0; } else { h = h + 1; if (h > EHN) { h = 1; } t = t + 1; } }
@@ -310,7 +310,9 @@ function loadGame(k) {
   M_rdL(INVI); M_rdL(INVN); M_rdL(INVD);
   M_rdL(GRV); M_rdL(EFT); M_rdL(EFL);
   // ((v2.9) a save from before has 12 effects: 14 now)
-  while (EFT.length < 22) { EFT.push(0); } while (EFL.length < 22) { EFL.push(0); }
+  while (EFT.length < 27) { EFT.push(0); } while (EFL.length < 27) { EFL.push(0); }
+  // ((v3.3) a save from before has 40 slots: the other hand is the 41st)
+  while (INVI.length < 41) { INVI.push(0); INVN.push(0); INVD.push(0); }
   grSync();
   M_rdL(EDX); M_rdL(EDY); M_rdL(EDZ); M_rdL(EDB); M_rdL(EDD);
   edIndex();

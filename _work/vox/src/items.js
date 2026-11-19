@@ -10,7 +10,8 @@ let uiMode = 0, uiPage = 0, curFur = 0, curChest = 0;
 function invInit() {
   INVI = []; INVN = []; INVD = [];
   let i = 0;
-  while (i < 40) { INVI.push(0); INVN.push(0); INVD.push(0); i = i + 1; }
+  // ((v3.3) 41: the other hand)
+  while (i < 41) { INVI.push(0); INVN.push(0); INVD.push(0); i = i + 1; }
   i = 1;
   while (i <= 9) { CGI[i] = 0; CGN[i] = 0; i = i + 1; }
   curI = 0; curN = 0; curD = 0; hotSel = 1;
@@ -19,6 +20,8 @@ function invInit() {
 // first); addLeft: what did not fit
 function addItem(id, n, du) {
   let st = ITST[id + 1], i = 1, room = 0;
+  // ((v3.3) an orb of experience is no thing to hold: it is the xp it is worth)
+  if (id == I_xpOrb) { xpAdd(n); n = 0; }
   if (st > 1) {
     while (i <= 36 && n > 0) {
       if (INVI[i] == id) { room = st - INVN[i]; if (room > 0) { room = Math.min(room, n); INVN[i] = INVN[i] + room; n = n - room; } }
@@ -52,7 +55,7 @@ function dropHeld() {
   let id = INVI[hotSel];
   if (id > 0) {
     let n = 1;
-    if (key(16)) { n = INVN[hotSel]; }
+    if (key(16) || key(17)) { n = INVN[hotSel]; }
     dropItem(id, n, INVD[hotSel], camX + lookX * 0.4, camY - 0.3 + lookY * 0.4, camZ + lookZ * 0.4, 2);
     takeHeld(n);
   }
@@ -136,6 +139,8 @@ function smeltOf(id) {
 }
 function furnacesStep(dt) {
   let f = 1;
+  // ((v3.3) the brewing stands work as the furnaces do: src/brew.js)
+  brewStandsStep(dt);
   while (f <= NFUR) {
     if (FUON[f] == 1) {
       smeltOf(FII[f]);
@@ -144,17 +149,22 @@ function furnacesStep(dt) {
       if (FUB[f] <= 0) {
         if (can == 1) { if (FFN[f] > 0) { if (ITFUEL[FFI[f] + 1] > 0) {
           FUB[f] = ITFUEL[FFI[f] + 1]; FUBM[f] = FUB[f];
+          // ((v3.3) a bucket of lava leaves its bucket)
+          if (FFI[f] == I_lavaBucket) { FFI[f] = I_bucket; FFN[f] = 2; }
           FFN[f] = FFN[f] - 1; if (FFN[f] <= 0) { FFI[f] = 0; FFN[f] = 0; }
         } } }
       }
       if (FUB[f] > 0) {
-        FUB[f] = FUB[f] - dt;
+        // ((v3.3) a blast furnace and a smoker burn their fuel twice as fast as they smelt twice as fast)
+        FUB[f] = FUB[f] - dt * FUF[f];
         if (can == 1) {
           FUP[f] = FUP[f] + dt * FUF[f];
           if (FUP[f] >= SMELTT) {
             FUP[f] = 0;
             FIN[f] = FIN[f] - 1; if (FIN[f] <= 0) { FII[f] = 0; FIN[f] = 0; }
             FOI[f] = smeltOut; FON[f] = FON[f] + 1;
+            // ((v3.3) what smelting is worth waits in the furnace for whoever takes the thing out: src/combat.js)
+            furXpAdd(f, smeltOut);
           }
         } else { FUP[f] = 0; }
       } else { FUP[f] = Math.max(0, FUP[f] - dt * 2); }
@@ -169,7 +179,9 @@ function chestCap(c) {
   let r = 27;
   if (c > 0 && c <= CHON.length) { if (CHON[c] == 1) { if (idiv(CHY[c], 1000) == dim) {
     let b = blockAt(CHX[c], CHY[c] - dim * 1000, CHZ[c]);
-    if (BKIND[b + 1] == I_hopper) { r = 5; } if (BRS[b + 1] == RS_DISPENSER) { r = 9; }
+    if (BKIND[b + 1] == I_hopper || b == I_brewingStand) { r = 5; } if (BRS[b + 1] == RS_DISPENSER) { r = 9; }
+    // ((v3.3) the store of a cart with a hopper: world33.js)
+    if (CHY[c] - dim * 1000 == 500) { if (CHZ[c] == 1) { r = 5; } }
   } } }
   return r;
 }
@@ -207,6 +219,8 @@ function hoppersStep(dt) {
   if (hopT >= 0.4) {
     hopT = 0; hopPass = hopPass + 1;
     while (HRCV.length < NCHEST) { HRCV.push(0); }
+    // ((v3.3) the carts with a store, crowded cells: world33.js)
+    worldPass();
     if (netSrv == 0 || netSt != 2 || netHost == 1) {
       let c = 1;
       while (c <= NCHEST) {
@@ -229,6 +243,8 @@ function hopperWork(c, x, y, z, hf) {
     let tb = blockAt(ox, oy, oz), tc = 0, tf = 0;
     if (BUSE[tb + 1] == U_CHEST) { chestAt(ox, oy, oz); tc = cFound; }
     if (BUSE[tb + 1] == U_FURNACE) { furnaceAt(ox, oy, oz); tf = fFound; }
+    // ((v3.3) or a cart with a chest or a hopper standing there)
+    if (tc == 0 && tf == 0) { if (WCS.length > 0) { cartStoreAt(ox, oy, oz); tc = cFound; } }
     k = 1;
     while (k <= 5 && moved == 0) {
       if (CHI[base + k] > 0) {
@@ -245,35 +261,20 @@ function hopperWork(c, x, y, z, hf) {
     if (moved == 1) { CHN[base + f] = CHN[base + f] - 1; if (CHN[base + f] <= 0) { CHI[base + f] = 0; CHN[base + f] = 0; CHD[base + f] = 0; } chestTouched(c); chestSay(c, f); }
   }
   // in: one from a container over it (the first that fits), else the items lying on it
+  // ((v3.3) or the cart with a store on the rail over it; the taking and the picking up are world33.js's,
+  // shared with the hopper's cart)
   chestFind(x, y + 1, z);
-  if (cFound > 0) {
-    let a = cFound, ab = (a - 1) * 27, g = 0, cap = chestCap(a);
-    k = 1;
-    while (k <= cap && g == 0) { if (CHI[ab + k] > 0) { if (chestTake(c, CHI[ab + k], 1, CHD[ab + k]) == 1) { g = k; } } k = k + 1; }
-    if (g > 0) { CHN[ab + g] = CHN[ab + g] - 1; if (CHN[ab + g] <= 0) { CHI[ab + g] = 0; CHN[ab + g] = 0; CHD[ab + g] = 0; } chestTouched(a); chestSay(a, g); HRCV[c] = hopPass; }
-  } else {
+  if (cFound == 0) { if (WCS.length > 0) { cartStoreAt(x, y + 1, z); } }
+  if (cFound > 0) { if (chestPull(c, cFound) == 1) { HRCV[c] = hopPass; } }
+  else {
     furnaceFind(x, y + 1, z);
     if (fFound > 0) { if (FON[fFound] > 0) { if (chestTake(c, FOI[fFound], 1, 0) == 1) { FON[fFound] = FON[fFound] - 1; if (FON[fFound] <= 0) { FOI[fFound] = 0; FON[fFound] = 0; } } } }
-    else {
-      let i = 1;
-      while (i <= NITM) {
-        if (IID[i] > 0) { if (Math.floor(IXX[i]) == x && Math.floor(IZZ[i]) == z && IYY[i] >= y && IYY[i] < y + 2) {
-          // ((v3.2) another player's thing: asked of its owner for this hopper (netmob.js))
-          if (IRK[i] > 0) { netItemHopper(i, c); }
-          else {
-            let n = INN[i];
-            while (n > 0) { if (chestTake(c, IID[i], 1, IDU[i]) == 1) { n = n - 1; } else { INN[i] = n; n = 0 - 1; } }
-            if (n == 0) { IID[i] = 0; }
-          }
-        } }
-        i = i + 1;
-      }
-    }
+    else { chestSuck(c, x + 0.5, y, z + 0.5, 0.5); }
   }
 }
 // (v2.4.3) what is in chest c changed: the comparators reading it (next to it, or through a block) ask again
 function chestTouched(c) {
-  if (c > 0 && c <= CHON.length) { if (CHON[c] == 1) { if (idiv(CHY[c], 1000) == dim) { powerAround(CHX[c], CHY[c] - dim * 1000, CHZ[c]); } } }
+  if (c > 0 && c <= CHON.length) { if (CHON[c] == 1) { if (idiv(CHY[c], 1000) == dim) { if (CHY[c] - dim * 1000 < 400) { powerAround(CHX[c], CHY[c] - dim * 1000, CHZ[c]); } } } }
 }
 function chestFind(x, y, z) {
   cFound = 0;
@@ -302,7 +303,7 @@ function chestOpen(x, y, z) {
     let lt = lootAt(x, y, z);
     if (lt > 0) { lootTable(cFound, lt); } else { if (dim != 0 || lootUnder == 60) { chestLoot(cFound); } }
   }
-  if (cFound > 0) { curChest = cFound; curCap = chestCap(cFound); uiOpen(4); trapOpen(x, y, z); } else { msgShow('상자가 너무 많습니다', 2); }
+  if (cFound > 0) { curChest = cFound; curCap = chestCap(cFound); uiOpen(4); trapOpen(x, y, z); ashGuard(blockAt(x, y, z)); } else { msgShow('상자가 너무 많습니다', 2); }
 }
 let curCap = 27;
 // (v2.5) a trapped chest looked in gives power (1: the player here; the genre counts the players)
@@ -317,6 +318,8 @@ function trapLevel(x, y, z) {
 }
 // a furnace or chest broken: what was in it falls out
 function chestOrFurnaceGone(x, y, z, b) {
+  // ((v3.3) gold or a chest broken near the ash-folk: world33.js)
+  ashGuard(b);
   if (BUSE[b + 1] == U_FURNACE) {
     furnaceFind(x, y, z);
     if (fFound > 0) {
@@ -324,6 +327,7 @@ function chestOrFurnaceGone(x, y, z, b) {
       if (FIN[f] > 0) { dropItem(FII[f], FIN[f], 0, x + 0.5, y + 0.5, z + 0.5, 1); }
       if (FFN[f] > 0) { dropItem(FFI[f], FFN[f], 0, x + 0.5, y + 0.5, z + 0.5, 1); }
       if (FON[f] > 0) { dropItem(FOI[f], FON[f], 0, x + 0.5, y + 0.5, z + 0.5, 1); }
+      furXpTake(f, x + 0.5, y + 0.5, z + 0.5);
       FUON[f] = 0;
     }
   }
@@ -355,6 +359,8 @@ function slotGet(s) {
   else { if (s == 88) { gI = anOut; gN = 1; gD = anOutD; }
   else { if (s <= 87) { let j = (curChest - 1) * 27 + s - 60; gI = CHI[j]; gN = CHN[j]; gD = CHD[j]; }
   else { let k = uiPage * 36 + s - 100; gI = palAt(k); gN = ITST[gI + 1]; } } } } } } } } } } } }
+  // ((v3.3) 89: the other hand (INVI[41]))
+  if (s == 89) { gI = INVI[41]; gN = INVN[41]; gD = INVD[41]; }
   if (gI == 0) { gN = 0; gD = 0; }
 }
 function slotSet(s, i, n, d) {
@@ -363,10 +369,11 @@ function slotSet(s, i, n, d) {
   else { if (s <= 49) { CGI[s - 40] = i; CGN[s - 40] = n; craftMatch(); }
   else { if (s == 51) { FII[curFur] = i; FIN[curFur] = n; }
   else { if (s == 52) { FFI[curFur] = i; FFN[curFur] = n; }
-  else { if (s == 53) { FOI[curFur] = i; FON[curFur] = n; }
+  else { if (s == 53) { FOI[curFur] = i; FON[curFur] = n; furXpTake(curFur, px, py + 0.5, pz); }
   else { if (s == 54) { SMI1 = i; SMN1 = n; SMD1 = d; smithMatch(); } else { if (s == 55) { SMI2 = i; SMN2 = n; smithMatch(); }
   else { if (s >= 57 && s <= 60) { if (s == 57) { ENI = i; ENN = n; END = d; } if (s == 58) { ELI = i; ELN = n; } if (s == 59) { AN1I = i; AN1N = n; AN1D = d; anvilMatch(); } if (s == 60) { AN2I = i; AN2N = n; AN2D = d; anvilMatch(); } }
   else { if (s >= 61) { if (s <= 87) { let j = (curChest - 1) * 27 + s - 60; CHI[j] = i; CHN[j] = n; CHD[j] = d; chestTouched(curChest); } } } } } } } } } }
+  if (s == 89) { INVI[41] = i; INVN[41] = n; INVD[41] = d; }
 }
 // a click on slot s: btn 0 the left button, 1 the right, 2 the middle; sh 1 with Shift
 // ((v3.0) as the genre's: the right button takes half or puts one, Shift moves the stack across
@@ -470,6 +477,7 @@ function quickMove(s) {
     if (uiMode == 4) { moveTo(s, 61, 60 + curCap); done = 1; }
     if (uiMode == 3) { smeltOf(id); if (smeltOut > 0) { moveTo(s, 51, 51); done = 1; } else { if (ITFUEL[id + 1] > 0) { moveTo(s, 52, 52); done = 1; } } }
     if (done == 0 && (uiMode == 1 || uiMode == 5)) { if (ITK[id + 1] == 4) { if (INVI[36 + ITSLOT[id + 1]] == 0) { moveTo(s, 36 + ITSLOT[id + 1], 36 + ITSLOT[id + 1]); done = 1; } } }
+    if (done == 0 && id == I_shield && uiMode == 1) { if (INVI[41] == 0) { moveTo(s, 89, 89); done = 1; } }
     if (done == 0) { if (s >= 10) { moveTo(s, 1, 9); } else { moveTo(s, 10, 36); } }
   } else {
     if ((s >= 61 && s <= 87) || s == 53) { moveTo(s, 9, 1); moveTo(s, 36, 10); }
@@ -593,6 +601,8 @@ function chestLoot(c) {
       id = 102; cnt = rand(1, 4);
       if (r > 30) { id = 103; cnt = rand(1, 3); }
       if (r > 50) { id = 123; cnt = rand(1, 3); }
+      // ((v3.3) the depths' wart, which grows nowhere by itself: 3 to 7, as the forts' chests of the genre)
+      if (r > 58) { id = I_wailWart; cnt = rand(3, 7); }
       if (r > 65) { id = 34; cnt = rand(2, 6); }
       if (r > 78) { id = 115; cnt = rand(4, 12); }
       if (r > 86) { id = 109; cnt = rand(2, 5); }
@@ -611,7 +621,7 @@ function chestLoot(c) {
     k = k + 1;
   }
   // ((v2.9) an enchanted book now and then)
-  if (rand(1, 3) == 1) { j = (c - 1) * 27 + rand(1, 27); CHI[j] = I_enchantedBook; CHN[j] = 1; CHD[j] = enRandomBook(); }
+  if (rand(1, 3) == 1) { j = (c - 1) * 27 + rand(1, 27); CHI[j] = I_enchantedBook; CHN[j] = 1; CHD[j] = enRandomBook(); if (dim == 1) { if (rand(1, 4) == 1) { CHI[j] = I_enchantedBook2; CHD[j] = enBook2(38); } } }
   // a ship's hold (on its deck of planks): the glider
   if (dim == 2) { if (lootUnder == 5) { CHI[(c - 1) * 27 + 14] = 173; CHN[(c - 1) * 27 + 14] = 1; CHD[(c - 1) * 27 + 14] = 0; } }
 }

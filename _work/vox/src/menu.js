@@ -111,7 +111,7 @@ function scrTitle(dt) {
   button(-100, 4, 100, -16, '멀티플레이', 6, 1); if (btnHot == 1) { if (clickLatch == 1) { netEnter(); selS = 0; menuGo(4); } }
   button(-100, -22, 100, -42, '도움말', 7, 1); if (btnHot == 1) { if (clickLatch == 1) { menuGo(9); } }
   button(-100, -54, -2, -74, '설정...', 8, 1); if (btnHot == 1) { if (clickLatch == 1) { menuGo(7); } }
-  button(2, -54, 100, -74, '작품 정보', 9, 1); if (btnHot == 1) { if (clickLatch == 1) { menuMsg('블록 월드', `블록 ${NKINDS}종 · 생물 군계 26 · 구조물 20 · 몹 20 · 멀티플레이와 플러그인`); msgBack = 0; } }
+  button(2, -54, 100, -74, '작품 정보', 9, 1); if (btnHot == 1) { if (clickLatch == 1) { menuMsg('블록 월드', `블록 ${NKINDS}종 · 생물 군계 26 · 구조물 20 · 몹 ${NMOBT - 4} · 멀티플레이와 플러그인`); msgBack = 0; } }
   // ((v2.7.2) SUPER alone: the nicknames banned from every server)
   if (iAmSuper() == 1) {
     button(-100, -80, -2, -100, '전체 차단 목록', 12, 1); if (btnHot == 1) { if (clickLatch == 1) { netEnter(); gbSel = 0; gbMsg = ''; menuGo(11); } }

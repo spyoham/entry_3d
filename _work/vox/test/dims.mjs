@@ -19,7 +19,8 @@ call(() => {
 console.log('gate lit', s.peek('gateOK'), 'veil at', B(x0, yb, z0), B(x0 + 1, yb + 2, z0));
 // step in
 s.poke('px', x0 + 0.5); s.poke('pz', z0 + 0.5); s.poke('py', yb);
-F(200);
+// ((v3.3) four seconds in the veil)
+F(300);
 console.log('dim', s.peek('dim'), 'gState', s.peek('gState'));
 let k = 0; while (s.peek('gState') !== 2 && k < 500) { F(1); k++; }
 console.log('arrived dim', s.peek('dim'), 'at', s.peek('px').toFixed(1), s.peek('py').toFixed(1), s.peek('pz').toFixed(1), 'in veil', B(Math.floor(s.peek('px')), Math.floor(s.peek('py')), Math.floor(s.peek('pz'))));
@@ -52,14 +53,15 @@ s.poke('gameMode', 1); s.poke('yaw', 0); s.poke('pitch', 10);
 F(120);
 console.log('crystals', s.peek('nCrystal'));
 await s.png('test/v1.png');
-// asleep while a crystal stands (no harm done to it)
-call(() => { const e = s.peek('bossE'); fn.mobHurt(e, 999, 0, 0); });
+// ((v3.3) hurt from the start, the crystals standing)
+call(() => { const e = s.peek('bossE'); fn.mobHurt(e, 30, 0, 0); });
 F(2);
-console.log('asleep: hp', s.peek('EHP')[s.peek('bossE') - 1]);
-// the crystals broken: it wakes, and falls
+console.log('a blow of 30 while the crystals stand: hp', s.peek('EHP')[s.peek('bossE') - 1]);
+// the crystals broken, and it falls
 s.poke('px', 0.5); s.poke('pz', 0.5); s.poke('py', 60); F(400);
 for (let r = 0; r < 20 && s.peek('nCrystal') > 0; r++) { call(() => { for (let k = 0; k < 8; k++) { fn.pillarAt(k); fn.setBlock(s.peek('pilX'), s.peek('pilH') + 1, s.peek('pilZ'), 0); } }); F(60); }
-console.log('crystals', s.peek('nCrystal'), 'awake', s.peek('bossWake'));
+console.log('crystals', s.peek('nCrystal'));
 call(() => { const e = s.peek('bossE'); fn.mobHurt(e, 999, 0, 0); });
 F(5);
-console.log('bossDead', s.peek('bossDead'), 'gate at middle', B(0, s.peek('topY'), 0));
+call(() => fn.findTop(0, 0));
+console.log('bossDead', s.peek('bossDead'), 'on the middle (the egg, 175)', B(0, s.peek('topY'), 0), 'under it (the gate, 56)', B(0, s.peek('topY') - 1, 0));

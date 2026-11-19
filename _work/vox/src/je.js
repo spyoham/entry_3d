@@ -20,6 +20,8 @@ function rtInit() {
     if (BWET[b + 1] > 0 && BFALL[b + 1] == 0) { r = 1; }
     if (b == I_wetSponge || b == 33 || b == I_snowLayer || BLQ[b + 1] == 35 || BLEAF[b + 1] == 1) { r = 1; }
     if (b == I_mushBrown || b == I_mushRed) { r = 1; }
+    // ((v3.3) ripe stems, cocoa, the wart, berry bushes, vines, cauldrons under rain: plants.js)
+    if (plTicks(b) == 1) { r = 1; }
     RTK.push(r);
     b = b + 1;
   }
@@ -37,6 +39,7 @@ function randomTicks(dt) {
     k = k + 1;
   }
   weatherCols(dt);
+  plantStep(dt);
   campfireStep(dt);
   leafStep(dt);
   fireStep(dt);
@@ -151,6 +154,8 @@ function randomTick(x, y, z, i, b) {
   if (BLEAF[b + 1] == 1) { if (rand(1, 4) == 1) { leafLook(x, y, z, 0); } }
   // lava sets fire to what burns near it
   if (BLQ[b + 1] == 35) { lavaFire(x, y, z); }
+  // ((v3.3) what grows in plants.js: ids 66..99, vines, the cauldron)
+  if ((b >= 66 && b <= 99) || b == I_vines || b == I_cauldron) { plantTick(x, y, z, i, b); }
 }
 // a block taken off as if broken by the world (drops by the rules)
 function popBlock(x, y, z) {
@@ -507,6 +512,8 @@ function jeChanged(x, y, z, old, b) {
     if (BSOL[b + 1] != 1) { M_jwt(x + 1, y, z, 0); M_jwt(x - 1, y, z, 1); M_jwt(x, y, z + 1, 4); M_jwt(x, y, z - 1, 5); }
     // something solid by a cactus breaks it
     if (BSOL[b + 1] > 0 || BLQ[b + 1] == 35) { M_jcb(x + 1, y, z); M_jcb(x - 1, y, z); M_jcb(x, y, z + 1); M_jcb(x, y, z - 1); }
+    // ((v3.3) cocoa on a log that went)
+    plChanged(x, y, z, old, b);
   }
 }
 function M_jwt(X, Y, Z, A) {

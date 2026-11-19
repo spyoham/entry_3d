@@ -128,11 +128,29 @@ const wardens = (c) => { const ET = c.g('ET'), R = c.g('ERK'); const r = []; for
 let wa = wardens(A), wb = wardens(B);
 ok(wa.length === 1 && wb.length === 1 && (wa[0].mine ? 1 : 0) + (wb[0].mine ? 1 : 0) === 1, `one warden, run by one of them (alice ${JSON.stringify(wa)}, bob ${JSON.stringify(wb)})`);
 const OW = wa[0] && wa[0].mine ? A : B, GU = OW === A ? B : A;
+A.sim.poke('gameMode', 1); B.sim.poke('gameMode', 1);
+const hit = (c, n) => { const w = wardens(c)[0]; if (w) c.call((fn) => { c.sim.poke('pKill', 1); c.g('EHURT')[w.e - 1] = 0; fn.mobHurt(w.e, n, 0, 0); c.sim.poke('pKill', 0); }); };
+const wf = (c, k) => { const w = wardens(c)[0]; return w ? +c.g(k)[w.e - 1] : -1; };
+// (v3.3) it is hurt from the start, the crystals standing: the other's blow counts on both screens, and the
+// crystal that mends it (the beam's end) is the same one on both
+ok(A.g('nCrystal') === 8 && B.g('nCrystal') === 8, `eight crystals stand on both screens (${A.g('nCrystal')}, ${B.g('nCrystal')})`);
+if (wardens(OW)[0]) { OW.g('EHP')[wardens(OW)[0].e - 1] = 100; } run(1.5);
+hit(GU, 30); run(2);
+ok(wardens(OW)[0] && wardens(OW)[0].hp >= 70 && wardens(OW)[0].hp <= 80 && wardens(GU)[0] && Math.abs(wardens(GU)[0].hp - wardens(OW)[0].hp) <= 3, `crystals standing, the other's blow of 30 counts (and it mends): ${JSON.stringify(wardens(OW))}, ${JSON.stringify(wardens(GU))}`);
+ok(wf(OW, 'EVAR') >= 1 && wf(GU, 'EVAR') === wf(OW, 'EVAR'), `the beam goes to the same crystal on both screens (${wf(OW, 'EVAR')}, ${wf(GU, 'EVAR')})`);
+// (v3.3) it sits: every screen knows (arrows glance off it there); its breath on the ground is seen by both
+OW.sim.poke('bossPh', 3); OW.sim.poke('bossT', 3); OW.sim.poke('wdShot', 1); run(1.5);
+ok(wf(OW, 'EST') === 2 && wf(GU, 'EST') === 2, `sitting on its owner's screen, it sits on the other's too (${wf(OW, 'EST')}, ${wf(GU, 'EST')})`);
+const clouds = (c) => c.g('AON').filter((v) => +v === 19).length;
+OW.call((fn) => fn.wardenCloud(2.5, 44, 2.5)); run(1);
+ok(clouds(OW) === 1 && clouds(GU) === 1, `a cloud of its breath lies on both screens (${clouds(OW)}, ${clouds(GU)})`);
+OW.sim.poke('bossPh', 0); OW.sim.poke('bossT', 0); run(3);
+ok(clouds(OW) === 0 && clouds(GU) === 0, 'and is gone after its 3 s');
 // the crystals away (as broken by hand)
 for (let k = 0; k < 8; k++) { OW.call((fn) => fn.pillarAt(k)); cmd(OW, `/setblock ${OW.g('pilX')} ${OW.g('pilH') + 1} ${OW.g('pilZ')} air`); }
 run(3);
 ok(A.g('nCrystal') === 0 && B.g('nCrystal') === 0, `no crystal on either screen (${A.g('nCrystal')}, ${B.g('nCrystal')})`);
-const hit = (c, n) => { const w = wardens(c)[0]; if (w) c.call((fn) => { c.sim.poke('pKill', 1); c.g('EHURT')[w.e - 1] = 0; fn.mobHurt(w.e, n, 0, 0); c.sim.poke('pKill', 0); }); };
+if (wardens(OW)[0]) { OW.g('EHP')[wardens(OW)[0].e - 1] = 200; } run(1.5);
 hit(GU, 30); run(2);
 ok(wardens(OW)[0] && wardens(OW)[0].hp === 170 && wardens(GU)[0] && wardens(GU)[0].hp === 170, `the other's blow of 30 took it to 170 on both (${JSON.stringify(wardens(OW))}, ${JSON.stringify(wardens(GU))})`);
 if (wardens(OW)[0]) { OW.g('EHP')[wardens(OW)[0].e - 1] = 10; } run(1);
@@ -140,6 +158,9 @@ hit(GU, 30); run(4);
 ok(A.g('bossDead') === 1 && B.g('bossDead') === 1 && wardens(A).length === 0 && wardens(B).length === 0, `killed: gone on both screens (dead ${A.g('bossDead')}, ${B.g('bossDead')})`);
 ok(items(GU).some((t) => t.id === id('warden_heart')), `the one who killed it has its heart lying by (${JSON.stringify(items(GU))})`);
 run(3);
+// (v3.3) its egg on the gate home, on both screens and in the server's record
+const eggAt = (c) => { let r = -1; c.call((fn) => { fn.findTop(0, 0); }); const ty = c.g('topY'); c.call((fn) => { r = fn.blockAt(0, ty, 0) === id('warden_egg') && fn.blockAt(1, ty - 1, 0) === 56 ? 1 : 0; }); return r; };
+ok(eggAt(A) === 1 && eggAt(B) === 1, `the gate home with the egg on it, on both screens (${eggAt(A)}, ${eggAt(B)})`);
 ok(host().g('shBoss') === 1, 'the server keeps that it is gone');
 C = open('dave'); ok(join(C, '삼점이'), 'dave comes later'); run(2);
 ok(C.g('bossDead') === 1, `and for dave it is gone too (${C.g('bossDead')})`);

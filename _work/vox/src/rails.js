@@ -167,7 +167,7 @@ function railState(b, st) {
 
 // ---------------------------------------------------------------- minecarts
 let cRail = 0, cRY = 0;
-function isCart(t) { let r = 0; if (t == M_MINECART || t == M_TNTCART) { r = 1; } return r; }
+function isCart(t) { let r = 0; if (t == M_MINECART || t == M_TNTCART || t == M_CHESTCART || t == M_HOPPERCART) { r = 1; } return r; }
 // the rail a cart at (x, y, z) is on (cRail 0: none), cRY its y
 function cartRail(x, y, z) {
   let rx = Math.floor(x), rz = Math.floor(z), ry = Math.floor(y + 0.01), b = blockAt(rx, ry, rz);
@@ -182,6 +182,8 @@ function cartPlace(t, x, y, z) {
 }
 function cartStep(e, dt) {
   if (EHURT[e] > 0) { EHURT[e] = EHURT[e] - dt; }
+  // ((v3.3) a mob that touches an empty cart gets in: world33.js)
+  if (ET[e] == M_MINECART) { cartRider(e); }
   let sp = Math.sqrt(EVX[e] * EVX[e] + EVZ[e] * EVZ[e]);
   let n = Math.min(4, 1 + Math.floor(sp * dt / 0.2)), h = dt / n, k = 0;
   while (k < n && ET[e] > 0) { cartMove(e, h); k = k + 1; }
@@ -225,10 +227,11 @@ function cartMove(e, h) {
     if (kd == 2) { pressAddL(rx, ry, rz, 1, 15); }
     if (kd == 3) { if (BON[b + 1] == 1) {
       if (riding == e) { riding = 0; py = EY[e] + 1; pvy = 2; }
+      if (ETG[e] > 0) { if (ET[e] == M_MINECART) { riderOff(e); } }
       if (ET[e] == M_TNTCART) { if (EST[e] == 0) { EST[e] = 1; ETM[e] = 4; sndPlay(1); } }
     } }
     // rolling slows it (an empty cart much more)
-    let fr = 0.06; if (riding != e) { fr = 0.8; }
+    let fr = 0.06; if (riding != e) { if (ETG[e] == 0) { if (ET[e] == M_MINECART || ET[e] == M_TNTCART) { fr = 0.8; } else { fr = 0.1; } } }
     sp = sp * (1 - fr * h);
     sp = Math.max(0 - 8, Math.min(8, sp));
     // onto the rail's line, along it; not into a wall

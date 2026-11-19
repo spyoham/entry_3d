@@ -95,7 +95,61 @@ function meshSection(sec) {
   if (mod(wx0 + 7, 16) == 15) { t = wx0 + 8; if (t >= WS) { t = 0; } if (CKST[idiv(t, 16) * NCH + idiv(wz0, 16) + 1] < 3) { okxp = 0; } }
   if (mod(wz0, 16) == 0) { t = wz0 - 1; if (t < 0) { t = WS - 1; } if (CKST[idiv(wx0, 16) * NCH + idiv(t, 16) + 1] < 3) { okzm = 0; } }
   if (mod(wz0 + 7, 16) == 15) { t = wz0 + 8; if (t >= WS) { t = 0; } if (CKST[idiv(wx0, 16) * NCH + idiv(t, 16) + 1] < 3) { okzp = 0; } }
-  let ax = 0, az = 0, x = x0, y = 0, z = 0, i = 0, b = 0, hb = 0, sh = 0, mn = 0, nb = 0, solid = 0, n = 0, c1 = 0, c2 = 0, c4 = 0, c8 = 0;
+  let ax = 0, az = 0, x = x0, y = 0, z = 0, i = 0, b = 0, hb = 0, sh = 0, mn = 0, nb = 0, solid = 0, n = 0, c1 = 0, c2 = 0, c4 = 0, c8 = 0, nzc = 0, cube = 0;
+  // (v3.3) A look at the cells first: how many hold anything, how many are whole opaque blocks. A section
+  // of nothing but air has no faces; one of nothing but whole blocks (most of what lies under the ground:
+  // it was the dearest kind, 3072 looks at neighbours for no face at all) has faces only on its six sides,
+  // toward what is outside it - 384 looks.
+  while (ax < 8) {
+    az = 0;
+    while (az < 8) {
+      i = ((wx0 + ax) * WS + wz0 + az) * WY + y0 + 1; y = 0;
+      while (y < 8) {
+        b = W[i];
+        if (b != 0) { nzc = nzc + 1; if (BHC[b + 1] == 1) { solid = solid + 1; if (BSHP[b + 1] == 0) { cube = cube + 1; } } }
+        y = y + 1; i = i + 1;
+      }
+      az = az + 1;
+    }
+    ax = ax + 1;
+  }
+  if (MESHFAST == 0) { cube = 0; nzc = 1; }
+  hb = 1; sh = 0;
+  if (cube == 512) {
+    // -x and +x sides
+    if (okxm == 0) { c1 = 1; } else {
+      az = 0; x = x0;
+      while (az < 8) { z = z0 + az; y = y0; i = (wx0 * WS + wz0 + az) * WY + y0 + 1; while (y < y0 + 8) { b = W[i]; n = i + sxm; nb = W[n]; M_face(nb, n, 0); y = y + 1; i = i + 1; } az = az + 1; }
+    }
+    if (okxp == 0) { c2 = 1; } else {
+      az = 0; x = x0 + 7; ax = 7;
+      while (az < 8) { z = z0 + az; y = y0; i = ((wx0 + 7) * WS + wz0 + az) * WY + y0 + 1; while (y < y0 + 8) { b = W[i]; n = i + sxp; nb = W[n]; M_face(nb, n, 1); y = y + 1; i = i + 1; } az = az + 1; }
+    }
+    // under and over
+    ax = 0;
+    while (ax < 8) {
+      az = 0; x = x0 + ax;
+      while (az < 8) {
+        z = z0 + az; i = ((wx0 + ax) * WS + wz0 + az) * WY + y0 + 1;
+        if (y0 > 0) { y = y0; b = W[i]; n = i - 1; nb = W[n]; M_face(nb, n, 2); }
+        y = y0 + 7; i = i + 7; b = W[i];
+        if (y < WY - 1) { n = i + 1; nb = W[n]; } else { n = 0; nb = 0; }
+        M_face(nb, n, 3);
+        az = az + 1;
+      }
+      ax = ax + 1;
+    }
+    // -z and +z sides
+    if (okzm == 0) { c4 = 1; } else {
+      ax = 0; z = z0;
+      while (ax < 8) { x = x0 + ax; y = y0; i = ((wx0 + ax) * WS + wz0) * WY + y0 + 1; while (y < y0 + 8) { b = W[i]; n = i + szm; nb = W[n]; M_face(nb, n, 4); y = y + 1; i = i + 1; } ax = ax + 1; }
+    }
+    if (okzp == 0) { c8 = 1; } else {
+      ax = 0; z = z0 + 7;
+      while (ax < 8) { x = x0 + ax; y = y0; i = ((wx0 + ax) * WS + wz0 + 7) * WY + y0 + 1; while (y < y0 + 8) { b = W[i]; n = i + szp; nb = W[n]; M_face(nb, n, 5); y = y + 1; i = i + 1; } ax = ax + 1; }
+    }
+    ax = 8;
+  } else { ax = 0; if (nzc == 0) { ax = 8; } }
   while (ax < 8) {
     az = 0;
     while (az < 8) {
@@ -105,7 +159,6 @@ function meshSection(sec) {
         b = W[i];
         if (b != 0) {
           hb = BHC[b + 1]; sh = BSHP[b + 1];
-          if (hb == 1) { solid = solid + 1; }
           if (sh == 0 || sh == 4 || sh == 3) {
             // the six neighbours (1: a closed side, stone)
             if (ax > 0) { n = i - SXS; nb = W[n]; } else { if (okxm == 1) { n = i + sxm; nb = W[n]; } else { n = 0; nb = 1; c1 = 1; } }

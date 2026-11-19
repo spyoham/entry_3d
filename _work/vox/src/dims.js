@@ -719,11 +719,14 @@ function arrive() {
     findVeil(x, z);
     if (veilY < 0) { makeGateNear(x, z); findVeil(x, z); }
     px = veilX + 0.5; pz = veilZ + 0.5; py = veilY; gateCool = 1;
+    gateKnown(dim, veilX, veilZ);
   }
   if (travelKind == 2) {
     // the edge of the warden's island, facing the middle
+    // ((v3.3) onto a platform of obsidian, 5 x 5 with three cells of air over it, made again each time)
     findTop(0, 0 - 48);
-    px = 0.5; pz = 0 - 47.5; py = topY + 1; yaw = 0;
+    wardenPad(0, topY, 0 - 48);
+    px = 0.5; pz = 0 - 47.5; py = padY + 1; yaw = 0;
     // ((v3.2) on a server bossStep makes it, once no other screen has it)
     if (bossDead == 0 && netSrv == 0) { bossSpawn(); }
   }
@@ -815,13 +818,15 @@ function gateStep(dt) {
   else {
     if (gateCool == 0) {
       gateT = gateT + dt;
-      let need = 2.5;
-      if (gameMode == 1 || onG == 1 || onF == 1) { need = 0.4; }
+      // ((v3.3) four seconds in the veil, as the genre's; in creative at once)
+      let need = 4;
+      if (onG == 1 || onF == 1) { need = 0.4; } else { if (gameMode == 1) { need = 0.05; } }
       if (gateT >= need) {
         gateT = 0;
         if (onF == 1) { farGateGo(); } else { if (inV == 1) {
-          if (dim == 0) { startTravel(1, Math.floor(px / 8) + 0.5, Math.floor(pz / 8) + 0.5, 1); }
-          else { startTravel(0, Math.floor(px) * 8 + 0.5, Math.floor(pz) * 8 + 0.5, 1); }
+          // ((v3.3) to the nearest gate known there: within 16 blocks in the depths, 128 in the overworld)
+          if (dim == 0) { gateTo(1, Math.floor(px / 8), Math.floor(pz / 8), 16); startTravel(1, gtX + 0.5, gtZ + 0.5, 1); }
+          else { gateTo(0, Math.floor(px) * 8, Math.floor(pz) * 8, 128); startTravel(0, gtX + 0.5, gtZ + 0.5, 1); }
         } else {
           if (dim == 2) { startTravel(0, spawnX, spawnZ, 3); } else { startTravel(2, 0.5, 0 - 47.5, 2); }
         } }
@@ -846,10 +851,12 @@ function useVoidKey() {
 }
 
 // ---------------------------------------------------------------- the warden of the void
-// While any warding crystal stands on the pillars, the warden sleeps: it only circles the
-// island, and nothing hurts it. The last crystal broken, it wakes: it circles, dives at the
-// player, and every other turn lands on the middle of the island for a while (then it can be
-// hit freely). Killed: its heart drops and the gate home opens in the middle of the island.
+// (v3.3) As the genre's: it can be hurt from the start. The nearest warding crystal within 32 blocks
+// mends it 1 each half second (a beam shows which); that crystal broken while it mends, 10 hurt.
+// It circles the island, throwing a slow ball of its breath at the one it sees (a cloud where it
+// lands: 3 hurt a second for 3 s), dives at them, and - the sooner the fewer crystals stand - comes
+// down on the middle of the island and sits 8 s: arrows glance off it there, and it breathes a
+// cloud before it. Killed: its heart, 12000 xp, the gate home with its egg on it, the far gate.
 // (v3.2) On a server there is one warden for everyone in the void: it is a mob like the others
 // (netmob.js: one owner runs it, the rest see it from the owner's line and their blows go to the
 // owner), with a number of its own (BOSSU) so two screens never make two. It goes for the nearest
@@ -874,13 +881,21 @@ function bossStep(dt) {
     let e = bossE;
     if (e > 0) {
       bossHP = EHP[e];
-      // the crystals still standing (a pillar in a chunk not made counts as standing)
+      // the crystals still standing (a pillar in a chunk not made counts as standing); (v3.3) the
+      // nearest one within 32 blocks mends it (world33.js)
       nCrystal = 0;
-      let k = 0;
-      while (k < 8) { pillarAt(k); if (cOK(pilX, pilZ) == 0) { nCrystal = nCrystal + 1; } else { if (blockAt(pilX, pilH + 1, pilZ) == 57) { nCrystal = nCrystal + 1; } } k = k + 1; }
-      // the last crystal gone: it wakes (and circles a while first: time to come down)
-      if (nCrystal == 0) { if (bossWake == 0) { bossWake = 1; msgShow('공허의 수호자가 깨어났습니다!', 4); } }
-      if (ERK[e] == 0) { bossMove(e, dt); }
+      let k = 0, best = 1024, bk = 0, d = 0;
+      while (k < 8) {
+        pillarAt(k);
+        if (cOK(pilX, pilZ) == 0) { nCrystal = nCrystal + 1; }
+        else { if (blockAt(pilX, pilH + 1, pilZ) == 57) {
+          nCrystal = nCrystal + 1;
+          d = (pilX + 0.5 - EX[e]) * (pilX + 0.5 - EX[e]) + (pilH - EY[e]) * (pilH - EY[e]) + (pilZ + 0.5 - EZ[e]) * (pilZ + 0.5 - EZ[e]);
+          if (d < best) { best = d; bk = k + 1; }
+        } }
+        k = k + 1;
+      }
+      if (ERK[e] == 0) { wardenHeal(e, bk, dt); if (ET[e] == 10) { bossMove(e, dt); } }
     }
   }
 }
@@ -890,48 +905,63 @@ function bossMove(e, dt) {
       EHURT[e] = EHURT[e] - dt; EATK[e] = EATK[e] - dt;
       bossT = bossT + dt;
       let tx = 0, ty = 0, tz = 0, sp = 9, can = 1;
-      if (nCrystal > 0) { bossPh = 0; bossT = 0 - 6; }
       // (the nearest player who can be hurt: tgK 0 me)
       mobTarget(e);
       if (tgK == 0) { if (mod(gameMode, 2) != 0 || dead != 0) { can = 0; } }
       if (bossPh == 0) {
         bossAng = bossAng + dt * 16;
         tx = cosd(bossAng) * 40; tz = sind(bossAng) * 40; ty = 52 + sind(bossT * 40) * 3;
-        if (nCrystal == 0) { if (bossT > 6) { if (can == 1) {
-          bossT = 0; bossN = bossN + 1;
-          if (mod(bossN, 2) == 0) { bossPh = 2; } else { bossPh = 1; }
-        } } }
+        if (can == 1) {
+          // ((v3.3) half way round a ball of its breath; a round done: down onto the middle (the fewer
+          // crystals stand the sooner), else every other round a dive)
+          if (bossT > 3) { if (wdShot == 0) { wdShot = 1; wardenShot(e); } }
+          if (bossT > 6) {
+            bossT = 0; wdShot = 0; bossN = bossN + 1;
+            if (rand(1, nCrystal + 2) == 1) { bossPh = 2; } else { if (mod(bossN, 2) == 1) { bossPh = 1; } }
+          }
+        }
       } else { if (bossPh == 1) {
         tx = tgX; ty = tgY + 1; tz = tgZ; sp = 15;
-        if (bossT > 5) { bossPh = 0; bossT = 0; }
-      } else {
-        // landed on the middle of the island
+        if (bossT > 5 || can == 0) { bossPh = 0; bossT = 0; }
+      } else { if (bossPh == 2) {
+        // down onto the middle of the island
         findTop(0, 0);
         tx = 0.5; ty = topY + 1; tz = 0.5; sp = 8;
-        if (bossT > 9) { bossPh = 0; bossT = 0; }
-      } }
-      let dx = tx - EX[e], dy = ty - EY[e] - 1.5, dz = tz - EZ[e];
-      if (bossPh == 2) { dy = ty - EY[e]; }
-      let d = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.001;
-      let f = Math.min(1, 2 * dt);
-      if (bossPh == 2) { if (d < 1) { f = 1; sp = 0; } }
-      EVX[e] = EVX[e] + (dx / d * sp - EVX[e]) * f;
-      EVY[e] = EVY[e] + (dy / d * sp - EVY[e]) * f;
-      EVZ[e] = EVZ[e] + (dz / d * sp - EVZ[e]) * f;
-      EX[e] = EX[e] + EVX[e] * dt; EY[e] = EY[e] + EVY[e] * dt; EZ[e] = EZ[e] + EVZ[e] * dt;
-      if (EY[e] < 30) { EY[e] = 30; }
-      if (bossPh != 2) { EYAW[e] = atan2d(EVX[e], EVZ[e]); }
+        if (bossT > 14) { bossPh = 0; bossT = 0; }
+      } else {
+        // (3) sitting there 8 s: it looks at the one it goes for, and two seconds in breathes a cloud before it
+        sp = 0;
+        if (can == 1) { EYAW[e] = atan2d(tgX - EX[e], tgZ - EZ[e]); }
+        if (bossT > 2) { if (wdShot == 0) { wdShot = 1; wardenCloud(EX[e] + sind(EYAW[e]) * 4, EY[e], EZ[e] + cosd(EYAW[e]) * 4); } }
+        if (bossT > 8) { bossPh = 0; bossT = 0; wdShot = 0; }
+      } } }
+      if (bossPh == 3) { EVX[e] = 0; EVY[e] = 0; EVZ[e] = 0; }
+      else {
+        let dx = tx - EX[e], dy = ty - EY[e] - 1.5, dz = tz - EZ[e];
+        if (bossPh == 2) { dy = ty - EY[e]; }
+        let d = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.001;
+        let f = Math.min(1, 2 * dt);
+        if (bossPh == 2) { if (d < 1) { f = 1; sp = 0; bossPh = 3; bossT = 0; wdShot = 0; } }
+        EVX[e] = EVX[e] + (dx / d * sp - EVX[e]) * f;
+        EVY[e] = EVY[e] + (dy / d * sp - EVY[e]) * f;
+        EVZ[e] = EVZ[e] + (dz / d * sp - EVZ[e]) * f;
+        EX[e] = EX[e] + EVX[e] * dt; EY[e] = EY[e] + EVY[e] * dt; EZ[e] = EZ[e] + EVZ[e] * dt;
+        if (EY[e] < 30) { EY[e] = 30; }
+        if (bossPh < 2) { EYAW[e] = atan2d(EVX[e], EVZ[e]); }
+      }
+      // ((v3.3) its EST tells every screen it sits: arrows glance off it then)
+      EST[e] = 0; if (bossPh == 3) { EST[e] = 2; }
       EWALK[e] = EWALK[e] + dt * 2;
-      // awake, it hits what it runs into (on the ground less often)
-      if (nCrystal == 0) {
+      // it hits what it runs into (sitting, less often)
+      if (e > 0) {
         let hx = px - EX[e], hy = py + 0.9 - EY[e] - 1.5, hz = pz - EZ[e];
         if (hx * hx + hy * hy + hz * hz < 9) { if (EATK[e] <= 0) {
           EATK[e] = 1.2;
-          if (bossPh == 2) { EATK[e] = 2; }
+          if (bossPh == 3) { EATK[e] = 2; }
           hurtM(MDMG[10], '공허의 수호자에게 당했습니다');
           let hl = Math.sqrt(hx * hx + hz * hz) + 0.01;
           pvx = pvx + hx / hl * 4; pvz = pvz + hz / hl * 4;
-          if (bossPh == 1) { bossPh = 0; bossT = 0; }
+          if (bossPh == 1) { bossPh = 0; bossT = 0; wdShot = 0; }
         } }
         // ((v3.2) and the others of the server: the blow is told to them)
         let i = 1;
@@ -941,7 +971,7 @@ function bossMove(e, dt) {
             EATK[e] = 1.2;
             let ol = Math.sqrt(ox * ox + oz * oz) + 0.01;
             tgK = pk; netMobStrike(e, 10, ox / ol * 4, oz / ol * 4);
-            if (bossPh == 1) { bossPh = 0; bossT = 0; }
+            if (bossPh == 1) { bossPh = 0; bossT = 0; wdShot = 0; }
           } }
           i = i + 1;
         }
@@ -951,8 +981,10 @@ function bossMove(e, dt) {
 }
 // (mobs.js mobHurt0, on its owner's screen)
 function bossDies(e) {
+  eggY = 0 - 1;
   bossFall();
-  if (netSrv > 0) { if (netSt == 2) { evAdd('W', ' '); if (netHost == 1) { shBoss = 1; metaWrite(netSrv); } } }
+  // ((v3.3) its egg is a block of the server's: told, and kept by the host)
+  if (netSrv > 0) { if (netSt == 2) { evAdd('W', ' '); if (netHost == 1) { shBoss = 1; metaWrite(netSrv); } if (eggY >= 0) { evAdd('b', `0^${eggY}^0^${I_wardenEgg}^2`); if (netHost == 1) { hostKeepEdit(0, eggY, 0, I_wardenEgg, 2); } } } }
 }
 // it is gone, here and (heard: 'W') on every screen of the server
 function bossFall() {
@@ -966,6 +998,8 @@ function bossFall() {
       findTop(0, 0);
       let y = topY + 1, a = 0 - 1;
       while (a <= 1) { let c = 0 - 1; while (c <= 1) { setBlock(a, y - 1, c, 56); c = c + 1; } a = a + 1; }
+      // ((v3.3) and its egg on the middle of the gate)
+      setBlock(0, y, 0, I_wardenEgg); eggY = y;
       farGateOpen();
       winT = 12;
     }
@@ -982,7 +1016,7 @@ function crystalBreak(x, y, z) {
   let dx = px - x - 0.5, dy = py + 1 - y, dz = pz - z - 0.5;
   if (dx * dx + dy * dy + dz * dz < 16) { hurt(6, '수호 수정이 터졌습니다'); }
   if (nCrystal - 1 > 0) { msgShow(`수호 수정이 부서졌습니다 (남은 수정 ${nCrystal - 1})`, 3); }
-  else { msgShow('마지막 수정이 부서졌습니다 - 공허의 수호자가 깨어납니다!', 4); }
+  else { msgShow('마지막 수정이 부서졌습니다 - 이제 수호자를 고쳐 줄 것이 없습니다', 4); }
 }
 
 // bones of something great in the wailing valleys

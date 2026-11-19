@@ -6,18 +6,19 @@
 // 1 speed, 2 slowness, 3 haste, 4 jump boost, 5 regeneration, 6 resistance, 7 fire resistance,
 // 8 night vision, 9 saturation, 10 levitation, 11 slow falling, 12 water breathing; (v2.9) 13 absorption
 // (the totem's), 14 strength (the beacon's); (v3.0) 15 hunger, 16 poison, 17 wither, 18 weakness,
-// 19 mining fatigue, 20 dolphin's grace, 21 bad omen, 22 hero of the village
+// 19 mining fatigue, 20 dolphin's grace, 21 bad omen, 22 hero of the village; (v3.3) 23 instant health
+// and 24 instant damage (done at once, never kept: effectNow, src/combat.js), 25 blindness, 26 nausea, 27 invisibility (src/brew.js)
 let EFT = [], EFL = [];
-let EFK = ['speed', 'slowness', 'haste', 'jump_boost', 'regeneration', 'resistance', 'fire_resistance', 'night_vision', 'saturation', 'levitation', 'slow_falling', 'water_breathing', 'absorption', 'strength', 'hunger', 'poison', 'wither', 'weakness', 'mining_fatigue', 'dolphins_grace', 'bad_omen', 'hero_of_the_village'];
-let EFKO = ['신속', '구속', '성급함', '점프 강화', '재생', '저항', '화염 저항', '야간 투시', '포화', '공중 부양', '느린 낙하', '수중 호흡', '흡수', '힘', '허기', '독', '시듦', '나약함', '채굴 피로', '돌고래의 가호', '불길한 징조', '마을의 영웅'];
+let EFK = ['speed', 'slowness', 'haste', 'jump_boost', 'regeneration', 'resistance', 'fire_resistance', 'night_vision', 'saturation', 'levitation', 'slow_falling', 'water_breathing', 'absorption', 'strength', 'hunger', 'poison', 'wither', 'weakness', 'mining_fatigue', 'dolphins_grace', 'bad_omen', 'hero_of_the_village', 'instant_health', 'instant_damage', 'blindness', 'nausea', 'invisibility'];
+let EFKO = ['신속', '구속', '성급함', '점프 강화', '재생', '저항', '화염 저항', '야간 투시', '포화', '공중 부양', '느린 낙하', '수중 호흡', '흡수', '힘', '허기', '독', '시듦', '나약함', '채굴 피로', '돌고래의 가호', '불길한 징조', '마을의 영웅', '즉시 회복', '즉시 피해', '실명', '멀미', '투명화'];
 let nightVis = 0, efRegenT = 0, efPoisonT = 0, efWitherT = 0;
 function effectsInit() {
   EFT = []; EFL = [];
   let k = 0;
-  while (k < 22) { EFT.push(0); EFL.push(0); k = k + 1; }
+  while (k < 27) { EFT.push(0); EFL.push(0); k = k + 1; }
   nightVis = 0; absorb = 0;
 }
-function effectAdd(k, sec, lvl) { EFT[k] = sec; EFL[k] = lvl; if (k == 13) { absorb = 4 * lvl; } }
+function effectAdd(k, sec, lvl) { if (k == 23 || k == 24) { effectNow(k, lvl); } else { EFT[k] = sec; EFL[k] = lvl; if (k == 13) { absorb = 4 * lvl; } } }
 // the level of effect k now (0: none)
 function fx(k) {
   let r = 0;
@@ -419,6 +420,8 @@ function boatStep(e, dt) {
   if (BLQ[b0 + 1] == 7 || BLQ[b1 + 1] == 7) { inWt = 1; }
   // (v2.3.2) a hit wears off (boats do not take the mobs' step that counted it down: one hit and no more)
   if (EHURT[e] > 0) { EHURT[e] = EHURT[e] - dt; }
+  // ((v3.3) a mob that touches an empty boat gets in: world33.js)
+  cartRider(e);
   let sp = 0, turn = 0;
   if (riding == e) {
     if (key(87)) { sp = 1; } if (key(83)) { sp = 0 - 0.5; }

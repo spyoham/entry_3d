@@ -1,4 +1,4 @@
-// (v2.9) enchanting as the genre's: 28 charms (ENKEY .. from build.mjs), kept in an item's slot number
+// (v2.9) enchanting as the genre's: 28 charms ((v3.3) 38: the trident's, the crossbow's, the rod's and soul speed) (ENKEY .. from build.mjs), kept in an item's slot number
 // with its damage (d = code x 4096 + damage; an enchanted book's d is the code alone): the code is one
 // number of mixed radix, a digit (0 .. top level) for each charm the item's class (ITECL) takes. So
 // they go wherever the item goes - chests, the ground, saves, servers - as the damage did.
@@ -9,16 +9,16 @@ let ENL = [], ENA = [], ENB = [], enS = '', enS2 = '', enRs = 1, enSeed = 0;
 function enInit() {
   ENL = []; ENA = []; ENB = [];
   let k = 0;
-  while (k < 28) { ENL.push(0); ENA.push(0); ENB.push(0); k = k + 1; }
+  while (k < 38) { ENL.push(0); ENA.push(0); ENB.push(0); k = k + 1; }
   enSeed = rand(1, 2000000000);
 }
 function enClass(id) { let r = 0; if (id > 0) { r = ITECL[id + 1]; } return r; }
-function enOK(k, c) { let r = 0; if (c > 0) { r = ENOK[(k - 1) * 14 + c]; } return r; }
-function enTB(k, c) { let r = 0; if (c > 0) { r = ENTB[(k - 1) * 14 + c]; } return r; }
+function enOK(k, c) { let r = 0; if (c > 0) { r = ENOK[(k - 1) * 18 + c]; } return r; }
+function enTB(k, c) { let r = 0; if (c > 0) { r = ENTB[(k - 1) * 18 + c]; } return r; }
 // the code in d (0: none)
 function enCode(id, d) {
   let c = enClass(id), r = 0;
-  if (c == 14) { if (id == I_enchantedBook) { r = d; } }
+  if (c == 14 || c == 18) { if (id != I_book) { r = d; } }
   else { if (c > 0) { r = Math.round(d / 4096); if (r < 0) { r = 0; } } }
   return r;
 }
@@ -26,9 +26,9 @@ function enCode(id, d) {
 function dmgOf(d) { return d - 4096 * Math.round(d / 4096); }
 // the levels of item id with d into ENL[1..28]
 function enDec(id, d) {
-  if (ENL.length < 28) { enInit(); }
+  if (ENL.length < 38) { enInit(); }
   let c = enClass(id), e = enCode(id, d), k = 1;
-  while (k <= 28) {
+  while (k <= 38) {
     ENL[k] = 0;
     if (enOK(k, c) == 1) { let r = ENMAX[k] + 1; ENL[k] = mod(e, r); e = idiv(e, r); }
     k = k + 1;
@@ -36,14 +36,14 @@ function enDec(id, d) {
 }
 // ENL back into a d for item id with the damage dm
 function enEnc(id, dm) {
-  let c = enClass(id), e = 0, k = 28;
+  let c = enClass(id), e = 0, k = 38;
   while (k >= 1) { if (enOK(k, c) == 1) { e = e * (ENMAX[k] + 1) + Math.min(ENMAX[k], ENL[k]); } k = k - 1; }
   let r = e * 4096 + dm;
-  if (c == 14) { r = e; }
+  if (c == 14 || c == 18) { r = e; }
   return r;
 }
 function enLv(id, d, k) { enDec(id, d); return ENL[k]; }
-function enHas(id, d) { let r = 0; if (enCode(id, d) > 0) { r = 1; } return r; }
+function enHas(id, d) { let r = 0; if (enCode(id, d) > 0) { r = 1; } if (id == I_potion || id == I_splashPotion) { if (d > 0) { r = 1; } } return r; }
 function heldLv(k) { return enLv(INVI[hotSel], INVD[hotSel], k); }
 // the armour piece in slot s (37 helmet .. 40 boots)
 function armLv(s, k) { return enLv(INVI[s], INVD[s], k); }
@@ -55,8 +55,9 @@ function enName(k, l) {
 function enDesc(id, d) {
   enDec(id, d);
   enS = '-';
+  if (id == I_potion || id == I_splashPotion) { potionDesc(d); }
   let k = 1, n = 0;
-  while (k <= 28) {
+  while (k <= 38) {
     if (ENL[k] > 0) { enName(k, ENL[k]); if (n == 0) { enS = enS2; } else { enS = `${enS}, ${enS2}`; } n = n + 1; }
     k = k + 1;
   }
@@ -64,7 +65,8 @@ function enDesc(id, d) {
 // k and the levels in ENL: does another charm there exclude it?
 function enClash(k) {
   let r = 0, j = 1;
-  if (ENX[k] > 0) { while (j <= 28) { if (j != k) { if (ENL[j] > 0) { if (ENX[j] == ENX[k]) { r = 1; } } } j = j + 1; } }
+  if (ENX[k] > 0) { while (j <= 38) { if (j != k) { if (ENL[j] > 0) { if (ENX[j] == ENX[k]) { r = 1; } } } j = j + 1; } }
+  if (k == 30) { if (ENL[31] > 0) { r = 1; } } if (k == 31) { if (ENL[30] > 0) { r = 1; } }
   return r;
 }
 
@@ -82,9 +84,9 @@ function enGen(id, lvl, s) {
     let m = lvl + 1 + enRndI(0, idiv(ab, 4)) + enRndI(0, idiv(ab, 4));
     m = Math.max(1, Math.round(m * (1 + (enRnd() + enRnd() - 1) * 0.15)));
     // what may come, at which level
-    if (ENL.length < 28) { enInit(); }
+    if (ENL.length < 38) { enInit(); }
     let k = 1;
-    while (k <= 28) {
+    while (k <= 38) {
       ENA[k] = 0;
       if (enTB(k, c) == 1) { let l = ENMAX[k]; while (l >= 1 && ENP0[k] + ENPS[k] * (l - 1) > m) { l = l - 1; } ENA[k] = l; }
       ENL[k] = 0;
@@ -94,11 +96,11 @@ function enGen(id, lvl, s) {
     while (more == 1) {
       // one by weight among those left that nothing taken excludes
       let tot = 0; k = 1;
-      while (k <= 28) { if (ENA[k] > 0 && ENL[k] == 0) { if (enClash(k) == 0) { tot = tot + ENW[k]; } } k = k + 1; }
+      while (k <= 38) { if (ENA[k] > 0 && ENL[k] == 0) { if (enClash(k) == 0) { tot = tot + ENW[k]; } } k = k + 1; }
       if (tot == 0) { more = 0; }
       else {
         let v = enRnd() * tot, acc = 0, got = 0; k = 1;
-        while (k <= 28) { if (got == 0) { if (ENA[k] > 0 && ENL[k] == 0) { if (enClash(k) == 0) { acc = acc + ENW[k]; if (v < acc) { got = k; } } } } k = k + 1; }
+        while (k <= 38) { if (got == 0) { if (ENA[k] > 0 && ENL[k] == 0) { if (enClash(k) == 0) { acc = acc + ENW[k]; if (v < acc) { got = k; } } } } k = k + 1; }
         if (got == 0) { more = 0; } else { ENL[got] = ENA[got]; ENGK.push(got); ENGL.push(ENA[got]); }
         if (enRnd() >= (p + 1) / 50) { more = 0; }
         p = Math.floor(p / 2);
@@ -204,7 +206,7 @@ function anvilMatch() {
   if (a > 0 && b > 0) {
     let ca = enClass(a), dur = ITDUR[a + 1], dm = 0, changed = 0, isBook = 0;
     if (dur > 0) { dm = dmgOf(AN1D); }
-    enDec(a, AN1D); let k = 1; while (k <= 28) { ENA[k] = ENL[k]; k = k + 1; }
+    enDec(a, AN1D); let k = 1; while (k <= 38) { ENA[k] = ENL[k]; k = k + 1; }
     // mending with its material, a quarter of it each
     let rep = ITREP[a + 1], isMat = 0;
     if (rep > 0) { if (b == rep) { isMat = 1; } } if (rep < 0) { if (ITTAG[b + 1] == 0 - rep) { isMat = 1; } }
@@ -215,7 +217,7 @@ function anvilMatch() {
         anUse = n; anCost = n; changed = 1;
       }
     } else {
-      if (b == I_enchantedBook) { isBook = 1; }
+      if (b == I_enchantedBook || b == I_enchantedBook2) { isBook = 1; }
       if (b == a || isBook == 1) {
         anUse = 1;
         // two of a kind: the life of both and a bit more
@@ -224,10 +226,10 @@ function anvilMatch() {
           let dm2 = Math.max(0, dur - left);
           if (dm2 < dm) { dm = dm2; anCost = anCost + 2; changed = 1; }
         }
-        enDec(b, AN2D); k = 1; while (k <= 28) { ENB[k] = ENL[k]; k = k + 1; }
-        k = 1; while (k <= 28) { ENL[k] = ENA[k]; k = k + 1; }
+        enDec(b, AN2D); k = 1; while (k <= 38) { ENB[k] = ENL[k]; k = k + 1; }
+        k = 1; while (k <= 38) { ENL[k] = ENA[k]; k = k + 1; }
         k = 1;
-        while (k <= 28) {
+        while (k <= 38) {
           if (ENB[k] > 0) {
             if (enOK(k, ca) == 1) {
               if (enClash(k) == 0) {
@@ -241,11 +243,11 @@ function anvilMatch() {
           }
           k = k + 1;
         }
-        k = 1; while (k <= 28) { ENA[k] = ENL[k]; k = k + 1; }
+        k = 1; while (k <= 38) { ENA[k] = ENL[k]; k = k + 1; }
       }
     }
     if (changed == 1) {
-      k = 1; while (k <= 28) { ENL[k] = ENA[k]; k = k + 1; }
+      k = 1; while (k <= 38) { ENL[k] = ENA[k]; k = k + 1; }
       anOut = a; anOutD = enEnc(a, dm);
       if (anCost >= 40 && mod(gameMode, 2) == 0) { anOut = 0; anWhy = '너무 비쌉니다!'; }
     } else { anWhy = '이 둘로는 만들 수 없습니다'; }
@@ -287,13 +289,13 @@ function anvilScreen() {
 // ---------------------------------------------------------------- the grindstone: the charms off (curses stay), some experience back
 function grindHeld() {
   let id = INVI[hotSel];
-  if (enHas(id, INVD[hotSel]) == 1) {
+  if (enCode(id, INVD[hotSel]) > 0) {
     enDec(id, INVD[hotSel]);
     let k = 1, xp = 0;
-    while (k <= 28) { if (ENL[k] > 0 && k != 27 && k != 28) { xp = xp + ENL[k] * 2; ENL[k] = 0; } k = k + 1; }
+    while (k <= 38) { if (ENL[k] > 0 && k != 27 && k != 28) { xp = xp + ENL[k] * 2; ENL[k] = 0; } k = k + 1; }
     let dm = 0; if (ITDUR[id + 1] > 0) { dm = dmgOf(INVD[hotSel]); }
     INVD[hotSel] = enEnc(id, dm);
-    if (id == I_enchantedBook) { if (enCode(id, INVD[hotSel]) == 0) { INVI[hotSel] = I_book; INVD[hotSel] = 0; } }
+    if (id == I_enchantedBook || id == I_enchantedBook2) { if (enCode(id, INVD[hotSel]) == 0) { INVI[hotSel] = I_book; INVD[hotSel] = 0; } }
     xpAdd(xp); sndPlay(6); msgShow('숫돌로 마법을 지웠습니다', 2);
   } else {
     if (ITDUR[id + 1] > 0 && dmgOf(INVD[hotSel]) > 0) {
@@ -340,6 +342,7 @@ function enBonus(e) {
   if (ENL[1] > 0) { r = r + 0.5 * ENL[1] + 0.5; }
   if (ENL[2] > 0) { if (t == M_ZOMBIE || t == M_SKELETON || t == M_WRAITH || t == M_BLACKSKEL) { r = r + 2.5 * ENL[2]; } }
   if (ENL[3] > 0) { if (t == M_SPIDER || t == M_SHELLBUG) { r = r + 2.5 * ENL[3]; } }
+  if (ENL[32] > 0) { if (MSWIM[t] > 0) { r = r + 2.5 * ENL[32]; } }
   return r;
 }
 // the experience a mending item drinks first: 2 points of wear each
@@ -373,6 +376,8 @@ function enWear(id, d, n, arm) {
 // frost walker: the still water round the feet freezes for a while
 let FWX = [], FWY = [], FWZ = [], FWT = [], fwStepT = 0;
 function frostStep(dt) {
+  // ((v3.3) drinking, the crossbow drawn, the rod, soul speed: src/brew.js)
+  brewPlayerStep(dt);
   fwStepT = fwStepT - dt;
   if (fwStepT <= 0) {
     fwStepT = 0.15;
@@ -414,14 +419,14 @@ function cmdEnchant() {
   if (isSel(cw(a)) == 1) { a = a + 1; }
   let nm = lower(cw(a)), k = 0, j = 1, lv = 1;
   if (charAt(nm, 1) == 'm' && indexOf(nm, 'minecraft:') == 1) { nm = substr(nm, 11, strlen(nm)); }
-  while (j <= 28) { if (ENKEY[j] == nm || ENKO[j] == replace(cw(a), '_', ' ')) { k = j; } j = j + 1; }
+  while (j <= 38) { if (ENKEY[j] == nm || ENKO[j] == replace(cw(a), '_', ' ')) { k = j; } j = j + 1; }
   if (CMW.length >= a + 1) { lv = Math.floor(cw(a + 1) * 1); }
   let id = INVI[hotSel];
   if (k == 0) { out = '알 수 없는 마법입니다 (/help enchant)'; }
   else {
     if (id == 0) { out = '손에 든 것이 없습니다'; }
     else {
-      if (id == I_book) { id = I_enchantedBook; INVI[hotSel] = id; INVD[hotSel] = 0; }
+      if (id == I_book) { id = I_enchantedBook; if (k > 28) { id = I_enchantedBook2; } INVI[hotSel] = id; INVD[hotSel] = 0; }
       if (enOK(k, enClass(id)) == 0) { out = `${ITNAME[id + 1]}에는 ${ENKO[k]}을(를) 걸 수 없습니다`; }
       else {
         if (lv < 1 || lv > ENMAX[k]) { out = `${ENKO[k]}의 레벨은 1~${ENMAX[k]}입니다`; }
@@ -630,9 +635,9 @@ function totemDraw(dt) {
 
 // a book with one charm at random (any but the curses, a level at random)
 function enRandomBook() {
-  if (ENL.length < 28) { enInit(); }
+  if (ENL.length < 38) { enInit(); }
   let k = rand(1, 26), j = 1;
-  while (j <= 28) { ENL[j] = 0; j = j + 1; }
+  while (j <= 38) { ENL[j] = 0; j = j + 1; }
   ENL[k] = rand(1, ENMAX[k]);
   return enEnc(I_enchantedBook, 0);
 }

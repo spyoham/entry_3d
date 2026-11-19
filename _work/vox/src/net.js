@@ -632,7 +632,7 @@ function netUserPack() {
   let s = `${Math.round(px * 10) / 10}^${Math.round(py * 10) / 10}^${Math.round(pz * 10) / 10}^${dim}^${Math.round(hp)}^${Math.round(food)}^${xpLevel}^${xpPts}^${gameMode}^${spawnX}^${spawnY}^${spawnZ}^${spawnSet}^`;
   let i = 1, n = 0;
   gS2 = '-';
-  while (i <= 40) { if (INVI[i] > 0) { n = n + 1; if (n == 1) { gS2 = `${i}.${INVI[i]}.${INVN[i]}.${INVD[i]}`; } else { gS2 = `${gS2},${i}.${INVI[i]}.${INVN[i]}.${INVD[i]}`; } } i = i + 1; }
+  while (i <= 41) { if (INVI[i] > 0) { n = n + 1; if (n == 1) { gS2 = `${i}.${INVI[i]}.${INVN[i]}.${INVD[i]}`; } else { gS2 = `${gS2},${i}.${INVI[i]}.${INVN[i]}.${INVD[i]}`; } } i = i + 1; }
   // (v2.3.1) the effects: kind.seconds.level
   gS = '-'; i = 1; n = 0;
   while (i <= EFT.length) { if (EFT[i] > 0) { n = n + 1; let e = `${i}.${Math.ceil(EFT[i])}.${EFL[i]}`; if (n == 1) { gS = e; } else { gS = `${gS},${e}`; } } i = i + 1; }
@@ -652,7 +652,7 @@ function netUserLoad(d) {
     // ((v3.0, 11-18) kept while dead (the tab closed on the death screen): back alive where one comes back
     // to - with hp 0 one came in dead, with no screen to come back from)
     if (hp <= 0) {
-      if (spawnSet == 1) { dim = spawnDim; netArrX = spawnX; netArrY = spawnY; netArrZ = spawnZ; px = spawnX; pz = spawnZ; hp = 20; food = 20; }
+      if (spawnSet > 0) { dim = spawnDim; netArrX = spawnX; netArrY = spawnY; netArrZ = spawnZ; px = spawnX; pz = spawnZ; hp = 20; food = 20; }
       else { dim = 0; px = 8.5; pz = 8.5; netFresh = 1; }
     }
     if (inv != '-') {
@@ -1008,7 +1008,7 @@ function hostEditsCompact() {
   ehGen = ehGen + 1;
   let n = NEW.length, q = 1;
   while (q + 4 <= n) {
-    let key = hsKey(NEW[q], NEW[q + 1], NEW[q + 2]) + NEW[q + 4] * 1000000000000, h = mod(key, EHN) + 1, go = 1, t = 0;
+    let key = hsKey(NEW[q], NEW[q + 1], NEW[q + 2]) + NEW[q + 4] * 4000000000000, h = mod(key, EHN) + 1, go = 1, t = 0;
     while (go == 1 && t < EHN) {
       if (EHG[h] != ehGen) { EHG[h] = ehGen; EHK[h] = key; EHV[h] = q; go = 0; }
       else { if (EHK[h] == key) { EHV[h] = q; go = 0; } else { h = h + 1; if (h > EHN) { h = 1; } t = t + 1; } }
@@ -1018,7 +1018,7 @@ function hostEditsCompact() {
   NMW = [];
   q = 1;
   while (q + 4 <= n) {
-    let key = hsKey(NEW[q], NEW[q + 1], NEW[q + 2]) + NEW[q + 4] * 1000000000000, h = mod(key, EHN) + 1, go = 1, t = 0, last = 0;
+    let key = hsKey(NEW[q], NEW[q + 1], NEW[q + 2]) + NEW[q + 4] * 4000000000000, h = mod(key, EHN) + 1, go = 1, t = 0, last = 0;
     while (go == 1 && t < EHN) {
       if (EHG[h] != ehGen) { go = 0; }
       else { if (EHK[h] == key) { last = EHV[h]; go = 0; } else { h = h + 1; if (h > EHN) { h = 1; } t = t + 1; } }

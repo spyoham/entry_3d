@@ -6,13 +6,13 @@
 // ---------------------------------------------------------------- game rules
 let GRN = ['keepinventory', 'dodaylightcycle', 'domobspawning', 'naturalregeneration', 'falldamage', 'doweathercycle', 'domobloot', 'dotiledrops', 'mobgriefing', 'dofiretick',
   'drowningdamage', 'firedamage', 'doimmediaterespawn', 'randomtickspeed', 'commandblockoutput', 'sendcommandfeedback', 'showdeathmessages', 'spawnradius', 'doinsomnia', 'announceadvancements',
-  'disableraids', 'dopatrolspawning', 'universalanger', 'forgivedeadplayers', 'doentitydrops', 'maxcommandchainlength'];
+  'disableraids', 'dopatrolspawning', 'universalanger', 'forgivedeadplayers', 'doentitydrops', 'maxcommandchainlength', 'dotraderspawning', 'maxentitycramming'];
 let GRS = ['keepInventory', 'doDaylightCycle', 'doMobSpawning', 'naturalRegeneration', 'fallDamage', 'doWeatherCycle', 'doMobLoot', 'doTileDrops', 'mobGriefing', 'doFireTick',
   'drowningDamage', 'fireDamage', 'doImmediateRespawn', 'randomTickSpeed', 'commandBlockOutput', 'sendCommandFeedback', 'showDeathMessages', 'spawnRadius', 'doInsomnia', 'announceAdvancements',
-  'disableRaids', 'doPatrolSpawning', 'universalAnger', 'forgiveDeadPlayers', 'doEntityDrops', 'maxCommandChainLength'];
+  'disableRaids', 'doPatrolSpawning', 'universalAnger', 'forgiveDeadPlayers', 'doEntityDrops', 'maxCommandChainLength', 'doTraderSpawning', 'maxEntityCramming'];
 // (1 0: true / false; whole numbers for the rest)
-let GRD = [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 3, 1, 1, 1, 10, 1, 1, 0, 1, 0, 1, 1, 65536];
-let GRINT = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1];
+let GRD = [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 3, 1, 1, 1, 10, 1, 1, 0, 1, 0, 1, 1, 65536, 1, 24];
+let GRINT = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1];
 let GRV = [];
 let grKeep = 0, grDay = 1, grMobs = 1, grRegen = 1, grFall = 1, grWeather = 1, grLoot = 1, grTileDrops = 1, grGrief = 1, grFireTick = 1;
 let grDrown = 1, grFire = 1, grImmediate = 0, grTick = 3, grCbOut = 1, grFeedback = 1, grDeathMsg = 1, grSpawnR = 10;
@@ -23,6 +23,8 @@ function gamerulesInit() {
   grSync();
 }
 function grSync() {
+  // ((v3.3) a world saved before a rule was there: the rule as it is at first)
+  while (GRV.length < GRD.length) { GRV.push(GRD[GRV.length + 1]); }
   grKeep = GRV[1]; grDay = GRV[2]; grMobs = GRV[3]; grRegen = GRV[4]; grFall = GRV[5]; grWeather = GRV[6]; grLoot = GRV[7]; grTileDrops = GRV[8]; grGrief = GRV[9]; grFireTick = GRV[10];
   grDrown = GRV[11]; grFire = GRV[12]; grImmediate = GRV[13]; grTick = GRV[14]; grCbOut = GRV[15]; grFeedback = GRV[16]; grDeathMsg = GRV[17]; grSpawnR = GRV[18];
 }
@@ -162,7 +164,7 @@ function effectByName(nm) {
   nm = bare(nm);
   let r = 0, k = 1;
   let nk = replace(nm, '_', ' ');
-  while (k <= 12) { if (EFK[k] == nm || EFKO[k] == nm || EFKO[k] == nk) { r = k; } k = k + 1; }
+  while (k <= EFK.length) { if (EFK[k] == nm || EFKO[k] == nm || EFKO[k] == nk) { r = k; } k = k + 1; }
   return r;
 }
 function mobByName(nm) {
@@ -666,7 +668,7 @@ function cmdClear() {
   if (CMW.length >= 3) { id = itemByName(cw(3)); if (id == 0) { id = 0 - 1; } }
   if (CMW.length >= 4) { mx = Math.floor(cw(4) * 1); }
   if (id < 0) { k = 99; }
-  while (k <= 40) {
+  while (k <= 41) {
     if (INVI[k] > 0) { if (id == 0 || INVI[k] == id) {
       let t = INVN[k];
       if (mx >= 0) { t = Math.min(t, mx - n); }

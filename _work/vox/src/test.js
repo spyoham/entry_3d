@@ -20,6 +20,9 @@ function testStep() {
   // (19: the map copied (as the game menu's button); 20: the new-world screen)
   if (testCmd == 19) { testCmd = 0; mapCopy(); }
   if (testCmd == 20) { testCmd = 0; menuGo(2); }
+  // ((v3.3) 21: the brewing stand at (tX, tY, tZ) opened; 22: the inventory screen - for pictures)
+  if (testCmd == 21) { testCmd = 0; brewOpen(tX, tY, tZ); }
+  if (testCmd == 22) { testCmd = 0; uiOpen(1); }
   if (testCmd == 13) { testCmd = 0; netUserAct = 1; chatRun(tCmd); netUserAct = 0; }
   // 9: the kept world again (as 이어하기 on the title)
   if (testCmd == 9) { testCmd = 0; txClear(); loadGame(tStage); }

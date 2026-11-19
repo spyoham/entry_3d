@@ -13,11 +13,12 @@ function faunaInit() {
   ESZ = []; EOWN = []; EAGE = []; ELOVE = []; EVAR = []; ETG = []; ECNV = []; EFALL = [];
   let i = 0;
   while (i < NMOB) { ESZ.push(1); EOWN.push(0); EAGE.push(0); ELOVE.push(0); EVAR.push(0); ETG.push(0); ECNV.push(0); EFALL.push(0 - 999); i = i + 1; }
+  w33Init();
   netMobInit();
   petTgt = 0; kingE = 0; raidOn = 0;
 }
 function mobInit(e, t) {
-  ESZ[e] = 1; EOWN[e] = 0; EAGE[e] = 0; ELOVE[e] = 0; EVAR[e] = 0; ETG[e] = 0; ECNV[e] = 0; EFALL[e] = 0 - 999;
+  ESZ[e] = 1; EOWN[e] = 0; EAGE[e] = 0; ELOVE[e] = 0; EVAR[e] = 0; ETG[e] = 0; ECNV[e] = 0; EFALL[e] = 0 - 999; EAIR[e] = 0;
   if (MAI[t] == 13) { EHP[e] = rand(15, 30); EVAR[e] = 2 * rand(0, 99); if (t == M_BONEHORSE) { EHP[e] = 15; } }
   if (t == M_ZOMBIE || t == M_HUSK || t == M_DROWNED || t == M_ZOMBIEVILLAGER) { if (rand(1, 20) == 1) { ESZ[e] = 0.5; EAGE[e] = 0 - 999999; } }
   // ((v3.2) a sheep has its coat (EVAR odd) till it is shorn)
@@ -324,6 +325,8 @@ function shotEffect(a) {
 }
 // a thrown potion breaking near the player splashes; a blast where a fireball stops
 function shotStop(a) {
+  // ((v3.3) the warden's ball of breath: a cloud where it lands, world33.js)
+  if (AEN[a] == 0 - 4) { if (APW[a] >= 0) { wardenCloud(AXX[a], AYY[a], AZZ[a]); } }
   if (AEN[a] >= 100000) { if ((AXX[a] - px) * (AXX[a] - px) + (AZZ[a] - pz) * (AZZ[a] - pz) < 6.25 && Math.abs(AYY[a] - py - 0.9) < 2.5) { shotEffect(a); } AON[a] = 0; }
   if (AEN[a] == 0 - 3 || AEN[a] == 17010) { shotEffect(a); AON[a] = 0; }
   if (AEN[a] < 0) { AON[a] = 0; }
@@ -579,11 +582,11 @@ function spawnMore() {
     if (cOK(x, z) == 1 && y > 2 && y < WY - 2) { if (blockAt(x, y, z) == 0 && blockAt(x, y + 1, z) == 0) { if (lightAt(x + 0.5, y + 0.5, z + 0.5) <= 3 && idiv(LT[wi(x, y, z)], 16) == 0) { mobAdd(M_BAT, x + 0.5, y, z + 0.5); } } }
   }
   if (difficulty > 0 && mod(gameMode, 2) == 0) {
-    if (mod(batT, 100) == 0 && dark >= 7 && dayN - sleptDay >= 3) { if (py < WY - 2 && idiv(LT[wi(Math.floor(px), Math.floor(py + 1.6), Math.floor(pz))], 16) >= 15) {
+    if (mod(batT, 100) == 0 && dark >= 7 && dayN - sleptDay >= 3 && GRV[19] == 1) { if (py < WY - 2 && idiv(LT[wi(Math.floor(px), Math.floor(py + 1.6), Math.floor(pz))], 16) >= 15) {
       let n = rand(1, 1 + difficulty), k = 0;
       while (k < n) { mobAdd(M_PHANTOM, px + rand(-6, 6), py + 20, pz + rand(-6, 6)); k = k + 1; }
     } }
-    if (mod(batT, 1000) == 500 && rand(1, 4) == 1 && nKind(M_TRADER) == 0) { let a = rand(0, 359), x = Math.floor(px + sind(a) * 24), z = Math.floor(pz + cosd(a) * 24); if (cOK(x, z) == 1) { findTop(x, z); if (BLQ[blockAt(x, topY, z) + 1] == 0) { mobAdd(M_TRADER, x + 0.5, topY + 1.05, z + 0.5); mobAdd(M_LLAMA, x + 1.5, topY + 1.05, z + 0.5); mobAdd(M_LLAMA, x - 0.5, topY + 1.05, z + 1.5); } } }
+    if (mod(batT, 1000) == 500 && rand(1, 4) == 1 && nKind(M_TRADER) == 0 && GRV[27] == 1) { let a = rand(0, 359), x = Math.floor(px + sind(a) * 24), z = Math.floor(pz + cosd(a) * 24); if (cOK(x, z) == 1) { findTop(x, z); if (BLQ[blockAt(x, topY, z) + 1] == 0) { mobAdd(M_TRADER, x + 0.5, topY + 1.05, z + 0.5); mobAdd(M_LLAMA, x + 1.5, topY + 1.05, z + 0.5); mobAdd(M_LLAMA, x - 0.5, topY + 1.05, z + 1.5); } } }
     if (wthr == 2 && rand(1, 300) == 1) { let x = Math.floor(px) + rand(-20, 20), z = Math.floor(pz) + rand(-20, 20); if (cOK(x, z) == 1) { findTop(x, z); mobAdd(M_BONEHORSE, x + 0.5, topY + 1.05, z + 0.5); } }
   }
 }
@@ -597,7 +600,7 @@ function raidStep(dt) {
   if (raidOn == 0) {
     if (raidT <= 0) {
       raidT = 2;
-      if (fx(21) > 0 && dim == 0 && difficulty > 0 && mod(gameMode, 2) == 0) {
+      if (fx(21) > 0 && dim == 0 && difficulty > 0 && mod(gameMode, 2) == 0 && GRV[21] == 0) {
         locateStruct(1, Math.floor(px), Math.floor(pz));
         if (locOk == 1) { if ((locX - px) * (locX - px) + (locZ - pz) * (locZ - pz) < 2304) {
           raidOn = 1; raidX = locX; raidZ = locZ; raidWave = 0; raidN = 3 + 2 * (difficulty - 1) + EFL[21] - 1; EFT[21] = 0; raidT = 3;
@@ -642,6 +645,8 @@ function raidEnd(won) {
 
 // ---------------------------------------------------------------- the trident in the player's hand: thrown with F
 function tridentThrow() {
+  // ((v3.3) riptide: in water or rain it carries its thrower and is not thrown)
+  if (riptideGo() == 0) {
   shotEn = 0 - 100 - INVD[hotSel];
   if (mod(gameMode, 2) == 1) { shotEn = 0 - 99; }
   arrowShoot(camX, camY - 0.1, camZ, camX + lookX * 10, camY - 0.1 + lookY * 10, camZ + lookZ * 10, 1);
@@ -649,9 +654,11 @@ function tridentThrow() {
   if (lastArr > 0) { AVX[lastArr] = AVX[lastArr] * 0.75; AVY[lastArr] = AVY[lastArr] * 0.75 + 1; AVZ[lastArr] = AVZ[lastArr] * 0.75; }
   if (mod(gameMode, 2) == 0) { INVI[hotSel] = 0; INVN[hotSel] = 0; INVD[hotSel] = 0; }
   sndPlay(2); swingT = 0.3;
+  }
 }
 // where it stops it lies (worn a point)
-function tridentDrop(a) { if (AEN[a] != 0 - 99) { dropItem(I_trident, 1, 0 - AEN[a] - 100 + 1, AXX[a], AYY[a] + 0.3, AZZ[a], 0); } AON[a] = 0; }
+function tridentDrop(a) { if (tridentLoyal(a) == 0) { tridentDrop0(a); } }
+function tridentDrop0(a) { if (AEN[a] != 0 - 99) { dropItem(I_trident, 1, 0 - AEN[a] - 100 + 1, AXX[a], AYY[a] + 0.3, AZZ[a], 0); } AON[a] = 0; }
 
 // ---------------------------------------------------------------- the tamed kept with the world
 // (v3.2) Every mob that is not a monster is kept now, not only the tamed: animals in a pen, the people of
@@ -668,7 +675,7 @@ function keptKind(e) {
   let r = 0, t = ET[e];
   if (t > 0 && ERK[e] == 0) {
     if (EOWN[e] >= 1 && EOWN[e] <= 3) { r = 1; }
-    else { if (netSrv == 0) { if (MHOST[t] == 0 && t != 12 && t != M_BOAT && isCart(t) == 0 && isProxy(e) == 0 && t != M_TRADER && t != M_SPRITE && t != M_VOIDMITE) { r = 1; } } }
+    else { if (netSrv == 0) { if (MHOST[t] == 0 && t != 12 && isProxy(e) == 0 && t != M_TRADER && t != M_SPRITE && t != M_VOIDMITE) { r = 1; } } }
   }
   return r;
 }

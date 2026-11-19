@@ -194,6 +194,8 @@ function specHud() {
   if (specMob > 0) { tx(10, `관전 중: ${MNAME[ET[specMob] + 0]} (Shift: 그만)`, 0, -110, 8, '#ffffff', 0); } else { tx(10, `관전자 · 휠: 속도 x${Math.round(specSpeed * 10) / 10} · 오른쪽 클릭: 몹 관전`, 0, -110, 8, '#c0c0c0', 0); }
 }
 function drawHud2(dt) {
+  // ((v3.3) the blow's charge, the other hand's slot, the shield: src/combat.js)
+  combatHud();
   // the hotbar
   let x0 = -91, y0 = -116, k = 1;
   box(x0 - 1, y0 + 12, x0 + 183, y0 - 12, '#000000');
@@ -337,6 +339,8 @@ function slotXY(s) {
   else { if (s >= 57 && s <= 60 || s == 88) { if (s == 57) { slX = -66; slY = 62; } if (s == 58) { slX = -66; slY = 30; } if (s == 59) { slX = -60; slY = 48; } if (s == 60) { slX = -8; slY = 48; } if (s == 88) { slX = 44; slY = 48; } }
   else { if (s <= 87) { slX = -72 + mod(s - 61, 9) * 18; slY = 66 - idiv(s - 61, 9) * 18; }
   else { slX = -72 + mod(s - 101, 9) * 18; slY = 70 - idiv(s - 101, 9) * 18; } } } } } } } } } } } } }
+  // ((v3.3) the other hand: by the boots (creative: over the armour))
+  if (s == 89) { if (uiMode == 5) { slX = -100; slY = 0; } else { slX = -52; slY = 12; } }
 }
 // is slot s part of the screen now?
 function slotIn(s) {
@@ -351,6 +355,7 @@ function slotIn(s) {
   if (s == 59 || s == 60 || s == 88) { if (uiMode == 12) { r = 1; } }
   if (s >= 61 && s <= 87) { if (uiMode == 4) { if (s - 60 <= curCap) { r = 1; } } }
   if (s >= 101 && s <= 136) { if (uiMode == 5) { r = 1; } }
+  if (s == 89) { r = 0; if (uiMode == 1 || uiMode == 5) { r = 1; } }
   return r;
 }
 let SLOTS = [];
@@ -359,7 +364,7 @@ function slotsInit() {
   let s = 1;
   while (s <= 40) { SLOTS.push(s); s = s + 1; }
   s = 41; while (s <= 60) { SLOTS.push(s); s = s + 1; }
-  s = 61; while (s <= 88) { SLOTS.push(s); s = s + 1; }
+  s = 61; while (s <= 89) { SLOTS.push(s); s = s + 1; }
   s = 101; while (s <= 136) { SLOTS.push(s); s = s + 1; }
 }
 function invScreen() {
@@ -413,6 +418,7 @@ function invScreen() {
   }
   if (uiMode == 11) { enTableScreen(); }
   if (uiMode == 12) { anvilScreen(); }
+  if (uiMode == 4) { brewScreen(); }
   // what is on the cursor follows it; the name of what is under it
   if (curI > 0) { slotItem(mx, my, curI, curN, curD, 91); } else { txOff(91); }
   if (hov > 0) {

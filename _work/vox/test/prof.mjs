@@ -21,4 +21,4 @@ for (const n of p.nodes) {
     self[k] = (self[k] || 0) + (dt[n.id] || 0);
 }
 const tot = Object.values(self).reduce((a, b) => a + b, 0);
-Object.entries(self).sort((a, b) => b[1] - a[1]).slice(0, 25).forEach(([k, v]) => console.log((v / tot * 100).toFixed(1).padStart(5), (v / 1000).toFixed(0).padStart(6), k));
+Object.entries(self).sort((a, b) => b[1] - a[1]).slice(0, 70).forEach(([k, v]) => console.log((v / tot * 100).toFixed(1).padStart(5), (v / 1000).toFixed(0).padStart(6), k));

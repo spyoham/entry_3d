@@ -211,7 +211,10 @@ function sensorStep(dt) {
 let NWX = [], NWY = [], NWZ = [], NWL = [], NWA = [], NWC = [], nwN = 0;
 let HSK = [], HSG = [], HSV = [], hsGen = 0, HSN = 8192;
 let solveChg = 0 - 1, rsChg = 0;
-function hsKey(x, y, z) { return ((x + 60000) * 120000 + z + 60000) * 64 + y; }
+// ((v3.3) x 256 for the height: it was x 64 from when the world was 64 high - at 128 the cell (x, y + 64, z)
+// had the key of (x, y, z + 1), and making the log of changes short took one of the two for the other: a
+// block changed above 64 could be back as it was after the world was kept and opened again)
+function hsKey(x, y, z) { return ((x + 60000) * 120000 + z + 60000) * 256 + y; }
 function hsFind(k) {
   let i = mod(k, HSN) + 1, r = 0, n = 0;
   while (n < HSN) {
@@ -335,7 +338,9 @@ function cmpRead(x, y, z, b) {
   if (b == I_cake) { r = (7 - pvGet(1, x, y, z)) * 2; }
   if (b == I_voidFrameEye) { r = 15; } if (b == I_voidFrame) { r = 0; }
   if (u == U_ANCHOR) { r = Math.floor(pvGet(3, x, y, z) * 15 / 4); }
-  if (b == I_jukebox || b == I_lectern || b == I_cauldron || b == I_beehive || b == I_beeNest) { r = 0; }
+  if (b == I_jukebox || b == I_lectern || b == I_beehive || b == I_beeNest) { r = 0; }
+  // ((v3.3) a cauldron by its water: 0 to 3)
+  if (BKIND[b + 1] == I_cauldron) { r = cauldronLv(b); }
   if (b == I_composter) { r = pvGet(2, x, y, z); if (r >= 7) { r = 8; } }
   return r;
 }
@@ -845,6 +850,8 @@ function pushHow(c) {
   if (c == 0 || BLQ[c + 1] > 0 || BSPEC[c + 1] == 10) { r = 0; }
   else {
     if (BSOL[c + 1] == 0 || BSHP[c + 1] == 1 || BSHP[c + 1] == 2 || BPLC[c + 1] == P_DOOR || BPLC[c + 1] == P_BED) { r = 2; }
+    // ((v3.3) as the genre's: a melon and a pumpkin (carved, lit too) break when pushed)
+    if (c == I_melon || c == I_pumpkin || c == I_carvedPumpkin || c == I_pumpkinLantern) { r = 2; }
     if (BHARD[c + 1] < 0 || c == 34 || BUSE[c + 1] == U_CHEST || BUSE[c + 1] == U_FURNACE || BUSE[c + 1] == U_SHELL || BUSE[c + 1] == U_VOIDCHEST || BUSE[c + 1] == U_ENCHANT || BUSE[c + 1] == U_ANCHOR || BSPEC[c + 1] == 6 || BRS[c + 1] == RS_HEAD) { r = 3; }
     if (BRS[c + 1] == RS_PISTON) { if (BON[c + 1] == 1) { r = 3; } }
     if (BRS[c + 1] == RS_REPEATER || BRS[c + 1] == RS_COMPARATOR) { r = 2; }
@@ -1153,7 +1160,7 @@ function dispense(x, y, z, b) {
         if (id == I_boneMeal) { bmFree = 1; if (boneMeal(fx, fy, fz, fb) == 1) { how = 1; } else { how = 3; } bmFree = 0; }
         if (id == I_fireCharge) { arrowShoot(ox, oy, oz, ox + DX6[f + 1] * 10, oy + DY6[f + 1] * 10, oz + DZ6[f + 1] * 10, 2); how = 1; }
         if (id == 122) { if (fb == I_tnt) { tntLight(fx, fy, fz, worldDrops(), 4); how = 4; } else { if (fb == 0) { fireSet(fx, fy, fz, 0); how = 4; } else { how = 3; } } }
-        if (id == I_minecart || id == I_tntMinecart) { if (BRS[fb + 1] == RS_RAIL) { let t = M_MINECART; if (id == I_tntMinecart) { t = M_TNTCART; } cartPlace(t, fx, fy, fz); how = 1; } }
+        if (cartKind(id) > 0) { if (BRS[fb + 1] == RS_RAIL) { let t = cartKind(id); cartPlace(t, fx, fy, fz); how = 1; } }
         if (id == 174) { if (BLQ[fb + 1] == 7) { mobAdd(13, fx + 0.5, fy + 0.6, fz + 0.5); how = 1; } }
         if (ITSPAWN[id + 1] > 0) { mobAdd(ITSPAWN[id + 1], fx + 0.5, fy, fz + 0.5); if (lastMob > 0) { EST[lastMob] = 0; } how = 1; }
         if (ITTHROW[id + 1] > 0) { throwFrom(ITTHROW[id + 1], ox, oy, oz, DX6[f + 1], DY6[f + 1], DZ6[f + 1]); how = 1; }

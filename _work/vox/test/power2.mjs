@@ -63,7 +63,9 @@ const watch = (n, f) => { const v = []; for (let k = 0; k < n; k++) { F(1); v.pu
   put(x0, Y, z0 + 12, 'heavy_weighted_pressure_plate'); put(x0 + 1, Y - 1, z0 + 12, 'stone'); put(x0 + 1, Y, z0 + 12, 'spark_wire');
   settle(); wait(0.5);
   cmd(`/summon pig ${x0 + 0.5} ${Y} ${z0 + 0.5}`);
-  const drop = (z, n) => call(() => { for (let i = 0; i < n; i++) fn.dropItem(ID('cobblestone'), 1, 0, x0 + 0.5, Y + 0.3, z + 0.5, 0); });
+  // (three things of three kinds: since v3.2 heaps of one kind join into one, which a plate counts as one)
+  const KIND3 = ['cobblestone', 'dirt', 'oak_planks'];
+  const drop = (z, n) => call(() => { for (let i = 0; i < n; i++) fn.dropItem(ID(KIND3[i]), 1, 0, x0 + 0.5, Y + 0.3, z + 0.5, 0); });
   drop(z0 + 3, 1); drop(z0 + 6, 1); drop(z0 + 9, 3); drop(z0 + 12, 3);
   wait(1);
   ok(lit(x0 + 1, Y, z0), 'a pig on a stone plate lights the lamp');

@@ -22,7 +22,7 @@ s.poke('flying', 0); stand(X, Y, Z); s.poke('grMobs', 0); F(5);
 // every kind lives a while near a player in survival without an error
 s.poke('gameMode', 0); s.poke('difficulty', 2);
 const NT = s.peek('NMOBT');
-ok(NT === 74, 'kinds: ' + NT);
+ok(NT === 76, 'kinds: ' + NT);
 for (let t = 1; t <= NT; t++) {
   if (t === M('netPlayer') || t === M('warden')) continue;
   clearMobs(); s.poke('hp', 20); s.poke('dead', 0);
@@ -146,7 +146,12 @@ s.poke('gameMode', 0);
 let skulls = 0; const xp0 = s.peek('xpPts') + s.peek('xpLevel') * 100;
 for (let i = 0; i < 400; i++) { const b = add(M('blackskel'), X + 3.5, Y, Z + 0.5); put('EHURT', b, 0); s.poke('pKill', 1); call(() => fn.mobHurt(b, 99, 0, 0)); s.poke('pKill', 0); skulls += s.peek('IID').filter(v => v === id('black_skeleton_skull')).length; for (let j = 1; j <= s.peek('IID').length; j++) arr('IID')[j - 1] = 0; }
 ok(skulls >= 2 && skulls <= 25, `black skulls of 400 kills (2.5%): ${skulls}`);
-const xp1 = s.peek('xpPts') + s.peek('xpLevel') * 100; ok(xp1 > xp0, 'xp for the kills');
+// ((v3.3) the experience falls as an orb where the mob died, and comes when it is taken)
+{ const b = add(M('blackskel'), X + 3.5, Y, Z + 0.5); put('EHURT', b, 0); s.poke('pKill', 1); call(() => fn.mobHurt(b, 99, 0, 0)); s.poke('pKill', 0); }
+const orbAt = s.peek('IID').indexOf(id('experience_orb'));
+ok(orbAt >= 0 && s.peek('INN')[orbAt] === s.peek('MXP')[M('blackskel') - 1], `xp for the kill: an orb worth ${s.peek('INN')[orbAt]}`);
+stand(X, Y, Z); F(180); const xp1 = s.peek('xpPts') + s.peek('xpLevel') * 100; ok(xp1 > xp0, `taken from 3.5 blocks away: xp for the kill (${xp0} -> ${xp1})`);
+{ const L = s.peek('IID'); for (let i = 0; i < L.length; i++) L[i] = 0; }
 for (let i = 1; i <= s.peek('IID').length; i++) arr('IID')[i - 1] = 0;
 // pets kept with the world
 clearMobs();
