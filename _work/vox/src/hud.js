@@ -452,7 +452,10 @@ function pauseScreen() {
   button(-200, 54, -10, 36, `시야 거리: ${viewR} 블록`, 22, 1); if (btnHot == 1) { menuSel = 2; }
   button(-200, 32, -10, 14, `마우스 감도: ${Math.round(sens * 100)}%`, 23, 1); if (btnHot == 1) { menuSel = 3; }
   let gm = MODEKO[gameMode + 1];
-  button(-200, 10, -10, -8, `게임 모드: ${gm}`, 24, 1); if (btnHot == 1) { menuSel = 4; }
+  // ((v3.3, 11-20) only for those who may use /gamemode)
+  let gmMay = modeMay();
+  if (gmMay == 0) { if (netSrv > 0) { gm = `${gm} (관리자만)`; } else { gm = `${gm} (명령어 꺼짐)`; } }
+  button(-200, 10, -10, -8, `게임 모드: ${gm}`, 24, gmMay); if (btnHot == 1) { menuSel = 4; }
   let so = '끔';
   if (sndOn == 1) { so = '켬'; }
   button(-200, -12, -10, -30, `소리: ${so}`, 25, 1); if (btnHot == 1) { menuSel = 5; }

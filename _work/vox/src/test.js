@@ -23,6 +23,8 @@ function testStep() {
   // ((v3.3) 21: the brewing stand at (tX, tY, tZ) opened; 22: the inventory screen - for pictures)
   if (testCmd == 21) { testCmd = 0; brewOpen(tX, tY, tZ); }
   if (testCmd == 22) { testCmd = 0; uiOpen(1); }
+  // ((v3.3, 11-20) 23: the server named tCmd deleted, as the delete screen's button)
+  if (testCmd == 23) { testCmd = 0; netEnter(); if (netMy == 0) { netClaim(); } let k = 1, f = 0; while (k <= NSRV) { if (srvHas(k) == 1) { if (shName == tCmd) { f = k; } } k = k + 1; } if (f > 0) { svBackDrop(f); srvDelete(f); } else { tCmd = '없음'; } }
   if (testCmd == 13) { testCmd = 0; netUserAct = 1; chatRun(tCmd); netUserAct = 0; }
   // 9: the kept world again (as 이어하기 on the title)
   if (testCmd == 9) { testCmd = 0; txClear(); loadGame(tStage); }

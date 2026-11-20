@@ -93,8 +93,10 @@ function mapOutServer() {
   if (netHost == 1) { if (editDirty == 1) { editsWrite(); } }
   mpOut = `BWMAP1|${shSeed}|${shFlat}|${shGen}|${shBoss}|`;
   let n = editLen(netSrv), i = 1;
-  if (n < 5) { mpOut = `${mpOut}-`; }
-  while (i + 4 <= n) { mpOut = `${mpOut}${editItem(netSrv, i)},${editItem(netSrv, i + 1)},${editItem(netSrv, i + 2)},${editItem(netSrv, i + 3)},${editItem(netSrv, i + 4)};`; i = i + 5; }
+  // ((v3.3, 11-20) but the cell of no world an emptied record holds (net.js edGone))
+  let cells = 0;
+  while (i + 4 <= n) { if (editItem(netSrv, i + 4) * 1 < 9) { cells = cells + 1; mpOut = `${mpOut}${editItem(netSrv, i)},${editItem(netSrv, i + 1)},${editItem(netSrv, i + 2)},${editItem(netSrv, i + 3)},${editItem(netSrv, i + 4)};`; } i = i + 5; }
+  if (cells == 0) { mpOut = `${mpOut}-`; }
   mpOut = `${mpOut}|`;
   i = 1;
   if (MCK.length == 0) { mpOut = `${mpOut}-`; }
@@ -192,6 +194,7 @@ function mapToServer(k) {
   NEW = [];
   let i = 1;
   while (i + 4 <= MPE.length) { NEW.push(MPE[i]); NEW.push(MPE[i + 1]); NEW.push(MPE[i + 2]); NEW.push(MPE[i + 3]); NEW.push(MPE[i + 4]); i = i + 5; }
+  if (NEW.length == 0) { edGone(); }
   editsPut(k);
   mapPairs(mpC);
   i = 1;

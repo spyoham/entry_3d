@@ -382,7 +382,7 @@ function uiInput() {
       if (menuSel == 1) { uiMode = 0; txClear(); lockReq(); }
       if (menuSel == 2) { if (right == 1) { viewWant = viewWant + 4; if (viewWant > 48) { viewWant = 48; } } else { viewWant = viewWant - 4; if (viewWant < 8) { viewWant = 8; } } setView(viewWant); }
       if (menuSel == 3) { if (right == 1) { sens = Math.min(2, sens + 0.1); } else { sens = Math.max(0.1, sens - 0.1); } }
-      if (menuSel == 4) { setMode(mod(gameMode + 1, 4)); }
+      if (menuSel == 4) { if (modeMay() == 1) { setMode(mod(gameMode + 1, 4)); } }
       if (menuSel == 5) { sndOn = 1 - sndOn; }
       if (menuSel == 8) { autoView = 1 - autoView; setView(viewWant); }
       if (menuSel == 9) { fogOn = 1 - fogOn; setView(viewR); }

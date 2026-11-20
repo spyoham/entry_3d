@@ -406,7 +406,7 @@ function srvCreate(name, motd, seedv, mode, flat) {
     // a plugin to start from: a greeting
     PLN.push('환영'); PLO.push(1); PLE.push('join'); PLC.push('*'); PLT.push('me'); PLX.push('/title @s title {server}');
     metaWrite(r);
-    NEW = []; editsPut(r);
+    NEW = []; edGone(); editsPut(r);
   }
   return r;
 }
@@ -426,11 +426,17 @@ let NEWK = [];
 function srvWipe(k) {
   NEWK = []; let i = 1;
   while (i <= NEW.length) { NEWK.push(NEW[i]); i = i + 1; }
-  NMW = []; metaPut(k); NEW = []; editsPut(k);
+  // ((v3.3, 11-20) not empty lists: Entry Sync's room keeps no empty list at all, so on the next start the list
+  // has what the WORK was saved with - and a work saved in the editor while Entry Sync had put the room's
+  // servers into its lists has them in it: a server deleted was back after every reload. A line that is no
+  // header (srvHas 0), and a record of one cell in no world (edPushD keeps none of world 9))
+  NMW = []; NMW.push('X^gone'); metaPut(k); NEW = []; edGone(); editsPut(k);
   NEW = []; i = 1;
   while (i <= NEWK.length) { NEW.push(NEWK[i]); i = i + 1; }
   NEWK = [];
 }
+// (the record of a place with nothing in it: one cell of world 9, which is nowhere)
+function edGone() { NEW.push(0); NEW.push(0); NEW.push(0); NEW.push(0); NEW.push(9); }
 function srvDelete(k) {
   if (srvHas(k) == 1) { if (shOwner == netNick || netNick == SUPER) { if (srvCount(k) == 0) { srvWipe(k); } } }
 }
@@ -556,7 +562,6 @@ function netArrive() {
   plugRun('join', ' ', netNick);
 }
 function netLeave() {
-  svBackLeave();
   if (netSrv > 0) {
     if (netSt == 2) {
       // (the host keeps its own things and what is not written yet before it goes)
@@ -565,6 +570,8 @@ function netLeave() {
       // ((v3.0, 11-18) my mobs to the others near them; the others' go from here)
       netMobsLeave();
       netWrite();
+      // ((v3.3, 11-20) the copy on this computer after the host's last writes (it was taken before them))
+      svBackLeave();
     }
     netMobsClear(); NPLN = 0; nmDim = 0 - 1;
     netSrv = 0; netSt = 0; netHost = 0;
@@ -616,7 +623,8 @@ function netUserSave(must) {
     let c = d, q = 0;
     while (q < 3) { c = substr(c, indexOf(c, '^') + 1, strlen(c)); q = q + 1; }
     // (the host's own go in the settings list, read again by everyone at each write: every 3 s at most)
-    if (must == 1 || (c != netUserCore && (netHost == 0 || netUserT > 3)) || netUserT > 10) {
+    // ((v3.3, 11-20) 1 s: a host's tab closed 3 s after a thing was got came back without it)
+    if (must == 1 || (c != netUserCore && (netHost == 0 || netUserT > 1)) || netUserT > 10) {
       netUserLast = d; netUserCore = c; netUserT = 0;
       if (netHost == 1) { hostKeepUser(netNick, d); } else { evUser(`${netSrv}^${d}`); }
     }
@@ -637,13 +645,17 @@ function netUserPack() {
   gS = '-'; i = 1; n = 0;
   while (i <= EFT.length) { if (EFT[i] > 0) { n = n + 1; let e = `${i}.${Math.ceil(EFT[i])}.${EFL[i]}`; if (n == 1) { gS = e; } else { gS = `${gS},${e}`; } } i = i + 1; }
   // ((v3.0, 11-18) and the world one comes back to (an anchor in the deep): it was not kept)
-  return `${s}${gS2}^${gS}^${spawnDim}`;
+  // ((v3.3, 11-20) and a 1: the mode in it was held by right (netUserLoad))
+  return `${s}${gS2}^${gS}^${spawnDim}^1`;
 }
 function netUserLoad(d) {
   splitBy(d, '^');
   if (SPL.length >= 14) {
     netArrX = SPL[1] * 1; netArrY = SPL[2] * 1; netArrZ = SPL[3] * 1; dim = SPL[4] * 1; px = netArrX; pz = netArrZ;
     hp = SPL[5] * 1; food = SPL[6] * 1; xpLevel = SPL[7] * 1; xpPts = SPL[8] * 1; gameMode = SPL[9] * 1;
+    // ((v3.3, 11-20) a mode kept before 11-20 may be one taken with the game menu's button (anyone could): whoever
+    // may not use /gamemode starts from the server's mode again; kept since, it was given by one who may)
+    if (SPL.length < 17) { if (permOk(netNick, 'gamemode') == 0) { gameMode = shMode; } }
     spawnX = SPL[10] * 1; spawnY = SPL[11] * 1; spawnZ = SPL[12] * 1; spawnSet = SPL[13] * 1;
     let inv = SPL[14], efs = '-';
     if (SPL.length >= 15) { efs = SPL[15]; }
@@ -1274,6 +1286,9 @@ function netSign(x, y, z, t) {
 }
 // the log entry of a change in another world (save.js edPush writes the one of this world)
 function edPushD(x, y, z, b, d) {
-  let d0 = dim;
-  dim = d; edPush(x, y, z, b); dim = d0;
+  // ((v3.3, 11-20) world 9 is nowhere: the cell an emptied record holds (edGone))
+  if (d < 9) {
+    let d0 = dim;
+    dim = d; edPush(x, y, z, b); dim = d0;
+  }
 }

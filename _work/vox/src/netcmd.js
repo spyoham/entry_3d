@@ -77,6 +77,14 @@ function permOk(nick, c) {
   while (i <= MGN.length) { if (MGN[i] == nick) { if (MGC[i] == c || MGC[i] == '*') { r = 1; } } i = i + 1; }
   return r;
 }
+// ((v3.3, 11-20) may I change my game mode: on a server whoever may use /gamemode (the ops, or by /perm), in a
+// single game a world made with commands allowed. The game menu's mode button asked nobody: anyone on a
+// server, an op or not, went into creative with it)
+function modeMay() {
+  let r = 0;
+  if (netSrv > 0) { r = permOk(netNick, 'gamemode'); } else { r = cheatsOn; }
+  return r;
+}
 let LVNAME = ['모두', '관리자', '주인'];
 function netPermCmd(sub) {
   gS = '-';
