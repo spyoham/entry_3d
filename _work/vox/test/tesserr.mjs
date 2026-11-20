@@ -1,0 +1,37 @@
+// what the REAL tessvm page shows when the work stops on an error (a list read past its end, test hook 25):
+// test/tesserr_before.png, tesserr_after.png, and what the page says. usage: node test/tesserr.mjs [25|26]
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import url from 'node:url';
+import { buildProject } from '../build.mjs';
+const require = createRequire(new URL('../../../entry-vibe-coding/package.json', import.meta.url));
+const { chromium } = require('@playwright/test');
+const HERE = path.dirname(url.fileURLToPath(import.meta.url));
+const file = path.join(HERE, 'tesserr.ent');
+const hook = +(process.argv[2] || 25);
+buildProject(file, { name: 'tesserr', more: { AUTOSEED: 777, TESTRUN: 1, ANIMALS: 0, AUTOMODE: 1 } });
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+await fetch(`http://localhost:3100/load?file=${encodeURIComponent(file)}`).then((r) => r.text()).then((t) => { if (t !== 'ok') throw new Error(t); });
+const browser = await chromium.launch({ args: ['--use-gl=angle', '--enable-gpu', '--ignore-gpu-blocklist'] });
+const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
+const said = [];
+page.on('pageerror', (e) => said.push('pageerror: ' + e.message));
+page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') said.push(m.type() + ': ' + m.text().slice(0, 300)); });
+await page.goto('http://localhost:3100/harness/index.html?nick=err');
+await page.waitForFunction(() => window.__ready, null, { timeout: 120000 });
+await page.evaluate(() => window.__handle.start());
+const V = (n) => page.evaluate((n) => { const v = window.__vm.variables.find((v) => v.name === n && !v.isList); return v && v.value; }, n);
+const set = (n, x) => page.evaluate(([n, x]) => window.__vm.variables.find((v) => v.name === n && !v.isList).setValue(x), [n, x]);
+const shot = async (name) => { const c = await page.$('canvas'); await c.screenshot({ path: path.join(HERE, name) }); console.log('wrote', name); };
+for (let i = 0; i < 240 && +(await V('gState')) !== 2; i++) await sleep(250);
+await sleep(6000);
+await shot('tesserr_before.png');
+const f0 = +(await V('frames'));
+await set('testCmd', hook);
+await sleep(3000);
+const f1 = await Promise.race([V('frames'), sleep(5000).then(() => 'no answer')]);
+console.log('frames before', f0, 'after', f1);
+await Promise.race([shot('tesserr_after.png'), sleep(8000)]);
+console.log(said.slice(0, 6).join('\n') || 'the page said nothing');
+await Promise.race([browser.close(), sleep(5000)]);
+process.exit(0);

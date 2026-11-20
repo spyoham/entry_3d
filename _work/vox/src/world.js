@@ -1143,7 +1143,7 @@ let genPhase = 0, genN = 0, genMsg = '';
 // land), 1 the new depths and void (dims.js); (v3.4) 2 and the overworld of terra.js
 let genVer = 1;
 // ((v3.4) where a world begins: (8, 8) in the old lands; in the new one land found near it (terra.js tStart))
-let gsX = 8, gsZ = 8;
+let gsX = 8, gsZ = 8, genOld = 0;
 function genCentre() {
   gsX = 8; gsZ = 8;
   if (genVer >= 2 && flatOn == 0) { tStart(); gsX = tsX; gsZ = tsZ; }

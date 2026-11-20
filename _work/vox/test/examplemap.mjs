@@ -6,9 +6,9 @@
 //   PICS=1 node test/examplemap.mjs     and pictures test/example_*.png
 import fs from 'node:fs';
 import { createSim } from '../sim.mjs';
-const SEED = 11;
-// ((v3.4) on the land it was built for: the old one (the map says so too, and a world made from it has it))
-const s = createSim({ consts: { AUTOSEED: SEED, TESTRUN: 1, AUTOMODE: 1, ANIMALS: 0, GENV: 1 } });
+// ((v3.4) on the new land: seed 129 begins at (8, 8) on plains by a forest, the land under the district 31..37)
+const SEED = 129;
+const s = createSim({ consts: { AUTOSEED: SEED, TESTRUN: 1, AUTOMODE: 1, ANIMALS: 0, GENV: 2 } });
 const F = (k = 1) => { for (let i = 0; i < k; i++) { try { s.frame(); } catch (e) { console.log('ERR', e.message, e.stack.split('\n').slice(1, 4).join(' | ')); process.exit(1); } } };
 { let n = 0; while (s.peek('gState') !== 2 && n < 5000) { F(1); n++; } }
 const fn = s.fn, call = (f) => s.as('pen', f);
@@ -364,7 +364,7 @@ if (process.env.PICS) {
 cmd('/gamerule doMobSpawning true'); cmd('/gamerule doDaylightCycle true'); cmd('/gamerule doWeatherCycle true');
 call(() => fn.mapCopy());
 const text = String(s.peek('$CLIPBOARD'));
-ok(text.startsWith(`BWMAP1|${SEED}|-|1|0|`) && text.split('|').length === 11, `the map as a text: ${text.length} letters, ${s.peek('EDX').length} blocks, ${text.split('|')[9].split(';').length - 1} kept mobs`);
+ok(text.startsWith(`BWMAP1|${SEED}|-|2|0|`) && text.split('|').length === 11, `the map as a text: ${text.length} letters, ${s.peek('EDX').length} blocks, ${text.split('|')[9].split(';').length - 1} kept mobs`);
 if (!fails && !process.env.ONLY) { fs.writeFileSync(new URL('../../../example_map.txt', import.meta.url), text); console.log('wrote example_map.txt'); }
 console.log(fails ? `FAILED ${fails}` : 'all ok');
 process.exit(fails ? 1 : 0);

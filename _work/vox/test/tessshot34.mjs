@@ -45,6 +45,7 @@ for (const [name, x, z, yaw, pitch] of PLACES) { console.log(name, 'ground', awa
 const fr = +(await V('frames')); await sleep(3000); const fr2 = +(await V('frames'));
 ok(fr2 > fr, `the game goes on (${Math.round((fr2 - fr) / 3)} frames a second while standing)`);
 ok(errors.length === 0, `no page errors (${errors.slice(0, 2).join(' | ')})`);
+{ const ve = await page.evaluate(() => (window.__vm.errors || []).map((e) => e.message)); ok(ve.length === 0, 'no script stopped on an error' + (ve.length ? ': ' + ve.slice(0, 2).join(' | ') : '')); }
 await browser.close();
 console.log(fails ? `FAILED ${fails}` : 'all ok');
 process.exit(fails ? 1 : 0);

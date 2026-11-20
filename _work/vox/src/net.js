@@ -543,7 +543,9 @@ function netJoin(k) {
   let fbad = flatSet(shFlat);
   genStart(shSeed);
   genPhase = 0;
-  bossDead = shBoss; genVer = shGen; genOrigin();
+  // ((v3.4) every server has the land of this version, whatever it was made with (the user: the old lands
+  // are not kept); genOld: one made before, said once on arriving)
+  bossDead = shBoss; genVer = GENV; genOld = 0; if (shGen < GENV) { genOld = 1; } genOrigin();
   storesInit(); invInit();
   let n = editLen(k), i = 1;
   while (i + 4 <= n) { edPushD(editItem(k, i), editItem(k, i + 1), editItem(k, i + 2), editItem(k, i + 3), editItem(k, i + 4)); i = i + 5; }
@@ -573,6 +575,7 @@ function netArrive() {
   netSt = 2; dead = 0; uiMode = 0; helpT = 0;
   netWrite();
   chatAdd(`${netNick} 님이 ${shName}에 들어왔습니다`);
+  if (genOld == 1) { genOld = 0; chatAdd('이 서버는 v3.4 전에 만든 것이라 땅이 새 방식으로 다시 만들어졌습니다 (전에 지은 것이 땅과 어긋날 수 있습니다)'); }
   evAdd('c', `${netNick} 님이 들어왔습니다`);
   plugRun('join', ' ', netNick);
 }
@@ -1016,7 +1019,9 @@ function hostStep(dt) {
   // ((v3.0, 11-18) written at once: the sh* globals are read again from the list every frame (netInServer
   // srvHas), so a day set here and written a frame later was the old day again - it showed once the host
   // wrote its own things often and the settings' timer was seldom past due at that moment)
-  if (netHostT > 5) { netHostT = 0; let td = dayNow(); if (shDay != td) { shDay = td; metaWrite(netSrv); } }
+  if (netHostT > 5) { netHostT = 0; let td = dayNow(); if (shDay != td) { shDay = td; metaWrite(netSrv); }
+    // ((v3.4) a server made before: its land is this version's now, and its settings say so)
+    if (shGen < GENV) { shGen = GENV; metaWrite(netSrv); } }
   // the block changes and the settings written at most once a second / two
   // ((v3.0, 11-18) half a second / one: a tab closed right after a block lost it; the first change after a
   // quiet spell goes at once)

@@ -17,8 +17,11 @@
 //    (none where it is low: bare stone), gravel deep under water, sand on beaches, ice where it is cold.
 // 4. Lakes are dug into the ground (a hollow of a few balls, air above and water below, only where the
 //    rim is whole), not poured on it.
-// In whole numbers where it is hot (tessvm's decimal + - x are slow). genVer 2; a world, a server or a map
-// made before keeps the land it had (world.js columnShape / genColumn, genVer 0 and 1).
+// In whole numbers where it is hot (tessvm's decimal + - x are slow). genVer 2 - and every world, server and
+// map has it, whatever it was made with: the user did not want the old lands kept (2026-11-20), so a world
+// made before opens on new land (genVer is set to GENV when it is loaded, joined or pasted). The old makers
+// (world.js columnShape0 / genColumn, genVer 0 and 1) are left for the simulator's tests, which were written
+// on the old land and ask for it (GENV 1); the game never runs them.
 // The heights: the sea's top is SEA here and 63 there - from 6 blocks under it up a block is a block, below
 // that the genre's depths are two thirds as deep (the world is 128 high, its sea at 30).
 

@@ -162,7 +162,8 @@ function mapPairs(s) {
 }
 // a new single world from the map (menu.js worldMake, after genStart)
 function mapToWorld() {
-  genVer = mpGen; bossDead = mpBoss;
+  // ((v3.4) the land is this version's, whatever the map was made with)
+  genVer = GENV; bossDead = mpBoss;
   let i = 1;
   while (i + 4 <= MPE.length) { edPushD(MPE[i], MPE[i + 1], MPE[i + 2], MPE[i + 3], MPE[i + 4]); i = i + 5; }
   // (the chests: when the world is made - its stores are emptied then (main.js): mapLate)
@@ -193,7 +194,7 @@ function mapLate() {
 }
 // a new server k from the map (menu.js serverSave, after srvCreate: its seed and kind were the map's)
 function mapToServer(k) {
-  shGen = mpGen; shBoss = mpBoss;
+  shGen = GENV; shBoss = mpBoss;
   NEW = [];
   let i = 1;
   while (i + 4 <= MPE.length) { NEW.push(MPE[i]); NEW.push(MPE[i + 1]); NEW.push(MPE[i + 2]); NEW.push(MPE[i + 3]); NEW.push(MPE[i + 4]); i = i + 5; }

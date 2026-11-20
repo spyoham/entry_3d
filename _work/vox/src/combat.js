@@ -186,7 +186,7 @@ function spawnCheck() {
     let b = blockAt(x, y, z), ok = 0;
     if (spawnSet == 2) { if (BUSE[b + 1] == U_BED) { ok = 1; } }
     if (spawnSet == 3) { if (BUSE[b + 1] == U_ANCHOR) { let c = pvGet(3, x, y, z); if (c > 0) { ok = 1; pvSet(3, x, y, z, c - 1); powerAround(x, y, z); } } }
-    if (ok == 0) { spawnSet = 0; spawnDim = 0; msgShow('집 침대나 충전된 되살아남 닻이 없어 세계의 시작점에서 되살아납니다', 4); startTravel(0, 8.5, 8.5, 3); }
+    if (ok == 0) { spawnSet = 0; spawnDim = 0; msgShow('집 침대나 충전된 되살아남 닻이 없어 세계의 시작점에서 되살아납니다', 4); startTravel(0, gsX + 0.5, gsZ + 0.5, 3); }
   } }
 }
 
