@@ -5,20 +5,20 @@
 // mushroom, an armed drowned; a shell's opening; a horse's build in the rest); ETG the mob it goes for
 // (below 0: the one it runs from; a horse's temper); ECNV seconds towards a change (drowned, rotted,
 // cured), or a spirit's, a mite's, a stung bee's life.
-let ESZ = [], EOWN = [], EAGE = [], ELOVE = [], EVAR = [], ETG = [], ECNV = [], EFALL = [];
+let ESZ = [], EOWN = [], EAGE = [], ELOVE = [], EVAR = [], ETG = [], ECNV = [], EFALL = [], EGOL = [], EVIS = [];
 // petTgt: what the tamed wolves go for (the one that hurt the player or that the player hit); pKill 1
 // while the player (or a pet) deals the blow (rare drops and xp come only then); hitBy the kind that hit
 let petTgt = 0, pKill = 0, hitBy = 0, flyTY = 0, sleptDay = 0, kingE = 0;
 function faunaInit() {
-  ESZ = []; EOWN = []; EAGE = []; ELOVE = []; EVAR = []; ETG = []; ECNV = []; EFALL = [];
+  ESZ = []; EOWN = []; EAGE = []; ELOVE = []; EVAR = []; ETG = []; ECNV = []; EFALL = []; EGOL = []; EVIS = [];
   let i = 0;
-  while (i < NMOB) { ESZ.push(1); EOWN.push(0); EAGE.push(0); ELOVE.push(0); EVAR.push(0); ETG.push(0); ECNV.push(0); EFALL.push(0 - 999); i = i + 1; }
+  while (i < NMOB) { ESZ.push(1); EOWN.push(0); EAGE.push(0); ELOVE.push(0); EVAR.push(0); ETG.push(0); ECNV.push(0); EFALL.push(0 - 999); EGOL.push(0); EVIS.push(1); i = i + 1; }
   w33Init();
   netMobInit();
   petTgt = 0; kingE = 0; raidOn = 0;
 }
 function mobInit(e, t) {
-  ESZ[e] = 1; EOWN[e] = 0; EAGE[e] = 0; ELOVE[e] = 0; EVAR[e] = 0; ETG[e] = 0; ECNV[e] = 0; EFALL[e] = 0 - 999; EAIR[e] = 0;
+  ESZ[e] = 1; EOWN[e] = 0; EAGE[e] = 0; ELOVE[e] = 0; EVAR[e] = 0; ETG[e] = 0; ECNV[e] = 0; EFALL[e] = 0 - 999; EAIR[e] = 0; EGOL[e] = 0; EVIS[e] = 1;
   if (MAI[t] == 13) { EHP[e] = rand(15, 30); EVAR[e] = 2 * rand(0, 99); if (t == M_BONEHORSE) { EHP[e] = 15; } }
   if (t == M_ZOMBIE || t == M_HUSK || t == M_DROWNED || t == M_ZOMBIEVILLAGER) { if (rand(1, 20) == 1) { ESZ[e] = 0.5; EAGE[e] = 0 - 999999; } }
   // ((v3.2) a sheep has its coat (EVAR odd) till it is shorn)
@@ -675,7 +675,8 @@ function petsClear() { KPT = []; KPX = []; KPY = []; KPZ = []; KPH = []; KPO = [
 function keptKind(e) {
   let r = 0, t = ET[e];
   if (t > 0 && ERK[e] == 0) {
-    if (EOWN[e] >= 1 && EOWN[e] <= 3) { r = 1; }
+    // ((v3.4, 11-21) or a monster that rode a cart or a boat (5): it stays, as the genre's passengers)
+    if ((EOWN[e] >= 1 && EOWN[e] <= 3) || EOWN[e] == 5) { r = 1; }
     else { if (netSrv == 0) { if (MHOST[t] == 0 && t != 12 && isProxy(e) == 0 && t != M_TRADER && t != M_SPRITE && t != M_VOIDMITE) { r = 1; } } }
   }
   return r;
@@ -887,9 +888,16 @@ function villMate(e) {
   } }
 }
 // the iron keeper the village folk call (the lowest of a group decides, so a group counts once)
+// ((v3.4, 11-21) as the genre's: folk in fear (a monster within 10 blocks) look every five seconds or so, and
+// call one when three of them are together with beds, no keeper stands within 16 blocks and none was called in
+// the last 30 s (EGOL, the seconds left of that) - one in 35 s where the last is soon out of the way. It was a
+// chance of one in 23 each look once the last was gone: 35 s more after however long that took. Without fear
+// one comes about every 7 minutes, as before.)
+let kpDone = 0;
 function villKeeper(e) {
+  if (EGOL[e] > 0) { EGOL[e] = EGOL[e] - 1.5; }
   let r = rand(1, 280);
-  if (r <= 12) {
+  if (r <= 84) {
     let g = 1, n = 0, low = 1, scared = 0, kp = 0;
     while (g <= NMOB) {
       if (ET[g] > 0) {
@@ -899,19 +907,31 @@ function villKeeper(e) {
       }
       g = g + 1;
     }
-    if (n >= 3 && low == 1 && kp == 0) { if (r == 1 || scared == 1) { if (bedsNear(e) >= 3) { keeperPut(e); } } }
+    if (n >= 3 && low == 1 && kp == 0 && EGOL[e] <= 0) { if (r == 1 || scared == 1) { if (bedsNear(e) >= 3) {
+      keeperPut(e);
+      if (kpDone == 1) {
+        g = 1;
+        while (g <= NMOB) { if (ET[g] == M_VILLAGER) { if ((EX[g] - EX[e]) * (EX[g] - EX[e]) + (EZ[g] - EZ[e]) * (EZ[g] - EZ[e]) < 100) { EGOL[g] = 30; } } g = g + 1; }
+      }
+    } } }
   }
 }
 // on a free spot within 8 of e (ten tries: a solid block under, three cells of air)
 function keeperPut(e) {
-  let k = 0, done = 0;
+  let k = 0, done = 0, gw = MW[M_GOLEM] / 2;
+  kpDone = 0;
   // ((v3.2) 24 tries for a spot, it was 10: a farm's small floor was seldom found)
   while (k < 24 && done == 0) {
     let x = Math.floor(EX[e]) + rand(-8, 8), z = Math.floor(EZ[e]) + rand(-8, 8), y = Math.min(WY - 4, Math.floor(EY[e]) + 6), ye = Math.max(1, Math.floor(EY[e]) - 6);
     if (cOK(x, z) == 1) {
       while (y >= ye && done == 0) {
         // ((v3.2) its feet may be in water, as the genre's: a floor under running water takes it where one wants it)
-        if (BSOL[blockAt(x, y - 1, z) + 1] == 1 && (blockAt(x, y, z) == 0 || BLQ[blockAt(x, y, z) + 1] == 7) && blockAt(x, y + 1, z) == 0 && blockAt(x, y + 2, z) == 0) { mobAdd(M_GOLEM, x + 0.5, y + 0.02, z + 0.5); done = 1; }
+        if (BSOL[blockAt(x, y - 1, z) + 1] == 1 && (blockAt(x, y, z) == 0 || BLQ[blockAt(x, y, z) + 1] == 7) && blockAt(x, y + 1, z) == 0 && blockAt(x, y + 2, z) == 0) {
+          // ((v3.4, 11-21) and its whole body free (1.3 wide): one made in a floor two cells wide stood in both
+          // walls and never moved - the farm of the example map was stuck with it)
+          solidBox(x + 0.5 - gw, x + 0.5 + gw, y + 0.02, y + MH[M_GOLEM], z + 0.5 - gw, z + 0.5 + gw);
+          if (solidHit == 0) { mobAdd(M_GOLEM, x + 0.5, y + 0.02, z + 0.5); done = 1; kpDone = 1; }
+        }
         y = y - 1;
       }
     }

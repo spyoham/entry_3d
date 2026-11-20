@@ -88,7 +88,10 @@ function cartTakes(e) {
     } } }
     f = f + 1;
   }
-  if (got > 0) { ETG[e] = got; EAIR[got] = 1000 + e; }
+  // ((v3.4, 11-21) a monster that rides does not go when one is far, as the genre's passengers: EOWN 5 from then
+  // on (kept with the world and on a server; not of the twenty monsters at a time) - a zombie in a cart by the
+  // village folk is what an iron farm needs)
+  if (got > 0) { ETG[e] = got; EAIR[got] = 1000 + e; if (MHOST[ET[got]] == 1) { if (EOWN[got] == 0) { EOWN[got] = 5; } } }
 }
 // who sits in cart c gets out, to the side of it that is free; the cart takes nobody for three seconds
 // (the click below, a lit activator rail)

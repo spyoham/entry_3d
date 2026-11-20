@@ -137,7 +137,7 @@ function nmWrite() {
   while (e <= NMOB) {
     if (nmShared(e) == 1) { if ((ps == 1 && EUID[e] >= 1000000) || (ps == 2 && EUID[e] < 1000000)) { if (n < 40) { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 2304 || ET[e] == 10) {
       let fl = 0;
-      if (EHURT[e] > 0.2) { fl = fl + 1; } if (EBURN[e] == 1 || EFIR[e] > 0) { fl = fl + 2; } if (ELOVE[e] > 0) { fl = fl + 4; } if (EOWN[e] > 0) { fl = fl + 8; }
+      if (EHURT[e] > 0.2) { fl = fl + 1; } if (EBURN[e] == 1 || EFIR[e] > 0) { fl = fl + 2; } if (ELOVE[e] > 0) { fl = fl + 4; } if (EOWN[e] > 0 && EOWN[e] < 4) { fl = fl + 8; }
       // ((v3.2) a deep guardian's beam: the slot of the one it is on, from 16 up)
       if (MSHOT[ET[e]] == 8) { if (EST[e] == 7) { if (ETG[e] > 0) { fl = fl + 16 * ETG[e]; } else { fl = fl + 16 * netMy; } } }
       gS = `${gS};${EUID[e]},${ET[e]},${Math.round(EX[e] * 10) / 10},${Math.round(EY[e] * 10) / 10},${Math.round(EZ[e] * 10) / 10},${Math.round(EYAW[e])},${Math.ceil(EHP[e])},${EST[e]},${Math.round(EVAR[e])},${ESZ[e]},${fl}`;
@@ -340,7 +340,7 @@ function nmPack(e) {
 // may e change hands (not tamed, not ridden, not a raid's or the bone king's)
 function nmGivable(e) {
   let r = 0;
-  if (nmShared(e) == 1) { if (EOWN[e] == 0 && riding != e && specMob != e) { r = 1; } }
+  if (nmShared(e) == 1) { if ((EOWN[e] == 0 || EOWN[e] == 5) && riding != e && specMob != e) { r = 1; } }
   return r;
 }
 // the ones far from me (more than `far`, or all with `all`) and near another player go to the nearest

@@ -180,6 +180,10 @@ function edReplay(cx, cz) {
         if (BRS[EDB[k] + 1] > 0) { rsNotify(EDX[k], EDY[k], EDZ[k], 4); }
         // (v2.3.2) and the liquid by it flows again (what flows is not in the log)
         fluidReplay(EDX[k], EDY[k], EDZ[k]);
+        // ((v3.4, 11-21) a hopper works by its store, made when it is put (je.js) - a hopper that came with a pasted
+        // map or a server's record had none (an empty one is in no text), and stood dead: every machine of the
+        // example map made from its text, and of any server once everybody had left)
+        if (BKIND[EDB[k] + 1] == I_hopper) { if (EDD[k] == dim) { chestAt(EDX[k], EDY[k], EDZ[k]); } }
       }
       k = EDN[k];
     }

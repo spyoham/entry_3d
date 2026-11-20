@@ -70,6 +70,9 @@ function spawnStep(dt) {
       if (ET[i] > 0) {
         if (MHOST[ET[i]] == 1) {
           nHostile = nHostile + 1;
+          // ((v3.4, 11-21) one that rode a cart or a boat stays (EOWN 5, world33.js), and is not of the twenty;
+          // in peaceful it goes with the rest)
+          if (EOWN[i] == 5) { nHostile = nHostile - 1; if (difficulty == 0) { ET[i] = 0; } }
           // far away ones go ((v3.2) as the genre's: beyond 32 blocks one in sixty goes each time (half a
           // minute or so), beyond 56 at once; in peaceful all of them but the bosses)
           // (the distance up and down counts too: one who waits high over the land is rid of the caves' ones)
@@ -82,9 +85,12 @@ function spawnStep(dt) {
       i = i + 1;
     }
     if (BENCH == 0 && grMobs == 1) { if (dim == 1) { spawnDepths(); } if (dim == 2) { spawnVoid(); } if (dim == 0) { spawnMore(); } }
-    if (BENCH == 0 && grMobs == 1 && difficulty > 0) { if (dim == 0) { if (mod(gameMode, 2) == 0 || SPAWNC == 1) {
+    // ((v3.4, 11-21) round one in creative too, as the genre's - a tower made nothing on a creative server -
+    // not round a spectator; 480 tries a time, they were 60 (the genre tries once a tick in each chunk near, about
+    // 430 in this time): a dark room filled many times slower than there)
+    if (BENCH == 0 && grMobs == 1 && difficulty > 0) { if (dim == 0) { if (gameMode != 3 || SPAWNC == 1) {
       let k = 0;
-      while (k < 60) { if (nHostile < 20) { spawnTry(); } k = k + 1; }
+      while (k < 480 && nHostile < 20) { spawnTry(); k = k + 1; }
     } } }
   }
 }
@@ -116,11 +122,16 @@ function spawnTry() {
       // (under the open sky: the kinds of the land; else those of the caves)
       let sky = 0;
       if (idiv(LT[i2], 16) >= 14) { sky = 1; }
-      let t = nightKind(x, y, z, sky), n = rand(1, 3), j = 0;
+      let t = nightKind(x, y, z, sky), n = rand(1, 4), j = 0;
       while (j < n) {
         let ax = x, az = z;
         if (j > 0) { ax = x + rand(-3, 3); az = z + rand(-3, 3); }
-        if (cOK(ax, az) == 1) { if (spawnSpot(ax, y, az, MH[t]) == 1) { mobAdd(t, ax + 0.5, y + 0.02, az + 0.5); nHostile = nHostile + 1; } }
+        if (cOK(ax, az) == 1) { if (spawnSpot(ax, y, az, MH[t]) == 1) {
+          // ((v3.4, 11-21) a wide one (a spider) only where its whole body is free: made against a wall it stood in it for good)
+          let fits = 1;
+          if (MW[t] > 1) { solidBox(ax + 0.5 - MW[t] / 2, ax + 0.5 + MW[t] / 2, y + 0.02, y + MH[t], az + 0.5 - MW[t] / 2, az + 0.5 + MW[t] / 2); if (solidHit == 1) { fits = 0; } }
+          if (fits == 1) { mobAdd(t, ax + 0.5, y + 0.02, az + 0.5); nHostile = nHostile + 1; }
+        } }
         j = j + 1;
       }
     } }
@@ -169,7 +180,7 @@ function mobsStep(dt) {
     if (ET[e] > 0) {
       // ((v3.2) its chunk out of the window: one to keep is kept (fauna.js keptPut), the rest are gone - not the
       // warden: seen from the island's edge it flew out of the window, was gone and made again in the middle)
-      if (cOK(Math.floor(EX[e]), Math.floor(EZ[e])) == 0) { if (EOWN[e] < 1 && ET[e] != 10) { if (keptKind(e) == 1) { keptPut(e); } skAway(e); ET[e] = 0; } }
+      if (cOK(Math.floor(EX[e]), Math.floor(EZ[e])) == 0) { if ((EOWN[e] < 1 || EOWN[e] == 5) && ET[e] != 10) { if (keptKind(e) == 1) { keptPut(e); } skAway(e); ET[e] = 0; } }
       else {
         // (v2.4.3) mobs and the other players press plates too
         // (v2.5: a minecart presses as an item does: wooden plates, not stone ones; string)
@@ -313,7 +324,7 @@ function mobStep0(e, dt) {
   EVX[e] = EVX[e] + (tx - EVX[e]) * a; EVZ[e] = EVZ[e] + (tz - EVZ[e]) * a;
   bodyIn(EX[e], EY[e], EZ[e], w, h);
   // ((v3.2) cactus, fire, a hot floor, a block round the head: twice a second)
-  if (mod(frameNo + e, 15) == 0) { if (inC > 0 || underB == I_magma || EY[e] + h < WY) { mobHazard(e, t, h); } }
+  if (mod(frameNo + e, 15) == 0) { if (inC > 0 || inL == 1 || underB == I_magma || EY[e] + h < WY) { mobHazard(e, t, h); } }
   // ((v3.2) flowing water carries them (it carried only the player and boats): their speed goes to the
   // water's, so they drift on a little past its edge (pushed only while their middle was in the water, one
   // came to rest half over a hole, held up by the water its other half was in))
@@ -330,7 +341,6 @@ function mobStep0(e, dt) {
     if (inW == 1 && MSWIM[t] > 0) { swimPhys(e, t, dt, want); } else {
     if (inW == 1 || inL == 1) {
       EVY[e] = EVY[e] - 6 * dt; if (EVY[e] < 1.5) { EVY[e] = EVY[e] + 14 * dt; }
-      if (inL == 1) { if (MFIRE[t] == 0) { if (rand(1, 20) == 1) { mobHurt(e, 2, 0, 0); } } }
     } else { EVY[e] = EVY[e] - 32 * dt; }
     }
   }
@@ -359,6 +369,8 @@ function mobStep0(e, dt) {
 }
 function mobHazard(e, t, h) {
   if (inC == 1) { EHURT[e] = 0; mobHurt(e, 1, 0, 0); }
+  // ((v3.4, 11-21) lava: four points twice a second, the genre's (it was two points one frame in twenty))
+  if (ET[e] > 0) { if (inL == 1) { if (MFIRE[t] == 0) { EHURT[e] = 0; mobHurt(e, 4, 0, 0); } } }
   if (inC == 2) { if (MFIRE[t] == 0) { EFIR[e] = Math.max(EFIR[e], 8.99); } }
   if (ET[e] > 0) { if (underB == I_magma) { if (MFIRE[t] == 0) { EHURT[e] = 0; mobHurt(e, 1, 0, 0); } } }
   if (ET[e] > 0) { if (EY[e] + h - 0.15 < WY) {
@@ -701,6 +713,18 @@ function itemsStep(dt) {
 }
 
 // ---------------------------------------------------------------- drawing them
+// is any of mob e (h high) in sight of the eye: its head, its middle, or a side of it across the line of sight
+function mobSeen(e, h) {
+  let r = sightLine(camX, camY, camZ, EX[e], EY[e] + h - 0.1, EZ[e]);
+  if (r == 0) { r = sightLine(camX, camY, camZ, EX[e], EY[e] + h * 0.4, EZ[e]); }
+  if (r == 0) {
+    let dx = EX[e] - camX, dz = EZ[e] - camZ, d = Math.sqrt(dx * dx + dz * dz) + 0.01, w = MW[ET[e]] / 2 + 0.2;
+    let sx = 0 - dz / d * w, sz = dx / d * w;
+    r = sightLine(camX, camY, camZ, EX[e] + sx, EY[e] + h * 0.6, EZ[e] + sz);
+    if (r == 0) { r = sightLine(camX, camY, camZ, EX[e] - sx, EY[e] + h * 0.6, EZ[e] - sz); }
+  }
+  return r;
+}
 function bucketThings() {
   let e = 1;
   while (e <= NMOB) {
@@ -710,7 +734,21 @@ function bucketThings() {
         // ((v3.2) the warden's wings and tail reach far past its body)
         if (ET[e] == 10) { h = 7; }
         inView(EX[e], EY[e] + h / 2, EZ[e], h);
-        if (inV == 1) { bucketThing(0 - e, EX[e], EY[e] + Math.min(h / 2, 0.9), EZ[e]); }
+        if (inV == 1) {
+          // ((v3.4, 11-21) a mob more than 16 blocks off that the eye cannot see - whole blocks between the eye and
+          // its head, its middle and both its sides - is not drawn: looked at every 8th frame (EVIS). Seen from
+          // where one waits for the example map's tower, 572 of a frame's 2,520 fills were its twenty monsters
+          // behind the walls; so are the monsters of the caves under one's feet at night.)
+          let show = 1;
+          if (ET[e] != 10) { if (isProxy(e) == 0) {
+            let ddy = EY[e] - camY;
+            if ((EX[e] - camX) * (EX[e] - camX) + (EZ[e] - camZ) * (EZ[e] - camZ) + ddy * ddy > 256) {
+              if (mod(frameNo + e, 8) == 0) { EVIS[e] = mobSeen(e, h); }
+              show = EVIS[e];
+            } else { EVIS[e] = 1; }
+          } }
+          if (show == 1) { bucketThing(0 - e, EX[e], EY[e] + Math.min(h / 2, 0.9), EZ[e]); }
+        }
       }
     }
     e = e + 1;

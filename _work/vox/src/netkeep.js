@@ -36,6 +36,8 @@ function skDelAt(i) { MKU.removeAt(i); MKW.removeAt(i); MKX.removeAt(i); MKZ.rem
 function skKind(e) {
   let r = 0, t = ET[e];
   if (t > 0) { if (ERK[e] == 0 && EOWN[e] == 0) { if (MHOST[t] == 0 && t != 12 && isProxy(e) == 0 && t != M_TRADER && t != M_SPRITE && t != M_VOIDMITE) { r = 1; } } }
+  // ((v3.4, 11-21) a monster that rode a cart or a boat (EOWN 5) stays, as in a single world)
+  if (t > 0) { if (ERK[e] == 0 && EOWN[e] == 5) { r = 1; } }
   return r;
 }
 function skRest(e) { return `${ET[e]},${Math.round(EY[e] * 100) / 100},${Math.round(EHP[e] * 10) / 10},${EOWN[e]},${EVAR[e]},${Math.round(EAGE[e])},${ETG[e]},${Math.round(ECNV[e] * 10) / 10}`; }
@@ -133,7 +135,16 @@ function skMineLook() {
       if (k == 0) { if (kd == 1) {
         // (one of the record that came to me - given, taken over, woken by a chunk: mine to speak for)
         if (u >= 1000000 && skFind(u) > 0) { SKL.push(u); SKS.push(skSig(e)); SKPX.push(EX[e]); SKPZ.push(EZ[e]); k = SKL.length; }
-        else { if (ET[e] == M_VILLAGER || ET[e] == M_GOLEM) { skMark(e); k = skMine(EUID[e]); } }
+        // ((v3.4, 11-21) and a rider that stays, with the cart or boat it sits in)
+        // (a keeper once it has stood a minute (EAGE counts the looks): one of an iron farm lives ten seconds, and
+        // each written into the server's settings and out again had everybody read them anew)
+        else {
+          let en = 0;
+          if (ET[e] == M_VILLAGER || EOWN[e] == 5) { en = 1; }
+          if (ET[e] == M_MINECART || ET[e] == M_BOAT) { if (ETG[e] > 0) { en = 1; } }
+          if (ET[e] == M_GOLEM) { EAGE[e] = EAGE[e] + 1; if (EAGE[e] >= 60) { en = 1; } }
+          if (en == 1) { skMark(e); k = skMine(EUID[e]); }
+        }
       } }
       while (SKA.length < SKL.length) { SKA.push(1); }
       if (k > 0) { if (kd == 1) {
@@ -212,7 +223,8 @@ function skFromMap() {
   while (i + 10 <= MPK.length) {
     if (MKU.length < SKMAX) {
       MKU.push(SKB + rand(1, 999999999)); MKW.push(MPK[i + 8]); MKX.push(MPK[i + 1]); MKZ.push(MPK[i + 3]);
-      MKR.push(`${MPK[i]},${MPK[i + 2]},${MPK[i + 4]},0,${MPK[i + 6]},${MPK[i + 7]},${MPK[i + 9]},${MPK[i + 10]}`);
+      let ow = 0; if (MPK[i + 5] == 5) { ow = 5; }
+      MKR.push(`${MPK[i]},${MPK[i + 2]},${MPK[i + 4]},${ow},${MPK[i + 6]},${MPK[i + 7]},${MPK[i + 9]},${MPK[i + 10]}`);
     }
     i = i + 11;
   }

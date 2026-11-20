@@ -94,6 +94,9 @@ fill(WF.x + 1, Y + 1, WF.z, WF.x + 6, Y + 1, WF.z, 'water');
 fill(WF.x, Y + 2, WF.z, WF.x + 8, Y + 2, WF.z, 'glass'); set(WF.x + 8, Y + 1, WF.z, 'glass'); set(WF.x + 8, Y, WF.z, 'stone');
 const plantWheat = () => { fill(WF.x + 2, Y + 1, WF.z + 1, WF.x + 7, Y + 1, WF.z + 3, 'farmland_moist'); fill(WF.x + 2, Y + 2, WF.z + 1, WF.x + 7, Y + 2, WF.z + 3, 'wheat_3'); };
 plantWheat();
+// ((v3.4, 11-21) the bare cells before the dispensers are glass: on stone a monster could come in the dark, and a
+// torch there would stop the dispenser)
+fill(WF.x + 1, Y + 1, WF.z + 1, WF.x + 1, Y + 1, WF.z + 3, 'glass');
 set(WF.x + 8, Y, WF.z + 4, 'chest');
 for (let k = 1; k <= 3; k++) set(WF.x + 8, Y, WF.z + k, 'hopper_south');
 for (let k = 1; k <= 3; k++) { set(WF.x, Y + 2, WF.z + k, 'dispenser[facing=east]'); chestPut(WF.x, Y + 2, WF.z + k, [['water_bucket', 1]]); }
@@ -156,69 +159,118 @@ const AP = { x: 30, z: 42 };
 set(AP.x - 1, Y, AP.z, 'chest'); chestPut(AP.x - 1, Y, AP.z, [[I_('wheat'), 64], ['carrot', 32], ['shears', 1], ['bucket', 1]]);
 sign(AP.x - 1, Y, AP.z + 1, '우리: 소와 양은 밀, 돼지는 당근. 가둔 동물은 멀리 갔다 와도 그대로 있습니다');
 
-// ================================================================ 9. iron: three villagers call a keeper
-// High over the floor, so that the only place a keeper can come to stand is the hopper by them. A cactus
-// beside it pricks the keeper until it falls; its iron goes down the hoppers into the chest on the ground.
-const IF = { x: 57, z: 21, f: Y + 9 };
+// ================================================================ 9. iron: three villagers, a zombie in a cart, lava
+// (v3.4, 11-21, built anew) The genre's iron farm. Three villagers with their beds in a glass room, a zombie
+// in a minecart eight blocks from them (one that rides does not go away; under a stone roof it does not
+// burn): in fear they call a keeper every 35 s or so. It can only come on the stone floor beside them, 5 x 7
+// under running water (all the roofs carry slabs: a keeper comes on nothing but a whole block, and needs its
+// whole body free - so on the middle three rows); the water takes it to the end row, where lava hangs at
+// the height of its head over signs (signs hold a liquid up and in; a mob goes through them). It falls in 13 s,
+// and what it leaves sinks onto the hoppers under the end row, down the hopper column into the chest.
+// The zombie is on the far side of the end row: a keeper going for it goes the way the water does.
+const IF = { x: 66, z: 16, f: Y + 9 };          // the middle of the folk's room; things stand at f + 1
+const IP = { x0: 61, x1: 67, z0: 19, z1: 23 };  // the floor the keeper comes on
+const KX = IP.x1 + 1, ZX = KX + 4, ZC = 21;     // the end row (hoppers, lava); the zombie's cell
+// the ground east of the district the chest stands on
+fill(X1 + 1, Y - 1, IF.z - 4, ZX + 2, Y - 1, IP.z1 + 3, 'stone');
+// the folk's room
 fill(IF.x, Y, IF.z, IF.x, IF.f - 1, IF.z, 'stone');
 fill(IF.x - 2, IF.f, IF.z - 2, IF.x + 2, IF.f, IF.z + 2, 'stone');
 fill(IF.x - 2, IF.f + 1, IF.z - 2, IF.x + 2, IF.f + 3, IF.z + 2, 'glass'); fill(IF.x - 1, IF.f + 1, IF.z - 1, IF.x + 1, IF.f + 2, IF.z + 1, 'air');
-fill(IF.x - 2, IF.f + 4, IF.z - 2, IF.x + 2, IF.f + 4, IF.z + 2, 'white_carpet');
+fill(IF.x - 2, IF.f + 4, IF.z - 2, IF.x + 2, IF.f + 4, IF.z + 2, 'stone_slab');
 for (let k = -1; k <= 1; k++) { if (BDX === 0) bed(IF.x + k, IF.f + 1, IF.z + (BDZ > 0 ? -1 : 0)); else bed(IF.x + (BDX > 0 ? -1 : 0), IF.f + 1, IF.z + k - 0); }
 const ironFolk = [-1, 0, 1].map((k) => (BDX === 0 ? summon('villager', IF.x + k + 0.5, IF.f + 1, IF.z + (BDZ > 0 ? 1 : -1) + 0.5) : summon('villager', IF.x + 1.5, IF.f + 1, IF.z + k + 0.5)));
 console.log('   beds lie the way', BDX, BDZ);
-// (the floor the keeper comes to stand on: twelve stone cells under running water, two wide - the keeper
-// is 1.3 wide - the only whole floor with room over it near them. The water takes it onto the hoppers at
-// the end, against a cactus; beside the cactus a sign keeps the water in (a cactus breaks by anything solid).)
-const SX = IF.x + 3, PAD = [IF.x + 9, IF.f, IF.z + 1];
-fill(X1 + 1, Y - 1, IF.z - 2, PAD[0] + 2, Y - 1, IF.z + 3, 'stone');
-fill(SX, IF.f, IF.z, PAD[0] - 1, IF.f, IF.z + 1, 'stone');
-set(PAD[0], IF.f, IF.z, 'hopper_south'); set(PAD[0] + 1, IF.f, IF.z + 1, 'hopper_west');
-for (let y = Y + 1; y <= IF.f; y++) set(PAD[0], y, PAD[2], 'hopper');
-set(PAD[0], Y, PAD[2], 'chest');
-for (const z of [IF.z - 1, IF.z + 2]) { fill(SX, IF.f, z, PAD[0], IF.f + 3, z, 'glass'); fill(SX, IF.f + 4, z, PAD[0], IF.f + 4, z, 'white_carpet'); }
-set(PAD[0] + 1, IF.f, IF.z, 'sand'); set(PAD[0] + 1, IF.f + 1, IF.z, 'cactus'); set(PAD[0] + 1, IF.f + 2, IF.z, 'cactus'); set(PAD[0] + 1, IF.f + 3, IF.z, 'stone'); set(PAD[0] + 1, IF.f + 4, IF.z, 'white_carpet');
-set(PAD[0] + 1, IF.f + 1, IF.z + 1, 'oak_sign');
-set(SX, IF.f + 1, IF.z, 'water'); set(SX, IF.f + 1, IF.z + 1, 'water'); F(160);
-sign(PAD[0] - 1, Y, PAD[2], '철 농장: 위의 마을 사람 셋이 10분쯤마다(몬스터가 가까우면 1분) 철 수호병을 부릅니다. 물에 밀려 선인장에 쓰러지고 철이 이 상자로');
+// the keeper's floor and the end row, in glass, three high inside
+fill(IP.x0 - 1, IF.f, IP.z0 - 1, KX + 1, IF.f + 4, IP.z1 + 1, 'glass');
+fill(IP.x0, IF.f + 1, IP.z0, KX, IF.f + 3, IP.z1, 'air');
+fill(IP.x0, IF.f, IP.z0, IP.x1, IF.f, IP.z1, 'stone');
+fill(IP.x0 - 1, IF.f + 5, IP.z0 - 1, KX + 1, IF.f + 5, IP.z1 + 1, 'stone_slab');
+for (let z = IP.z0; z <= IP.z1; z++) set(KX, IF.f, z, z < ZC ? 'hopper_south' : (z > ZC ? 'hopper_north' : 'hopper'));
+for (let y = Y + 1; y < IF.f; y++) set(KX, y, ZC, 'hopper');
+set(KX, Y, ZC, 'chest');
+fill(IP.x0, Y, ZC, IP.x0, IF.f - 1, ZC, 'stone');
+// the lava over its signs: under it (the keeper's middle goes through them), and on the side it would run out
+for (let z = IP.z0; z <= IP.z1; z++) { set(KX, IF.f + 2, z, 'oak_sign'); set(IP.x1, IF.f + 3, z, 'oak_sign'); }
+for (let z = IP.z0; z <= IP.z1; z++) set(KX, IF.f + 3, z, 'lava');
+// the water: a row of springs at the far end, seven cells of running water to the end row
+for (let z = IP.z0; z <= IP.z1; z++) set(IP.x0, IF.f + 1, z, 'water');
+// the zombie in its cart, in glass under stone
+fill(ZX - 1, IF.f, ZC - 1, ZX + 1, IF.f + 3, ZC + 1, 'glass');
+fill(ZX, Y, ZC, ZX, IF.f, ZC, 'stone');
+fill(ZX, IF.f + 1, ZC, ZX, IF.f + 3, ZC, 'air');
+set(ZX, IF.f + 1, ZC, 'rail');
+fill(ZX - 1, IF.f + 4, ZC - 1, ZX + 1, IF.f + 4, ZC + 1, 'stone');
+fill(ZX - 1, IF.f + 5, ZC - 1, ZX + 1, IF.f + 5, ZC + 1, 'stone_slab');
+stand(KX, Y, IP.z1 + 2); F(200);
+summon('minecart', ZX + 0.5, IF.f + 1, ZC + 0.5); F(20);
+const ironZombie = summon('zombie', ZX + 0.5, IF.f + 1.2, ZC + 0.5); F(90);
+for (const [x, z] of [[X1 + 2, IF.z - 3], [ZX + 1, IF.z - 3], [X1 + 2, IP.z1 + 2], [ZX + 1, IP.z1 + 2], [KX + 2, ZC + 3]]) set(x, Y, z, 'torch');
+sign(KX - 1, Y, ZC + 1, '철 농장: 위의 마을 사람 셋이 수레에 탄 좀비를 무서워해 35초쯤마다 철 수호병을 부릅니다. 물에 밀려 용암에 쓰러지고 철이 이 상자로 (한 시간에 400개쯤)');
 
 // ================================================================ 10. the mob tower
-// two dark floors high up; in each a trench of flowing water takes what walks into it to a hole in the
-// middle; the fall of 33 blocks kills, and the hoppers at the bottom take what they drop
-const MT = { x0: 44, x1: 61, z0: 40, z1: 49, f1: Y + 34, f2: Y + 39 };
-const HX = 52, HZ = 44;
-for (const f of [MT.f1, MT.f2]) {
+// (v3.4, 11-21, built anew) Four dark floors. On each, three strips of floor two cells deep between two
+// trenches of running water: whatever comes steps into a trench within seconds and is carried to the hole in
+// the middle (signs in it at the water's height: the water stops, the mob goes through). The fall of 37
+// blocks kills (a witch too), on twelve hoppers that fill six chests on the ground.
+// One waits 24 blocks to the north of it at the height of its middle (the ladder by the district's edge):
+// every cell of the floors is 24 to 35 blocks away (nearer nothing comes), the bottom of the shaft 52 (past
+// 56 a monster is gone at once: the old tower lost four in ten of them falling), the land 66 (nothing comes there).
+const MT = { x0: 44, x1: 61, z0: 40, z1: 49, fs: [Y + 38, Y + 42, Y + 46, Y + 50] };
+const HX = 52, TR = [MT.z0 + 2, MT.z0 + 3, MT.z0 + 6, MT.z0 + 7], SZ0 = MT.z0 + 2, SZ1 = MT.z0 + 7;
+for (const f of MT.fs) {
   fill(MT.x0 - 1, f - 1, MT.z0 - 1, MT.x1 + 1, f - 1, MT.z1 + 1, 'stone');
-  fill(MT.x0, f, MT.z0, MT.x1, f, MT.z0 + 3, 'stone'); fill(MT.x0, f, MT.z0 + 6, MT.x1, f, MT.z1, 'stone');
-  for (const [a, b, c, d] of [[MT.x0 - 1, MT.z0 - 1, MT.x1 + 1, MT.z0 - 1], [MT.x0 - 1, MT.z1 + 1, MT.x1 + 1, MT.z1 + 1], [MT.x0 - 1, MT.z0, MT.x0 - 1, MT.z1], [MT.x1 + 1, MT.z0, MT.x1 + 1, MT.z1]]) fill(a, f, b, c, f + 3, d, 'stone');
-  fill(HX, f - 1, HZ, HX + 1, f - 1, HZ + 1, 'air');
+  for (const z of [MT.z0, MT.z0 + 4, MT.z0 + 8]) fill(MT.x0, f, z, MT.x1, f, z + 1, 'stone');
+  for (const [a, b, c, d] of [[MT.x0 - 1, MT.z0 - 1, MT.x1 + 1, MT.z0 - 1], [MT.x0 - 1, MT.z1 + 1, MT.x1 + 1, MT.z1 + 1], [MT.x0 - 1, MT.z0, MT.x0 - 1, MT.z1], [MT.x1 + 1, MT.z0, MT.x1 + 1, MT.z1]]) fill(a, f, b, c, f + 2, d, 'stone');
+  fill(HX, f - 1, SZ0, HX + 1, f - 1, SZ1, 'air');
+  fill(HX, f, MT.z0 + 4, HX + 1, f, MT.z0 + 5, 'air');
 }
-fill(MT.x0 - 1, MT.f2 + 4, MT.z0 - 1, MT.x1 + 1, MT.f2 + 4, MT.z1 + 1, 'stone');
-fill(MT.x0 - 1, MT.f2 + 5, MT.z0 - 1, MT.x1 + 1, MT.f2 + 5, MT.z1 + 1, 'glass');
-// (signs in the hole's four cells at the water's level: water does not go into a sign's cell, so none
-// falls down the shaft - a mob in falling water would float, not fall - and a mob walks through them)
-for (const f of [MT.f1, MT.f2]) { for (const z of [HZ, HZ + 1]) { set(HX, f, z, 'oak_sign'); set(HX + 1, f, z, 'oak_sign'); } }
-for (const f of [MT.f1, MT.f2]) { for (const z of [HZ, HZ + 1]) { set(MT.x0, f, z, 'water'); set(MT.x1, f, z, 'water'); } }
+const MTOP = MT.fs[MT.fs.length - 1];
+fill(MT.x0 - 1, MTOP + 3, MT.z0 - 1, MT.x1 + 1, MTOP + 3, MT.z1 + 1, 'stone');
+fill(MT.x0 - 1, MTOP + 4, MT.z0 - 1, MT.x1 + 1, MTOP + 4, MT.z1 + 1, 'glass');
+for (const f of MT.fs) { for (const z of TR) { set(HX, f, z, 'oak_sign'); set(HX + 1, f, z, 'oak_sign'); } }
+for (const f of MT.fs) { for (const z of TR) { set(MT.x0, f, z, 'water'); set(MT.x1, f, z, 'water'); } }
 // the shaft and what is under it
-fill(HX - 1, Y + 1, HZ - 1, HX + 2, MT.f1 - 2, HZ + 2, 'glass'); fill(HX, Y + 1, HZ, HX + 1, MT.f1 - 2, HZ + 1, 'air');
-for (const z of [HZ, HZ + 1]) { set(HX + 1, Y, z, 'hopper_west'); set(HX, Y, z, 'hopper_west'); set(HX - 1, Y, z, 'chest'); }
-fill(HX + 2, Y, HZ - 1, HX + 2, Y, HZ + 2, 'stone'); fill(HX, Y, HZ - 1, HX + 1, Y, HZ - 1, 'stone'); fill(HX, Y, HZ + 2, HX + 1, Y, HZ + 2, 'stone');
-sign(HX - 2, Y, HZ - 1, '몹 타워: 위의 어두운 방에서 생긴 몬스터가 물에 실려 떨어져 죽고, 떨어뜨린 것이 이 상자에');
-// where to wait: a ladder up a pillar by the tower to a floor right over it, 25 blocks over the upper
-// room. From there every cell of the two rooms is between 24 and 32 blocks away (nearer nothing comes,
-// farther they are gone again within half a minute), and the land is more than 48 away: nothing comes there.
-const AF = { x: 50, z: 37, y: MT.f2 + 25 };
+fill(HX - 1, Y + 1, SZ0 - 1, HX + 2, MT.fs[0] - 2, SZ1 + 1, 'glass'); fill(HX, Y + 1, SZ0, HX + 1, MT.fs[0] - 2, SZ1, 'air');
+for (let z = SZ0; z <= SZ1; z++) { set(HX + 1, Y, z, 'hopper_west'); set(HX, Y, z, 'hopper_west'); set(HX - 1, Y, z, 'chest'); }
+fill(HX + 2, Y, SZ0 - 1, HX + 2, Y, SZ1 + 1, 'stone'); fill(HX, Y, SZ0 - 1, HX + 1, Y, SZ0 - 1, 'stone'); fill(HX, Y, SZ1 + 1, HX + 1, Y, SZ1 + 1, 'stone');
+sign(HX - 2, Y, SZ0 - 1, '몹 타워: 위의 어두운 방 네 층에서 생긴 몬스터가 물에 실려 떨어져 죽고, 떨어뜨린 것이 이 상자들에');
+// where to wait
+const AF = { x: 52, z: 16, y: Y + 44 };
+ok(blk(AF.x, Y, AF.z) === 0 && blk(AF.x, Y, AF.z + 1) === 0, 'the place of the ladder is free');
 fill(AF.x, Y, AF.z, AF.x, AF.y - 1, AF.z, 'stone');
-fill(AF.x, Y, AF.z - 1, AF.x, AF.y, AF.z - 1, 'ladder[facing=north]');
-fill(AF.x - 2, AF.y, AF.z, AF.x + 4, AF.y, HZ + 2, 'stone');
-for (const [x, z] of [[AF.x - 2, AF.z], [AF.x + 4, AF.z], [AF.x - 2, HZ + 2], [AF.x + 4, HZ + 2]]) set(x, AF.y + 1, z, 'torch');
-const AFS = [HX, AF.y + 1, HZ];
-sign(AF.x + 1, Y, AF.z - 1, '기다리는 곳: 이 사다리 꼭대기(타워 바로 위)에서 기다리면 몬스터가 타워에서만 생깁니다');
-sign(HX + 2, AF.y + 1, HZ, '여기서 기다리세요. 발아래 두 방에서 몬스터가 생겨 떨어집니다');
+fill(AF.x, Y, AF.z + 1, AF.x, AF.y, AF.z + 1, 'ladder[facing=south]');
+fill(AF.x - 2, AF.y, AF.z - 1, AF.x + 2, AF.y, AF.z, 'stone');
+for (const [x, z] of [[AF.x - 2, AF.z - 1], [AF.x + 2, AF.z - 1], [AF.x - 2, AF.z], [AF.x + 2, AF.z]]) set(x, AF.y + 1, z, 'torch');
+const AFS = [AF.x, AF.y + 1, AF.z];
+sign(AF.x + 1, Y, AF.z + 1, '기다리는 곳: 이 사다리 꼭대기에서 기다리면 몬스터가 남쪽의 몹 타워에서만 생깁니다 (크리에이티브에서도 생깁니다)');
+sign(AF.x - 1, AF.y + 1, AF.z - 1, '여기서 기다리세요. 남쪽 타워의 네 층에서 몬스터가 생겨 떨어집니다');
 
 // ================================================================ light, so that nothing comes on the floor at night
 for (let x = X0 + 3; x <= X1; x += 6) for (let z = Z0 + 3; z <= Z1; z += 6) { let xx = x, k = 0; while (k < 4 && (blk(xx, Y, z) !== 0 || blk(xx, Y - 1, z) !== id('stone'))) { xx++; k++; } if (blk(xx, Y, z) === 0 && blk(xx, Y - 1, z) === id('stone')) set(xx, Y, z, 'torch'); }
+// (and the ground east of it, under the iron farm: in its shade monsters came by day)
+for (let x = X1 + 2; x <= ZX + 2; x += 3) for (let z = IF.z - 3; z <= IP.z1 + 2; z += 3) { if (blk(x, Y, z) === 0 && blk(x, Y - 1, z) === id('stone')) set(x, Y, z, 'torch'); }
 F(120);
+// ((v3.4, 11-21) and on what is built: no dark top of a whole block is left up to 14 over the floor - the one who
+// waits for the tower is within 48 blocks of the machines' roofs now, and a monster in the folk's room would be their end)
+{
+  s.poke('tday', 0.75); F(20);
+  let put = 0;
+  for (let pass = 0; pass < 8; pass++) {
+    const spots = [];
+    for (let x = X0 - 1; x <= ZX + 3; x++) for (let z = IF.z - 5; z <= Z1 + 1; z++) for (let y = Y; y <= Y + 14; y++) {
+      if (call(() => fn.cOK(x, z)) !== 1) continue;
+      if (call(() => fn.spawnSpot(x, y, z, 2)) === 1 && !spots.some((p) => Math.abs(p[0] - x) + Math.abs(p[1] - y) + Math.abs(p[2] - z) < 6)) spots.push([x, y, z]);
+    }
+    if (!spots.length) break;
+    for (const [x, y, z] of spots) { set(x, y, z, 'torch'); put++; console.log('   a torch at', x, y, z, 'on', key(x, y - 1, z)); }
+    F(20);
+  }
+  let left = 0;
+  for (let x = X0 - 1; x <= ZX + 3; x++) for (let z = IF.z - 5; z <= Z1 + 1; z++) for (let y = Y; y <= Y + 14; y++) if (call(() => fn.cOK(x, z)) === 1 && call(() => fn.spawnSpot(x, y, z, 2)) === 1) left++;
+  ok(left === 0, `lit at night: ${put} more torches on roofs and in corners, dark places left ${left}`);
+  s.poke('tday', 0.25); F(20);
+}
 // the villagers take their jobs
 stand(VH.x + 8, Y + 3, VH.z + 3);
 const profOf = (e) => Math.floor(arr('EVAR')[e - 1] / 2) % 16;
@@ -306,51 +358,62 @@ const tryMachines = () => {
     const child = mobsOf('villager').find((e) => arr('ESZ')[e - 1] < 1); if (child) arr('ET')[child - 1] = 0;
     breeders.forEach((e) => { arr('ELOVE')[e - 1] = 0; arr('ETG')[e - 1] = 0; }); clearItems();
   }
-  // 9. iron: the keeper comes on the hopper, the cactus fells it, the iron comes down
+  // 9. iron: left to itself for five minutes of the day
   if (T(9)) {
-    stand(PAD[0] - 2, Y, PAD[2] + 2, 0); F(30);
+    stand(KX, Y, IP.z1 + 2, 0); s.poke('tday', 0.3); F(60);
     ok(ironFolk.every((e) => arr('ET')[e - 1] === M('villager') && arr('EY')[e - 1] > IF.f), 'the three are up in their room');
-    mobsOf('golem').forEach((e) => { arr('ET')[e - 1] = 0; });
-    let came = 0, where = '';
-    for (let k = 0; k < 30000 && !came; k++) { call(() => fn.villKeeper(ironFolk[0])); const g = mobsOf('golem'); if (g.length) { came = g[0]; where = `${Math.floor(arr('EX')[came - 1])},${Math.floor(arr('EY')[came - 1])},${Math.floor(arr('EZ')[came - 1])}`; } }
-    ok(key(PAD[0] + 1, IF.f + 1, IF.z) === 'cactus' && key(PAD[0] + 1, IF.f + 1, IF.z + 1) === 'oak_sign' && key(PAD[0], IF.f + 1, IF.z).startsWith('water') && blk(PAD[0] + 1, IF.f + 1, IF.z + 2) === 0, `the cactus and the sign stand, the water stays in (${key(PAD[0] + 1, IF.f + 1, IF.z)}, ${key(PAD[0] + 1, IF.f + 1, IF.z + 1)}, ${key(PAD[0], IF.f + 1, IF.z)})`);
-    ok(came > 0 && arr('EZ')[came - 1] > IF.z && arr('EZ')[came - 1] < IF.z + 2 && arr('EX')[came - 1] > SX && arr('EX')[came - 1] < PAD[0], `a keeper came, on the floor under the water (${where}; cells ${SX}..${PAD[0] - 1},${IF.f + 1},${IF.z}..${IF.z + 1})`);
-    { let n = 0; while (n < 360 && mobsOf('golem').length && arr('EHP')[mobsOf('golem')[0] - 1] >= 100) { F(10); n++; } }
-    { const g = mobsOf('golem')[0]; ok(g > 0 && arr('EX')[g - 1] > PAD[0] && arr('EHP')[g - 1] < 100, `the water took it onto the hopper, by the cactus (x ${g ? arr('EX')[g - 1].toFixed(1) : '-'}, the hopper ${PAD[0]}; hp ${g ? arr('EHP')[g - 1] : '-'})`); }
-    { let n = 0; while (n < 900 && mobsOf('golem').length > 0) { F(10); n++; keepAlive(); } }
-    ok(mobsOf('golem').length === 0, 'the cactus felled it');
-    F(60 * 12);
-    ok(chestCount(PAD[0], Y, PAD[2], 'iron_ingot') >= 3, `its iron is in the chest on the ground: ${chestCount(PAD[0], Y, PAD[2], 'iron_ingot')} (${JSON.stringify(chestAll(PAD[0], Y, PAD[2]))})`);
-    chestPut(PAD[0], Y, PAD[2], EMPTY); clearItems();
+    const zb = mobsOf('zombie');
+    ok(zb.length === 1 && arr('EAIR')[zb[0] - 1] >= 1000 && arr('EOWN')[zb[0] - 1] === 5 && Math.floor(arr('EX')[zb[0] - 1]) === ZX, `the zombie sits in its cart and is one that stays (${zb.length}, seat ${zb.length ? arr('EAIR')[zb[0] - 1] : '-'}, EOWN ${zb.length ? arr('EOWN')[zb[0] - 1] : '-'})`);
+    ok(key(KX, IF.f + 3, ZC) === 'lava' && key(KX, IF.f + 3, IP.z0) === 'lava' && key(KX, IF.f + 2, ZC) === 'oak_sign' && key(IP.x1, IF.f + 3, ZC) === 'oak_sign' && key(KX, IF.f + 1, ZC).startsWith('water') && blk(IP.x1, IF.f + 2, ZC) === 0 && blk(KX, IF.f + 4, ZC) === id('glass'), `the lava hangs over its signs, the water runs to the end row under it (${key(KX, IF.f + 3, ZC)} / ${key(KX, IF.f + 2, ZC)} / ${key(KX, IF.f + 1, ZC)})`);
+    mobsOf('golem').forEach((e) => { arr('ET')[e - 1] = 0; }); chestPut(KX, Y, ZC, EMPTY);
+    let came = 0, was = 0, off = 0, life = 0;
+    const SECS = 300;
+    for (let k = 0; k < SECS; k++) {
+      F(60); keepAlive();
+      const g = mobsOf('golem'); if (g.length > was) came += g.length - was; was = g.length; if (g.length) life++;
+      g.forEach((e) => { const x = arr('EX')[e - 1], z = arr('EZ')[e - 1], y = arr('EY')[e - 1]; if (!(x > IP.x0 && x < KX + 1 && z > IP.z0 && z < IP.z1 + 1 && y > IF.f + 0.5)) off++; });
+    }
+    const iron = chestCount(KX, Y, ZC, 'iron_ingot');
+    ok(came >= 6 && off === 0, `five minutes: ${came} keepers came, all on the floor in the glass (elsewhere ${off} times; one alive ${Math.round(life / SECS * 100)} % of the time)`);
+    ok(iron >= 18, `their iron is in the chest on the ground: ${iron} (${JSON.stringify(chestAll(KX, Y, ZC))}) - ${iron * 12} an hour`);
+    { const z2 = mobsOf('zombie'); ok(z2.length === 1 && arr('EHP')[z2[0] - 1] >= 20, `the zombie is as it was after the five minutes of daylight (hp ${z2.length ? arr('EHP')[z2[0] - 1] : '-'})`); }
+    mobsOf('golem').forEach((e) => { arr('ET')[e - 1] = 0; }); clearItems();
   }
   // 10. the tower, waited at from the top of the ladder: monsters come only in it, fall, and leave their things
   if (T(10)) {
     stand(AFS[0], AFS[1], AFS[2], 0); cmd('/gamerule doMobSpawning true'); s.poke('difficulty', 2); s.poke('tday', 0.75); F(30);
-    F(60 * 5);
-    ok(key(HX, MT.f1, HZ) === 'oak_sign' && key(HX + 1, MT.f2, HZ + 1) === 'oak_sign' && key(HX - 1, MT.f1, HZ).startsWith('water') && blk(HX, MT.f1 - 1, HZ) === 0 && blk(HX, MT.f1 - 6, HZ) === 0 && blk(HX, Y + 1, HZ) === 0, `the water stops at the signs of the hole, the shaft is dry (${key(HX - 1, MT.f1, HZ)} | ${key(HX, MT.f1, HZ)} | under it ${key(HX, MT.f1 - 1, HZ)})`);
-    let seen = 0, outside = 0;
+    F(60 * 2);
+    const f0 = MT.fs[0];
+    ok(key(HX, f0, TR[0]) === 'oak_sign' && key(HX + 1, MTOP, TR[3]) === 'oak_sign' && key(HX - 1, f0, TR[0]).startsWith('water') && blk(HX, f0 - 1, TR[0]) === 0 && blk(HX, f0 - 6, TR[0]) === 0 && blk(HX, Y + 1, TR[0]) === 0, `the water stops at the signs of the hole, the shaft is dry (${key(HX - 1, f0, TR[0])} | ${key(HX, f0, TR[0])} | under it ${key(HX, f0 - 1, TR[0])})`);
+    const chests = () => { const all = {}; for (let z = SZ0; z <= SZ1; z++) for (const [k, v] of Object.entries(chestAll(HX - 1, Y, z))) all[k] = (all[k] || 0) + v; return all; };
+    for (let z = SZ0; z <= SZ1; z++) chestPut(HX - 1, Y, z, EMPTY);
+    let seen = 0, outside = 0, alive = 0;
     const MIN = Number(process.env.MIN || 6);
     for (let k = 0; k < 60 * MIN; k++) {
       F(60); keepAlive(); stand(AFS[0], AFS[1], AFS[2], 0);
-      const ET = arr('ET'), MH = arr('MHOST');
-      for (let i = 0; i < ET.length; i++) if (ET[i] > 0 && MH[ET[i] - 1] === 1) { const x = arr('EX')[i], z = arr('EZ')[i], y = arr('EY')[i]; if (x > MT.x0 - 1 && x < MT.x1 + 2 && z > MT.z0 - 1 && z < MT.z1 + 2 && y > Y) seen++; else outside++; }
-      if (k % 60 === 59 && process.env.DBG) { const r = []; for (let i = 0; i < ET.length; i++) if (ET[i] > 0 && MH[ET[i] - 1] === 1) r.push(`${arr('MKEY')[ET[i] - 1]}@${(arr('EX')[i] - MT.x0).toFixed(1)},${(arr('EY')[i] - MT.f1).toFixed(1)},${(arr('EZ')[i] - MT.z0).toFixed(1)}/st${arr('EST')[i]}`); console.log('   dbg', r.join(' ')); }
-      if (k % 60 === 59) console.log(`   ${(k + 1) / 60} min: in the chests ${JSON.stringify(chestAll(HX - 1, Y, HZ))} ${JSON.stringify(chestAll(HX - 1, Y, HZ + 1))}`);
+      const ET = arr('ET'), MH = arr('MHOST'), EO = arr('EOWN');
+      for (let i = 0; i < ET.length; i++) if (ET[i] > 0 && MH[ET[i] - 1] === 1 && EO[i] !== 5) { alive++; const x = arr('EX')[i], z = arr('EZ')[i], y = arr('EY')[i]; if (x > MT.x0 - 1 && x < MT.x1 + 2 && z > MT.z0 - 1 && z < MT.z1 + 2 && y > Y) seen++; else { outside++; if (process.env.DBG && outside % 10 === 1) console.log('   outside:', arr('MKEY')[ET[i] - 1], x.toFixed(1), y.toFixed(1), z.toFixed(1), 'light', call(() => fn.lightAt(x, y + 0.5, z))); } }
+      if (k % 60 === 59) console.log(`   ${(k + 1) / 60} min: in the chests ${JSON.stringify(chests())}`);
     }
-    const loot = { ...chestAll(HX - 1, Y, HZ) }; for (const [k, v] of Object.entries(chestAll(HX - 1, Y, HZ + 1))) loot[k] = (loot[k] || 0) + v;
+    const loot = chests();
     const total = Object.values(loot).reduce((a, b) => a + b, 0);
-    ok(seen > 0 && outside === 0, `monsters came in the tower and nowhere else (seen in it ${seen} times, elsewhere ${outside})`);
-    ok(total >= 3 * MIN, `${MIN} minutes of waiting: ${total} things in the chests under the shaft (${JSON.stringify(loot)})`);
-    chestPut(HX - 1, Y, HZ, EMPTY); chestPut(HX - 1, Y, HZ + 1, EMPTY);
-    for (const z of [HZ, HZ + 1]) for (const x of [HX, HX + 1]) chestPut(x, Y, z, EMPTY);
-    cmd('/gamerule doMobSpawning false'); const ET = arr('ET'), MH = arr('MHOST'); for (let i = 0; i < ET.length; i++) if (ET[i] > 0 && MH[ET[i] - 1] === 1) ET[i] = 0;
+    ok(seen > 0 && outside === 0, `monsters came in the tower and nowhere else (seen in it ${seen} times, elsewhere ${outside}; ${(alive / (60 * MIN)).toFixed(1)} alive at a time)`);
+    ok(total >= 20 * MIN, `${MIN} minutes of waiting: ${total} things in the chests under the shaft, ${Math.round(total * 60 / MIN)} an hour (${JSON.stringify(loot)})`);
+    for (let z = SZ0; z <= SZ1; z++) { chestPut(HX - 1, Y, z, EMPTY); chestPut(HX, Y, z, EMPTY); chestPut(HX + 1, Y, z, EMPTY); }
+    cmd('/gamerule doMobSpawning false'); const ET = arr('ET'), MH = arr('MHOST'), EO = arr('EOWN'); for (let i = 0; i < ET.length; i++) if (ET[i] > 0 && MH[ET[i] - 1] === 1 && EO[i] !== 5) ET[i] = 0;
   }
+  // (what the iron farm made meanwhile is taken out: the map starts with empty chests and no keeper)
+  mobsOf('golem').forEach((e) => { arr('ET')[e - 1] = 0; });
+  chestPut(KX, Y, ZC, EMPTY); for (let z = IP.z0; z <= IP.z1; z++) chestPut(KX, IF.f, z, EMPTY); for (let y = Y + 1; y < IF.f; y++) chestPut(KX, y, ZC, EMPTY);
   clearItems(); s.poke('gameMode', 1); s.poke('tday', 0.25);
 };
 if (!process.env.NOTRY) tryMachines();
 
 // ================================================================ the map written
 stand(X0 + 2, Y, Z0 + 2, 0); F(30); clearItems();
+mobsOf('golem').forEach((e) => { arr('ET')[e - 1] = 0; });
+ok(mobsOf('zombie').length === 1 && mobsOf('minecart').length === 1, `the zombie and its cart are of the map (${mobsOf('zombie').length}, ${mobsOf('minecart').length})`);
+if (process.env.DBG) console.log('   villagers at', mobsOf('villager').map((e) => [arr('EX')[e - 1], arr('EY')[e - 1], arr('EZ')[e - 1]].map((v) => Math.round(v)).join(',')).join(' | '));
 ok(mobsOf('villager').length === 13 && mobsOf('chicken').length === 3 && mobsOf('cow').length === 2 && mobsOf('sheep').length === 2 && mobsOf('pig').length === 2, `the folk of the map: villagers ${mobsOf('villager').length}, hens ${mobsOf('chicken').length}, cows ${mobsOf('cow').length}, sheep ${mobsOf('sheep').length}, pigs ${mobsOf('pig').length}`);
 if (process.env.PICS) {
   const look = async (name, x, y, z, yaw, pitch) => { stand(x, y, z, 1); s.poke('yaw', yaw); s.poke('pitch', pitch); F(40); await s.png(`test/example_${name}.png`); };
