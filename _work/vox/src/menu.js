@@ -40,18 +40,18 @@ function panoStep(dt) {
   if (panoGen == 0) {
     panoGen = 1;
     thingsInit(); flatOn = 0; genStart(PANOSEED); genPhase = 0; gameMode = 1;
-    px = 8.5; pz = 8.5; py = 60; dead = 0; headWater = 0; inLava = 0;
+    genOrigin(); py = 60; dead = 0; headWater = 0; inLava = 0;
     setView(viewWant); fogR = 0 - 99; ctPos = NCOL * 192;
   }
   if (panoReady == 0) {
     chunkWork(8);
-    if (nChunks >= NSTART) { findTop(8, 8); panoY = Math.max(SEA, topY) + 14; panoReady = 1; }
+    if (nChunks >= NSTART) { findTop(gsX, gsZ); panoY = Math.max(SEA, topY) + 14; panoReady = 1; }
   }
   if (panoReady == 1) {
     worldFlush(); chunkWork(1); remeshSome(8);
     panoYaw = panoYaw + dt * 2.5;
     tday = 0.28; dim = 0; dimAmb = 0; daySky();
-    camX = 8.5; camY = panoY; camZ = 8.5; camYaw = panoYaw; camPitch = 0 - 10; FOC = 210;
+    camX = gsX + 0.5; camY = panoY; camZ = gsZ + 0.5; camYaw = panoYaw; camPitch = 0 - 10; FOC = 210;
     renderWorld();
   }
 }
@@ -263,6 +263,8 @@ function worldMake(k) {
   thingsInit(); petsClear(); sleptDay = 0;
   genStart(s);
   if (mpOn == 1) { mapToWorld(); }
+  // ((v3.4) the start: by the land of the world's kind (a map brings its own))
+  genOrigin();
   gState = 1;
 }
 

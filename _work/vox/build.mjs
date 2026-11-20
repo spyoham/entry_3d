@@ -11,7 +11,7 @@ import { TEX, CRACK, BLOCKS, NBLOCK, ITEMS, TIERS, KINDS, SMITH, toolId, NITEM, 
 import { MODELS, ARMS, ARMCOL, pottedModel } from './models.mjs';
 import { makeSounds } from './sounds.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '3.3';
+export const VERSION = '3.4';
 // how many servers Entry Sync holds (each one two ?! lists; the slot line carries the number in two digits)
 export const NSRV = 99;
 export const NAME = '블록 월드';
@@ -29,7 +29,7 @@ export const consts = {
     NOFF: chunkOffsets(CR).length, CVN: 24, FORTY: 30, NSTART: chunkOffsets(2).length,
     NEARZ: Math.round(0.05 * 256 * 16384), DEC2: 20, PLANT2: 225, CLOUDY: 110, MK: 160 * 1048576,
     NMOB: 96, NITM: 96, NARR: 24, NFUR: 32, NCHEST: 256, ANIMALS: 60, SMELTT: 10, NTX: 145, NTX0: 123,
-    SPAWNC: 0, BENCH: 0, NOCAVE: 0, AUTOSEED: 0, AUTOMODE: 0, TESTRUN: 0, SIMRUN: 0, LEGACY: 0, SLIM: 1, SPLIT: 0, MESHFAST: 1,
+    GENV: 2, SPAWNC: 0, BENCH: 0, NOCAVE: 0, AUTOSEED: 0, AUTOMODE: 0, TESTRUN: 0, SIMRUN: 0, LEGACY: 0, SLIM: 1, SPLIT: 0, MESHFAST: 1,
 };
 
 // what F does on a block, how it is put down, what it must stand on, how it moves a body
@@ -607,11 +607,28 @@ export function makeData() {
     L.KIT = [2, 3, 1, 4, 5, 13, 15, 27, 39].map(Number);
     L.BNAMES = ['바다', '해변', '평원', '숲', '사막', '타이가', '설원', '산', '얼어붙은 바다', '잿빛 심연', '공허의 섬',
         '밀림', '사바나', '늪', '붉은 협곡', '흑단 숲', '버섯 섬', '자작나무 숲', '꽃 숲', '얼음 가시 들판', '따뜻한 바다', '깊은 바다',
-        '잉걸 숲', '쪽빛 숲', '흐느낌 골짜기', '현무암 삼각주'];
+        '잉걸 숲', '쪽빛 숲', '흐느낌 골짜기', '현무암 삼각주', '강', '눈 덮인 타이가'];
     L.BKEYS = ['ocean', 'beach', 'plains', 'forest', 'desert', 'taiga', 'snowy_tundra', 'mountains', 'frozen_ocean', 'ashen_wastes', 'void_islands',
         'jungle', 'savanna', 'swamp', 'badlands', 'ebony_forest', 'mushroom_fields', 'birch_forest', 'flower_forest', 'ice_spikes', 'warm_ocean', 'deep_ocean',
-        'ember_forest', 'indigo_forest', 'wail_valley', 'basalt_deltas'];
+        'ember_forest', 'indigo_forest', 'wail_valley', 'basalt_deltas', 'river', 'snowy_taiga'];
     L.TITLEB = [2, 13, 4, 16, 17];
+    // (v3.4) the overworld's land (src/terra.js). The biomes as its layers number them (the genre's numbers, the
+    // rarer kinds + 128): TBD depth x 1000, TBS scale x 1000, TBM the game's biome (-1: none), TOC 1 a shallow
+    // sea 2 a deep one, TSN 1 snowy; the layers LOP and their salts LSA; TW the weights of the 5 x 5 cells round
+    // a column; G3X G3Y G3Z the 16 directions of the noise, by a hash of 0..255
+    L.TBD = [-1000, 125, 125, 1000, 100, 200, -200, -500, 0, 0, -1000, -500, 125, 450, 200, 0, 0, 450, 450, 450, 800, 100, 450, 100, -1800, 100, 0, 100, 450, 100, 200, 450, 200, 450, 1000, 125, 1500, 100, 1500, 1500, 0, 0, 0, 0, -1000, -1000, -1000, -1800, -1800, -1800, -1800, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 125, 225, 1000, 100, 300, -100, 0, 0, 0, 0, 0, 425, 0, 0, 0, 0, 0, 0, 0, 0, 200, 0, 200, 0, 0, 0, 200, 550, 200, 300, 0, 200, 200, 1000, 362, 1050, 100, 450, 450, 0, 0];
+    L.TBS = [100, 50, 50, 500, 200, 200, 100, 0, 0, 0, 100, 0, 50, 300, 300, 25, 25, 300, 300, 300, 300, 200, 300, 200, 100, 800, 25, 200, 300, 200, 200, 300, 200, 300, 500, 50, 25, 200, 25, 25, 0, 0, 0, 0, 100, 100, 100, 100, 100, 100, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 250, 500, 400, 400, 300, 0, 0, 0, 0, 0, 450, 0, 0, 0, 0, 0, 0, 0, 0, 400, 0, 400, 0, 0, 0, 400, 500, 400, 400, 0, 200, 200, 500, 1225, 1212, 200, 300, 300, 0, 0];
+    L.TBM = [0, 2, 4, 7, 3, 5, 13, 26, -1, -1, 8, 26, 6, 6, 16, 16, 1, 4, 3, 5, 7, 11, 11, 11, 21, 7, 1, 17, 17, 15, 27, 27, 5, 5, 7, 12, 12, 14, 14, 14, -1, -1, -1, -1, 20, 0, 0, 21, 21, 21, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 2, 4, 7, 18, 5, 13, -1, -1, -1, -1, -1, 19, -1, -1, -1, -1, -1, -1, -1, -1, 11, -1, 11, -1, -1, -1, 17, 17, 15, 27, -1, 5, 5, 7, 12, 12, 14, 14, 14, -1, -1];
+    L.TOC = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    L.TSN = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    L.LOP = [1, 2, 4, 3, 4, 4, 4, 5, 6, 4, 7, 8, 9, 3, 3, 4, 10, 11, 12, 13, 13, 14, 15, 13, 19, 13, 16, 13, 13, 17, 18];
+    L.LSA = [1, 2000, 1, 2001, 2, 50, 70, 2, 2, 3, 2, 2, 3, 2002, 2003, 4, 5, 4, 200, 1000, 1001, 1000, 1000, 1002, 3, 1003, 1000, 1004, 1005, 1000, 100];
+    L.TW = [3492, 4385, 4880, 4385, 3492, 4385, 6742, 9129, 6742, 4385, 4880, 9129, 22361, 9129, 4880, 4385, 6742, 9129, 6742, 4385, 3492, 4385, 4880, 4385, 3492];
+    {
+        const G = [[1, 1, 0], [-1, 1, 0], [1, -1, 0], [-1, -1, 0], [1, 0, 1], [-1, 0, 1], [1, 0, -1], [-1, 0, -1], [0, 1, 1], [0, -1, 1], [0, 1, -1], [0, -1, -1], [1, 1, 0], [0, -1, 1], [-1, 1, 0], [0, -1, -1]];
+        L.G3X = []; L.G3Y = []; L.G3Z = [];
+        for (let h = 0; h < 256; h++) { L.G3X.push(G[h % 16][0]); L.G3Y.push(G[h % 16][1]); L.G3Z.push(G[h % 16][2]); }
+    }
 
     const extra = { CTORCH: col('7a5a30'), CFLAME: col('ffc830'), CCLOUD: col('ffffff'), CHURT: col('e83a3a'), CARROW: col('8a7a5a'), CSKIN: col('c8a080'), CRAIN: col('8ab0e0'), CSNOW: col('f4f8ff'), CXP: col('80ff20'), CSHIRT: col('2a8ac8'), CPANTS: col('3a3a8a'), CFWR: col('ff4a4a'), CFWY: col('ffd84a'), CFWB: col('4ac8ff'), CFWG: col('6aff6a'), CFWP: col('ff6aff'), CFWW: col('ffffff'), CFANG: col('e8e0c8'), CBEAM: col('a8e8ff'), CPOT: col('9a4ad8'), CSKULL: col('2a2a2e') };
     L.COLR = cols.map(h => rgbOf(h)[0]); L.COLG = cols.map(h => rgbOf(h)[1]); L.COLB = cols.map(h => rgbOf(h)[2]);
@@ -632,7 +649,7 @@ export function makeData() {
 }
 
 // ------------------------------------------------------------------ sources
-export const FILES = ['world.js', 'flat.js', 'fluid.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'rails.js', 'save.js', 'net.js', 'netmob.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'fauna.js', 'items.js', 'hud.js', 'extra.js', 'ench.js', 'cmds.js', 'wedit.js', 'keyin.js', 'swear.js', 'je.js', 'mapdata.js', 'combat.js', 'plants.js', 'brew.js', 'world33.js', 'main.js', 'test.js'];
+export const FILES = ['world.js', 'flat.js', 'fluid.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'rails.js', 'save.js', 'net.js', 'netmob.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'fauna.js', 'items.js', 'hud.js', 'extra.js', 'ench.js', 'cmds.js', 'wedit.js', 'keyin.js', 'swear.js', 'je.js', 'mapdata.js', 'combat.js', 'plants.js', 'brew.js', 'world33.js', 'netkeep.js', 'terra.js', 'main.js', 'test.js'];
 export function allConsts(more = {}) {
     const { C } = makeData();
     return { ...consts, ...C, ...more };

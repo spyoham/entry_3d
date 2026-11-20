@@ -17,6 +17,9 @@ export const W = 480 * SS, H = 270 * SS;
 const OBJECTS = ['pen', 'view', 'hud', 'txt'];     // back to front (view, hud: the SPLIT build)
 
 export function createSim({ consts = {}, listMax = 1e8 } = {}) {
+    // ((v3.4) the tests were written on the land before v3.4 (their places are its places): the sim keeps
+    // it unless a test asks for the new one (GENV: 2) or the whole run does (the environment's GENV=2))
+    if (consts.GENV === undefined) { consts = { ...consts, GENV: process.env.GENV ? Number(process.env.GENV) : 1 }; }
     const C = allConsts({ SIMRUN: 1, ...consts });
     const { src } = sources(C);
     const js = Object.entries(C).map(([k, v]) => `const ${k}=${JSON.stringify(v)};`).join('\n') + '\n' + compileToJS([src]);

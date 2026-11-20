@@ -150,7 +150,7 @@ function evAdd(t, f) {
 // in those seconds reached nobody's record - whoever is host next puts them in (rgReplay))
 let RGT = [], RGK = [], RGE = [], RGF = [];
 function rgAdd(k, t, f) {
-  if (t == 'b' || t == 'x' || t == 's' || t == 'K' || t == 'F' || t == 'u' || t == 'B') {
+  if (t == 'b' || t == 'x' || t == 's' || t == 'K' || t == 'F' || t == 'u' || t == 'B' || t == 'J' || t == 'j') {
     RGT.push(netClock); RGK.push(k); RGE.push(t); RGF.push(f);
     while (RGT.length > 600) { RGT.removeAt(1); RGK.removeAt(1); RGE.removeAt(1); RGF.removeAt(1); }
   }
@@ -223,8 +223,8 @@ function slotEvents(k, evs, first) {
         let lasting = 0;
         if (t == 'b' || t == 'x' || t == 's') { lasting = 1; }
         // ((v3.0, 11-18) mobs given by one leaving: their line already says they left)
-        if (first == 0 || last >= 0 || lasting == 1) { if (NSRVk[k] == netSrv || t == 'M') { if (netSrv > 0) { netEvent(k, t, f); } } }
-        if (netHost == 1) { if (netSrv > 0) { if (NSRVk[k] == netSrv || t == 'u') { hostEvent(k, t, f); } } }
+        if (first == 0 || last >= 0 || lasting == 1) { if (NSRVk[k] == netSrv || t == 'M' || t == 'J' || t == 'j') { if (netSrv > 0) { netEvent(k, t, f); } } }
+        if (netHost == 1) { if (netSrv > 0) { if (NSRVk[k] == netSrv || t == 'u' || t == 'J' || t == 'j') { hostEvent(k, t, f); } } }
         if (netSrv > 0) { if (NSRVk[k] == netSrv) { rgAdd(k, t, f); } }
         top = id;
       }
@@ -304,10 +304,11 @@ function metaRead(k) {
   metaRev = shRev; metaStamp = shStamp;
   MOP = []; MBAN = []; MBANR = []; MWL = []; PLN = []; PLO = []; PLE = []; PLC = []; PLT = []; PLX = []; MUN = []; MUD = []; MCK = []; MCD = []; MSK = []; MST = [];
   MPC = []; MPL = []; MGN = []; MGC = []; MLN = []; MLC = []; MLD = []; MLP = [];
+  skClear();
   let i = 2, n = metaLen(k);
   while (i <= n) {
     let s = metaItem(k, i), t = charAt(s, 1);
-    if (t == 'O' || t == 'W' || t == 'B' || t == 'P' || t == 'U' || t == 'C' || t == 'S' || t == 'R' || t == 'G' || t == 'L') {
+    if (t == 'O' || t == 'W' || t == 'B' || t == 'P' || t == 'U' || t == 'C' || t == 'S' || t == 'R' || t == 'G' || t == 'L' || t == 'K') {
       splitBy(s, '^');
       if (t == 'O') { MOP.push(SPL[2]); }
       if (t == 'W') { MWL.push(SPL[2]); }
@@ -319,6 +320,8 @@ function metaRead(k) {
       if (t == 'R') { if (SPL.length >= 3) { MPC.push(SPL[2]); MPL.push(SPL[3] * 1); } }
       if (t == 'G') { if (SPL.length >= 3) { MGN.push(SPL[2]); MGC.push(SPL[3]); } }
       if (t == 'L') { if (SPL.length >= 5) { MLN.push(SPL[2]); MLC.push(SPL[3] * 1); MLD.push(SPL[4] * 1); MLP.push(SPL[5]); } }
+      // ((v3.4) the mobs the server keeps: netkeep.js)
+      if (t == 'K') { if (SPL.length >= 6) { MKU.push(SPL[2] * 1); MKW.push(SPL[3] * 1); MKX.push(SPL[4] * 1); MKZ.push(SPL[5] * 1); MKR.push(SPL[6]); } }
     }
     i = i + 1;
   }
@@ -341,6 +344,7 @@ function metaWrite(k) {
   i = 1; while (i <= MPC.length) { NMW.push(`R^${MPC[i]}^${MPL[i]}`); i = i + 1; }
   i = 1; while (i <= MGN.length) { NMW.push(`G^${MGN[i]}^${MGC[i]}`); i = i + 1; }
   i = 1; while (i <= MLN.length) { NMW.push(`L^${MLN[i]}^${MLC[i]}^${MLD[i]}^${MLP[i]}`); i = i + 1; }
+  i = 1; while (i <= MKU.length) { NMW.push(`K^${MKU[i]}^${MKW[i]}^${MKX[i]}^${MKZ[i]}^${MKR[i]}`); i = i + 1; }
   metaPut(k);
   metaDirty = 0; metaT = 0;
 }
@@ -400,13 +404,14 @@ function srvCreate(name, motd, seedv, mode, flat) {
   let k = 1, r = 0;
   while (k <= NSRV) { if (r == 0) { if (srvHas(k) == 0) { r = k; } } k = k + 1; }
   if (r > 0) {
-    shName = netClean(name); shOwner = netNick; shMotd = netClean(motd); shSeed = seedv; shMode = mode; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shLava = 1; shTnt = 1; shGen = 1; shBoss = 0; shFlat = netClean(flat); shId = `${rand(100000, 999999)}${rand(100000, 999999)}`; shDay = dayNow();
+    shName = netClean(name); shOwner = netNick; shMotd = netClean(motd); shSeed = seedv; shMode = mode; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shLava = 1; shTnt = 1; shGen = GENV; shBoss = 0; shFlat = netClean(flat); shId = `${rand(100000, 999999)}${rand(100000, 999999)}`; shDay = dayNow();
     MOP = []; MBAN = []; MBANR = []; MWL = []; PLN = []; PLO = []; PLE = []; PLC = []; PLT = []; PLX = []; MUN = []; MUD = []; MCK = []; MCD = []; MSK = []; MST = [];
     MPC = []; MPL = []; MGN = []; MGC = []; MLN = []; MLC = []; MLD = []; MLP = [];
+    skClear();
     // a plugin to start from: a greeting
     PLN.push('환영'); PLO.push(1); PLE.push('join'); PLC.push('*'); PLT.push('me'); PLX.push('/title @s title {server}');
     metaWrite(r);
-    NEW = []; edGone(); editsPut(r);
+    edsEmpty(r);
   }
   return r;
 }
@@ -431,6 +436,16 @@ function srvWipe(k) {
   // servers into its lists has them in it: a server deleted was back after every reload. A line that is no
   // header (srvHas 0), and a record of one cell in no world (edPushD keeps none of world 9))
   NMW = []; NMW.push('X^gone'); metaPut(k); NEW = []; edGone(); editsPut(k);
+  NEW = []; i = 1;
+  while (i <= NEWK.length) { NEW.push(NEWK[i]); i = i + 1; }
+  NEWK = [];
+}
+// ((v3.4) the record of place k emptied, NEW (the record of the server I host) left as it is: a server made
+// while another was hosted took the host's record with it)
+function edsEmpty(k) {
+  NEWK = []; let i = 1;
+  while (i <= NEW.length) { NEWK.push(NEW[i]); i = i + 1; }
+  NEW = []; edGone(); editsPut(k);
   NEW = []; i = 1;
   while (i <= NEWK.length) { NEW.push(NEWK[i]); i = i + 1; }
   NEWK = [];
@@ -518,7 +533,7 @@ function netJoinCheck(k) {
   return joinErr;
 }
 function netJoin(k) {
-  netSrv = k; netSt = 1; netHost = 0;
+  netSrv = k; netSt = 1; netHost = 0; skReset();
   svAck(); RGT = []; RGK = []; RGE = []; RGF = [];
   metaRead(k); srvHead(k);
   EVI = []; EVT = []; EVC = []; netTailT = 0; netUserLast = ''; netUserCore = ''; netUserT = 0; netUserT2 = 0; netFresh = 0;
@@ -528,7 +543,7 @@ function netJoin(k) {
   let fbad = flatSet(shFlat);
   genStart(shSeed);
   genPhase = 0;
-  bossDead = shBoss; genVer = shGen;
+  bossDead = shBoss; genVer = shGen; genOrigin();
   storesInit(); invInit();
   let n = editLen(k), i = 1;
   while (i + 4 <= n) { edPushD(editItem(k, i), editItem(k, i + 1), editItem(k, i + 2), editItem(k, i + 3), editItem(k, i + 4)); i = i + 5; }
@@ -546,7 +561,7 @@ function netJoin(k) {
   while (i <= MUN.length) { if (MUN[i] == netNick) { u = i; } i = i + 1; }
   let tx0 = 0, tz0 = 0, td0 = 0;
   if (u > 0) { netUserLoad(MUD[u]); td0 = dim; tx0 = px; tz0 = pz; }
-  else { startKit(); spawnSet = 0; td0 = 0; tx0 = 8.5; tz0 = 8.5; netFresh = 1; }
+  else { startKit(); spawnSet = 0; td0 = 0; tx0 = gsX + 0.5; tz0 = gsZ + 0.5; netFresh = 1; }
   netWrite();
   startTravel(td0, tx0, tz0, 7);
 }
@@ -564,6 +579,8 @@ function netArrive() {
 function netLeave() {
   if (netSrv > 0) {
     if (netSt == 2) {
+      // ((v3.4) my kept mobs as they are now, into the server's record)
+      skLeave();
       // (the host keeps its own things and what is not written yet before it goes)
       if (netHost == 1) { hostKeepUser(netNick, netUserPack()); if (editDirty == 1) { editsWrite(); } metaWrite(netSrv); }
       else { evUser(`${netSrv}^${netUserPack()}`); }
@@ -713,6 +730,7 @@ function netInServer(dt) {
     // ((v3.0, 11-18) the mobs: one owner each, seen by all (netmob.js))
     if (dim != nmDim) { nmDim = dim; netMobsClear(); }
     netMobsStep(dt);
+    skStep(dt);
     pnT = pnT + dt;
     if (pnT >= 2) { pnT = 0; pnFlush(); }
     netChestWatch();
@@ -762,6 +780,9 @@ function netEvent(k, t, f) {
   if (t == 'P') { nmItemAsked(k, f); }
   if (t == 'T') { nmItemGot(f); }
   if (t == 'S') { nmArrow(k, f); }
+  // ((v3.4) a kept mob said, or its end (netkeep.js; the host hears them in hostEvent))
+  if (t == 'J') { if (netHost == 0) { skHear(f); } }
+  if (t == 'j') { if (netHost == 0) { skHearGone(f); } }
   if (t == 'B') { netPistonLog(f, 0); }
   if (t == 'W') { bossFall(); }
   if (t == 's') { splitBy(f, '^'); if (SPL.length >= 5) { netSignSet(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, netDec(SPL[5])); } }
@@ -873,6 +894,8 @@ function hostEvent(k, t, f) {
   if (t == 'x') { hostKeepChest(f); }
   if (t == 'B') { netPistonLog(f, 1); }
   if (t == 'W') { shBoss = 1; metaWrite(netSrv); }
+  if (t == 'J') { skHear(f); }
+  if (t == 'j') { skHearGone(f); }
   if (t == 'F') { splitBy(f, '^'); if (SPL.length >= 10) { hostKeepBox(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, SPL[5] * 1, SPL[6] * 1, SPL[10] * 1); } }
   if (t == 'K') { splitBy(f, '^'); if (SPL.length >= 12) {
     let w0 = Math.abs(SPL[4] * 1 - SPL[1] * 1), h0 = Math.abs(SPL[5] * 1 - SPL[2] * 1), d0 = Math.abs(SPL[6] * 1 - SPL[3] * 1), gx = SPL[7] * 1, gy = SPL[8] * 1, gz = SPL[9] * 1, gd = SPL[12] * 1;

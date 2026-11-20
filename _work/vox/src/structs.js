@@ -41,10 +41,13 @@ function structIn(t, rx, rz) {
       stX = rx * reg + m + Math.floor(rnd() * (reg - m * 2)); stZ = rz * reg + m + Math.floor(rnd() * (reg - m * 2));
       stV = rndI(0, 7);
       // not on top of the start (the first minutes are for the player)
-      if (Math.abs(stX) + Math.abs(stZ) > 96 || t == 14 || t == 11) {
+      let far = Math.abs(stX) + Math.abs(stZ);
+      if (genVer >= 2) { far = Math.abs(stX - gsX) + Math.abs(stZ - gsZ); }
+      if (far > 96 || t == 14 || t == 11) {
         if (dim == 0) {
           let gk = gridOn;
-          gridOn = 0; columnShape(stX, stZ); gridOn = gk;
+          // ((v3.4) the new land: the biome first (cheap), the ground's height only where the biome fits)
+          if (genVer >= 2) { colB = TBM[tBiomeQ(idiv(stX, 4), idiv(stZ, 4)) + 1]; colH = SEA + 4; } else { gridOn = 0; columnShape(stX, stZ); gridOn = gk; }
           stY = colH;
           let b = colB, ok = 0;
           if (t == 1) { if (b == 2 || b == 4 || b == 12 || b == 5 || b == 6) { ok = 1; } }
@@ -59,6 +62,7 @@ function structIn(t, rx, rz) {
           if (t == 10) { if (b == 0 || b == 20 || b == 8) { ok = 1; } }
           if (t == 11) { if (b == 1) { ok = 1; } }
           if (t == 14) { ok = 1; stY = 18 + mod(stV * 7, 16); }
+          if (genVer >= 2) { if (ok == 1 && t != 14) { tPoint(stX, stZ); stY = colH; } }
           // the ground must be flat enough for the buildings that stand on it
           if (ok == 1) { if (t <= 7) { if (stY < SEA) { ok = 0; } if (stY > SEA + 40) { ok = 0; } } }
           stOk = ok;

@@ -7,7 +7,8 @@
 import fs from 'node:fs';
 import { createSim } from '../sim.mjs';
 const SEED = 11;
-const s = createSim({ consts: { AUTOSEED: SEED, TESTRUN: 1, AUTOMODE: 1, ANIMALS: 0 } });
+// ((v3.4) on the land it was built for: the old one (the map says so too, and a world made from it has it))
+const s = createSim({ consts: { AUTOSEED: SEED, TESTRUN: 1, AUTOMODE: 1, ANIMALS: 0, GENV: 1 } });
 const F = (k = 1) => { for (let i = 0; i < k; i++) { try { s.frame(); } catch (e) { console.log('ERR', e.message, e.stack.split('\n').slice(1, 4).join(' | ')); process.exit(1); } } };
 { let n = 0; while (s.peek('gState') !== 2 && n < 5000) { F(1); n++; } }
 const fn = s.fn, call = (f) => s.as('pen', f);

@@ -39,6 +39,8 @@ function testStep() {
   if (testCmd == 3) {
     let s = slotOf(idiv(Math.floor(px), 16), idiv(Math.floor(pz), 16));
     CKST[s] = tStage; CKSUB[s] = 0;
+    // ((v3.4) the new land's kept biomes and densities forgotten first: the whole work is timed)
+    if (tStage == 0 && genVer >= 2 && tPitch != 777) { tcInit(); }
     chunkStage(s);
     CKST[s] = 5;
     testCmd = 0;

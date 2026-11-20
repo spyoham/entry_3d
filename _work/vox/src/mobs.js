@@ -169,7 +169,7 @@ function mobsStep(dt) {
     if (ET[e] > 0) {
       // ((v3.2) its chunk out of the window: one to keep is kept (fauna.js keptPut), the rest are gone - not the
       // warden: seen from the island's edge it flew out of the window, was gone and made again in the middle)
-      if (cOK(Math.floor(EX[e]), Math.floor(EZ[e])) == 0) { if (EOWN[e] < 1 && ET[e] != 10) { if (keptKind(e) == 1) { keptPut(e); } ET[e] = 0; } }
+      if (cOK(Math.floor(EX[e]), Math.floor(EZ[e])) == 0) { if (EOWN[e] < 1 && ET[e] != 10) { if (keptKind(e) == 1) { keptPut(e); } skAway(e); ET[e] = 0; } }
       else {
         // (v2.4.3) mobs and the other players press plates too
         // (v2.5: a minecart presses as an item does: wooden plates, not stone ones; string)

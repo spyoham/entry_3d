@@ -345,6 +345,8 @@ function loadGame(k) {
   while (KPG.length < KPT.length) { KPG.push(0); } while (KPC.length < KPT.length) { KPC.push(0); }
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'CHEAT') { svP = svP + 2; cheatsOn = rdN(); svP = svP - 1; } }
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'FLAT') { svP = svP + 2; let fbad = flatSet(rdN()); } }
+  // ((v3.4) where the world began, for one who dies without a bed)
+  genCentre();
   curI = 0; curN = 0; curD = 0;
   FOC = 210; saveT = 0;
   // the world round the kept place is made (as when going between worlds), then arriveKept

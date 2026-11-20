@@ -7,8 +7,8 @@
 //   blocks: x,y,z,block,world;...      chests: x,y,z,world^27 slots id.n.wear,...~...
 //   signs and command blocks: x,y,z,world^text~...      kept mobs: 11 numbers each;...      (an empty part: -)
 // In a single game the player copies their world (with its kept animals and village folk); on a server
-// its owner copies the server's record (blocks, chests, signs - a server keeps no mobs). Pasted into a
-// server the mobs and command blocks of the text are left out.
+// its owner copies the server's record (blocks, chests, signs and, (v3.4), the mobs it keeps:
+// netkeep.js). Pasted into a server the command blocks of the text are left out.
 let $CLIPBOARD = '';
 let mpOut = '', mpOn = 0, mpLate = 0, mpLen = 0, mpSeed = 0, mpFlat = '-', mpGen = 1, mpBoss = 0, mpC = '-', mpS = '-', mpB = '-', mpNE = 0;
 let MPE = [], MPK = [], MPA = [], MPN = [], MPI = [];
@@ -105,7 +105,10 @@ function mapOutServer() {
   i = 1;
   if (MSK.length == 0) { mpOut = `${mpOut}-`; }
   while (i <= MSK.length) { if (i > 1) { mpOut = `${mpOut}~`; } mpOut = `${mpOut}${MSK[i]}^${MST[i]}`; i = i + 1; }
-  mpOut = `${mpOut}|-|-|-`;
+  // ((v3.4) the kept mobs)
+  mpOut = `${mpOut}|-|`;
+  skToMap();
+  mpOut = `${mpOut}|-`;
 }
 
 // ---------------------------------------------------------------- in
@@ -202,6 +205,7 @@ function mapToServer(k) {
   mapPairs(mpS);
   i = 1;
   while (i + 1 <= MPI.length) { MSK.push(MPI[i]); MST.push(netClean(MPI[i + 1])); i = i + 2; }
+  skFromMap();
   metaWrite(k);
   NEW = []; mpOn = 0; MPE = []; MPK = []; MPA = []; MPI = [];
 }

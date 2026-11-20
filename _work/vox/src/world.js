@@ -131,7 +131,9 @@ function climateGrid(x0, z0) {
   }
   gridOn = 1; gridX = x0; gridZ = z0;
 }
-function columnShape(x, z) {
+// ((v3.4) a world made from v3.4 on has the land of terra.js (genVer 2): its top and biome from there)
+function columnShape(x, z) { if (genVer >= 2) { tPoint(x, z); } else { columnShape0(x, z); } }
+function columnShape0(x, z) {
   let gx = x - gridX, gz = z - gridZ;
   if (gridOn == 1 && gx >= 0 && gx < 16 && gz >= 0 && gz < 16) {
     let ga = idiv(gx, 4), gc = idiv(gz, 4), fx = (gx - ga * 4) / 4, fz = (gz - gc * 4) / 4;
@@ -190,11 +192,11 @@ function columnShape(x, z) {
 // the biome of a column without making it (for /locatebiome): bmAt
 let bmAt = 0;
 function biomeAt(x, z) {
-  if (dim == 0) { if (flatOn == 1) { bmAt = 2; } else { gridOn = 0; columnShape(x, z); bmAt = colB; } }
+  if (dim == 0) { if (flatOn == 1) { bmAt = 2; } else { if (genVer >= 2) { bmAt = TBM[tBiomeQ(idiv(x, 4), idiv(z, 4)) + 1]; } else { gridOn = 0; columnShape(x, z); bmAt = colB; } } }
   else { if (dim == 1) { ashBiome(x, z); bmAt = abm; } else { bmAt = 10; } }
 }
 function genColumn(x, z) {
-  columnShape(x, z);
+  columnShape0(x, z);
   let h = colH, b = colB, ci = wcol(x, z);
   HMAP[ci] = h; BIOM[ci] = b;
   let top = 2, fill = 3, fd = 3 + rndI(0, 1);
@@ -245,12 +247,24 @@ function carveBall(cx, cy, cz, r) {
           ya = Math.max(1, Math.ceil(cy - h - 0.5)); yb = Math.min(WY - 2, Math.floor(cy + h - 0.5));
           y = ya;
           i = (mod(x, WS) * WS + mod(z, WS)) * WY + ya + 1;
+          // ((v3.4) the new land: three blocks of ground stay under water, where the ball reaches up to it)
+          if (genVer >= 2) {
+            let j = i, yy = ya, tp = Math.min(WY - 2, yb + 3);
+            while (yy <= tp) { if (W[j] == 7 || W[j] == 33) { yb = Math.min(yb, yy - 4); yy = tp; } yy = yy + 1; j = j + 1; }
+          }
           while (y <= yb) {
             b = W[i];
             if (b != 0 && b != 6 && b != 7 && b != 33 && b != 35) {
               // no hole under the sea (it would drain into the cave)
               if (W[i + 1] != 7 && W[i + 1] != 33) {
-                if (y <= LAVAY) { W[i] = 35; } else { W[i] = 0; }
+                // ((v3.4) the new land: nor beside water (in this chunk: what a chunk is made of may not hang on
+                // its neighbours being there) - it left dry pits by the rivers)
+                let dry = 1;
+                if (genVer >= 2) {
+                  if (x > gx0) { if (W[i - SXS] == 7) { dry = 0; } } if (x < gx1) { if (W[i + SXS] == 7) { dry = 0; } }
+                  if (z > gz0) { if (W[i - WY] == 7) { dry = 0; } } if (z < gz1) { if (W[i + WY] == 7) { dry = 0; } }
+                }
+                if (dry == 1) { if (y <= LAVAY) { W[i] = 35; } else { W[i] = 0; } }
               }
             }
             y = y + 1; i = i + 1;
@@ -273,8 +287,9 @@ function cavesInit() {
 function wormBalls(ccx, ccz) {
   let x = ccx * 16 + rnd() * 16, z = ccz * 16 + rnd() * 16;
   let rr = rnd();
-  columnShape(Math.floor(x), Math.floor(z));
-  let y = 6 + rr * (colH - 4);
+  // ((v3.4) the new land: a cave begins at a height of its own, more often low (the genre's), not by the land above)
+  let y = 0;
+  if (genVer >= 2) { y = 6 + rr * rnd() * 64; } else { columnShape(Math.floor(x), Math.floor(z)); y = 6 + rr * (colH - 4); }
   let yaw = rnd() * 360, pitch = (rnd() - 0.5) * 40, dyaw = 0, dp = 0;
   let n = rndI(40, 110), k = 0, r = 0;
   let wide = 1;
@@ -548,7 +563,7 @@ function decorate(x, z, lx, lz) {
   let b = W[i], bi = BIOM[wcol(x, z)];
   let above = W[i + 1];
   // dirt left open to the sky (a vein on a mountain) grows grass
-  if (b == 3) { if (above == 0) { if (y >= SEA) { b = 2; if (bi == 6 || bi == 19 || y > SEA + 34) { b = 20; } W[i] = b; } } }
+  if (b == 3) { if (above == 0) { if (y >= SEA || (genVer >= 2 && y == SEA - 1)) { b = 2; if (bi == 6 || bi == 19 || bi == 27 || y > SEA + 34) { b = 20; } W[i] = b; } } }
   let inner = 0, edge1 = 0;
   if (lx >= 3 && lx <= 12 && lz >= 3 && lz <= 12) { inner = 1; }
   if (lx >= 1 && lx <= 14 && lz >= 1 && lz <= 14) { edge1 = 1; }
@@ -564,6 +579,7 @@ function decorate(x, z, lx, lz) {
       if (bi == 3) { tc = 0.06; if (rnd() < 0.35) { kind = 1; } }
       if (bi == 5) { tc = 0.05; kind = 2; }
       if (bi == 6) { tc = 0.01; kind = 2; }
+      if (bi == 27) { tc = 0.05; kind = 2; }
       if (bi == 7) { tc = 0.02; kind = 2; if (rnd() < 0.4) { kind = 0; } }
       if (bi == 11) { tc = 0.1; kind = 3; }
       if (bi == 12) { tc = 0.008; kind = 4; }
@@ -589,7 +605,7 @@ function decorate(x, z, lx, lz) {
         if (bi == 16 || bi == 15) { if (inner == 1) { if (rnd() < 0.012) { hugeMushroom(x, y, z, rndI(0, 1)); r = 9; } } }
         let g = 0.12, fl = 0.012;
         if (bi == 3) { g = 0.08; } if (bi == 7) { g = 0.04; } if (bi == 11) { g = 0.3; } if (bi == 12) { g = 0.22; } if (bi == 5) { g = 0.1; }
-        if (bi == 18) { fl = 0.22; } if (bi == 16 || bi == 6 || bi == 19) { g = 0; fl = 0; } if (bi == 13) { fl = 0.02; } if (bi == 15) { g = 0.05; fl = 0; }
+        if (bi == 18) { fl = 0.22; } if (bi == 16 || bi == 6 || bi == 19) { g = 0; fl = 0; } if (bi == 27) { g = 0.03; fl = 0; } if (bi == 13) { fl = 0.02; } if (bi == 15) { g = 0.05; fl = 0; }
         if (r < tc + g) {
           W[i + 1] = 28;
           if (bi == 5 || bi == 11) { if (rnd() < 0.45) { W[i + 1] = I_fern; } }
@@ -659,6 +675,7 @@ function seaFloor(x, y, z, bi, i) {
         if (rnd() < 0.5) { W[j + 1] = kind + 2 + rndI(0, 1) * 2; } else { W[j] = kind; if (W[j + 1] == 7) { W[j + 1] = kind + 2 + rndI(0, 1) * 2; } }
       } else { if (r < 0.18) { W[j + 1] = I_seaPickle; } else { if (r < 0.3) { W[j + 1] = I_seagrass; } } }
     } else {
+      if (bi == 26) { if (r < 0.15) { W[j + 1] = I_seagrass; } }
       if (bi == 0 || bi == 21 || bi == 13 || bi == 1) {
         if (r < 0.05) { let h = rndI(2, y - fy - 1), k = 1; while (k <= h) { if (W[j + k] == 7) { W[j + k] = I_kelp; } k = k + 1; } }
         else { if (r < 0.2) { W[j + 1] = I_seagrass; } }
@@ -688,8 +705,10 @@ function featuresO(cx, cz) {
   // v2.0: the rocks, spark ore deep down, jade in the mountains
   veins(I_granite, 1.5, 20, 34, 5, 80); veins(I_limestone, 1.5, 20, 34, 5, 80); veins(I_slate, 1.5, 20, 34, 5, 80);
   veins(I_oreSpark, 4, 4, 8, 2, 16);
-  columnShape(cx * 16 + 8, cz * 16 + 8);
+  if (genVer >= 2) { colB = BIOM[wcol(cx * 16 + 8, cz * 16 + 8)]; } else { columnShape(cx * 16 + 8, cz * 16 + 8); }
   if (colB == 7) { veins(I_oreJade, 3, 1, 2, 4, 32); }
+  // ((v3.4) a lake in one chunk of four, dug into the ground where it holds water (terra.js), before the trees)
+  if (genVer >= 2) { chunkSeed(cx, cz, 7); if (rndI(1, 4) == 1) { tLake(7); } }
   chunkSeed(cx, cz, 3);
   let lx = 0, lz = 0;
   while (lx < 16) {
@@ -702,7 +721,9 @@ function featuresO(cx, cz) {
   // (v2.3.2) springs in the cave walls, lava ones deep down, and a lava lake on the land now and then
   chunkSeed(cx, cz, 6);
   springs(1, 14, 7, 10, 70); springs(1, 6, 35, 6, 30);
-  if (rndI(1, 40) == 1) { lavaLake(gx0 + 8, gz0 + 8); }
+  // ((v3.4) rarer in the new land, as the genre's)
+  let lk = 40; if (genVer >= 2) { lk = 120; }
+  if (rndI(1, lk) == 1) { lavaLake(gx0 + 8, gz0 + 8); }
   // the old ruins with their gates
   featuresRuins();
   // the villages, temples, mines and the rest
@@ -1023,12 +1044,13 @@ function chunkStage(s) {
     // (half the columns a step)
     let k = CKSUB[s];
     chunkSeed(cx, cz, k);
-    climateGrid(cx * 16, cz * 16);
+    let ng = 0;
+    if (dim == 0 && flatOn == 0 && genVer >= 2) { ng = 1; tEntry(cx, cz); } else { climateGrid(cx * 16, cz * 16); }
     let a = k * 8, c = 0;
     while (a < k * 8 + 8) {
       c = 0;
       while (c < 16) {
-        if (dim == 0) { if (flatOn == 1) { genFlat(cx * 16 + a, cz * 16 + c); } else { genColumn(cx * 16 + a, cz * 16 + c); } } else { if (dim == 1) { genColumnU(cx * 16 + a, cz * 16 + c); } else { genColumnV(cx * 16 + a, cz * 16 + c); } }
+        if (dim == 0) { if (flatOn == 1) { genFlat(cx * 16 + a, cz * 16 + c); } else { if (ng == 1) { genColumn2(cx * 16 + a, cz * 16 + c); } else { genColumn(cx * 16 + a, cz * 16 + c); } } } else { if (dim == 1) { genColumnU(cx * 16 + a, cz * 16 + c); } else { genColumnV(cx * 16 + a, cz * 16 + c); } }
         c = c + 1;
       }
       a = a + 1;
@@ -1118,12 +1140,24 @@ function worldInit() {
 // ---------------------------------------------------------------- a new world
 let genPhase = 0, genN = 0, genMsg = '';
 // (v3.2) the kind of the other worlds' land: 0 as before v3.2 (a world or a server made before keeps its
-// land), 1 the new depths and void (dims.js)
+// land), 1 the new depths and void (dims.js); (v3.4) 2 and the overworld of terra.js
 let genVer = 1;
+// ((v3.4) where a world begins: (8, 8) in the old lands; in the new one land found near it (terra.js tStart))
+let gsX = 8, gsZ = 8;
+function genCentre() {
+  gsX = 8; gsZ = 8;
+  if (genVer >= 2 && flatOn == 0) { tStart(); gsX = tsX; gsZ = tsZ; }
+}
+// (after genStart, once genVer is the world's own: the player there, the chunks made round it)
+function genOrigin() {
+  genCentre();
+  px = gsX + 0.5; pz = gsZ + 0.5; pcxW = -99999; pczW = -99999;
+}
 function genStart(s) {
-  seed = s; genVer = 1;
+  seed = s; genVer = GENV; gsX = 8; gsZ = 8;
   fluidInit();
   noiseInit();
+  terraInit();
   worldInit();
   let i = 1;
   while (i <= NCH * NCH) { if (CKST[i] > 0) { chunkDrop(i); } i = i + 1; }
@@ -1149,7 +1183,7 @@ function findSpawn() {
     a = 0;
     while (a < 16) {
       if (found == 0) {
-        x = Math.floor(8 + sind(a * 22.5) * r); z = Math.floor(8 + cosd(a * 22.5) * r);
+        x = Math.floor(gsX + sind(a * 22.5) * r); z = Math.floor(gsZ + cosd(a * 22.5) * r);
         findTop(x, z);
         let i = wi(x, topY, z);
         let b = W[i];
@@ -1159,6 +1193,6 @@ function findSpawn() {
     }
     r = r + 3;
   }
-  if (found == 0) { x = 8; z = 8; findTop(x, z); }
+  if (found == 0) { x = gsX; z = gsZ; findTop(x, z); }
   spawnX = x + 0.5; spawnZ = z + 0.5; spawnY = topY + 1;
 }

@@ -104,7 +104,8 @@ run(70);
 const left = names(B);
 ok(left.length === 1 && left[0] === '서버12', 'the 11 unplayed servers cleared: ' + left.join(','));
 ok(String(B.g('netMsg')).includes('11개를 지웠습니다'), 'said: ' + B.g('netMsg'));
-ok(B.g('SY_e1').length === 0 && B.g('SY_m1').length === 0, 'their lists are empty');
+// ((v3.3, 11-20) not empty lists: Entry Sync keeps no empty list, the work's own would come back - a mark)
+ok(B.g('SY_m1').length === 1 && String(B.g('SY_m1')[0]) === 'X^gone' && B.g('SY_e1').length === 5 && +B.g('SY_e1')[4] === 9, `their lists hold only the mark of a cleared place (${B.g('SY_m1').join('|')} / ${B.g('SY_e1').join(',')})`);
 // a place freed is used again
 leave(A);
 const k2 = B.call((fn) => fn.srvCreate('새 서버', '시험', 7, 0, '-')); run(2);

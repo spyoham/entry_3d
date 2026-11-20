@@ -472,7 +472,7 @@ on('start', 'pen', function () {
   meshInit(); worldInit(); slotsInit(); invInit(); storesInit(); thingsInit();
   renderInit();
   volume(70);
-  if (AUTOSEED > 0) { genStart(AUTOSEED); gameMode = AUTOMODE; gState = 1; }
+  if (AUTOSEED > 0) { genStart(AUTOSEED); genOrigin(); gameMode = AUTOMODE; gState = 1; }
   for (;;) {
     tickN = tickN + 1; secTicks = secTicks + 1;
     btnTick();

@@ -539,7 +539,7 @@ function featuresV(cx, cz) {
   // the far gate once the warden is gone, the cities on the far islands
   featuresFarGate();
   featuresCity(cx, cz);
-  if (genVer == 1) { voidSpires(cx, cz); }
+  if (genVer >= 1) { voidSpires(cx, cz); }
 }
 // (v3.2) on the outer islands: spires of void stone, a glowing rod on their tip (a few in some chunks;
 // not where a city stands)
@@ -683,6 +683,8 @@ function startTravel(nd, x, z, kind) {
   // ((v3.0) the tamed of the world left are kept for when the player comes back)
   if (kind <= 5) { petsPack(); }
   // ((v3.0, 11-18) on a server my mobs to the others near them first (they went with the world))
+  // ((v3.4) the kept ones said to the server's record before)
+  skLeave();
   netMobsLeave();
   let s = 1;
   while (s <= NCH * NCH) { if (CKST[s] > 0) { chunkDrop(s); } s = s + 1; }

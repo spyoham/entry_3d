@@ -383,7 +383,7 @@ function mobUse(e, id) {
       if (t == M_WOLF && EHP[e] < 20) { EHP[e] = Math.min(20, EHP[e] + 4); useR = 1; }
       else { if (ELOVE[e] == 0) { ELOVE[e] = 30; useR = 1; msgShow(`${MNAME[t]}이(가) 짝을 찾습니다`, 1.5); } }
     }
-    if (useR == 1) { if (mod(gameMode, 2) == 0) { takeHeld(1); } sndPlay(6); }
+    if (useR == 1) { if (mod(gameMode, 2) == 0) { takeHeld(1); } sndPlay(6); skMark(e); }
   } } } }
   // taming: a wolf with bones, a cat with fish, a parrot with seeds (a third of the times); an ocelot trusts
   if (useR == 0 && MTAME[t] > 0 && EOWN[e] == 0) { if (id == MTAME[t] || (t == M_CAT && id == I_salmonRaw)) {
@@ -427,7 +427,7 @@ function babyMake(e, f) {
   if (t != ET[f]) { t = M_MULE; }
   ELOVE[e] = 0 - 300; ELOVE[f] = 0 - 300; ETG[e] = 0; ETG[f] = 0;
   mobAdd(t, (EX[e] + EX[f]) / 2, EY[e] + 0.1, (EZ[e] + EZ[f]) / 2);
-  if (lastMob > 0) { ESZ[lastMob] = 0.5; EAGE[lastMob] = 0 - 1200; if (EOWN[e] > 0 && MAI[t] != 13) { EOWN[lastMob] = 1; } }
+  if (lastMob > 0) { ESZ[lastMob] = 0.5; EAGE[lastMob] = 0 - 1200; if (EOWN[e] > 0 && MAI[t] != 13) { EOWN[lastMob] = 1; } skMark(lastMob); }
   xpAdd(rand(1, 7)); sndPlay(6);
 }
 // a ridden one: an untamed horse throws its rider (each try tames it more); a saddled one goes where the
@@ -542,7 +542,7 @@ function nightKind(x, y, z, sky) {
   let bi = BIOM[wcol(x, z)], r = rand(1, 100), t = M_ZOMBIE;
   if (r > 40) { t = M_SKELETON; } if (r > 66) { t = M_SPIDER; } if (r > 80) { t = M_BOMBSHROOM; } if (r > 94) { t = M_WANDERER; } if (r > 98) { t = M_WITCH; }
   if (t == M_ZOMBIE) { if (rand(1, 20) == 1) { t = M_ZOMBIEVILLAGER; } else { if (bi == 4 && sky == 1 && rand(1, 5) <= 4) { t = M_HUSK; } } }
-  if (t == M_SKELETON) { if ((bi == 6 || bi == 19 || bi == 8) && sky == 1 && rand(1, 5) <= 4) { t = M_STRAY; } }
+  if (t == M_SKELETON) { if ((bi == 6 || bi == 19 || bi == 8 || bi == 27) && sky == 1 && rand(1, 5) <= 4) { t = M_STRAY; } }
   if (bi == 13 && sky == 1 && rand(1, 3) == 1) { t = M_SLIME; }
   if (y < 40 && sky == 0) { chunkSeed(idiv(x, 16), idiv(z, 16), 9); if (rnd() < 0.1 && rand(1, 3) == 1) { t = M_SLIME; } }
   if (t == M_SLIME) { t = M_SLIME + rand(0, 2); }
@@ -552,6 +552,7 @@ function animalKind(bi, water) {
   let r = rnd() * 100, t = rndI(1, 4);
   if (water == 1) {
     t = 0;
+    if (bi == 26) { t = M_SALMON; if (r > 75) { t = M_SQUID; } }
     if (bi == 0 || bi == 21 || bi == 20 || bi == 8 || bi == 1) {
       t = M_SQUID; if (r > 30) { t = M_COD; } if (r > 70) { t = M_DOLPHIN; } if (r > 82) { t = M_SALMON; }
       if (bi == 20) { t = M_REEFFISH; if (r > 60) { t = M_PUFFERFISH; } if (r > 85) { t = M_DOLPHIN; } }
@@ -561,7 +562,7 @@ function animalKind(bi, water) {
     if (bi == 2) { if (r > 70) { t = M_HORSE; } if (r > 88) { t = M_DONKEY; } if (r > 95) { t = M_BEE; } }
     if (bi == 3) { if (r > 80) { t = M_WOLF; } }
     if (bi == 18) { if (r > 60) { t = M_RABBIT; } if (r > 80) { t = M_BEE; } }
-    if (bi == 5) { if (r > 60) { t = M_WOLF; } if (r > 80) { t = M_FOX; } }
+    if (bi == 5 || bi == 27) { if (r > 60) { t = M_WOLF; } if (r > 80) { t = M_FOX; } }
     if (bi == 6 || bi == 19) { t = M_RABBIT; if (r > 50) { t = M_WHITEBEAR; } }
     if (bi == 4) { t = M_RABBIT; }
     if (bi == 12) { if (r > 50) { t = M_HORSE; } if (r > 80) { t = M_LLAMA; } }

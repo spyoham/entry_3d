@@ -863,7 +863,7 @@ function cmdSummon() {
       if (dim != 2 || alive == 1) { t = 0 - 1; out = '공허의 수호자는 공허에 하나만 있을 수 있습니다'; }
     }
     if (t == 0) { out = `알 수 없는 개체입니다: ${cw(2)}`; }
-    if (t > 0) { mobAdd(t, x, y, z); if (lastMob > 0) { EST[lastMob] = 0; out = `${MNAME[t]}을(를) 소환했습니다`; if (t == 10) { bossE = lastMob; } } else { out = '몹이 너무 많습니다'; } }
+    if (t > 0) { mobAdd(t, x, y, z); if (lastMob > 0) { EST[lastMob] = 0; out = `${MNAME[t]}을(를) 소환했습니다`; if (t == 10) { bossE = lastMob; } skMark(lastMob); } else { out = '몹이 너무 많습니다'; } }
   } }
   return out;
 }
@@ -1133,6 +1133,8 @@ function cmdLocateBiome(nm) {
     while (r <= 2400 && found == 0) {
       let a = 0, st = 360;
       if (r > 0) { st = Math.max(4, 3600 / r); }
+      // ((v3.4) the new land's biomes are some hundred blocks wide and dearer to ask for: a wider net)
+      if (genVer >= 2 && dim == 0) { st = st * 2; r = r + 32; }
       while (a < 360 && found == 0) {
         let x = Math.floor(px + sind(a) * r), z = Math.floor(pz + cosd(a) * r);
         biomeAt(x, z);

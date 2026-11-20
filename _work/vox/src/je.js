@@ -199,7 +199,7 @@ function weatherCols(dt) {
       if (cOK(x, z) == 1) {
         findTop(x, z); let y = topY;
         let bi = BIOM[wcol(x, z)];
-        if (y >= 0 && y < WY - 1) { if (bi == 6 || bi == 19 || bi == 8 || y > SEA + 45) { if (rainOn(x, y + 1, z) == 1) {
+        if (y >= 0 && y < WY - 1) { if (bi == 6 || bi == 19 || bi == 8 || bi == 27 || y > SEA + 45) { if (rainOn(x, y + 1, z) == 1) {
           let i = wi(x, y, z), b = W[i];
           if (mod(LT[i + 1], 16) < 10) {
             if (b == 7) { setBlock(x, y, z, 33); }

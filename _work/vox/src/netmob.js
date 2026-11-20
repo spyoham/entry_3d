@@ -62,7 +62,13 @@ function netMobNew(e) {
 // the number a chunk's or a structure's mob gets (the same on every screen)
 function nmDetOf(x, y, z) { return 100000000 + mod(Math.floor(x * 2) * 7919 + Math.floor(y) * 131 + Math.floor(z * 2) * 104729, 800000000); }
 // is a mob of that number in another player's line (then it is not made here)
+// ((v3.4) or in the server's record of kept mobs: it comes back from there (netkeep.js))
 function nmTaken(u) {
+  let r = nmInLine(u);
+  if (r == 0) { if (netSrv > 0) { if (skFind(u) > 0) { r = 1; } } }
+  return r;
+}
+function nmInLine(u) {
   let r = 0, k = 1;
   if (netSrv > 0) { while (k <= NSLOT) { if (k != netMy) { if (NQON[k] == 1) { if (indexOf(nqGet(k), `;${u},`) > 0) { r = 1; } } } k = k + 1; } }
   return r;
@@ -123,17 +129,23 @@ function netMobsStep(dt) {
 // my mobs near me into my line: sid|world|;number,kind,x,y,z,yaw,hp,state,marks,size,flags;...
 function nmWrite() {
   gS = `${netSid}|${dim}|`;
-  let e = 1, n = 0;
+  let e = 1, n = 0, ps = 1;
+  // ((v3.4) the ones with a number of their own first (a chunk's, a structure's, the kept): with more
+  // than 40 near me one left out of the line would be made a second time on another screen)
+  while (ps <= 2) {
+  e = 1;
   while (e <= NMOB) {
-    if (nmShared(e) == 1) { if (n < 40) { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 2304 || ET[e] == 10) {
+    if (nmShared(e) == 1) { if ((ps == 1 && EUID[e] >= 1000000) || (ps == 2 && EUID[e] < 1000000)) { if (n < 40) { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 2304 || ET[e] == 10) {
       let fl = 0;
       if (EHURT[e] > 0.2) { fl = fl + 1; } if (EBURN[e] == 1 || EFIR[e] > 0) { fl = fl + 2; } if (ELOVE[e] > 0) { fl = fl + 4; } if (EOWN[e] > 0) { fl = fl + 8; }
       // ((v3.2) a deep guardian's beam: the slot of the one it is on, from 16 up)
       if (MSHOT[ET[e]] == 8) { if (EST[e] == 7) { if (ETG[e] > 0) { fl = fl + 16 * ETG[e]; } else { fl = fl + 16 * netMy; } } }
       gS = `${gS};${EUID[e]},${ET[e]},${Math.round(EX[e] * 10) / 10},${Math.round(EY[e] * 10) / 10},${Math.round(EZ[e] * 10) / 10},${Math.round(EYAW[e])},${Math.ceil(EHP[e])},${EST[e]},${Math.round(EVAR[e])},${ESZ[e]},${fl}`;
       n = n + 1;
-    } } }
+    } } } }
     e = e + 1;
+  }
+  ps = ps + 1;
   }
   nmItemsLine();
   if (gS != nmLast) { nmLast = gS; nqPut(netMy, gS); }
@@ -165,7 +177,7 @@ function nmRead(k, s) {
           let u = SPL[1] * 1, t = SPL[2] * 1, x = SPL[3] * 1, y = SPL[4] * 1, z = SPL[5] * 1, e = 0, f = 1, mine = 0;
           while (f <= NMOB) { if (ET[f] > 0) { if (ERK[f] == k && ERU[f] == u) { e = f; } if (ERK[f] == 0 && EUID[f] == u) { mine = f; } } f = f + 1; }
           // (the same chunk's animal made here too: the lower slot keeps its own)
-          if (mine > 0 && u >= 1000000) { if (k < netMy) { if (riding != mine && EOWN[mine] <= 0) { ET[mine] = 0; mine = 0; } } }
+          if (mine > 0 && u >= 1000000) { if (k < netMy) { if (riding != mine && EOWN[mine] <= 0) { skLet(u); ET[mine] = 0; mine = 0; } } }
           if (mine == 0 || u < 1000000) {
             if (e == 0) { if (cOK(Math.floor(x), Math.floor(z)) == 1) { mobAdd(t, x, y, z); e = lastMob; if (e > 0) { ERK[e] = k; ERU[e] = u; EUID[e] = 0; } } }
             if (e > 0) {
@@ -351,7 +363,7 @@ function nmGiveFar(far, all) {
           i = i + 1;
         }
         // (one player a time, sixteen at most: one event)
-        if (bk > 0) { if (to == 0) { to = bk; } if (bk == to && cnt < 16) { NMG.push(nmPack(e)); ET[e] = 0; cnt = cnt + 1; } }
+        if (bk > 0) { if (to == 0) { to = bk; } if (bk == to && cnt < 16) { NMG.push(nmPack(e)); skLet(EUID[e]); ET[e] = 0; cnt = cnt + 1; } }
       }
     }
     e = e + 1;
@@ -412,7 +424,7 @@ function nmAsked(k, f) {
   if (SPL.length >= 2) { if (SPL[1] == netNick) {
     let u = SPL[2] * 1, i = 1;
     NMG = [];
-    while (i <= NMOB) { if (ET[i] > 0) { if (ERK[i] == 0 && EUID[i] == u) { if (nmGivable(i) == 1 && ET[i] != 10) { NMG.push(nmPack(i)); ET[i] = 0; } } } i = i + 1; }
+    while (i <= NMOB) { if (ET[i] > 0) { if (ERK[i] == 0 && EUID[i] == u) { if (nmGivable(i) == 1 && ET[i] != 10) { NMG.push(nmPack(i)); skLet(u); ET[i] = 0; } } } i = i + 1; }
     if (NMG.length > 0) { nmSend(k); nmWT = 99; }
   } }
 }

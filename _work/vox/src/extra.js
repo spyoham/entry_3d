@@ -625,7 +625,7 @@ function drawWeather() {
     if (bi == 4 || bi == 14 || bi == 12) { open = 0; }
     if (open == 1) {
       let snow = 0;
-      if (bi == 6 || bi == 19 || bi == 8 || py > SEA + 45) { snow = 1; }
+      if (bi == 6 || bi == 19 || bi == 8 || bi == 27 || py > SEA + 45) { snow = 1; }
       let k = 0, n = 70, t = frameNo;
       fillStop();
       while (k < n) {

@@ -12,7 +12,7 @@ const a = process.argv.slice(2);
 const seed = Number(a[0] || 1234), ticks = Number(a[1] || 300);
 const kv = Object.fromEntries(a.slice(2).filter(x => x.includes('=')).map(x => x.split('=')).map(([k, v]) => [k, Number(v)]));
 const file = path.join(HERE, 'tess.ent');
-const built = buildProject(file, { name: 'tess', more: { AUTOSEED: seed, TESTRUN: 1, BENCH: 1, ANIMALS: kv.MOBS || 0, SPLIT: kv.SPLIT || 0, MESHFAST: kv.MESHFAST === undefined ? 1 : kv.MESHFAST } });
+const built = buildProject(file, { name: 'tess', more: { AUTOSEED: seed, TESTRUN: 1, BENCH: 1, ANIMALS: kv.MOBS || 0, GENV: kv.GENV === undefined ? 2 : kv.GENV, SPLIT: kv.SPLIT || 0, MESHFAST: kv.MESHFAST === undefined ? 1 : kv.MESHFAST } });
 const FNAME = {};
 for (const f of built.project.functions) { const m = f.content.match(/function_field_label","params":\["([^"]+)"/); FNAME[f.id] = m ? m[1] : '?'; }
 fs.writeFileSync(path.join(HERE, 'fnames.json'), JSON.stringify(FNAME));
@@ -42,9 +42,10 @@ while (Vv('gState') != 2 && n < 5000) { const t = performance.now(); vm.tick(); 
 console.log(`generated: ${n} ticks ${(performance.now() - t0).toFixed(0)} ms (longest tick ${maxT.toFixed(0)} ms)`);
 if (kv.X !== undefined) { set('tX', kv.X); set('tY', kv.Y); set('tZ', kv.Z); set('tYaw', kv.YAW || 0); set('tPitch', kv.PITCH || 0); set('testCmd', 1); }
 if (kv.VIEW) { set('viewWant', kv.VIEW); set('autoView', 0); vm.tick(); set('viewR', kv.VIEW); set('viewR2', kv.VIEW * kv.VIEW); set('kMax', Math.floor(kv.VIEW * 1.45) + 66); }
-for (let i = 0; i < 120; i++) vm.tick();
+for (let i = 0; i < (kv.SETTLE || 120); i++) vm.tick();
 if (kv.GENVER !== undefined) { set('genVer', kv.GENVER); }
 if (kv.DIM) { set('tStage', kv.DIM); set('tX', 1.5); set('tZ', 1.5); set('testCmd', 4); let k = 0; const tt = performance.now(); vm.tick(); while (Vv('gState') != 2 && k < 3000) { vm.tick(); k++; } const t1 = performance.now() - tt; const t2 = performance.now(); for (let i = 0; i < 240; i++) vm.tick(); console.log('in world', Vv('dim'), `(the way there ${k} ticks ${t1.toFixed(0)} ms, the next 240 ticks ${(performance.now() - t2).toFixed(0)} ms, chunks ${Vv('nChunks')})`); }
+if (kv.NORESET) { set('tPitch', 777); }
 if (kv.STAGES) {
   const tick = () => { const t = performance.now(); vm.tick(); return performance.now() - t; };
   const med = (a) => a.sort((x, y) => x - y)[a.length >> 1];

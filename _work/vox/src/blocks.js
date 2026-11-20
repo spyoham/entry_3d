@@ -154,7 +154,7 @@ function useItem(id) {
   if (id == I_trident) { used = 1; drawStart(I_trident); }
   if (id == I_clock) { used = 1; placeCool = 0.5; msgShow(`지금 ${timeText()} (${dayN + 1}일째)`, 2); }
   if (ITTHROW[id + 1] > 0) { used = 1; placeCool = 0.3; throwIt(ITTHROW[id + 1]); if (mod(gameMode, 2) == 0) { takeHeld(1); } }
-  if (ITSPAWN[id + 1] > 0) { used = 1; placeCool = 0.3; if (pickOn == 1) { pickNeighbour(); mobAdd(ITSPAWN[id + 1], nbX + 0.5, nbY, nbZ + 0.5); if (lastMob > 0) { EST[lastMob] = 0; } if (mod(gameMode, 2) == 0) { takeHeld(1); } } }
+  if (ITSPAWN[id + 1] > 0) { used = 1; placeCool = 0.3; if (pickOn == 1) { pickNeighbour(); mobAdd(ITSPAWN[id + 1], nbX + 0.5, nbY, nbZ + 0.5); if (lastMob > 0) { EST[lastMob] = 0; skMark(lastMob); } if (mod(gameMode, 2) == 0) { takeHeld(1); } } }
   if (id == I_bucket || id == I_waterBucket || id == I_lavaBucket) { used = 1; placeCool = 0.3; bucketUse(id); }
   if (ITK[id + 1] == 4) { used = 1; placeCool = 0.3; let s = 36 + ITSLOT[id + 1]; let ti = INVI[s], tn = INVN[s], td = INVD[s]; INVI[s] = id; INVN[s] = 1; INVD[s] = INVD[hotSel]; INVI[hotSel] = ti; INVN[hotSel] = tn; INVD[hotSel] = td; sndPlay(6); }
   return used;
@@ -1001,7 +1001,7 @@ function throwFrom(k, x, y, z, dx, dy, dz) {
 // where a thrown thing lands (AON 7 snowball, 8 egg, 9 void pearl)
 function thrownHit(a) {
   let k = AON[a];
-  if (k == 8) { if (rand(1, 8) == 1) { mobAdd(4, AXX[a], AYY[a], AZZ[a]); if (lastMob > 0) { ESZ[lastMob] = 0.5; EAGE[lastMob] = 0 - 1200; } } }
+  if (k == 8) { if (rand(1, 8) == 1) { mobAdd(4, AXX[a], AYY[a], AZZ[a]); if (lastMob > 0) { ESZ[lastMob] = 0.5; EAGE[lastMob] = 0 - 1200; skMark(lastMob); } } }
   if (k == 9) {
     px = AXX[a]; py = Math.floor(AYY[a]) + 0.05; pz = AZZ[a];
     let n = 0;
