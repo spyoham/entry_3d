@@ -47,14 +47,33 @@ function skSig(e) {
   if (ET[e] == M_VILLAGER) { gS2 = `${gS2},${ETG[e]},${ECNV[e]}`; }
   return gS2;
 }
+// what of a record's rest is worth writing at once (skRest: kind, y, health, owner, look, age, ETG, ECNV - the
+// place, the height and the age move all the time; ETG and ECNV are a villager's trades and work)
+function skCore(r) {
+  splitBy(r, ',');
+  gS2 = r;
+  if (SPL.length >= 8) {
+    let bb = 0; if (SPL[6] * 1 < 0) { bb = 1; }
+    gS2 = `${SPL[1]},${Math.ceil(SPL[3] * 1)},${SPL[4]},${SPL[5]},${bb}`;
+    if (SPL[1] * 1 == M_VILLAGER) { gS2 = `${gS2},${SPL[7]},${SPL[8]}`; }
+  }
+  return gS2;
+}
 // an entry into the record here (the host's goes out with the settings)
 function skPut(u, d, x, z, r) {
-  let i = skFind(u);
-  if (i == 0) { if (MKU.length >= SKMAX) { skDelAt(1); } MKU.push(u); MKW.push(d); MKX.push(x); MKZ.push(z); MKR.push(r); }
-  else { MKW[i] = d; MKX[i] = x; MKZ[i] = z; MKR[i] = r; }
+  let i = skFind(u), nw = 0;
+  if (i == 0) { nw = 1; if (MKU.length >= SKMAX) { skDelAt(1); } MKU.push(u); MKW.push(d); MKX.push(x); MKZ.push(z); MKR.push(r); }
+  else {
+    // (what it is changed - its kind, health, owner, look, a villager's trades and work, another world: at once too)
+    if (MKW[i] != d) { nw = 1; } else { if (netHost == 1) { let c0 = skCore(MKR[i]); if (skCore(r) != c0) { nw = 1; } } }
+    MKW[i] = d; MKX[i] = x; MKZ[i] = z; MKR[i] = r;
+  }
   i = 1;
   while (i <= NKX.length) { if (NKX[i] == u) { NKX.removeAt(i); } else { i = i + 1; } }
-  if (netHost == 1) { metaDirty = 1; }
+  // ((v3.4, 11-22) a new one goes into the settings at once; one that only moved or changed, within 15 s
+  // (hostStep: skDirty). Each was written at once, and on a server with twenty animals walking about the host
+  // sent the whole settings every second, read anew by everybody - seen in the real room, test/realsync TWO=1 MAP=1)
+  if (netHost == 1) { if (nw == 1) { metaDirty = 1; } else { skDirty = 1; } }
 }
 // my mob e said: into the record here, and to the others (six in an event)
 function skSay(e) {

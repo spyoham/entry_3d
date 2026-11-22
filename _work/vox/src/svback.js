@@ -217,3 +217,104 @@ function gbCheck() {
     else { if (gbSame() == 0) { gbKeep(); } }
   }
 }
+
+// ---------------------------------------------------------------- the bans this computer met (v3.4, 11-22)
+// A ban is of a nickname, and a nickname can be changed. So the game keeps, on the player's own computer
+// (@차단표시: tessvm keeps @ lists between runs), the nicknames it was banned under:
+//   G^nick^rev          from every server (rev: ?!gbr when it was seen)
+//   S^server id^nick^seen^day  on one server (seen: 1 once the nickname was in its ban list; 0 from the kick
+//                       of /ban until the settings with it come - such a mark not met again goes after a day)
+// Under any nickname the player stays banned while that nickname is: from every server while it is in ?!gb,
+// on that server while it is in its B lines. A ban lifted takes the mark away: for every server - the nickname
+// gone from ?!gb AND its revision above the mark's (a list the editor wiped has a lower one and comes back from
+// the copies: the mark waits); for one server - the nickname gone from a ban list it was seen in. SUPER is never marked. 40 marks at most, the oldest go.
+// It holds for this browser's store alone: another browser or computer, or the extension's data cleared,
+// starts without it - and whoever plays next on the same browser is banned with it.
+let AT_차단표시 = [];
+let bmNick = '', BMT = [];
+function bmFind(pre) {
+  let r = 0, i = 1, L = strlen(pre);
+  while (i <= AT_차단표시.length) { if (substr(`${AT_차단표시[i]}`, 1, L) == pre) { r = i; } i = i + 1; }
+  return r;
+}
+function bmDrop(k) {
+  let i = 1;
+  BMT = [];
+  while (i <= AT_차단표시.length) { if (i != k) { BMT.push(AT_차단표시[i]); } i = i + 1; }
+  AT_차단표시 = []; i = 1;
+  while (i <= BMT.length) { AT_차단표시.push(BMT[i]); i = i + 1; }
+  BMT = [];
+}
+// (written when the game may write on its own (svAuto); else it goes with the next write of anything)
+function bmMark(pre, rev) {
+  if (bmFind(pre) == 0) {
+    if (AT_차단표시.length >= 40) { bmDrop(1); }
+    AT_차단표시.push(`${pre}${rev}`);
+    if (svAuto() == 1) { svPut(0); }
+  }
+}
+// the place in ?!gb of my nickname, or of one this computer was banned under (0: free); bmNick: which
+function gbanMine() {
+  let r = 0, i = 0, cut = 0;
+  bmNick = netNick;
+  if (netNick != SUPER) {
+    r = gbanOf(netNick);
+    if (r > 0) { bmMark(`G^${netNick}^`, SY_gbr * 1); }
+    else {
+      i = AT_차단표시.length;
+      while (i >= 1) {
+        splitBy(`${AT_차단표시[i]}`, '^');
+        if (SPL[1] == 'G') { if (SPL.length >= 3) {
+          let nk = SPL[2], rv = SPL[3] * 1, g = gbanOf(nk);
+          if (g > 0) { r = g; bmNick = nk; }
+          else { if (SY_ == 1) { if (SY_gbr * 1 > rv) { bmDrop(i); cut = 1; } } }
+        } }
+        i = i - 1;
+      }
+      if (cut == 1) { if (svAuto() == 1) { svPut(0); } }
+    }
+  }
+  return r;
+}
+function gbanText(g) {
+  let t = `모든 서버에서 차단되었습니다: ${gbanWhy(g)}`;
+  if (bmNick != netNick) { t = `${t} (닉네임 ${bmNick} 의 차단)`; }
+  return t;
+}
+// the place in this server's ban list of my nickname, or of one this computer was banned under here (0: free)
+// - after metaRead and srvHead of that server
+function banMine() {
+  let r = 0, i = 0, cut = 0, sid = `${shId}`;
+  bmNick = netNick;
+  if (netNick != SUPER) {
+    r = isBanned(netNick);
+    if (strlen(sid) > 0) {
+      if (r > 0) { i = bmFind(`S^${sid}^${netNick}^`); if (i == 0) { bmMark(`S^${sid}^${netNick}^`, `1^${dayNow()}`); } else { bmSeen(i, sid, netNick); } }
+      else {
+        i = AT_차단표시.length;
+        while (i >= 1) {
+          splitBy(`${AT_차단표시[i]}`, '^');
+          if (SPL[1] == 'S') { if (SPL.length >= 4) { if (`${SPL[2]}` == sid) {
+            let nk = SPL[3], sn = SPL[4] * 1, dy = 0, b = isBanned(nk);
+            if (SPL.length >= 5) { dy = SPL[5] * 1; }
+            if (b > 0) { r = b; bmNick = nk; if (sn == 0) { bmSeen(i, sid, nk); } }
+            else { if (sn == 1 || dayNow() - dy >= 1) { bmDrop(i); cut = 1; } }
+          } } }
+          i = i - 1;
+        }
+        if (cut == 1) { if (svAuto() == 1) { svPut(0); } }
+      }
+    }
+  }
+  return r;
+}
+// (mark i: its nickname is in the server's ban list)
+function bmSeen(i, sid, nk) {
+  let pre = `S^${sid}^${nk}^1^`;
+  if (substr(`${AT_차단표시[i]}`, 1, strlen(pre)) != pre) { AT_차단표시[i] = `${pre}${dayNow()}`; if (svAuto() == 1) { svPut(0); } }
+}
+function banText(b) {
+  let t = `이 서버에서 차단되었습니다: ${MBANR[b]}`;
+  if (bmNick != netNick) { t = `${t} (닉네임 ${bmNick} 의 차단)`; }
+  return t;
+}

@@ -297,18 +297,19 @@ let MOP = [], MBAN = [], MBANR = [], MWL = [], PLN = [], PLO = [], PLE = [], PLC
 // (v2.3) command rights: MPC command, MPL level; MGN nick, MGC command let to them
 let MPC = [], MPL = [], MGN = [], MGC = [];
 // (v2.7.2) who poured lava here: MLN nick, MLC how many times, MLD the day last, MLP the place last (x,y,z,world)
-let MLN = [], MLC = [], MLD = [], MLP = [];
-let NMW = [], NEW = [], metaRev = 0 - 1, metaDirty = 0, metaT = 0, editDirty = 0, editT = 0, plugT = 0;
+// ((v3.4, 11-22) and who put TNT: the same lists, MLK the kind (0 lava - an L line, 1 TNT - a T line))
+let MLN = [], MLC = [], MLD = [], MLP = [], MLK = [];
+let NMW = [], NEW = [], metaRev = 0 - 1, metaDirty = 0, metaT = 0, editDirty = 0, editT = 0, plugT = 0, skDirty = 0, skDT = 0;
 function metaRead(k) {
   srvHead(k);
   metaRev = shRev; metaStamp = shStamp;
   MOP = []; MBAN = []; MBANR = []; MWL = []; PLN = []; PLO = []; PLE = []; PLC = []; PLT = []; PLX = []; MUN = []; MUD = []; MCK = []; MCD = []; MSK = []; MST = [];
-  MPC = []; MPL = []; MGN = []; MGC = []; MLN = []; MLC = []; MLD = []; MLP = [];
+  MPC = []; MPL = []; MGN = []; MGC = []; MLN = []; MLC = []; MLD = []; MLP = []; MLK = [];
   skClear();
   let i = 2, n = metaLen(k);
   while (i <= n) {
     let s = metaItem(k, i), t = charAt(s, 1);
-    if (t == 'O' || t == 'W' || t == 'B' || t == 'P' || t == 'U' || t == 'C' || t == 'S' || t == 'R' || t == 'G' || t == 'L' || t == 'K') {
+    if (t == 'O' || t == 'W' || t == 'B' || t == 'P' || t == 'U' || t == 'C' || t == 'S' || t == 'R' || t == 'G' || t == 'L' || t == 'K' || t == 'T') {
       splitBy(s, '^');
       if (t == 'O') { MOP.push(SPL[2]); }
       if (t == 'W') { MWL.push(SPL[2]); }
@@ -319,7 +320,7 @@ function metaRead(k) {
       if (t == 'S') { MSK.push(SPL[2]); MST.push(SPL[3]); }
       if (t == 'R') { if (SPL.length >= 3) { MPC.push(SPL[2]); MPL.push(SPL[3] * 1); } }
       if (t == 'G') { if (SPL.length >= 3) { MGN.push(SPL[2]); MGC.push(SPL[3]); } }
-      if (t == 'L') { if (SPL.length >= 5) { MLN.push(SPL[2]); MLC.push(SPL[3] * 1); MLD.push(SPL[4] * 1); MLP.push(SPL[5]); } }
+      if (t == 'L' || t == 'T') { if (SPL.length >= 5) { let kd = 0; if (t == 'T') { kd = 1; } MLN.push(SPL[2]); MLC.push(SPL[3] * 1); MLD.push(SPL[4] * 1); MLP.push(SPL[5]); MLK.push(kd); } }
       // ((v3.4) the mobs the server keeps: netkeep.js)
       if (t == 'K') { if (SPL.length >= 6) { MKU.push(SPL[2] * 1); MKW.push(SPL[3] * 1); MKX.push(SPL[4] * 1); MKZ.push(SPL[5] * 1); MKR.push(SPL[6]); } }
     }
@@ -343,10 +344,10 @@ function metaWrite(k) {
   i = 1; while (i <= MSK.length) { NMW.push(`S^${MSK[i]}^${MST[i]}`); i = i + 1; }
   i = 1; while (i <= MPC.length) { NMW.push(`R^${MPC[i]}^${MPL[i]}`); i = i + 1; }
   i = 1; while (i <= MGN.length) { NMW.push(`G^${MGN[i]}^${MGC[i]}`); i = i + 1; }
-  i = 1; while (i <= MLN.length) { NMW.push(`L^${MLN[i]}^${MLC[i]}^${MLD[i]}^${MLP[i]}`); i = i + 1; }
+  i = 1; while (i <= MLN.length) { let lt = 'L'; if (MLK[i] == 1) { lt = 'T'; } NMW.push(`${lt}^${MLN[i]}^${MLC[i]}^${MLD[i]}^${MLP[i]}`); i = i + 1; }
   i = 1; while (i <= MKU.length) { NMW.push(`K^${MKU[i]}^${MKW[i]}^${MKX[i]}^${MKZ[i]}^${MKR[i]}`); i = i + 1; }
   metaPut(k);
-  metaDirty = 0; metaT = 0;
+  metaDirty = 0; metaT = 0; skDirty = 0;
 }
 function isOp(n) {
   let r = 0, i = 1;
@@ -406,7 +407,7 @@ function srvCreate(name, motd, seedv, mode, flat) {
   if (r > 0) {
     shName = netClean(name); shOwner = netNick; shMotd = netClean(motd); shSeed = seedv; shMode = mode; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shLava = 1; shTnt = 1; shGen = GENV; shBoss = 0; shFlat = netClean(flat); shId = `${rand(100000, 999999)}${rand(100000, 999999)}`; shDay = dayNow();
     MOP = []; MBAN = []; MBANR = []; MWL = []; PLN = []; PLO = []; PLE = []; PLC = []; PLT = []; PLX = []; MUN = []; MUD = []; MCK = []; MCD = []; MSK = []; MST = [];
-    MPC = []; MPL = []; MGN = []; MGC = []; MLN = []; MLC = []; MLD = []; MLP = [];
+    MPC = []; MPL = []; MGN = []; MGC = []; MLN = []; MLC = []; MLD = []; MLP = []; MLK = [];
     skClear();
     // a plugin to start from: a greeting
     PLN.push('환영'); PLO.push(1); PLE.push('join'); PLC.push('*'); PLT.push('me'); PLX.push('/title @s title {server}');
@@ -519,15 +520,16 @@ function netJoinCheck(k) {
     if (srvHas(k) == 0) { joinErr = '그 서버가 없습니다'; }
     else {
       metaRead(k); srvHead(k);
-      let b = isBanned(netNick);
-      if (b > 0) { joinErr = `이 서버에서 차단되었습니다: ${MBANR[b]}`; }
+      // ((v3.4, 11-22) or a nickname this computer was banned under here: banMine, svback.js)
+      let b = banMine();
+      if (b > 0) { joinErr = banText(b); }
       if (onWhitelist(netNick) == 0) { joinErr = '화이트리스트에 없습니다'; }
       if (srvCount(k) >= shMax && netNick != SUPER) { joinErr = '서버가 가득 찼습니다'; }
       let j = 1;
       // ((v3.0, 11-18) only a line that changed since I first saw it: one left by my closed tab does not)
       while (j <= NSLOT) { if (j != netMy) { if (NLIVE[j] == 1) { if (NSRVk[j] == k) { if (NNICK[j] == netNick) { if (NCHG[j] > 0) { joinErr = '같은 닉네임이 이미 접속해 있습니다'; } } } } } j = j + 1; }
-      let g = gbanOf(netNick);
-      if (g > 0) { joinErr = `모든 서버에서 차단되었습니다: ${gbanWhy(g)}`; }
+      let g = gbanMine();
+      if (g > 0) { joinErr = gbanText(g); }
     }
   }
   return joinErr;
@@ -718,7 +720,7 @@ function netInServer(dt) {
   if (srvHas(netSrv) == 0) { if (netSt == 2) { netDisconnect('서버가 삭제되었습니다'); } }
   else {
     // ((v3.1) or its stamp: written by another; a host that reads again keeps its own things for the next write)
-    if (shRev != metaRev || shStamp != metaStamp) { metaRead(netSrv); srvHead(netSrv); if (netHost == 1) { netUserLast = ''; } if (isBanned(netNick) > 0) { netDisconnect(`이 서버에서 차단되었습니다: ${MBANR[isBanned(netNick)]}`); } }
+    if (shRev != metaRev || shStamp != metaStamp) { metaRead(netSrv); srvHead(netSrv); if (netHost == 1) { netUserLast = ''; } let bb = banMine(); if (bb > 0) { netDisconnect(banText(bb)); } }
   }
   if (netSt == 2) {
     // my things every 10 s when they changed ((v3.0, 11-18) was every 30 s, and the host's never: its own
@@ -742,7 +744,7 @@ function netInServer(dt) {
   netTailStep(dt);
   // ((v2.7.2) banned from every server while on one: out, within a second)
   gbT = gbT + dt;
-  if (gbT >= 1) { gbT = 0; let g = gbanOf(netNick); if (g > 0) { if (netSt >= 1) { netDisconnect(`모든 서버에서 차단되었습니다: ${gbanWhy(g)}`); } } }
+  if (gbT >= 1) { gbT = 0; let g = gbanMine(); if (g > 0) { if (netSt >= 1) { netDisconnect(gbanText(g)); } } }
 }
 
 // ---------------------------------------------------------------- events heard
@@ -761,7 +763,13 @@ function netEvent(k, t, f) {
   // ((v3.0, 11-18) every command in it (/execute ... run ...) one the sender may give, and none of the server's
   // own: /execute as <an op> run op me ran /op as the op)
   if (t == 'a') { splitBy(f, '^'); if (SPL.length >= 2) { if (SPL[1] == netNick) { let cmd = netDec(SPL[2]); if (aCmdOk(NNICK[k], cmd) == 1) { netRunAs(cmd); } } } }
-  if (t == 'k') { splitBy(f, '^'); if (SPL.length >= 2 && permOk(NNICK[k], 'kick') == 1) { if (SPL[1] == netNick && netNick != SUPER) { netDisconnect(netDec(SPL[2])); } } }
+  if (t == 'k') { splitBy(f, '^'); if (SPL.length >= 2 && permOk(NNICK[k], 'kick') == 1) { if (SPL[1] == netNick && netNick != SUPER) {
+    // ((v3.4, 11-22) put out by a ban (/ban sends this before the settings come): kept on my computer, as
+    // not yet seen in the server's list (svback.js))
+    let kwy = netDec(SPL[2]);
+    if (indexOf(kwy, '이 서버에서 차단') > 0) { if (strlen(`${shId}`) > 0) { bmMark(`S^${shId}^${netNick}^`, `0^${dayNow()}`); } }
+    netDisconnect(kwy);
+  } } }
   if (t == 'h') { splitBy(f, '^'); if (SPL.length >= 4) { if (SPL[1] == netNick) { if (netSt == 2) { if (mod(gameMode, 2) == 0) { hurt(SPL[2] * 1, `${NNICK[k]} 님에게 당했습니다`); pvx = pvx + SPL[3] * 1; pvz = pvz + SPL[4] * 1; pvy = 4; } } } } }
   // (v2.4.4) a button pressed, TNT lit, a blast (an anchor, a bed, a creeper), a /fill or /clone: the same on every screen
   if (t == 'p') { splitBy(f, '^'); if (SPL.length >= 4) { if (SPL[4] * 1 == dim) { let px0 = SPL[1] * 1, py0 = SPL[2] * 1, pz0 = SPL[3] * 1; if (cOK(px0, pz0) == 1) { if (BRS[blockAt(px0, py0, pz0) + 1] == RS_BUTTON) { pressAdd(px0, py0, pz0, BAUX[blockAt(px0, py0, pz0) + 1] / 10); } } } } }
@@ -800,7 +808,7 @@ function aCmdOk(who, cmd) {
       if (charAt(w, 1) == '/') { w = substr(w, 2, strlen(w)); }
       w = cmdCanon(w);
       if (permOk(who, w) == 0) { r = 0; }
-      if (w == 'op' || w == 'deop' || w == 'ban' || w == 'pardon' || w == 'unban' || w == 'kick' || w == 'whitelist' || w == 'server' || w == 'plugin' || w == 'pl' || w == 'plugins' || w == 'perm' || w == 'permission' || w == 'perms' || w == 'lavalog' || w == 'say') { r = 0; }
+      if (w == 'op' || w == 'deop' || w == 'ban' || w == 'pardon' || w == 'unban' || w == 'kick' || w == 'whitelist' || w == 'server' || w == 'plugin' || w == 'pl' || w == 'plugins' || w == 'perm' || w == 'permission' || w == 'perms' || w == 'lavalog' || w == 'tntlog' || w == 'say') { r = 0; }
     }
     if (lower(`${CMW[i]}`) == 'run') { at = i + 1; }
     i = i + 1;
@@ -998,15 +1006,18 @@ function hostKeepUser(nick, d) {
   metaDirty = 1;
 }
 // ((v2.7.2) who poured lava: one line a nickname, its count, the day and the place of the last)
-function hostKeepLava(nick, p) {
+// ((v3.4, 11-22) and who put TNT, a block or a cart of it: kd 1 - a line of its own for each nickname)
+function hostKeepLava(nick, p, kd) {
   let i = 1, f = 0;
-  while (i <= MLN.length) { if (MLN[i] == nick) { f = i; } i = i + 1; }
-  if (f == 0) { if (MLN.length < 300) { MLN.push(nick); MLC.push(1); MLD.push(dayNow()); MLP.push(p); } }
+  while (i <= MLN.length) { if (MLN[i] == nick) { if (MLK[i] == kd) { f = i; } } i = i + 1; }
+  if (f == 0) { if (MLN.length < 300) { MLN.push(nick); MLC.push(1); MLD.push(dayNow()); MLP.push(p); MLK.push(kd); } }
   else { MLC[f] = MLC[f] + 1; MLD[f] = dayNow(); MLP[f] = p; }
   metaDirty = 1;
 }
 // lava poured by me on a server: told to the host
 function lavaNote(x, y, z) { if (netSrv > 0) { if (netSt == 2) { if (netApplying == 0) { netWish(`lava^${x}^${y}^${z}^${dim}`); } } } }
+// ((v3.4, 11-22) TNT put by me on a server, a block or a cart of it: told to the host the same way)
+function tntNote(x, y, z) { if (netSrv > 0) { if (netSt == 2) { if (netApplying == 0) { netWish(`tnt^${x}^${y}^${z}^${dim}`); } } } }
 function hostKeepSign(key, t) {
   let i = 1, f = 0;
   while (i <= MSK.length) { if (MSK[i] == key) { f = i; } i = i + 1; }
@@ -1028,6 +1039,9 @@ function hostStep(dt) {
   if (editDirty == 1) { if (editT > 0.5) {
     editsWrite(); editT = 0;
   } }
+  // ((v3.4, 11-22) the kept mobs that only moved: into the settings every 15 s at most (netkeep.js skPut))
+  skDT = skDT + dt;
+  if (skDirty == 1) { if (skDT > 15) { skDirty = 0; skDT = 0; metaDirty = 1; } }
   if (metaDirty == 1) { if (metaT > 1) { metaWrite(netSrv); } }
   // timers of the plugins
   plugT = plugT + dt;
@@ -1072,7 +1086,8 @@ function hostEditsCompact() {
 }
 // a wish to change the server from player `who` (they must be an op)
 function hostWish(who, f) {
-  if (substr(f, 1, 5) == 'lava^') { splitBy(f, '^'); if (SPL.length >= 5) { hostKeepLava(who, `${SPL[2]},${SPL[3]},${SPL[4]},${SPL[5]}`); } }
+  if (substr(f, 1, 5) == 'lava^') { splitBy(f, '^'); if (SPL.length >= 5) { hostKeepLava(who, `${SPL[2]},${SPL[3]},${SPL[4]},${SPL[5]}`, 0); } }
+  if (substr(f, 1, 4) == 'tnt^') { splitBy(f, '^'); if (SPL.length >= 5) { hostKeepLava(who, `${SPL[2]},${SPL[3]},${SPL[4]},${SPL[5]}`, 1); } }
   splitBy(f, '^');
   // ((v3.0, 11-18) the right the wish needs (/perm can give them to others than ops; it was isOp alone, so
   // a right given by /perm was told yes and done by nobody); lava, TNT and world edit are the owner's
@@ -1083,7 +1098,7 @@ function hostWish(who, f) {
   if (w0 == 'pset' || w0 == 'pallow' || w0 == 'pdeny' || w0 == 'preset') { wc = 'perm'; }
   let may = permOk(who, wc);
   if (w0 == 'set') { if (SPL.length >= 2) { if (SPL[2] == 'lava' || SPL[2] == 'tnt' || SPL[2] == 'we') { if (who != shOwner && who != SUPER) { may = 0; } } } }
-  if (w0 == 'lava') { may = 0; }
+  if (w0 == 'lava' || w0 == 'tnt') { may = 0; }
   if (may == 1) {
     splitBy(f, '^');
     let a = SPL[1], b = ' ';

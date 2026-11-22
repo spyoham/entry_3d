@@ -97,7 +97,7 @@ function svLook() {
     svSeen = 0;
     if (AT_저장표 == 1) { svSeen = 1; }
     if (AT_블록월드.length > 0 || AT_세계1.length > 0 || AT_세계2.length > 0 || AT_세계3.length > 0 || AT_세계4.length > 0 || AT_세계5.length > 0) { svSeen = 1; }
-    if (AT_서버백업.length > 0 || AT_전체차단.length > 0) { svSeen = 1; }
+    if (AT_서버백업.length > 0 || AT_전체차단.length > 0 || AT_차단표시.length > 0) { svSeen = 1; }
   }
 }
 // the player went on past the word: writing is theirs now

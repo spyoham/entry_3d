@@ -21,7 +21,7 @@ function netCmd(c) {
       if (cmdLevel(c) == 2) { netCmdOut = '이 명령어는 서버 주인만 쓸 수 있습니다'; }
     }
     else {
-      if (c == 'lavalog') { netCmdOut = lavaLogCmd(); }
+      if (c == 'lavalog' || c == 'tntlog') { netCmdOut = lavaLogCmd(); }
       else { if ((c == 'ban' || c == 'kick' || c == 'deop') && n == SUPER) { netCmdOut = `${SUPER} 님은 모든 서버의 관리자입니다`; }
       else { if (c == 'perm' || c == 'permission' || c == 'perms') { netCmdOut = netPermCmd(sub); }
       else { if (c == 'list') { netCmdOut = netListText(); }
@@ -144,14 +144,15 @@ function netWhitelist(sub, n) {
   return gS;
 }
 // ((v2.7.2) /lavalog: who poured lava on this server - for SUPER alone; a line each in the chat)
-let DIMKO = ['지상', '네더', '엔드'];
+// ((v3.4, 11-22) and who put TNT, in the same list (/tntlog is the same command))
+let DIMKO = ['지상', '네더', '엔드'], LKKO = ['용암', 'TNT'];
 function lavaLogCmd() {
   gS = '-';
   if (netNick != SUPER) { gS = `${SUPER} 님만 쓸 수 있습니다`; }
   else {
     let i = 1;
-    while (i <= MLN.length) { chatAdd(`${MLN[i]} · ${MLC[i]}번 · ${lavaAgo(MLD[i])} · 마지막 ${lavaPlace(MLP[i])}`); i = i + 1; }
-    gS = `이 서버에서 용암을 쓴 사람 ${MLN.length}명`;
+    while (i <= MLN.length) { chatAdd(`${MLN[i]} · ${LKKO[MLK[i] + 1]} ${MLC[i]}번 · ${lavaAgo(MLD[i])} · 마지막 ${lavaPlace(MLP[i])}`); i = i + 1; }
+    gS = `이 서버의 용암·TNT 기록 ${MLN.length}줄`;
   }
   return gS;
 }

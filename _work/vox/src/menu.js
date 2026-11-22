@@ -115,7 +115,7 @@ function scrTitle(dt) {
   // ((v2.7.2) SUPER alone: the nicknames banned from every server)
   if (iAmSuper() == 1) {
     button(-100, -80, -2, -100, '전체 차단 목록', 12, 1); if (btnHot == 1) { if (clickLatch == 1) { netEnter(); gbSel = 0; gbMsg = ''; menuGo(11); } }
-    button(2, -80, 100, -100, '용암 기록', 13, 1); if (btnHot == 1) { if (clickLatch == 1) { netEnter(); lgT = 99; menuGo(12); } }
+    button(2, -80, 100, -100, '용암·TNT 기록', 13, 1); if (btnHot == 1) { if (clickLatch == 1) { netEnter(); lgT = 99; menuGo(12); } }
   }
   if (svSeen == 0 && canSave() == 1) { tx(14, '저장한 세계·서버 기록이 안 보이면 아무것도 하지 말고 새로고침(F5) 하세요', 0, -113, 7, '#ffc060', 0); } else { txOff(14); }
   tx(10, `블록 월드 v${VERSION}`, -236, -128, 7, '#ffffff', 1);
@@ -294,6 +294,10 @@ function scrServers() {
   // the line, the account
   if (SY_ == 1) { tx(20, `닉네임 ${netNick} · 지금 ${netOnline()}명 온라인`, 0, 106, 7, '#a0ffa0', 0); }
   else { if (netClock - netStartT < 5) { tx(20, 'Entry Sync에 연결하는 중...', 0, 106, 7, '#ffff80', 0); } else { tx(20, 'Entry Sync 확장에 연결되지 않았습니다 (설명서의 멀티플레이를 보세요)', 0, 106, 7, '#ff8080', 0); } }
+  // ((v3.4, 11-22) what the line is doing, small at the bottom - to be read out when "nobody is online" is
+  // reported: Entry Sync's flag, my slot (0: none taken), the players' lines that are there and how many of
+  // them changed since I came, the seconds here)
+  tx(27, `연결 ${SY_} · 내 자리 ${netMy} · 줄 ${netLines(0)} · 바뀐 줄 ${netLines(1)} · ${Math.floor(netClock - netStartT)}초 · v${VERSION}`, 0, -130, 6, '#707070', 0);
   box(-200, 100, 200, -66, '#000000');
   let k = 1, row = 0, ti = 30, shown = 0;
   while (k <= NSRV) {
@@ -342,6 +346,12 @@ function serverIcon(k) {
   let r = 2, c = mod(k - 1, 8) + 1;
   if (c == 2) { r = 1; } if (c == 3) { r = 8; } if (c == 4) { r = 13; } if (c == 5) { r = 12; } if (c == 6) { r = 4; } if (c == 7) { r = 21; } if (c == 8) { r = 24; }
   return r;
+}
+// the players' lines there are (ch 0), those that changed since I came (ch 1)
+function netLines(ch) {
+  let n = 0, j = 1;
+  while (j <= NSLOT) { if (j <= NSS.length) { if (strlen(nsGet(j)) > NHDR) { if (ch == 0 || NCHG[j] > 0 || j == netMy) { n = n + 1; } } } j = j + 1; }
+  return n;
 }
 function netOnline() {
   let n = 0, j = 1;
@@ -407,8 +417,8 @@ function serverSave() {
     let fl = '-';
     if (esFlat == 1) { if (flatParse(esFlatSpec) == 0) { fl = esFlatSpec; } }
     if (mpOn == 1) { s = mpSeed; fl = mpFlat; }
-    let k = 0 - 1, g = gbanOf(netNick);
-    if (g > 0) { menuMsg('서버를 만들 수 없습니다', `모든 서버에서 차단되었습니다: ${gbanWhy(g)}`); } else { k = srvCreate(esName, esMotd, s, esMode, fl); }
+    let k = 0 - 1, g = gbanMine();
+    if (g > 0) { menuMsg('서버를 만들 수 없습니다', gbanText(g)); } else { k = srvCreate(esName, esMotd, s, esMode, fl); }
     if (k == 0) { menuMsg('서버를 만들 수 없습니다', `서버 자리 ${NSRV}개가 모두 찼습니다. 주인이 지우면 자리가 납니다`); }
     if (k > 0) { if (mpOn == 1) { mapToServer(k); } selS = k; menuGo(4); }
   } else { srvEdit(esEdit, esName, esMotd); menuGo(4); }
@@ -501,21 +511,24 @@ function scrGlobalBans() {
 // ---------------------------------------------------------------- 12 who poured lava (v2.7.2, SUPER alone)
 // Each server's host keeps L lines (nick, times, the day last, the place last: hostKeepLava); here
 // those of every server, gathered again every 3 s, the latest day first.
-let LGN = [], LGS = [], LGC = [], LGD = [], LGP = [], lgT = 0;
+let LGN = [], LGS = [], LGC = [], LGD = [], LGP = [], LGK = [], lgT = 0;
 function lavaGather() {
-  LGN = []; LGS = []; LGC = []; LGD = []; LGP = [];
+  LGN = []; LGS = []; LGC = []; LGD = []; LGP = []; LGK = [];
   let k = 1;
   while (k <= NSRV) {
     if (srvHas(k) == 1) {
       let i = 2, n = metaLen(k);
       while (i <= n) {
         let s = metaItem(k, i);
-        if (charAt(s, 1) == 'L') { splitBy(s, '^'); if (SPL.length >= 5) {
+        // ((v3.4, 11-22) T lines: TNT put, a block or a cart)
+        let lk = 0 - 1;
+        if (charAt(s, 1) == 'L') { lk = 0; } if (charAt(s, 1) == 'T') { lk = 1; }
+        if (lk >= 0) { splitBy(s, '^'); if (SPL.length >= 5) {
           // (in by the day, the latest first)
           let d = SPL[4] * 1, j = 1, at = LGN.length + 1;
           while (j <= LGN.length) { if (at > LGN.length) { if (d > LGD[j]) { at = j; } } j = j + 1; }
-          if (at > LGN.length) { LGN.push(SPL[2]); LGS.push(shName); LGC.push(SPL[3] * 1); LGD.push(d); LGP.push(SPL[5]); }
-          else { LGN.insertAt(at, SPL[2]); LGS.insertAt(at, shName); LGC.insertAt(at, SPL[3] * 1); LGD.insertAt(at, d); LGP.insertAt(at, SPL[5]); }
+          if (at > LGN.length) { LGN.push(SPL[2]); LGS.push(shName); LGC.push(SPL[3] * 1); LGD.push(d); LGP.push(SPL[5]); LGK.push(lk); }
+          else { LGN.insertAt(at, SPL[2]); LGS.insertAt(at, shName); LGC.insertAt(at, SPL[3] * 1); LGD.insertAt(at, d); LGP.insertAt(at, SPL[5]); LGK.insertAt(at, lk); }
         } }
         i = i + 1;
       }
@@ -526,20 +539,20 @@ function lavaGather() {
   if (netSrv > 0) { srvHead(netSrv); }
 }
 function scrLavaLog() {
-  title2('용암 기록');
+  title2('용암·TNT 기록');
   let ok = 0;
   if (SY_ == 1) { if (iAmSuper() == 1) { ok = 1; } }
   lgT = lgT + 1;
   if (ok == 1) { if (lgT >= 180) { lgT = 0; lavaGather(); } }
   if (iAmSuper() == 0) { tx(20, `${SUPER} 님만 볼 수 있습니다`, 0, 106, 7, '#ff8080', 0); LGN = []; }
-  else { if (SY_ == 1) { tx(20, `모든 서버에서 용암을 쓴 기록 ${LGN.length}줄 (최근 순)`, 0, 106, 7, '#a0ffa0', 0); }
+  else { if (SY_ == 1) { tx(20, `모든 서버에서 용암과 TNT를 쓴 기록 ${LGN.length}줄 (최근 순)`, 0, 106, 7, '#a0ffa0', 0); }
   else { tx(20, 'Entry Sync에 연결하는 중...', 0, 106, 7, '#ffff80', 0); } }
   box(-200, 100, 200, -96, '#000000');
   let i = 1, shown = 0, ti = 30;
   while (i <= LGN.length) {
     if (i - 1 >= listTop && shown < 7) {
       let y0 = 98 - shown * 27;
-      tx(ti, `${LGN[i]} · ${LGC[i]}번 · ${lavaAgo(LGD[i])}`, -190, y0 - 6, 8, '#ffffff', 1);
+      tx(ti, `${LGN[i]} · ${LKKO[LGK[i] + 1]} ${LGC[i]}번 · ${lavaAgo(LGD[i])}`, -190, y0 - 6, 8, '#ffffff', 1);
       tx(ti + 1, `서버 '${LGS[i]}' · 마지막 ${lavaPlace(LGP[i])}`, -190, y0 - 17, 7, '#a0a0a0', 1);
       ti = ti + 2; shown = shown + 1;
     }

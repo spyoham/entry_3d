@@ -148,7 +148,7 @@ function useItem(id) {
   // old one here, so a flag)
   let noCart = 0;
   if (id == I_tntMinecart) { if (srvForbids(2) == 1) { noCart = 1; used = 1; placeCool = 0.3; msgShow('이 서버에서는 TNT를 놓을 수 없습니다', 2); } }
-  if (cartKind(id) > 0 && noCart == 0) { used = 1; if (pickOn == 1) { if (BRS[pickB + 1] == RS_RAIL) { let t = cartKind(id); cartPlace(t, pickX, pickY, pickZ); if (mod(gameMode, 2) == 0) { takeHeld(1); } placeCool = 0.4; } } }
+  if (cartKind(id) > 0 && noCart == 0) { used = 1; if (pickOn == 1) { if (BRS[pickB + 1] == RS_RAIL) { let t = cartKind(id); cartPlace(t, pickX, pickY, pickZ); if (id == I_tntMinecart) { tntNote(pickX, pickY, pickZ); } if (mod(gameMode, 2) == 0) { takeHeld(1); } placeCool = 0.4; } } }
   if (id == I_compass) { used = 1; placeCool = 0.5; compassShow(); }
   if (id == I_fireworkRocket) { used = 1; placeCool = 0.3; fireworkUse(); }
   if (id == I_trident) { used = 1; drawStart(I_trident); }
@@ -276,6 +276,8 @@ function placeBlock(b, id) {
     if (netSrv > 0) { plugRun('place', ITKEY[b + 1], netNick); }
     if (BLEAF[put + 1] == 1) { leafPlaced(x, y, z); }
     setBlock(x, y, z, put);
+    // ((v3.4, 11-22) TNT put on a server is written down, as lava poured is)
+    if (b == I_tnt) { tntNote(x, y, z); }
     // (v2.4.4: a note block, command block or dispenser put next to power already on takes it as
     // what it had: it does not sound or fire, as in the genre)
     if (BRS[put + 1] == RS_NOTE || BRS[put + 1] == RS_COMMAND || BRS[put + 1] == RS_DISPENSER) { let pw = 0; if (powerIn(x, y, z, 0 - 1) > 0) { pw = 1; } edgeSet(x, y, z, pw); }
