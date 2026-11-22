@@ -80,7 +80,7 @@ let ACS = ['#p #i', '#p #i', '#p', 'survival|creative|adventure|spectator #p', '
   '#p #p', '#p #p', '#m ~ ~ ~', '~ ~ ~ #b destroy|keep|replace', '~ ~ ~ ~ ~ ~ #b destroy|hollow|keep|outline|replace #b', '~ ~ ~ ~ ~ ~ ~ ~ ~ replace|masked', 'peaceful|easy|normal|hard', '#p ~ ~ ~', '~ ~ ~', '-',
   '-', '-', '-', '#p', '#p', '#p', '-', '#s', '#v', '#p title|subtitle|actionbar|clear|reset|times',
   'add|set|query #p', 'add|set|query #p', '#X', '#p #p', 'entity #p weapon.mainhand|hotbar.0|hotbar.1|hotbar.2|hotbar.3|hotbar.4|hotbar.5|hotbar.6|hotbar.7|hotbar.8|armor.head|armor.chest|armor.legs|armor.feet #i', 'replace entity #p weapon.mainhand|hotbar.0|armor.head|armor.chest|armor.legs|armor.feet with #i', '-', '#p #E 1|2|3|4|5', '#c'];
-let ACNET = ['op', 'deop', 'ban', 'pardon', 'unban', 'kick', 'whitelist', 'server', 'plugin', 'perm'];
+let ACNET = ['op', 'deop', 'unop', 'ban', 'pardon', 'unban', 'kick', 'whitelist', 'server', 'plugin', 'perm'];
 let ACSNET = ['#p', '#o', '#p', '#n', '#n', '#p', 'add|remove|on|off|list #W', 'motd|name|pvp|mode|max|lava|tnt on|off|survival|creative|adventure', '-', '#Q'];
 // ((v2.9) world edit's commands after //, the same way)
 let ACWE = ['wand', 'pos1', 'pos2', 'hpos1', 'hpos2', 'sel', 'size', 'count', 'set', 'replace', 'walls', 'faces', 'outline', 'overlay', 'naturalize',

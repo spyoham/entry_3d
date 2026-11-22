@@ -560,12 +560,14 @@ function runCommand(s) {
   cmdSplit(s);
   // (minecraft:time is /time)
   let c = lower(bare(cw(1))), out = '';
+  // ((v3.4, 11-22) /unop, /op해제, /관리자해제 are /deop)
+  if (c == 'unop' || c == 'op해제' || c == '관리자해제') { c = 'deop'; }
   CMW[1] = c;
   // (the words but the texts in lower case)
   let i = 2;
   // (v2.4.5) but not a player's name: a nickname with capitals (/tp Bob, /gamemode creative Bob,
   // /give Bob ...) became 'bob' and found nobody; /perm allow kept the name in lower case too
-  while (i <= CMW.length) { if (c != 'say' && c != 'tell' && c != 'msg' && c != 'w' && c != 'me' && c != 'title' && c != 'plugin' && c != 'pl' && c != 'plugins' && c != 'server' && c != 'kick' && c != 'ban' && c != 'op' && c != 'deop' && c != 'pardon' && c != 'unban' && c != 'whitelist' && c != 'perm' && c != 'permission' && c != 'perms') { if (isNickWord(CMW[i]) == 0) { CMW[i] = lower(CMW[i]); } } i = i + 1; }
+  while (i <= CMW.length) { if (c != 'say' && c != 'tell' && c != 'msg' && c != 'w' && c != 'me' && c != 'title' && c != 'plugin' && c != 'pl' && c != 'plugins' && c != 'server' && c != 'kick' && c != 'ban' && c != 'op' && c != 'deop' && c != 'unop' && c != 'op해제' && c != '관리자해제' && c != 'pardon' && c != 'unban' && c != 'whitelist' && c != 'perm' && c != 'permission' && c != 'perms') { if (isNickWord(CMW[i]) == 0) { CMW[i] = lower(CMW[i]); } } i = i + 1; }
   // on a server: the rights, the server's own commands, the plugins' (netcmd.js)
   netCmdHit = 0;
   // ((v2.8) //set, //copy ...: world edit, by its own rights (wedit.js))
@@ -622,7 +624,7 @@ function runCmd(c) {
   else { if (c == 'replaceitem' || c == 'item') { out = cmdReplaceItem(); }
   else { if (c == 'playsound') { sndPlay(6); out = `소리를 냈습니다: ${cw(2)}`; }
   else { if (c == 'enchant') { out = cmdEnchant(); }
-  else { if (c == 'kick' || c == 'ban' || c == 'op' || c == 'deop' || c == 'whitelist' || c == 'pardon' || c == 'publish') { out = '혼자 하는 세계라 쓸 수 없습니다'; }
+  else { if (c == 'kick' || c == 'ban' || c == 'op' || c == 'deop' || c == 'unop' || c == 'op해제' || c == '관리자해제' || c == 'whitelist' || c == 'pardon' || c == 'publish') { out = '혼자 하는 세계라 쓸 수 없습니다'; }
   else { if (c == 'particle' || c == 'stopsound' || c == 'recipe' || c == 'advancement' || c == 'scoreboard' || c == 'data' || c == 'function' || c == 'tag' || c == 'team' || c == 'bossbar' || c == 'forceload' || c == 'datapack' || c == 'reload' || c == 'debug' || c == 'trigger' || c == 'worldborder' || c == 'attribute' || c == 'loot' || c == 'schedule' || c == 'teammsg' || c == 'stop') { out = `이 세계에는 없는 기능의 명령어입니다: /${c}`; }
   else { out = `알 수 없는 명령어입니다: /${c} (/help)`; } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }
   return out;
@@ -636,7 +638,7 @@ function cmdHelp(w) {
   if (w == 'tp' || w == 'teleport') { r = '/tp <x y z> · /tp <대상> · /tp <대상> <x y z> · ~ 상대, ^ 시선 기준'; }
   if (w == 'summon') { r = '/summon <몹> [x y z] 예: /summon zombie ~ ~ ~3 · 몹 67종의 영어 이름은 Tab으로 채웁니다 (wolf, horse, cave_spider, flame_spirit ...), 그 밖에 boat lightning_bolt tnt'; }
   if (w == 'gamemode') { r = '/gamemode survival|creative|adventure|spectator [대상]'; }
-  if (w == 'op' || w == 'deop') { r = '/op <닉네임> 서버 관리자로 만들기 · /deop <닉네임> 관리자에서 빼기 (서버에서, 관리자만. 서버 주인은 뺄 수 없습니다)'; }
+  if (w == 'op' || w == 'deop' || w == 'unop' || w == 'op해제') { r = '/op <닉네임> 서버 관리자로 만들기 · /deop <닉네임> 관리자에서 빼기 (/unop, /op해제 도 같습니다. 이름 없이 치면 관리자 목록. 서버에서, 관리자만. 서버 주인은 뺄 수 없습니다)'; }
   if (w == 'gamerule') { r = '/gamerule <규칙> [값] 규칙: keepInventory doDaylightCycle doMobSpawning naturalRegeneration fallDamage doWeatherCycle doMobLoot doTileDrops mobGriefing doFireTick drowningDamage fireDamage doImmediateRespawn randomTickSpeed commandBlockOutput sendCommandFeedback showDeathMessages spawnRadius'; }
   if (w == 'effect') { r = '/effect give <대상> <효과> [초] [단계] · /effect clear [대상] [효과] 효과: speed slowness haste jump_boost regeneration resistance fire_resistance night_vision saturation levitation slow_falling water_breathing absorption strength'; }
   if (w == 'enchant') { r = '/enchant [@s] <마법> [레벨] 손에 든 것에 · 예: /enchant @s sharpness 5 · 마법: sharpness smite bane_of_arthropods knockback fire_aspect looting sweeping efficiency silk_touch fortune unbreaking mending power punch flame infinity protection fire_protection blast_protection projectile_protection thorns respiration aqua_affinity feather_falling depth_strider frost_walker binding_curse vanishing_curse'; }

@@ -132,10 +132,14 @@ function nmWrite() {
   let e = 1, n = 0, ps = 1;
   // ((v3.4) the ones with a number of their own first (a chunk's, a structure's, the kept): with more
   // than 40 near me one left out of the line would be made a second time on another screen)
+  // ((v3.4, 11-22) and 24 places more for the rest: where forty kept ones stood (a village, a farm) no monster
+  // of mine was in the line - nobody else saw it, could hit it or was seen to be hit by it)
+  let lim = 40;
   while (ps <= 2) {
   e = 1;
+  if (ps == 2) { lim = n + 24; }
   while (e <= NMOB) {
-    if (nmShared(e) == 1) { if ((ps == 1 && EUID[e] >= 1000000) || (ps == 2 && EUID[e] < 1000000)) { if (n < 40) { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 2304 || ET[e] == 10) {
+    if (nmShared(e) == 1) { if ((ps == 1 && EUID[e] >= 1000000) || (ps == 2 && EUID[e] < 1000000)) { if (n < lim) { if ((EX[e] - px) * (EX[e] - px) + (EZ[e] - pz) * (EZ[e] - pz) < 2304 || ET[e] == 10) {
       let fl = 0;
       if (EHURT[e] > 0.2) { fl = fl + 1; } if (EBURN[e] == 1 || EFIR[e] > 0) { fl = fl + 2; } if (ELOVE[e] > 0) { fl = fl + 4; } if (EOWN[e] > 0 && EOWN[e] < 4) { fl = fl + 8; }
       // ((v3.2) a deep guardian's beam: the slot of the one it is on, from 16 up)
@@ -186,7 +190,11 @@ function nmRead(k, s) {
               QMX[e] = x; QMY[e] = y; QMZ[e] = z; QMW[e] = SPL[6] * 1; EHP[e] = SPL[7] * 1; EST[e] = SPL[8] * 1; EVAR[e] = SPL[9] * 1; ESZ[e] = SPL[10] * 1;
               let fl = SPL[11] * 1;
               if (fl >= 16) { ETG[e] = idiv(fl, 16); if (ETG[e] == netMy) { ETG[e] = 0; } }
-              if (mod(fl, 2) == 1) { EHURT[e] = 0.4; }
+              // ((v3.4, 11-22) the owner's mark of a blow: not while it may be my own blow coming back. It shut
+              // the stand-in for 0.4 s from each line that had it - the lines come a quarter second apart and a
+              // quarter second late, so after every blow of mine the mob could not be hit for 0.9 s or more, where
+              // one's own takes a blow each half second: half the blows of a fight were lost.)
+              if (mod(fl, 2) == 1) { if (netClock - EMH[e] > 1.2) { EHURT[e] = 0.4; } }
               EBURN[e] = mod(idiv(fl, 2), 2); EFIR[e] = 0;
               ELOVE[e] = mod(idiv(fl, 4), 2);
               EOWN[e] = 0; if (mod(idiv(fl, 8), 2) == 1) { EOWN[e] = 1; }
@@ -291,7 +299,8 @@ function nmHurtMe(f) {
 function netMobHit(e, n, hx, hz) {
   if (pKill == 1 && n > 0 && EHURT[e] <= 0) {
     if (netSrv > 0 && netSt == 2) { evAdd('g', `${NNICK[ERK[e]]}^${ERU[e]}^${Math.round(n * 10) / 10}^${Math.round(hx * 100) / 100}^${Math.round(hz * 100) / 100}^${hitKb}^${hitFire}^${lootLv}`); }
-    EHURT[e] = 0.5; sndPlay(4);
+    // ((v3.4, 11-22) EMH: when I hit it - see nmRead)
+    EHURT[e] = 0.5; EMH[e] = netClock; sndPlay(4);
   }
 }
 // the owner: a blow from slot k on my mob
@@ -303,6 +312,9 @@ function nmHitMine(k, f) {
     if (e > 0) {
       let n = SPL[3] * 1, fx0 = SPL[4] * 1, fz0 = SPL[5] * 1;
       hitKb = SPL[6] * 1; hitFire = SPL[7] * 1; lootLv = SPL[8] * 1; pKill = 1; nmKiller = k;
+      // ((v3.4, 11-22) the blow waited out its half second on the hitter's screen; here it comes a little early
+      // or late as the line goes, and one that came early was thrown away: up to 0.3 s early is taken)
+      if (EHURT[e] <= 0.3) { EHURT[e] = 0; }
       mobHurt0(e, n, fx0, fz0);
       hitKb = 0; hitFire = 0; lootLv = 0; pKill = 0; nmKiller = 0;
       // (seen at once by everyone: hurt, or gone)

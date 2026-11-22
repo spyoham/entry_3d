@@ -28,8 +28,15 @@ function netCmd(c) {
       else { if (c == 'tell' || c == 'msg' || c == 'w') { let t = netClean(wordsFrom(3, CMW.length)); evAdd('w', `${n}^${t}`); netCmdOut = `${n} 님에게 속삭임: ${t}`; }
       else { if (c == 'me') { let t = `* ${netNick} ${netClean(wordsFrom(2, CMW.length))}`; if (netQuiet == 0) { evAdd('c', t); } netCmdOut = netDec(t); }
       else { if (c == 'say') { let t = `[${netNick}] ${netClean(plainText(wordsFrom(2, CMW.length)))}`; if (cmdFromBlock == 2) { t = netClean(plainText(wordsFrom(2, CMW.length))); } if (netQuiet == 0) { evAdd('c', t); } netCmdOut = netDec(t); }
-      else { if (c == 'op') { netWish(`op^${n}`); netCmdOut = `${n} 님을 관리자로 만들었습니다`; }
-      else { if (c == 'deop') { if (n == shOwner) { netCmdOut = '서버 주인은 관리자에서 뺄 수 없습니다'; } else { netWish(`deop^${n}`); netCmdOut = `${n} 님을 관리자에서 뺐습니다`; } }
+      // ((v3.4, 11-22) with no name: who the ops are; /deop of one who is none says so (it said "taken out" whoever
+      // was named); the one taken out goes back to the server's game mode on their own screen (netOpLost))
+      else { if (c == 'op') { if (CMW.length < 2) { netCmdOut = `${opsText()} · /op 닉네임 으로 더하고 /deop 닉네임 으로 뺍니다`; } else { if (isOp(n) == 1) { netCmdOut = `${n} 님은 이미 관리자입니다`; } else { netWish(`op^${n}`); netCmdOut = `${n} 님을 관리자로 만들었습니다 (빼려면 /deop ${n})`; } } }
+      else { if (c == 'deop') {
+        if (CMW.length < 2) { netCmdOut = `${opsText()} · /deop 닉네임 으로 뺍니다`; }
+        else { if (n == shOwner) { netCmdOut = '서버 주인은 관리자에서 뺄 수 없습니다'; }
+        else { if (inOps(n) == 0) { netCmdOut = `${n} 님은 관리자가 아닙니다 · ${opsText()}`; }
+        else { netWish(`deop^${n}`); netCmdOut = `${n} 님을 관리자에서 뺐습니다 (게임 모드도 서버의 모드로 돌아갑니다)`; } } }
+      }
       else { if (c == 'ban') { if (n == shOwner) { netCmdOut = '서버 주인은 차단할 수 없습니다'; } else { let why = '관리자의 결정'; if (CMW.length >= 3) { why = netClean(wordsFrom(3, CMW.length)); } netWish(`ban^${n}^${why}`); evAdd('k', `${n}^이 서버에서 차단되었습니다: ${why}`); netCmdOut = `${n} 님을 차단했습니다`; } }
       else { if (c == 'pardon' || c == 'unban') { netWish(`pardon^${n}`); netCmdOut = `${n} 님의 차단을 풀었습니다`; }
       else { if (c == 'kick') { let why = '서버에서 쫓겨났습니다'; if (CMW.length >= 3) { why = netClean(wordsFrom(3, CMW.length)); } evAdd('k', `${n}^${why}`); netCmdOut = `${n} 님을 내보냈습니다`; }
@@ -47,9 +54,19 @@ function netCmd(c) {
 // The one nickname SUPER is an op of every server, can not be banned, kicked or made no op, and may
 // change and delete any server.
 const SUPER = '코딩재미있어';
+// is n in the server's list of ops (the owner and SUPER are ops without being in it)
+function inOps(n) { let r = 0, i = 1; while (i <= MOP.length) { if (MOP[i] == n) { r = 1; } i = i + 1; } return r; }
+function opsText() {
+  let i = 1;
+  gS2 = `관리자: ${shOwner}(주인)`;
+  while (i <= MOP.length) { if (MOP[i] != shOwner) { gS2 = `${gS2}, ${MOP[i]}`; } i = i + 1; }
+  return gS2;
+}
 function cmdCanon(c) {
   let r = c;
   if (c == 'teleport') { r = 'tp'; } if (c == 'experience') { r = 'xp'; } if (c == 'msg' || c == 'w') { r = 'tell'; }
+  // ((v3.4, 11-22) /unop, /op해제, /관리자해제: /deop)
+  if (c == 'unop' || c == 'op해제' || c == '관리자해제') { r = 'deop'; }
   if (c == 'pl' || c == 'plugins') { r = 'plugin'; } if (c == 'unban') { r = 'pardon'; } if (c == 'permission' || c == 'perms') { r = 'perm'; }
   if (c == '?') { r = 'help'; } if (c == 'item') { r = 'replaceitem'; } if (c == 'save-all') { r = 'save'; }
   return r;

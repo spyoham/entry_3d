@@ -98,6 +98,19 @@ ok(A.call((fn) => fn.isOp('bob')) === 0 && B.call((fn) => fn.isOp('bob')) === 0 
 ok(modeClick(B) === 0, 'bob, no op any more, clicks the button: still survival');
 r = cmd(B, '/gamemode creative'); ok(B.g('gameMode') === 0 && r.includes('관리자만'), 'his /gamemode: ' + r);
 r = cmd(A, '/deop alice'); run(2); ok(A.call((fn) => fn.isOp('alice')) === 1 && r.includes('주인'), 'the owner can not be taken out: ' + r);
+// (v3.4, 11-22) /deop of one who is no op says so; /deop and /op alone list the ops; /unop and /op해제 are /deop;
+// the one taken out goes back to the server's game mode
+r = cmd(A, '/deop bob'); ok(r.includes('관리자가 아닙니다') && r.includes('alice'), '/deop of one who is no op: ' + r);
+r = cmd(A, '/op bob'); run(3); ok(B.call((fn) => fn.isOp('bob')) === 1, '/op bob again: ' + r);
+r = cmd(A, '/op bob'); ok(r.includes('이미'), '/op of an op: ' + r);
+r = cmd(A, '/deop'); ok(r.includes('관리자: alice(주인), bob'), '/deop alone lists them: ' + r);
+r = cmd(B, '/gamemode creative'); run(1); B.sim.poke('flying', 1); ok(B.g('gameMode') === 1, 'bob the op goes creative: ' + r);
+r = cmd(A, '/unop bob'); run(3);
+ok(B.call((fn) => fn.isOp('bob')) === 0 && r.includes('뺐습니다'), '/unop bob: ' + r);
+ok(B.g('gameMode') === B.g('shMode') && B.g('flying') === 0 && String(B.g('msgText')).includes('관리자에서 빠졌습니다'), `bob is back in the server's mode (${B.g('gameMode')}, flying ${B.g('flying')}): ${B.g('msgText')}`);
+r = cmd(A, '/op bob'); run(3); r = cmd(A, '/op해제 bob'); run(3);
+ok(B.call((fn) => fn.isOp('bob')) === 0 && r.includes('뺐습니다'), '/op해제 bob: ' + r);
+r = cmd(B, '/unop alice'); ok(r.includes('관리자만'), 'bob, no op, may not: ' + r);
 r = cmd(B, '/help deop'); ok(r.includes('/deop'), '/help deop: ' + r.slice(0, 60));
 // a mode given by one who may is kept over a visit; one in a record from before 11-20 is not (for one who may not)
 cmd(A, '/gamemode creative bob'); run(3);

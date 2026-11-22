@@ -720,7 +720,7 @@ function netInServer(dt) {
   if (srvHas(netSrv) == 0) { if (netSt == 2) { netDisconnect('서버가 삭제되었습니다'); } }
   else {
     // ((v3.1) or its stamp: written by another; a host that reads again keeps its own things for the next write)
-    if (shRev != metaRev || shStamp != metaStamp) { metaRead(netSrv); srvHead(netSrv); if (netHost == 1) { netUserLast = ''; } let bb = banMine(); if (bb > 0) { netDisconnect(banText(bb)); } }
+    if (shRev != metaRev || shStamp != metaStamp) { let op0 = permOk(netNick, 'gamemode'); metaRead(netSrv); srvHead(netSrv); if (op0 == 1) { netOpLost(); } if (netHost == 1) { netUserLast = ''; } let bb = banMine(); if (bb > 0) { netDisconnect(banText(bb)); } }
   }
   if (netSt == 2) {
     // my things every 10 s when they changed ((v3.0, 11-18) was every 30 s, and the host's never: its own
@@ -747,6 +747,14 @@ function netInServer(dt) {
   if (gbT >= 1) { gbT = 0; let g = gbanMine(); if (g > 0) { if (netSt >= 1) { netDisconnect(gbanText(g)); } } }
 }
 
+// ((v3.4, 11-22) I could use /gamemode and now may not (/deop, a right taken back): my game mode is the server's
+// again - one taken out of the ops stayed in creative, and flew on)
+function netOpLost() {
+  if (netSt == 2) { if (permOk(netNick, 'gamemode') == 0) {
+    if (gameMode != shMode) { setMode(shMode); netUserT = 99; }
+    msgShow('관리자에서 빠졌습니다. 게임 모드가 서버의 모드로 돌아갑니다', 4);
+  } }
+}
 // ---------------------------------------------------------------- events heard
 function netEvent(k, t, f) {
   netApplying = 1;
@@ -808,7 +816,7 @@ function aCmdOk(who, cmd) {
       if (charAt(w, 1) == '/') { w = substr(w, 2, strlen(w)); }
       w = cmdCanon(w);
       if (permOk(who, w) == 0) { r = 0; }
-      if (w == 'op' || w == 'deop' || w == 'ban' || w == 'pardon' || w == 'unban' || w == 'kick' || w == 'whitelist' || w == 'server' || w == 'plugin' || w == 'pl' || w == 'plugins' || w == 'perm' || w == 'permission' || w == 'perms' || w == 'lavalog' || w == 'tntlog' || w == 'say') { r = 0; }
+      if (w == 'op' || w == 'deop' || w == 'unop' || w == 'op해제' || w == '관리자해제' || w == 'ban' || w == 'pardon' || w == 'unban' || w == 'kick' || w == 'whitelist' || w == 'server' || w == 'plugin' || w == 'pl' || w == 'plugins' || w == 'perm' || w == 'permission' || w == 'perms' || w == 'lavalog' || w == 'tntlog' || w == 'say') { r = 0; }
     }
     if (lower(`${CMW[i]}`) == 'run') { at = i + 1; }
     i = i + 1;

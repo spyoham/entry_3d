@@ -5,20 +5,20 @@
 // mushroom, an armed drowned; a shell's opening; a horse's build in the rest); ETG the mob it goes for
 // (below 0: the one it runs from; a horse's temper); ECNV seconds towards a change (drowned, rotted,
 // cured), or a spirit's, a mite's, a stung bee's life.
-let ESZ = [], EOWN = [], EAGE = [], ELOVE = [], EVAR = [], ETG = [], ECNV = [], EFALL = [], EGOL = [], EVIS = [];
+let ESZ = [], EOWN = [], EAGE = [], ELOVE = [], EVAR = [], ETG = [], ECNV = [], EFALL = [], EGOL = [], EVIS = [], EMH = [];
 // petTgt: what the tamed wolves go for (the one that hurt the player or that the player hit); pKill 1
 // while the player (or a pet) deals the blow (rare drops and xp come only then); hitBy the kind that hit
 let petTgt = 0, pKill = 0, hitBy = 0, flyTY = 0, sleptDay = 0, kingE = 0;
 function faunaInit() {
-  ESZ = []; EOWN = []; EAGE = []; ELOVE = []; EVAR = []; ETG = []; ECNV = []; EFALL = []; EGOL = []; EVIS = [];
+  ESZ = []; EOWN = []; EAGE = []; ELOVE = []; EVAR = []; ETG = []; ECNV = []; EFALL = []; EGOL = []; EVIS = []; EMH = [];
   let i = 0;
-  while (i < NMOB) { ESZ.push(1); EOWN.push(0); EAGE.push(0); ELOVE.push(0); EVAR.push(0); ETG.push(0); ECNV.push(0); EFALL.push(0 - 999); EGOL.push(0); EVIS.push(1); i = i + 1; }
+  while (i < NMOB) { ESZ.push(1); EOWN.push(0); EAGE.push(0); ELOVE.push(0); EVAR.push(0); ETG.push(0); ECNV.push(0); EFALL.push(0 - 999); EGOL.push(0); EVIS.push(1); EMH.push(0 - 99); i = i + 1; }
   w33Init();
   netMobInit();
   petTgt = 0; kingE = 0; raidOn = 0;
 }
 function mobInit(e, t) {
-  ESZ[e] = 1; EOWN[e] = 0; EAGE[e] = 0; ELOVE[e] = 0; EVAR[e] = 0; ETG[e] = 0; ECNV[e] = 0; EFALL[e] = 0 - 999; EAIR[e] = 0; EGOL[e] = 0; EVIS[e] = 1;
+  ESZ[e] = 1; EOWN[e] = 0; EAGE[e] = 0; ELOVE[e] = 0; EVAR[e] = 0; ETG[e] = 0; ECNV[e] = 0; EFALL[e] = 0 - 999; EAIR[e] = 0; EGOL[e] = 0; EVIS[e] = 1; EMH[e] = 0 - 99;
   if (MAI[t] == 13) { EHP[e] = rand(15, 30); EVAR[e] = 2 * rand(0, 99); if (t == M_BONEHORSE) { EHP[e] = 15; } }
   if (t == M_ZOMBIE || t == M_HUSK || t == M_DROWNED || t == M_ZOMBIEVILLAGER) { if (rand(1, 20) == 1) { ESZ[e] = 0.5; EAGE[e] = 0 - 999999; } }
   // ((v3.2) a sheep has its coat (EVAR odd) till it is shorn)
