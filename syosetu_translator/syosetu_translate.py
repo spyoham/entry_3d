@@ -30,7 +30,12 @@ import requests
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/130.0 Safari/537.36")
-DEFAULT_MODEL = "claude-opus-5-5"
+MODEL_ALIASES = {
+    "sonnet": "claude-sonnet-5-5",  # 기본: 번역 품질과 값의 균형
+    "haiku": "claude-haiku-5-5",    # 가장 싸고 빠름
+    "opus": "claude-opus-5-5",      # 가장 좋지만 비쌈
+}
+DEFAULT_MODEL = "sonnet"
 STRIP = "\ufeff\u200b \t\r\n"  # 붙여넣기에 딸려 오는 BOM·폭 없는 공백까지 지운다
 
 
@@ -259,23 +264,29 @@ class ClaudeTranslator:
             raise NoCredentials("anthropic 패키지가 없습니다 (py -3 -m pip install anthropic)")
         self.anthropic = anthropic
         self.client = anthropic.Anthropic(max_retries=5)
-        self.model = model
+        self.model = MODEL_ALIASES.get(model.lower(), model)
         self.effort = effort
+        self.name = f"claude ({self.model}, effort {effort})"
 
     def _call(self, system: str, user: str, max_tokens: int) -> str:
         a = self.anthropic
+        req = dict(
+            model=self.model,
+            max_tokens=max_tokens,
+            system=system,
+            messages=[{"role": "user", "content": user}],
+            thinking={"type": "adaptive"},
+            output_config={"effort": self.effort},
+        )
         try:
-            with self.client.beta.messages.stream(
-                model=self.model,
-                max_tokens=max_tokens,
-                system=system,
-                messages=[{"role": "user", "content": user}],
-                thinking={"type": "adaptive"},
-                output_config={"effort": self.effort},
+            if self.model.startswith("claude-haiku"):
+                # Haiku에는 거절 시 다른 모델로 넘기는 서버 기능이 없다.
+                stream_ctx = self.client.messages.stream(**req)
+            else:
                 # 안전 분류기가 거절하면 서버가 다른 모델로 이어서 번역하게 한다.
-                betas=["server-side-fallback-2026-07-01"],
-                fallbacks="default",
-            ) as stream:
+                stream_ctx = self.client.beta.messages.stream(
+                    **req, betas=["server-side-fallback-2026-07-01"], fallbacks="default")
+            with stream_ctx as stream:
                 msg = stream.get_final_message()
         except TypeError as e:  # 인증 정보를 찾지 못했을 때 SDK가 내는 오류
             if "authentication" in str(e).lower():
@@ -447,7 +458,8 @@ def main():
     ap.add_argument("range", nargs="?", help="화 범위: 5 / 1-10 / 30- (끝까지) / all. 생략하면 물어봄")
     ap.add_argument("--engine", choices=["auto", "claude", "google"], default="auto",
                     help="번역 엔진 (기본 auto: Claude, 안 되면 구글)")
-    ap.add_argument("--model", default=DEFAULT_MODEL, help=f"Claude 모델 (기본 {DEFAULT_MODEL})")
+    ap.add_argument("--model", default=DEFAULT_MODEL,
+                    help=f"Claude 모델: sonnet / haiku / opus 또는 모델 ID (기본 {DEFAULT_MODEL})")
     ap.add_argument("--effort", default="medium", choices=["low", "medium", "high", "xhigh", "max"],
                     help="Claude가 얼마나 공들여 생각할지 (기본 medium)")
     ap.add_argument("-o", "--out", default="번역", help="저장할 폴더 (기본: ./번역)")

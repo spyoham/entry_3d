@@ -43,7 +43,7 @@ py -3 syosetu_translate.py n9669bk 11-20 --engine google
 | 옵션 | 설명 |
 |---|---|
 | `--engine auto/claude/google` | 번역 엔진. 기본 `auto` (Claude, 안 되면 구글) |
-| `--model` | Claude 모델 (기본 `claude-opus-5-5`) |
+| `--model sonnet/haiku/opus` | Claude 모델 (기본 `sonnet` = `claude-sonnet-5-5`). 모델 ID를 직접 써도 됨 |
 | `--effort low/medium/high/...` | Claude가 생각하는 깊이 (기본 `medium`). 높을수록 느리고 비쌈 |
 | `-o 폴더` | 저장 폴더 (기본 `./번역`) |
 | `--save-original` | 일본어 원문도 `원문/` 폴더에 저장 |
@@ -68,9 +68,17 @@ py -3 syosetu_translate.py n9669bk 11-20 --engine google
 
 ## 비용 (Claude)
 
-한 화(일본어 5천 자 정도)에 대략 입력 5천 토큰, 출력 6~8천 토큰(생각 포함)이 들어, Opus 5.5 기준 한 화에 0.1~0.2달러 정도입니다. 더 싸게 하려면 `--model claude-sonnet-5-5`(약 절반)나 `--effort low`를 쓰세요.
+한 화(일본어 5천 자 정도)에 대략 입력 5천 토큰, 출력 6~8천 토큰(생각 포함)이 듭니다. 어림값:
 
-Claude가 내용 때문에 번역을 거절하면 서버가 자동으로 다른 모델로 이어서 번역합니다(`fallbacks: "default"`). 그래도 거절되면 그 화는 실패로 표시됩니다.
+| 모델 | 한 화당 | 100화 |
+|---|---|---|
+| `sonnet` (기본, Sonnet 5.5) | 약 0.05~0.09달러 | 5~9달러 |
+| `haiku` (Haiku 5.5) | 약 0.005달러 | 0.5달러 |
+| `opus` (Opus 5.5) | 약 0.1~0.2달러 | 10~20달러 |
+
+Haiku는 아주 싸지만 문장이 덜 자연스럽고 말투 구분이 약할 수 있습니다. 몇 화를 두 모델로 번역해 비교해 보고 고르세요 (`--force -o 비교폴더`).
+
+Sonnet·Opus는 내용 때문에 번역을 거절하면 서버가 자동으로 다른 모델로 이어서 번역합니다(`fallbacks: "default"`). Haiku에는 이 기능이 없어서 거절되면 그 화는 실패로 표시되니, 그 화만 `--model sonnet`으로 다시 돌리면 됩니다.
 
 ## 주의
 
