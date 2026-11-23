@@ -8,13 +8,7 @@
 py -3 -m pip install -r requirements.txt
 ```
 
-Claude로 번역하려면 API 키가 있어야 합니다 (https://platform.claude.com 에서 발급).
-
-```
-setx ANTHROPIC_API_KEY "sk-ant-..."     # 한 번 설정한 뒤 터미널을 새로 열 것
-```
-
-키가 없으면 무료 구글 번역으로 자동으로 넘어갑니다 (품질은 떨어짐).
+번역은 기본으로 **이 컴퓨터에 설치된 Claude Code**(`claude` 명령)를 불러서 합니다. API 키가 필요 없고, Claude Code에 로그인한 구독(Pro/Max)으로 돌아갑니다. 처음이라면 터미널에서 `claude`를 한 번 실행해 로그인해 두세요.
 
 ## 쓰는 법
 
@@ -33,7 +27,7 @@ py -3 syosetu_translate.py <소설 주소 또는 N코드> <화 범위> [옵션]
 
 ```
 py -3 syosetu_translate.py https://ncode.syosetu.com/n9669bk/ 1-10
-py -3 syosetu_translate.py n9669bk 11-20 --engine google
+py -3 syosetu_translate.py n9669bk 11-20 --model haiku
 ```
 
 `번역.bat`을 더블클릭하면 주소와 범위를 물어봅니다.
@@ -42,14 +36,23 @@ py -3 syosetu_translate.py n9669bk 11-20 --engine google
 
 | 옵션 | 설명 |
 |---|---|
-| `--engine auto/claude/google` | 번역 엔진. 기본 `auto` (Claude, 안 되면 구글) |
-| `--model sonnet/haiku/opus` | Claude 모델 (기본 `sonnet` = `claude-sonnet-5-5`). 모델 ID를 직접 써도 됨 |
-| `--effort low/medium/high/...` | Claude가 생각하는 깊이 (기본 `medium`). 높을수록 느리고 비쌈 |
+| `--model sonnet/haiku/opus` | Claude 모델 (기본 `sonnet`) |
+| `--effort low/medium/high/...` | Claude가 생각하는 깊이 (기본 `medium`). 높을수록 느리고 사용량을 더 씀 |
+| `--engine` | 번역 엔진 (아래). 기본 `auto` |
 | `-o 폴더` | 저장 폴더 (기본 `./번역`) |
 | `--save-original` | 일본어 원문도 `원문/` 폴더에 저장 |
 | `--force` | 이미 번역한 화도 다시 번역 |
 | `--no-merge` | 범위 전체를 합친 파일을 만들지 않음 |
 | `--delay 초` | syosetu 페이지 요청 간격 (기본 1.5초) |
+
+### 번역 엔진
+
+| `--engine` | 무엇으로 | 비용 |
+|---|---|---|
+| `claude-code` | 설치된 Claude Code (`claude -p`) | 구독 사용량 안에서 |
+| `api` | Claude API (`ANTHROPIC_API_KEY` 필요) | 쓴 만큼 (Sonnet 한 화 약 0.05~0.09달러, Haiku 약 0.005달러) |
+| `google` | 무료 구글 번역 | 무료, 품질 낮음, 용어집 없음 |
+| `auto` (기본) | 위 순서로 쓸 수 있는 것 | |
 
 ## 저장되는 것
 
@@ -57,28 +60,22 @@ py -3 syosetu_translate.py n9669bk 11-20 --engine google
 번역/
   無職転生 … [n9669bk]/
     001화.txt ~ 010화.txt        화별 번역본
-    무직 전생 1-10화.txt          범위 전체를 합친 파일
+    무직전생 … 1-10화.txt         범위 전체를 합친 파일
     용어집.txt                    인명·지명 번역 (Claude 엔진)
     정보.json                     원제, 작가, 한국어 제목
+    _실패/                        형식이 깨진 번역이 있으면 원래 출력을 남김
 ```
 
 - 이미 번역한 화는 건너뛰므로, 중간에 끊기거나 실패한 화가 있으면 같은 명령을 다시 실행하면 됩니다.
 - **용어집**: Claude가 화마다 새로 나온 고유명사를 적어 두고 다음 화부터 같은 번역을 씁니다. `용어집.txt`를 직접 고치면 (예: `ルーデウス => 루데우스`) 이후 번역에 반영됩니다.
 - 한국어 제목이 마음에 안 들면 `정보.json`의 `title_ko`를 고치면 됩니다.
 
-## 비용 (Claude)
+## Claude Code로 돌릴 때 알아 둘 것
 
-한 화(일본어 5천 자 정도)에 대략 입력 5천 토큰, 출력 6~8천 토큰(생각 포함)이 듭니다. 어림값:
-
-| 모델 | 한 화당 | 100화 |
-|---|---|---|
-| `sonnet` (기본, Sonnet 5.5) | 약 0.05~0.09달러 | 5~9달러 |
-| `haiku` (Haiku 5.5) | 약 0.005달러 | 0.5달러 |
-| `opus` (Opus 5.5) | 약 0.1~0.2달러 | 10~20달러 |
-
-Haiku는 아주 싸지만 문장이 덜 자연스럽고 말투 구분이 약할 수 있습니다. 몇 화를 두 모델로 번역해 비교해 보고 고르세요 (`--force -o 비교폴더`).
-
-Sonnet·Opus는 내용 때문에 번역을 거절하면 서버가 자동으로 다른 모델로 이어서 번역합니다(`fallbacks: "default"`). Haiku에는 이 기능이 없어서 거절되면 그 화는 실패로 표시되니, 그 화만 `--model sonnet`으로 다시 돌리면 됩니다.
+- 한 화(일본어 5천 자 정도)에 1분쯤 걸립니다.
+- 구독의 사용량 한도를 Claude Code·claude.ai와 함께 씁니다. 한 번에 수십 화를 돌리면 한도에 걸릴 수 있고, 그러면 그 자리에서 멈춥니다. 한도가 풀린 뒤 같은 명령을 다시 실행하면 멈춘 화부터 이어서 합니다.
+- Haiku는 사용량을 적게 쓰고 빠르지만, Sonnet보다 문장이 조금 덜 다듬어집니다. 몇 화를 두 모델로 번역해 비교해 보고 고르세요 (`--force -o 비교폴더`).
+- 번역할 때는 Claude Code의 도구·MCP·훅·플러그인을 모두 끄고, 빈 임시 폴더에서 번역 지침만 주고 실행합니다. 그래서 파일을 건드리거나 다른 작업을 하지 않습니다.
 
 ## 주의
 

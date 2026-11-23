@@ -5,22 +5,29 @@
     py -3 syosetu_translate.py n9669bk 1-10
     py -3 syosetu_translate.py https://ncode.syosetu.com/n9669bk/ 5
     py -3 syosetu_translate.py n9669bk 280-          (280화부터 마지막 화까지)
+    py -3 syosetu_translate.py n9669bk 1-3 --model haiku
     py -3 syosetu_translate.py n9669bk 1-3 --engine google
 
 번역 엔진
-    claude : Claude API (기본). ANTHROPIC_API_KEY 환경 변수나 `ant auth login`이 필요하다.
-             고유명사 용어집을 화마다 이어 써서 이름·용어가 일정하게 번역된다.
-    google : 무료 구글 번역. 키가 필요 없지만 품질이 떨어지고 용어집을 쓰지 않는다.
-    auto   : Claude를 먼저 시도하고, 인증 정보가 없으면 구글로 넘어간다.
+    claude-code : 설치된 Claude Code(`claude -p`)로 번역한다. API 키 없이 로그인한 구독으로 돈다.
+    api         : Claude API. ANTHROPIC_API_KEY가 필요하고 쓴 만큼 요금이 나간다.
+                  (두 Claude 엔진 모두 고유명사 용어집을 화마다 이어 써서 이름·용어를 일정하게 번역한다.)
+    google      : 무료 구글 번역. 키가 필요 없지만 품질이 떨어지고 용어집을 쓰지 않는다.
+    auto        : 위 순서대로 쓸 수 있는 것 (기본).
 
 개인적으로 읽기 위한 도구다. 번역본을 다시 배포하는 것은 원작자의 허락 없이는 하지 말 것.
 """
 from __future__ import annotations
 
 import argparse
+import atexit
 import json
+import os
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
@@ -250,12 +257,110 @@ def build_episode_input(ep: Episode) -> str:
 def take_tag(text: str, tag: str) -> list[str] | None:
     m = re.search(rf"<{tag}>\n?(.*?)\n?</{tag}>", text, re.S)
     if not m:
-        return None
+        # 닫는 태그를 빼먹은 경우: 다음 태그나 끝까지
+        m = re.search(rf"<{tag}>\n?(.*?)\n?(?=<(?:title|preface|body|afterword|glossary)>|\Z)", text, re.S)
+        if not m or not m.group(1).strip():
+            return None
     return m.group(1).split("\n")
 
 
-class ClaudeTranslator:
-    name = "claude"
+class LLMTranslator:
+    """Claude에게 SYSTEM_PROMPT 형식으로 맡기는 번역기의 공통 부분. _call만 엔진마다 다르다."""
+
+    def _call(self, system: str, user: str, max_tokens: int) -> str:
+        raise NotImplementedError
+
+    def translate_short(self, text: str) -> str:
+        out = self._call("일본어를 한국어로 번역합니다. 설명 없이 번역문 한 줄만 출력하세요.", text, 2000)
+        return out.strip().splitlines()[0].strip() if out.strip() else text
+
+    def translate_episode(self, ep: Episode, glossary: dict[str, str]):
+        system = SYSTEM_PROMPT
+        if glossary:
+            system += "\n\n용어집 (원문 => 번역):\n" + "\n".join(f"{k} => {v}" for k, v in glossary.items())
+        self.last_raw = ""
+        for attempt in range(2):  # 가끔 형식을 어기므로 한 번 더 시도한다
+            out = self._call(system, build_episode_input(ep), 64000)
+            self.last_raw = out
+            body = take_tag(out, "body")
+            if body is not None:
+                break
+        else:
+            raise RuntimeError("번역 결과에서 본문을 찾지 못했습니다 (_실패 폴더에 원래 출력을 남김)")
+        new_terms = {}
+        for line in take_tag(out, "glossary") or []:
+            if "=>" in line:
+                k, v = (x.strip(" 「」-・") for x in line.split("=>", 1))
+                v = re.sub(r"\s*[(（].*?[)）]\s*$", "", v).strip()  # 덧붙인 설명 괄호는 뺀다
+                if k and v and k not in glossary:
+                    new_terms[k] = v
+        title = fix_quotes((take_tag(out, "title") or [ep.title])[0].strip())
+
+        def clean(lines):
+            return [fix_quotes(l) for l in lines or []]
+        return Episode(ep.no, title, clean(take_tag(out, "preface")), clean(body),
+                       clean(take_tag(out, "afterword"))), new_terms
+
+
+class UsageLimit(Exception):
+    """구독 사용량 한도에 걸림. 나머지 화를 계속해 봐야 다 실패하므로 멈춘다."""
+
+
+class ClaudeCodeTranslator(LLMTranslator):
+    """설치된 Claude Code(`claude -p`)로 번역한다. API 키 없이 로그인한 구독으로 돌아간다."""
+
+    def __init__(self, model: str, effort: str):
+        exe = shutil.which("claude")
+        if not exe:
+            raise NoCredentials("claude 명령을 찾을 수 없습니다 (Claude Code가 설치되어 있어야 합니다)")
+        self.exe = exe
+        self.model = model  # sonnet / haiku / opus 같은 별명을 Claude Code가 알아듣는다
+        self.effort = effort
+        self.name = f"claude-code ({model}, effort {effort})"
+        # 프로젝트의 CLAUDE.md·설정이 끼어들지 않게 빈 임시 폴더에서 실행한다.
+        self.workdir = Path(tempfile.mkdtemp(prefix="syosetu_cc_"))
+        atexit.register(shutil.rmtree, self.workdir, True)
+
+    def _call(self, system: str, user: str, max_tokens: int) -> str:
+        sys_file = self.workdir / "system.txt"
+        sys_file.write_text(system, encoding="utf-8")
+        cmd = [self.exe, "-p",
+               "--model", self.model,
+               "--effort", self.effort,
+               "--system-prompt-file", str(sys_file),  # Claude Code 기본 프롬프트 대신 번역 지침만
+               "--tools", "",                          # 파일·명령 도구를 모두 끈다
+               "--strict-mcp-config",                  # MCP 서버를 띄우지 않는다
+               "--disable-slash-commands",
+               "--setting-sources", "",                # 훅·플러그인 설정을 읽지 않는다
+               "--no-session-persistence",
+               "--output-format", "json"]
+        for attempt in range(3):
+            try:
+                p = subprocess.run(cmd, input=user, capture_output=True, encoding="utf-8",
+                                   errors="replace", cwd=self.workdir, timeout=1800)
+            except subprocess.TimeoutExpired:
+                raise RuntimeError("Claude Code가 30분 안에 끝나지 않았습니다")
+            try:
+                d = json.loads(p.stdout)
+            except ValueError:
+                d = None
+            if d and not d.get("is_error") and d.get("subtype") == "success":
+                return d.get("result") or ""
+            msg = (d or {}).get("result") or p.stderr.strip() or p.stdout.strip() or f"종료 코드 {p.returncode}"
+            low = msg.lower()
+            if "limit" in low and ("usage" in low or "reset" in low or "hit your" in low):
+                raise UsageLimit(msg)
+            if "login" in low or "/login" in low or "authenticat" in low:
+                raise NoCredentials(f"Claude Code 로그인이 필요합니다 (터미널에서 claude 실행 후 /login): {msg}")
+            if attempt < 2 and ("overloaded" in low or "529" in low or "timeout" in low or "network" in low):
+                time.sleep(30 * (attempt + 1))
+                continue
+            raise RuntimeError(f"Claude Code 오류: {msg[:300]}")
+        raise RuntimeError("Claude Code 오류가 계속됩니다")
+
+
+class ClaudeTranslator(LLMTranslator):
+    """Claude API로 번역한다 (ANTHROPIC_API_KEY 필요, 쓴 만큼 요금)."""
 
     def __init__(self, model: str, effort: str):
         try:
@@ -266,7 +371,7 @@ class ClaudeTranslator:
         self.client = anthropic.Anthropic(max_retries=5)
         self.model = MODEL_ALIASES.get(model.lower(), model)
         self.effort = effort
-        self.name = f"claude ({self.model}, effort {effort})"
+        self.name = f"api ({self.model}, effort {effort})"
 
     def _call(self, system: str, user: str, max_tokens: int) -> str:
         a = self.anthropic
@@ -300,28 +405,6 @@ class ClaudeTranslator:
         if msg.stop_reason == "max_tokens":
             raise RuntimeError("출력 길이 제한에 걸려 번역이 잘렸습니다")
         return "".join(b.text for b in msg.content if b.type == "text")
-
-    def translate_short(self, text: str) -> str:
-        out = self._call("일본어를 한국어로 번역합니다. 번역문 한 줄만 출력하세요.", text, 2000)
-        return out.strip().splitlines()[0].strip() if out.strip() else text
-
-    def translate_episode(self, ep: Episode, glossary: dict[str, str]):
-        system = SYSTEM_PROMPT
-        if glossary:
-            system += "\n\n용어집 (원문 => 번역):\n" + "\n".join(f"{k} => {v}" for k, v in glossary.items())
-        out = self._call(system, build_episode_input(ep), 64000)
-        body = take_tag(out, "body")
-        if body is None:
-            raise RuntimeError("번역 결과에서 본문을 찾지 못했습니다")
-        new_terms = {}
-        for line in take_tag(out, "glossary") or []:
-            if "=>" in line:
-                k, v = (x.strip(" 「」-・") for x in line.split("=>", 1))
-                if k and v and k not in glossary:
-                    new_terms[k] = v
-        title = (take_tag(out, "title") or [ep.title])[0].strip()
-        return Episode(ep.no, title, take_tag(out, "preface") or [], body,
-                       take_tag(out, "afterword") or []), new_terms
 
 
 class GoogleTranslator:
@@ -434,15 +517,22 @@ def parse_range(s: str, total: int) -> tuple[int, int]:
 
 
 def make_translator(engine: str, model: str, effort: str):
-    if engine == "google":
-        return GoogleTranslator()
+    if engine == "auto":
+        if shutil.which("claude"):
+            engine = "claude-code"
+        elif os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"):
+            engine = "api"
+        else:
+            print("※ Claude Code도 API 키도 없어 구글 번역으로 합니다.")
+            engine = "google"
     try:
+        if engine == "google":
+            return GoogleTranslator()
+        if engine == "claude-code":
+            return ClaudeCodeTranslator(model, effort)
         return ClaudeTranslator(model, effort)
     except NoCredentials as e:
-        if engine == "claude":
-            raise SystemExit(f"Claude를 쓸 수 없습니다: {e}")
-        print(f"※ Claude를 쓸 수 없어 구글 번역으로 합니다: {e}")
-        return GoogleTranslator()
+        raise SystemExit(f"{engine} 엔진을 쓸 수 없습니다: {e}")
 
 
 def main():
@@ -456,8 +546,8 @@ def main():
     ap.add_argument("novel", nargs="?",
                     help="소설 주소 또는 N코드 (예: https://ncode.syosetu.com/n9669bk/ 또는 n9669bk). 생략하면 물어봄")
     ap.add_argument("range", nargs="?", help="화 범위: 5 / 1-10 / 30- (끝까지) / all. 생략하면 물어봄")
-    ap.add_argument("--engine", choices=["auto", "claude", "google"], default="auto",
-                    help="번역 엔진 (기본 auto: Claude, 안 되면 구글)")
+    ap.add_argument("--engine", choices=["auto", "claude-code", "api", "google"], default="auto",
+                    help="번역 엔진 (기본 auto: Claude Code → API 키 → 구글 순으로 되는 것)")
     ap.add_argument("--model", default=DEFAULT_MODEL,
                     help=f"Claude 모델: sonnet / haiku / opus 또는 모델 ID (기본 {DEFAULT_MODEL})")
     ap.add_argument("--effort", default="medium", choices=["low", "medium", "high", "xhigh", "max"],
@@ -496,11 +586,9 @@ def main():
         try:
             info["title_ko"] = tr.translate_short(nv.title)
         except NoCredentials as e:
-            if args.engine == "claude":
-                raise SystemExit(f"Claude를 쓸 수 없습니다: {e}")
-            print(f"※ Claude 인증 정보가 없어 구글 번역으로 합니다.\n  ({e})")
-            tr = GoogleTranslator()
-            info["title_ko"] = tr.translate_short(nv.title)
+            raise SystemExit(f"번역 엔진을 쓸 수 없습니다: {e}")
+        except UsageLimit as e:
+            raise SystemExit(f"Claude 구독 사용량 한도에 걸렸습니다. 한도가 풀린 뒤 다시 실행하세요.\n  ({e})")
     info.update(ncode=ncode, url=f"https://{host}/{ncode}/", title=nv.title, writer=nv.writer)
     info_path.write_text(json.dumps(info, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"한국어 제목: {info['title_ko']}\n저장 위치: {folder.resolve()}\n번역 엔진: {tr.name}\n")
@@ -530,16 +618,21 @@ def main():
                 episode_text(ep, nv.short).replace(f"제{no}화 ", f"第{no}話 ", 1), encoding="utf-8")
         t0 = time.time()
         try:
-            try:
-                ko, new_terms = tr.translate_episode(ep, glossary)
-            except NoCredentials as e:
-                if args.engine != "auto":
-                    raise SystemExit(f"\nClaude 인증 오류: {e}")
-                print("\n※ Claude 인증 정보가 없어 구글 번역으로 합니다…", end=" ", flush=True)
-                tr = GoogleTranslator()
-                ko, new_terms = tr.translate_episode(ep, glossary)
+            ko, new_terms = tr.translate_episode(ep, glossary)
+        except NoCredentials as e:
+            print(f"\n인증 오류: {e}")
+            failed.append(no)
+            break
+        except UsageLimit as e:
+            print(f"\nClaude 구독 사용량 한도에 걸려 여기서 멈춥니다. 한도가 풀린 뒤 같은 명령을 다시 실행하면 "
+                  f"{no}화부터 이어서 번역합니다.\n  ({e})")
+            failed.append(no)
+            break
         except Exception as e:  # 한 화가 실패해도 나머지는 계속
             print(f"실패: {e}")
+            if getattr(tr, "last_raw", ""):
+                (folder / "_실패").mkdir(exist_ok=True)
+                (folder / "_실패" / f"{no:0{width}d}화_출력.txt").write_text(tr.last_raw, encoding="utf-8")
             failed.append(no)
             continue
         out_path.write_text(episode_text(ko, nv.short), encoding="utf-8")
