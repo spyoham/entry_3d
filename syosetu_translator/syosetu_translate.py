@@ -589,6 +589,8 @@ def main():
             raise SystemExit(f"번역 엔진을 쓸 수 없습니다: {e}")
         except UsageLimit as e:
             raise SystemExit(f"Claude 구독 사용량 한도에 걸렸습니다. 한도가 풀린 뒤 다시 실행하세요.\n  ({e})")
+        except Exception as e:
+            raise SystemExit(f"번역이 되지 않습니다: {e}")
     info.update(ncode=ncode, url=f"https://{host}/{ncode}/", title=nv.title, writer=nv.writer)
     info_path.write_text(json.dumps(info, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"한국어 제목: {info['title_ko']}\n저장 위치: {folder.resolve()}\n번역 엔진: {tr.name}\n")
