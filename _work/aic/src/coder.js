@@ -13,6 +13,8 @@ let hist = '', u1 = 0, u2 = 0;
 let rowS = '', rowC = '', rowK = 0, cl = 0, ch = 0;
 // coder: the interval, the bits waiting on a carry, the six-bit letter being filled
 let lo = 0, hi = 0, pend = 0, acc = 0, accN = 0, out = '', nbits = 0;
+// every bit written so far as 0s and 1s, and the bits of the last sentence without the filling
+let bin = '', encBin = '';
 // decoder: the bits read so far as a number, the code and the place in it
 let val = 0, src = '', dPos = 0, dLen = 0, dAcc = 0, dN = 0, dec = '';
 // the bits of the symbol being coded, and the words so far with the bits each took: word[bits]
@@ -85,6 +87,7 @@ function advance(code, letter) {
 // ---------------- compress ----------------
 function emit(b) {
   acc = acc * 2 + b; accN = accN + 1; nbits = nbits + 1;
+  bin = str(bin, b);
   if (accN == 6) { out = str(out, charAt(B64, acc + 1)); acc = 0; accN = 0; }
 }
 
@@ -116,7 +119,7 @@ function encByte(v) {
 }
 
 function encBegin(n) {
-  lo = 0; hi = TOP - 1; pend = 0; acc = 0; accN = 0; out = ''; nbits = 0;
+  lo = 0; hi = TOP - 1; pend = 0; acc = 0; accN = 0; out = ''; nbits = 0; bin = '';
   modelReset();
   if (n < 255) { encByte(n); } else { encByte(255); encByte(idiv(n, 256)); encByte(mod(n, 256)); }
 }
@@ -138,8 +141,35 @@ function encChar(code) {
 function encEnd() {
   pend = pend + 1;
   if (lo < QUART) { putBit(0); } else { putBit(1); }
-  encBits = nbits;
+  encBits = nbits; encBin = bin;
   while (accN > 0) { emit(0); }
+}
+
+// ---------------- the two ways a code is typed ----------------
+// 0s and 1s (spaces let be) -> src, the code in six-bit letters; encBits and encBin as typed
+function bitsToCode(s) {
+  let L = strlen(s), i = 1, k = 0;
+  pend = 0; acc = 0; accN = 0; out = ''; nbits = 0; bin = '';
+  while (i <= L) {
+    k = indexOf('0 1', charAt(s, i));
+    if (k != 2) { emit(idiv(k, 2)); }
+    i = i + 1;
+  }
+  encBits = nbits; encBin = bin;
+  while (accN > 0) { emit(0); }
+  src = out;
+}
+
+// src, the code in six-bit letters -> encBin, its bits
+function codeToBits() {
+  let L = strlen(src), i = 1, v = 0;
+  bin = '';
+  while (i <= L) {
+    v = (indexOf(B64, charAt(src, i)) - 1) * 6;
+    bin = str(bin, substr(SIX, v + 2, v + 7));
+    i = i + 1;
+  }
+  encBits = L * 6; encBin = bin;
 }
 
 // ---------------- decompress ----------------

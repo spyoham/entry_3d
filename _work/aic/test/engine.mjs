@@ -52,8 +52,8 @@ for (const c of cases) {
     const want = sim.compress(c);
     await ask(c);
     const ms = await until(++runs);
-    const got = await vars(['out', 'encBits', 'dec', 'tRest']);
-    const ok = String(got.out) === want.code && Number(got.encBits) === want.bits && String(got.dec) === c && String(got.tRest).includes('다르지 않습니다');
+    const got = await vars(['out', 'encBits', 'encBin', 'dec', 'tRest']);
+    const ok = String(got.out) === want.code && Number(got.encBits) === want.bits && String(got.encBin) === want.bin && String(got.dec) === c && String(got.tRest).includes('다르지 않습니다');
     if (!ok) { fail++; console.log('FAIL', JSON.stringify(c.slice(0, 60)), JSON.stringify(got).slice(0, 300), want.code.slice(0, 40), want.bits); }
     else console.log('ok', String(c.length).padStart(4), 'letters', String(want.bits).padStart(5), 'bits', String(ms).padStart(5), 'ms ', JSON.stringify(c.slice(0, 50)));
     // and the code alone, typed back
@@ -62,6 +62,11 @@ for (const c of cases) {
         await until(++runs);
         const g2 = await vars(['dec']);
         if (String(g2.dec) !== c) { fail++; console.log('FAIL code ->', JSON.stringify(String(g2.dec).slice(0, 60))); }
+        // and its 0s and 1s, as the stage shows them (and now and then without spaces)
+        await ask(runs % 4 ? want.bin.replace(/(.{8})/g, '$1 ') : want.bin);
+        await until(++runs);
+        const g3 = await vars(['dec', 'encBits']);
+        if (String(g3.dec) !== c || Number(g3.encBits) !== want.bits) { fail++; console.log('FAIL bits ->', JSON.stringify(String(g3.dec).slice(0, 60)), g3.encBits); }
     }
 }
 const shot = args.indexOf('--shot');

@@ -34,11 +34,16 @@ for (const c of cases) {
     const r = sim.compress(c);
     const back = sim.restore(r.code);
     if (back !== c) { fail++; console.log('FAIL', JSON.stringify(c.slice(0, 80)), '->', JSON.stringify(String(back).slice(0, 80))); }
+    // the bits as 0s and 1s: as many as counted, the code's own bits, and enough to restore from (typed with spaces too)
+    const six = [...r.code].map(ch => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-'.indexOf(ch).toString(2).padStart(6, '0')).join('');
+    if (r.bin.length !== r.bits || !six.startsWith(r.bin) || /[^01]/.test(r.bin)) { fail++; console.log('FAIL bits', c.slice(0, 40), r.bits, r.bin.slice(0, 40)); }
+    const back2 = sim.restore(r.bin.replace(/(.{8})/g, '$1 '), true);
+    if (back2 !== c) { fail++; console.log('FAIL from bits', JSON.stringify(c.slice(0, 80)), '->', JSON.stringify(String(back2).slice(0, 80))); }
     if (r.code.length !== Math.ceil(r.bits / 6)) { fail++; console.log('FAIL code length', c.slice(0, 40), r.bits, r.code.length); }
     bits += r.bits; chars += c.length;
     if (samples.includes(c)) { sb += r.bits; sc += c.length; }
 }
 console.log(`${cases.length} sentences, ${fail} failures, ${chars} letters -> ${bits} bits = ${(bits / chars).toFixed(3)} bits a letter (${(100 * bits / chars / 8).toFixed(1)}%), ${Date.now() - t0} ms`);
 console.log(`everyday sentences one at a time: ${(sb / sc).toFixed(3)} bits a letter`);
-for (const c of ['Hello, my name is Tom.', 'HELLO WORLD', 'asdfghjkl qwertyuiop zxcvbnm', 'The quick brown fox jumps over the lazy dog.']) { const r = sim.compress(c); console.log(JSON.stringify(c), c.length * 8, '->', r.bits, 'bits', r.code, r.words); }
+for (const c of ['Hello, my name is Tom.', 'HELLO WORLD', 'asdfghjkl qwertyuiop zxcvbnm', 'The quick brown fox jumps over the lazy dog.']) { const r = sim.compress(c); console.log(JSON.stringify(c), c.length * 8, '->', r.bits, 'bits', r.code, r.bin, r.words); }
 process.exit(fail ? 1 : 0);

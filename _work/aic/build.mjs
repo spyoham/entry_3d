@@ -6,7 +6,7 @@ import url from 'node:url';
 import { compileProgram } from './ejs.mjs';
 import { packEnt } from './pack.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '1.0';
+export const VERSION = '1.1';
 export const NAME = '엔트리 AI 압축기';
 
 export const model = JSON.parse(fs.readFileSync(path.join(HERE, 'model.json'), 'utf8'));
@@ -22,7 +22,11 @@ export const consts = {
     SYMS, B64, T, NORD: N, MAINT: T - 57,
     CTX: SYMS.slice(0, 31), LOWS: SYMS.slice(0, 31) + SYMS.slice(0, 26),
     TOP: 2 ** 32, HALF: 2 ** 31, QUART: 2 ** 30, QUART3: 3 * 2 ** 30,
-    LN2: Math.LN2, MAXN: 2000, CLIPN: 180, CW: 80, WLMAX: 160,
+    LN2: Math.LN2, MAXN: 2000, CLIPN: 180, CLIP1: 88, WLMAX: 160,
+    // the six bits of each code letter, after one letter that keeps the text from reading as a number
+    SIX: 'b' + Array.from({ length: 64 }, (_, i) => i.toString(2).padStart(6, '0')).join(''),
+    // the bits shown: eight to a group, ten groups to a row, five rows; a short code beside the heading if it fits
+    BINROW: 10, BINMAX: 400, CODEMAX: 36,
 };
 
 export const FILES = ['coder.js', 'main.js'];
@@ -30,17 +34,21 @@ export const sources = () => FILES.map(fn => fs.readFileSync(path.join(HERE, 'sr
 
 const DOT = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 const BG = '#10141c', PANEL = '#1a2030', INK = '#e8ecf5';
-// A text box that wraps starts its text 10 below its top edge in Entry (entity.js: lineHeight / 2 -
-// height / 2 + 10) and about 5 below it in tessvm; a line is fontSize + 2 high. So the words are a
-// box of their own without a background, 5 above the panel they are read on: three lines of 9 fit
-// a panel of 38 in both.
+// Where a wrapping text box puts its text (entity.js alignTextBox): with WebGL 4.1 below the box's top
+// edge; without it (the offline editor) about 5 below - but only when that is more than 10 from where
+// the text already was, so a box under about 40 high keeps the text up to 10 off. tessvm: about 5.
+// So the words are boxes of their own, all TALL high and without a background, placed by their top
+// edge over the panels: the text begins 1.5 under the panel's top in every engine. A line is
+// fontSize + 2 high.
+const TALL = 60;
 const box = (id, x, y, width, height, fontSize, more = {}) => ({
     id, name: id, objectType: 'textBox', text: ' ',
     entity: { x, y, colour: INK, bgColor: 'transparent', font: `${fontSize}px Nanum Gothic`, textAlign: 1, lineBreak: true,
         bold: false, underLine: false, strike: false, italic: false, fontSize, width, height, visible: true, ...more },
 });
-const panel = (id, y, height, bgColor = PANEL) => box(id, 0, y, id === 'bg' ? 480 : 472, height, 8, { bgColor });
-const words = (id, y, height, fontSize, more) => box(id, 0, y + 5, 464, height, fontSize, more);
+// (a panel from `top` down, and the words that begin at a panel's top)
+const panel = (id, top, height, bgColor = PANEL) => box(id, 0, top - height / 2, id === 'bg' ? 480 : 472, height, 8, { bgColor });
+const words = (id, top, fontSize, more = {}) => box(id, more.x || 0, top + 3 - TALL / 2, more.width || 464, TALL, fontSize, more);
 
 export function build(out, { name = `${NAME} v${VERSION}` } = {}) {
     const prog = compileProgram([sources()], { consts, plainNumbers: true });
@@ -49,15 +57,16 @@ export function build(out, { name = `${NAME} v${VERSION}` } = {}) {
     // front to back
     const objects = [
         // (the question's bubble opens up and to the right of this dot: the strip left of `msg`)
-        { id: 'main', name: 'main', pictures: [{ id: 'p1', name: 'dot', buf: DOT, w: 1, h: 1 }], entity: { x: -236, y: -100 }, script: prog.objectScripts.main },
-        { ...box('title', 0, 128, 472, 12, 10, { bold: true, textAlign: 0, lineBreak: false, colour: '#ffd166' }), text: 'AI 압축기  ·  다음 글자를 잘 맞힐수록 글이 짧아진다' },
-        { ...words('orig', 101, 38, 9), script: prog.objectScripts.orig },
-        { ...words('code', 62, 38, 9, { colour: '#7fe3a8' }), script: prog.objectScripts.code },
-        { ...words('rest', 23, 38, 9), script: prog.objectScripts.rest },
-        { ...words('bits', -16, 38, 8, { colour: '#cfd6e6' }), script: prog.objectScripts.bits },
-        { ...box('msg', 82, -48, 308, 34, 7, { colour: '#9aa5bd' }), script: prog.objectScripts.msg },
-        panel('p1', 101, 38), panel('p2', 62, 38), panel('p3', 23, 38), panel('p4', -16, 38),
-        panel('bg', 0, 270, BG),
+        { id: 'main', name: 'main', pictures: [{ id: 'p1', name: 'dot', buf: DOT, w: 1, h: 1 }], entity: { x: -236, y: -102 }, script: prog.objectScripts.main },
+        { ...box('title', 0, 129, 472, 12, 10, { bold: true, textAlign: 0, lineBreak: false, colour: '#ffd166' }), text: 'AI 압축기  ·  다음 글자를 잘 맞힐수록 글이 짧아진다' },
+        { ...words('orig', 123, 9), script: prog.objectScripts.orig },
+        { ...words('code', 86, 8, { colour: '#7fe3a8' }), script: prog.objectScripts.code },
+        { ...words('rest', 22, 9), script: prog.objectScripts.rest },
+        { ...words('bits', -4, 8, { colour: '#cfd6e6' }), script: prog.objectScripts.bits },
+        { ...words('msg', -38, 7, { colour: '#9aa5bd', x: 82, width: 308 }), script: prog.objectScripts.msg },
+        // three lines of 9, heading + five rows of bits of 8, two lines of 9, three lines of 8
+        panel('p1', 123, 36), panel('p2', 86, 63), panel('p3', 22, 25), panel('p4', -4, 33),
+        panel('bg', 135, 270, BG),
     ];
     for (const k of Object.keys(prog.objectScripts)) if (!objects.some(o => o.id === k)) throw new Error('script for an unknown object: ' + k);
     for (const v of prog.variables) if (v.variableType === 'list' && (v.array || []).length > 5000) throw new Error('list over 5000: ' + v.name);

@@ -59,10 +59,11 @@ export function createSim() {
             for (const c of text) { const i = S.indexOf(c) + 1; if (!i) throw new Error('letter ' + c); fn.encChar(i); }
             fn.encEnd();
             fn.flushWord();
-            return { code: R.peek('out'), bits: R.peek('encBits'), words: R.peek('wl') };
+            return { code: R.peek('out'), bits: R.peek('encBits'), bin: String(R.peek('encBin')), words: R.peek('wl') };
         },
-        restore(code) {
-            R.poke('src', code);
+        // (bits: a text of 0s and 1s instead of the code in six-bit letters)
+        restore(code, bits = false) {
+            if (bits) R.fn.bitsToCode(code); else R.poke('src', code);
             R.fn.decBegin();
             const n = R.peek('decN');
             if (n > consts.MAXN) return null;

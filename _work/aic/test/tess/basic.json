@@ -1,5 +1,7 @@
-[{"wait": 2500}, {"shot": "shots/t0.png"},
+[{"wait": 2500},
  {"type": "Hello, my name is Tom."}, {"press": "Enter"}, {"wait": 2500}, {"vars": 1}, {"shot": "shots/t1.png"},
- {"type": "The quick brown fox jumps over the lazy dog. HELLO WORLD! Do you want to play a game with me? I think this is very interesting."}, {"press": "Enter"}, {"wait": 3000}, {"vars": 1}, {"shot": "shots/t2.png"},
+ {"type": "The quick brown fox jumps over the lazy dog. HELLO WORLD! Do you want to play a game with me? I think this is very interesting. asdfghjkl qwertyuiop"}, {"press": "Enter"}, {"wait": 3500}, {"vars": 1}, {"shot": "shots/t2.png"},
  {"type": "Hello~ world"}, {"press": "Enter"}, {"wait": 1000}, {"shot": "shots/t3.png"},
- {"type": "#FnkBzBx7A"}, {"press": "Enter"}, {"wait": 2500}, {"vars": 1}, {"shot": "shots/t4.png"}]
+ {"type": "#FnkBzBx7A"}, {"press": "Enter"}, {"wait": 2500}, {"vars": 1},
+ {"type": "00010110 01111001 00000001 11001100 00011100 01111011 00"}, {"press": "Enter"}, {"wait": 2500}, {"vars": 1}, {"shot": "shots/t4.png"},
+ {"type": "00001011011111010110101001010001111100010000"}, {"press": "Enter"}, {"wait": 2500}, {"vars": 1}]
