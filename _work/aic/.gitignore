@@ -1,0 +1,5 @@
+data/
+.pack/
+shots/
+*.ent
+__pycache__/
