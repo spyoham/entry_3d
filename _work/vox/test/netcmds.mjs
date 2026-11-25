@@ -154,19 +154,21 @@ A.call((fn) => fn.serverJoin(K)); run(30, () => A.g('gState') === 2);
 B.call((fn) => fn.serverJoin(K)); run(30, () => B.g('gState') === 2);
 run(2);
 S.call((fn) => { fn.netLeave(); S.sim.poke('gState', 0); fn.menuGo(4); });
-A.sim.poke('AT_확장프로그램', 1); B.sim.poke('AT_확장프로그램', 1);
+A.sim.poke('AT_확장프로그램', 1); B.sim.poke('AT_확장프로그램', 1); S.sim.poke('AT_확장프로그램', 1);
 run(15);
 ok(A.g('AT_서버백업')[0] === 'SB' && B.g('AT_서버백업')[0] === 'SB', `copies kept: alice ${A.g('AT_서버백업').length}, bob ${B.g('AT_서버백업').length} items`);
 const metaBefore = A.g('SY_m' + K).length, editsBefore = A.g('SY_e' + K).length;
 // everybody leaves; then the shared lists are emptied (as an editor saving empty lists over them would)
 A.call((fn) => { fn.netLeave(); A.sim.poke('gState', 0); fn.menuGo(4); });
 B.call((fn) => { fn.netLeave(); B.sim.poke('gState', 0); fn.menuGo(4); });
-run(3);
+// ((v3.5, 11-25) putting back is SUPER's alone: its game, the server list open, keeps a copy of every server)
+run(12);
+ok(S.g('AT_서버백업').includes('고친 이름') && S.call((fn) => fn.bkStale(K)) === 0, "SUPER's game has a copy of it as it is now");
 for (const n of ['SY_m' + K, 'SY_e' + K]) { srv.lists['?!' + n.slice(3)] = []; for (const c of cs) { const L = c.sim.R.syLists['?!' + n.slice(3)] || c.sim.R.syLists[n]; if (L) L.splice(0, L.length); } }
 ok(A.call((fn) => fn.srvHas(K)) === 0, 'the server is gone from the shared lists');
 run(25);
 const back = [1, 2, 3, 4, 5, 6, 7, 8].filter(k => A.call((fn) => fn.srvHas(k)) === 1 && A.g('shName') === '고친 이름');
-ok(back.length === 1, `put back from a copy: place ${back}, ${A.g('netMsg')}`);
+ok(back.length === 1, `put back from SUPER's copy: place ${back}, ${S.g('netMsg')} (alice: ${A.g('netMsg')})`);
 ok(editsBefore >= 10 && back.length === 1 && A.g('SY_e' + back[0]).length === editsBefore && A.g('SY_m' + back[0]).length === metaBefore, `with its blocks (${editsBefore}) and settings (${metaBefore} lines)`);
 const K2 = back[0];
 // deleting asks first; then the copies go and it is not put back

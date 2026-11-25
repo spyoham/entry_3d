@@ -3,8 +3,10 @@
 // sent in the first 4 s before they do, every change goes to everyone else (never back), one socket
 // each way keeps the order, a list goes whole (once a frame here, as the extension sends once a tick).
 // (v3.5) the work cleared and its code brought back from the locker: the editor's save empties every server in the
-// room (test/syncsave.mjs asked the real room server) - each player's copies put them back, every one of them,
-// whoever comes first: node test/srvback35.mjs  (the harness is netmob.mjs's)
+// room (test/syncsave.mjs asked the real room server).
+// (11-25) Putting a server back is 코딩재미있어's alone: that game keeps a copy of every server on the list (played
+// on or not) and puts back each that is in no place; anyone else's copy stays where it is and they are told:
+// node test/srvback35.mjs  (the harness is netmob.mjs's)
 import { createSim } from '../sim.mjs';
 const LAT = (+(process.argv[2] || 80)) / 1000;
 const WALL0 = Date.UTC(2026, 10, 9, 3, 0, 0);
@@ -87,30 +89,38 @@ const mobs = (c) => {
 const byKey = (c) => new Map(mobs(c).map((m) => [m.key, m]));
 const kind = (c, name) => c.g('MKEY').indexOf(name) + 1;
 
-let A = open('alice'), B = open('bob');
-A.sim.poke('AT_확장프로그램', 1); B.sim.poke('AT_확장프로그램', 1);
+const SUPER = '코딩재미있어';
+let A = open('alice'), B = open('bob'), S = open(SUPER);
+for (const c of [A, B, S]) c.sim.poke('AT_확장프로그램', 1);
+// (SUPER has played before: the game may write on its own - save.js svSeen)
+S.call((fn) => fn.svAck());
+ok(S.call((fn) => fn.iAmSuper()) === 1 && A.call((fn) => fn.iAmSuper()) === 0, 'only ' + SUPER + ' is SUPER');
 A.call((fn) => fn.srvCreate('가 서버', ' ', 2468, 1, '-'));
 run(1);
 // (both made by alice's game: two games started alike draw the same numbers, and a server's id is drawn)
 A.call((fn) => fn.srvCreate('나 서버', ' ', 1357, 1, '-'));
 run(1);
-ok(join(A, '가 서버') && join(B, '나 서버'), 'alice in her server, bob in his (neither was ever in the other)');
+ok(join(A, '가 서버') && join(B, '나 서버'), 'alice in her server, bob in his (neither was ever in the other, SUPER in neither)');
 const GOLD = A.g('ITKEY').indexOf('gold_block');
 const pa = where(A).map(Math.floor), pb = where(B).map(Math.floor);
 for (let i = 0; i < 6; i++) { put(A, pa[0] + 2 + i, pa[1] + 1, pa[2] + 2, GOLD); put(B, pb[0] + 2 + i, pb[1] + 2, pb[2] + 2, GOLD); }
 cmd(A, '/op carol');
 run(15);
 ok(String(A.g('SY_m' + find(A, '가 서버'))[0]).split('^')[11] !== String(A.g('SY_m' + find(A, '나 서버'))[0]).split('^')[11], 'two servers, two ids');
-const ka = find(A, '가 서버'), kb = find(A, '나 서버');
 const lens = (c, k) => [c.g('SY_m' + k).length, c.g('SY_e' + k).length];
-const [ma, ea] = lens(A, ka), [mb, eb] = lens(B, kb);
 ok(A.g('AT_서버백업')[0] === 'SB' && B.g('AT_서버백업')[0] === 'SB' && !A.g('AT_서버백업').includes('나 서버') && !B.g('AT_서버백업').includes('가 서버'), 'each keeps a copy of the server they are on: alice ' + A.g('AT_서버백업').length + ' items, bob ' + B.g('AT_서버백업').length);
 run(0.2);
 A.call((fn) => { fn.netLeave(); A.sim.poke('gState', 0); fn.menuGo(4); });
 B.call((fn) => { fn.netLeave(); B.sim.poke('gState', 0); fn.menuGo(4); });
-run(4);
-const bobCopy = B.g('AT_서버백업').slice();
-close(B);
+run(14);
+const ka = find(A, '가 서버'), kb = find(A, '나 서버');
+const [ma, ea] = lens(A, ka), [mb, eb] = lens(A, kb);
+// ---- SUPER had the list open and nothing more: a copy of both, as they are now
+const sc = S.g('AT_서버백업');
+ok(sc.includes('가 서버') && sc.includes('나 서버') && S.call((fn) => fn.bkStale(ka)) === 0 && S.call((fn) => fn.bkStale(kb)) === 0, "SUPER's game kept both, the same as the lists hold: " + sc.length + ' items (settings ' + [ma, mb] + ', blocks ' + [ea, eb] + ')');
+ok(A.call((fn) => fn.bkStale(kb)) === 1, '(alice has none of the server she was never on)');
+const superCopy = sc.slice(), bobCopy = B.g('AT_서버백업').slice();
+close(B); close(S);
 run(10);
 // ---- the editor's save with every list empty: the room holds no server list any more, a page starts with none
 const wipe = () => { for (const n of Object.keys(srv.lists)) if (/^(\?!|SY_)(m|e)\d+$/.test(n) || /gone$/.test(n)) { srv.lists[n] = []; for (const c of cs) { const L = c.sim.R.syLists[n]; if (L) L.splice(0, L.length); } } };
@@ -118,19 +128,28 @@ wipe();
 const names = (c) => { const r = []; for (let k = 1; k <= c.g('NSRV'); k++) if (c.call((fn) => fn.srvHas(k)) === 1) r.push(String(c.g('shName'))); return r; };
 ok(names(A).length === 0, 'the room emptied: no server on the list');
 run(28);
-ok(JSON.stringify(names(A)) === JSON.stringify(['가 서버']), "alice's game puts back the server she was on: " + names(A) + ' - ' + A.g('netMsg'));
+ok(names(A).length === 0 && String(A.g('netMsg')).includes(SUPER + ' 님만') && A.g('AT_서버백업').includes('가 서버'), "alice's game does not put hers back, keeps its copy and says who can: " + A.g('netMsg'));
 // bob comes later, with his copy (his browser's storage)
 // (what tessvm puts back is there before the first tick: the game looks then whether anything was kept)
 const B2 = new Client(srv, 'bob'); B2.sim.poke('AT_확장프로그램', 1); B2.sim.poke('AT_서버백업', bobCopy); cs.push(B2); run(1);
 B2.call((fn) => { fn.netEnter(); fn.menuGo(4); });
 run(34);
+ok(names(B2).length === 0, "nor does bob's");
+// SUPER comes, with the copies of that browser
+const S2 = new Client(srv, SUPER); S2.sim.poke('AT_확장프로그램', 1); S2.sim.poke('AT_서버백업', superCopy); cs.push(S2); run(1);
+S2.call((fn) => { fn.netEnter(); fn.menuGo(4); });
+run(34);
 const all = names(B2).sort();
-ok(JSON.stringify(all) === JSON.stringify(['가 서버', '나 서버']), "bob's game puts his server back too, though the list is no longer empty: " + all + ' - ' + B2.g('netMsg'));
+ok(JSON.stringify(all) === JSON.stringify(['가 서버', '나 서버']), "SUPER's game puts both back, though it was on neither: " + all + ' - ' + S2.g('netMsg'));
 const ka2 = find(A, '가 서버'), kb2 = find(A, '나 서버');
 ok(ka2 > 0 && kb2 > 0 && JSON.stringify(lens(A, ka2)) === JSON.stringify([ma, ea]) && JSON.stringify(lens(A, kb2)) === JSON.stringify([mb, eb]), 'both with their blocks and settings (' + [ma, ea, mb, eb] + ')');
 ok(A.g('SY_m' + kb2).some((l) => String(l).startsWith('U^bob^')) && A.g('SY_m' + ka2).some((l) => String(l) === 'O^carol') && A.g('SY_m' + ka2).some((l) => String(l).startsWith('U^alice^')), "alice's op and things in hers, bob's things in his");
 run(25);
 ok(names(A).filter((n) => n === '가 서버').length === 1 && names(A).filter((n) => n === '나 서버').length === 1, 'and each is there once, some checks later');
+// ---- a server made after SUPER's copies: kept from the list within the next checks
+B2.call((fn) => fn.srvCreate('다 서버', ' ', 99, 1, '-'));
+run(14);
+ok(S2.g('AT_서버백업').includes('다 서버') && !A.g('AT_서버백업').includes('다 서버'), "a new server is in SUPER's copies soon after (and in nobody else's who was not on it)");
 // ---- one server in two places (a copy went back before the room's own came): the newer settings stay
 {
   const free = [1, 2, 3, 4, 5, 6, 7, 8].find((k) => A.call((fn) => fn.srvHas(k)) === 0);
@@ -142,6 +161,16 @@ ok(names(A).filter((n) => n === '가 서버').length === 1 && names(A).filter((n
   run(25);
   const left = [1, 2, 3, 4, 5, 6, 7, 8].filter((k) => A.call((fn) => fn.srvHas(k)) === 1 && String(A.g('shName')) === '가 서버');
   ok(left.length === 1 && left[0] === free && A.g('SY_m' + free).some((l) => String(l) === 'O^erin'), 'the one with the newer settings stays (place ' + left + '), the older is cleared');
+  run(14);
+  ok(S2.g('AT_서버백업').includes('O^erin'), "and SUPER's copy follows it");
+  // while SUPER plays on one server: the others still, one a minute
+  ok(join(S2, '나 서버'), 'SUPER goes into a server');
+  const m2 = A.g('SY_m' + free).map(String); m2.push('O^finn');
+  put2(free, m2, A.g('SY_e' + free).slice());
+  run(8);
+  const soon = S2.g('AT_서버백업').includes('O^finn');
+  run(64);
+  ok(S2.g('AT_서버백업').includes('O^finn'), "another server's change is in SUPER's copies within the minute (at once: " + soon + ')');
 }
 console.log(fails ? fails + ' FAILED' : 'all ok');
 process.exit(0);

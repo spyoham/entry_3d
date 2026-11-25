@@ -17,10 +17,15 @@
 // others had played stayed lost. Now a copy goes back whenever its server is in no place (20 s on, not over one
 // that is there, not one deleted on purpose); of two places with one server the one with the older settings
 // is cleared (it was the later place - which could be the room's own, were a copy put back before it came).
+// (v3.5, 11-25) Putting a server back is SUPER's alone: a copy is what one browser holds, and whoever had one could
+// bring a server back as it once was (or as they had made the copy). Everyone still keeps a copy of the server
+// they are on; only SUPER's game writes one into the shared lists. So that SUPER has them all - not only the
+// servers SUPER played on - SUPER's game keeps a copy of every server on the list (bkKeepAll: 20 s on, those
+// that differ from their copy; all of them from the menu every 10 s, one a minute while playing).
 // @서버백업: sections SB, id, name, owner, rev, nm, nm settings lines, ne, ne block numbers.
 let AT_서버백업 = [];
 let SY_gone = [];
-let SBT = [], bkT = 0, bkChkT = 0, syOnT = 0 - 1, bkSrv = 0, bkPut = 0;
+let SBT = [], bkT = 0, bkChkT = 0, syOnT = 0 - 1, bkSrv = 0, bkPut = 0, bkTold = 0, bkAllT = 0, bkAllK = 0;
 
 // where the section of server id starts (0: none)
 function bkFind(id) {
@@ -104,7 +109,11 @@ function bkCheck() {
           k = k + 1;
         }
         if (at == 0) {
-          if (free > 0) { bkWrite(p, free); BKID[free] = id; bkPut = bkPut + 1; netMsg = `사라진 서버 '${name}'을(를) 이 컴퓨터에 남은 기록에서 되살렸습니다`; }
+          if (free > 0) {
+            // ((11-25) SUPER alone puts one back; the others are told once that they hold it)
+            if (iAmSuper() == 1) { bkWrite(p, free); BKID[free] = id; bkPut = bkPut + 1; netMsg = `사라진 서버 '${name}'을(를) 이 컴퓨터에 남은 기록에서 되살렸습니다`; }
+            else { if (bkTold == 0) { bkTold = 1; netMsg = `사라진 서버 '${name}'의 기록이 이 컴퓨터에 있습니다 · 되살리기는 ${SUPER} 님만 할 수 있습니다`; } }
+          }
         }
         let nm = AT_서버백업[p + 5] * 1, ne = AT_서버백업[p + 6 + nm] * 1;
         p = p + 7 + nm + ne;
@@ -134,6 +143,39 @@ function bkCheck() {
   // (srvHas above read every place into the sh* globals: back to the server I am on)
   if (netSrv > 0) { srvHead(netSrv); }
 }
+// ((11-25) is the copy of the server at place k another than what the shared lists hold now - or is there none)
+function bkStale(k) {
+  let r = 0;
+  if (srvHas(k) == 1) {
+    let p = bkFind(shId), nm = metaLen(k), ne = editLen(k);
+    if (p == 0) { r = 1; }
+    else {
+      let cm = AT_서버백업[p + 5] * 1, ce = 0 - 1;
+      if (cm == nm) { ce = AT_서버백업[p + 6 + cm] * 1; }
+      if (ce != ne) { r = 1; }
+      else {
+        let i = 1;
+        while (i <= nm && r == 0) { if (AT_서버백업[p + 5 + i] != metaItem(k, i)) { r = 1; } i = i + 1; }
+        i = 1;
+        while (i <= ne && r == 0) { if (AT_서버백업[p + 6 + nm + i] != editItem(k, i)) { r = 1; } i = i + 1; }
+      }
+    }
+  }
+  return r;
+}
+// ((11-25) SUPER's game: a copy of up to max servers that differ from theirs, beginning after the last one kept;
+// the one I am on has its own minute)
+function bkKeepAll(max) {
+  let i = 1, n = 0, last = bkAllK;
+  while (i <= NSRV) {
+    let k = mod(bkAllK + i - 1, NSRV) + 1;
+    if (n < max && k != netSrv) { if (bkStale(k) == 1) { bkKeep(k); n = n + 1; last = k; } }
+    i = i + 1;
+  }
+  bkAllK = last;
+  if (n > 0) { svPut(0); }
+  if (netSrv > 0) { srvHead(netSrv); }
+}
 // each frame (net.js netStep)
 function svBackStep(dt) {
   if (SY_ == 1) { if (syOnT < 0) { syOnT = netClock; } } else { syOnT = 0 - 1; }
@@ -144,6 +186,11 @@ function svBackStep(dt) {
     if (netSrv > 0 && netSt == 2 && bkT > 60) { bkT = 0; bkKeep(netSrv); svPut(0); }
     bkChkT = bkChkT + dt;
     if (syOnT >= 0 && netClock - syOnT > 20 && bkChkT > 10) { bkChkT = 0; if (AT_서버백업.length > 0) { bkCheck(); } gbCheck(); }
+    // ((11-25) SUPER's copies of every server: after the check above, so a lost one is put back first)
+    bkAllT = bkAllT + dt;
+    let aw = 10, am = NSRV;
+    if (netSt == 2) { aw = 60; am = 1; }
+    if (bkAllT > aw) { bkAllT = 0; if (syOnT >= 0 && netClock - syOnT > 20) { if (iAmSuper() == 1) { bkKeepAll(am); } } }
   }
   ageT = ageT + dt;
   if (syOnT >= 0 && netClock - syOnT > 20 && ageT > 30) { ageT = 0; srvAgeCheck(); }
