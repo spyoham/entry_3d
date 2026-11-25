@@ -197,7 +197,7 @@ function skWake() {
         while (j <= SKC.length) { if (SKC[j] == u) { was = 1; } j = j + 1; }
         if (was == 1) {
           let fx0 = Math.floor(MKX[i]), fz0 = Math.floor(MKZ[i]);
-          if (cOK(fx0, fz0) == 1) { if (CKST[slotOf(idiv(fx0, 16), idiv(fz0, 16))] == 5) { made = skMake(i); } }
+          if (cOK(fx0, fz0) == 1) { if (CKST[slotOf(idiv(fx0, 16), idiv(fz0, 16))] >= 4) { made = skMake(i); } }
         }
         if (made == 0) { SKD.push(u); }
       } }

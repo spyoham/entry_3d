@@ -14,7 +14,7 @@ const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 
 export const SS = Number(process.env.SS || 2);                       // picture pixels per stage unit
 export const W = 480 * SS, H = 270 * SS;
-const OBJECTS = ['pen', 'view', 'hud', 'txt'];     // back to front (view, hud: the SPLIT build)
+const OBJECTS = ['pen', 'view', 'hud', 'bar', 'txt'];     // back to front (view, hud: the SPLIT build)
 
 export function createSim({ consts = {}, listMax = 1e8 } = {}) {
     // ((v3.4) the tests were written on the land before v3.4 (their places are its places): the sim keeps
@@ -192,6 +192,8 @@ export function createSim({ consts = {}, listMax = 1e8 } = {}) {
         as(obj, f) { cur = base[obj]; R.self = cur.vars; return f(); },
         peek: (n) => R.peek(n), poke: (n, v) => R.poke(n, v),
         text: (obj) => base[obj].text,
+        // (how many strokes and filled shapes an object's pen holds now)
+        strokes: (obj) => base[obj].pen.strokes.length,
         compose,
         // frames until the picture is complete (the pen rests)
         

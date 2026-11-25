@@ -44,11 +44,11 @@ function panoStep(dt) {
     setView(viewWant); fogR = 0 - 99; ctPos = NCOL * 192;
   }
   if (panoReady == 0) {
-    chunkWork(8);
+    chunkWork(24);
     if (nChunks >= NSTART) { findTop(gsX, gsZ); panoY = Math.max(SEA, topY) + 14; panoReady = 1; }
   }
   if (panoReady == 1) {
-    worldFlush(); chunkWork(1); remeshSome(8);
+    worldFlush(); chunkWork(4); remeshSome(8);
     panoYaw = panoYaw + dt * 2.5;
     tday = 0.28; dim = 0; dimAmb = 0; daySky();
     camX = gsX + 0.5; camY = panoY; camZ = gsZ + 0.5; camYaw = panoYaw; camPitch = 0 - 10; FOC = 210;

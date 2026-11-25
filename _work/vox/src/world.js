@@ -88,6 +88,16 @@ function cOK(x, z) {
   return r;
 }
 // a block anywhere: below the world bedrock, above it air, in a chunk not made yet stone
+// (v3.5, 11-26) is the chunk of (x, z) lit (stage 4): the light's own question. A chunk whose blocks are made and
+// whose light is not yet worked out holds in LT what the slot's last chunk left (the columns are no longer
+// written dark while they are made: 65,536 writes a chunk that the light stage wrote over at once) - so light
+// neither spreads into it, nor is taken from it, nor taken back through it, until its own turn (chunkStage
+// 3), which begins from the sky and from the lit chunks round it.
+function cLit(x, z) {
+  let cx = idiv(x, 16), cz = idiv(z, 16), s = mod(cx, NCH) * NCH + mod(cz, NCH) + 1, r = 0;
+  if (CKST[s] >= 4) { if (CKX[s] == cx) { if (CKZ[s] == cz) { r = 1; } } }
+  return r;
+}
 function blockAt(x, y, z) {
   let b = 0;
   if (y < 0) { b = 6; }
@@ -818,6 +828,7 @@ function lqPush(i) {
   lqTail = lqTail + 1;
   if (lqTail > LQ.length) { LQ.push(i); } else { LQ[lqTail] = i; }
 }
+// ((11-26) across a chunk's border only into a chunk that is lit: cLit)
 function lightSpread(which) {
   let i = 0, l = 0, y = 0, col = 0, lz = 0, lx = 0, n = 0, ln = 0, t = 0;
   while (lqHead <= lqTail) {
@@ -830,13 +841,13 @@ function lightSpread(which) {
       if (y > 0) { n = i - 1; M_spread(n, ln, which); }
       if (y < WY - 1) { n = i + 1; M_spread(n, ln, which); }
       if (mod(lz, 16) != 0) { n = i - WY; M_spread(n, ln, which); }
-      else { t = lz - 1; if (t < 0) { t = WS - 1; } if (CKST[idiv(lx, 16) * NCH + idiv(t, 16) + 1] >= 3) { n = (lx * WS + t) * WY + y + 1; M_spread(n, ln, which); } }
+      else { t = lz - 1; if (t < 0) { t = WS - 1; } if (CKST[idiv(lx, 16) * NCH + idiv(t, 16) + 1] >= 4) { n = (lx * WS + t) * WY + y + 1; M_spread(n, ln, which); } }
       if (mod(lz, 16) != 15) { n = i + WY; M_spread(n, ln, which); }
-      else { t = lz + 1; if (t >= WS) { t = 0; } if (CKST[idiv(lx, 16) * NCH + idiv(t, 16) + 1] >= 3) { n = (lx * WS + t) * WY + y + 1; M_spread(n, ln, which); } }
+      else { t = lz + 1; if (t >= WS) { t = 0; } if (CKST[idiv(lx, 16) * NCH + idiv(t, 16) + 1] >= 4) { n = (lx * WS + t) * WY + y + 1; M_spread(n, ln, which); } }
       if (mod(lx, 16) != 0) { n = i - SXS; M_spread(n, ln, which); }
-      else { t = lx - 1; if (t < 0) { t = WS - 1; } if (CKST[idiv(t, 16) * NCH + idiv(lz, 16) + 1] >= 3) { n = (t * WS + lz) * WY + y + 1; M_spread(n, ln, which); } }
+      else { t = lx - 1; if (t < 0) { t = WS - 1; } if (CKST[idiv(t, 16) * NCH + idiv(lz, 16) + 1] >= 4) { n = (t * WS + lz) * WY + y + 1; M_spread(n, ln, which); } }
       if (mod(lx, 16) != 15) { n = i + SXS; M_spread(n, ln, which); }
-      else { t = lx + 1; if (t >= WS) { t = 0; } if (CKST[idiv(t, 16) * NCH + idiv(lz, 16) + 1] >= 3) { n = (t * WS + lz) * WY + y + 1; M_spread(n, ln, which); } }
+      else { t = lx + 1; if (t >= WS) { t = 0; } if (CKST[idiv(t, 16) * NCH + idiv(lz, 16) + 1] >= 4) { n = (t * WS + lz) * WY + y + 1; M_spread(n, ln, which); } }
     }
   }
   lqHead = 1; lqTail = 0;
@@ -857,13 +868,17 @@ function M_spread(N, LN, WH) {
 // ((v3.5) skyTop: the highest cell that holds anything - the air over it is lit straight)
 let skyFloor = 0, skyTop = 0;
 function skyColumn(x, z) {
-  let i = (mod(x, WS) * WS + mod(z, WS)) * WY + WY, y = WY - 1, open = 1, b = 0;
-  while (y >= 0) { if (W[i] != 0) { break; } LT[i] = 240; y = y - 1; i = i - 1; }
+  let i = (mod(x, WS) * WS + mod(z, WS)) * WY + WY, y = WY - 1, open = 1, b = 0, v = 0;
+  // ((11-26) written only where it is not so already: the air over the slot's last chunk was as bright, and a
+  // write makes a new value each time)
+  while (y >= 0) { if (W[i] != 0) { break; } if (LT[i] != 240) { LT[i] = 240; } y = y - 1; i = i - 1; }
   skyTop = y;
   while (y >= 0) {
     b = W[i];
     if (open == 1) { if (BLOP[b + 1] == 1 || BHC[b + 1] != 0) { open = 0; skyFloor = y + 1; } }
-    if (open == 1) { LT[i] = 240 + BLIT[b + 1]; } else { LT[i] = BLIT[b + 1]; }
+    // ((11-26) as above: under the ground most cells are as dark as the last chunk's were)
+    if (open == 1) { v = 240 + BLIT[b + 1]; } else { v = BLIT[b + 1]; }
+    if (LT[i] != v) { LT[i] = v; }
     y = y - 1; i = i - 1;
   }
   if (open == 1) { skyFloor = 0; }
@@ -902,15 +917,16 @@ function lightSet(on) {
   LRQ = []; LRM = [];
   let s = 1, m = 2;
   if (on == 1) { m = 0; }
-  while (s <= NCH * NCH) { if (CKST[s] == 5) { LRQ.push(s); LRM.push(m); } s = s + 1; }
-  if (on == 1) { s = 1; while (s <= NCH * NCH) { if (CKST[s] == 5) { LRQ.push(s); LRM.push(1); } s = s + 1; } }
+  // ((11-26) the chunks lit and waiting to be meshed too)
+  while (s <= NCH * NCH) { if (CKST[s] >= 4) { LRQ.push(s); LRM.push(m); } s = s + 1; }
+  if (on == 1) { s = 1; while (s <= NCH * NCH) { if (CKST[s] >= 4) { LRQ.push(s); LRM.push(1); } s = s + 1; } }
 }
 function lightRedoStep() {
   let n = 0;
   while (n < 4 && LRQ.length > 0) {
     let s = LRQ[1], m = LRM[1];
     LRQ.removeAt(1); LRM.removeAt(1);
-    if (CKST[s] == 5) {
+    if (CKST[s] >= 4) {
       let cx = CKX[s], cz = CKZ[s];
       if (m == 0) { let x = cx * 16; while (x < cx * 16 + 16) { let z = cz * 16; while (z < cz * 16 + 16) { skyColumn(x, z); SFL[wcol(x, z)] = skyFloor; STP[wcol(x, z)] = skyTop; z = z + 1; } x = x + 1; } n = n + 1; }
       else {
@@ -927,7 +943,7 @@ function lightRedoStep() {
 // genre's way). It was the whole 29 x 29 columns round it each time (a lamp's clock was slow)
 let RMX = [], RMY = [], RMZ = [], RML = [];
 function blockLightSet(x, y, z, e) {
-  if (y >= 0 && y < WY && cOK(x, z) == 1) {
+  if (y >= 0 && y < WY && cLit(x, z) == 1) {
     let i = wi(x, y, z), cur = mod(LT[i], 16), sk = LT[i] - cur;
     if (e > cur) { LT[i] = sk + e; lqPush(i); lightSpread(1); }
     if (e < cur) {
@@ -939,7 +955,7 @@ function blockLightSet(x, y, z, e) {
         let cx = RMX[h], cy = RMY[h], cz = RMZ[h], l = RML[h], d = 0;
         while (d < 6) {
           let nx = cx + DX6[d + 1], ny = cy + DY6[d + 1], nz = cz + DZ6[d + 1];
-          if (ny >= 0 && ny < WY) { if (cOK(nx, nz) == 1) {
+          if (ny >= 0 && ny < WY) { if (cLit(nx, nz) == 1) {
             let j = wi(nx, ny, nz), bl = mod(LT[j], 16);
             if (bl > 0) {
               if (bl < l) {
@@ -974,7 +990,7 @@ function lightTake(ch, x, y, z, l0) {
     let cx = RMX[h], cy = RMY[h], cz = RMZ[h], l = RML[h], d = 0;
     while (d < 6) {
       let nx = cx + DX6[d + 1], ny = cy + DY6[d + 1], nz = cz + DZ6[d + 1];
-      if (ny >= 0 && ny < WY) { if (cOK(nx, nz) == 1) {
+      if (ny >= 0 && ny < WY) { if (cLit(nx, nz) == 1) {
         let j = wi(nx, ny, nz), bl = lvOf(j, ch);
         if (bl > 0) {
           // (less than it: from it; the open sky's 15 straight down: from it too)
@@ -991,7 +1007,7 @@ function lightTake(ch, x, y, z, l0) {
   RMX = []; RMY = []; RMZ = []; RML = [];
 }
 function lightCell(x, y, z) {
-  if (y >= 0 && y < WY && cOK(x, z) == 1) {
+  if (y >= 0 && y < WY && cLit(x, z) == 1) {
     let i = wi(x, y, z), b = W[i], s = lvOf(i, 0), d = 0;
     // the sky
     if (s > 0) { lvSet(i, 0, 0); lightTake(0, x, y, z, s); }
@@ -1010,7 +1026,7 @@ function lightCell(x, y, z) {
       d = 0;
       while (d < 6) {
         let nx = x + DX6[d + 1], ny = y + DY6[d + 1], nz = z + DZ6[d + 1];
-        if (ny >= 0 && ny < WY) { if (cOK(nx, nz) == 1) { let j = wi(nx, ny, nz); if (lvOf(j, 0) > 1) { lqPush(j); } } }
+        if (ny >= 0 && ny < WY) { if (cLit(nx, nz) == 1) { let j = wi(nx, ny, nz); if (lvOf(j, 0) > 1) { lqPush(j); } } }
         d = d + 1;
       }
     }
@@ -1022,7 +1038,7 @@ function lightCell(x, y, z) {
       d = 0;
       while (d < 6) {
         let nx = x + DX6[d + 1], ny = y + DY6[d + 1], nz = z + DZ6[d + 1];
-        if (ny >= 0 && ny < WY) { if (cOK(nx, nz) == 1) { let j = wi(nx, ny, nz); if (lvOf(j, 1) > 1) { lqPush(j); } } }
+        if (ny >= 0 && ny < WY) { if (cLit(nx, nz) == 1) { let j = wi(nx, ny, nz); if (lvOf(j, 1) > 1) { lqPush(j); } } }
         d = d + 1;
       }
     }
@@ -1035,7 +1051,7 @@ function relight1(x0, x1, z0, z1) {
   rlTop = 0;
   while (x <= x1) {
     z = z0;
-    while (z <= z1) { if (cOK(x, z) == 1) { skyColumn(x, z); k = wcol(x, z); SFL[k] = skyFloor; STP[k] = skyTop; if (skyFloor > mx) { mx = skyFloor; } if (skyTop > rlTop) { rlTop = skyTop; } } z = z + 1; }
+    while (z <= z1) { if (cLit(x, z) == 1) { skyColumn(x, z); k = wcol(x, z); SFL[k] = skyFloor; STP[k] = skyTop; if (skyFloor > mx) { mx = skyFloor; } if (skyTop > rlTop) { rlTop = skyTop; } } z = z + 1; }
     x = x + 1;
   }
   // sky seeds: the lit cells of a column down from the lowest floor round it
@@ -1043,13 +1059,13 @@ function relight1(x0, x1, z0, z1) {
   while (x <= x1) {
     z = z0;
     while (z <= z1) {
-      if (cOK(x, z) == 1) {
+      if (cLit(x, z) == 1) {
         f = SFL[wcol(x, z)]; m = f;
         // (outside the box: the neighbour's own floor, when its chunk is made)
-        if (x > x0) { m = Math.max(m, SFL[wcol(x - 1, z)]); } else { if (cOK(x - 1, z) == 1) { m = Math.max(m, SFL[wcol(x - 1, z)]); } }
-        if (x < x1) { m = Math.max(m, SFL[wcol(x + 1, z)]); } else { if (cOK(x + 1, z) == 1) { m = Math.max(m, SFL[wcol(x + 1, z)]); } }
-        if (z > z0) { m = Math.max(m, SFL[wcol(x, z - 1)]); } else { if (cOK(x, z - 1) == 1) { m = Math.max(m, SFL[wcol(x, z - 1)]); } }
-        if (z < z1) { m = Math.max(m, SFL[wcol(x, z + 1)]); } else { if (cOK(x, z + 1) == 1) { m = Math.max(m, SFL[wcol(x, z + 1)]); } }
+        if (x > x0) { m = Math.max(m, SFL[wcol(x - 1, z)]); } else { if (cLit(x - 1, z) == 1) { m = Math.max(m, SFL[wcol(x - 1, z)]); } }
+        if (x < x1) { m = Math.max(m, SFL[wcol(x + 1, z)]); } else { if (cLit(x + 1, z) == 1) { m = Math.max(m, SFL[wcol(x + 1, z)]); } }
+        if (z > z0) { m = Math.max(m, SFL[wcol(x, z - 1)]); } else { if (cLit(x, z - 1) == 1) { m = Math.max(m, SFL[wcol(x, z - 1)]); } }
+        if (z < z1) { m = Math.max(m, SFL[wcol(x, z + 1)]); } else { if (cLit(x, z + 1) == 1) { m = Math.max(m, SFL[wcol(x, z + 1)]); } }
         y = f; i = (mod(x, WS) * WS + mod(z, WS)) * WY + f + 1;
         while (y <= m) { if (y < WY) { if (LT[i] >= 240) { lqPush(i); } } y = y + 1; i = i + 1; }
       }
@@ -1065,7 +1081,7 @@ function relight1(x0, x1, z0, z1) {
   while (x <= x1) {
     z = z0;
     while (z <= z1) {
-      if (cOK(x, z) == 1) {
+      if (cLit(x, z) == 1) {
         i = (mod(x, WS) * WS + mod(z, WS)) * WY + 1; y = 0; m = STP[wcol(x, z)];
         while (y <= m) { if (mod(LT[i], 16) > 1) { lqPush(i); } y = y + 1; i = i + 1; }
       }
@@ -1082,7 +1098,7 @@ function relightRing(x0, x1, z0, z1, which, ymax) {
     z = z0 - 1;
     while (z <= z1 + 1) {
       if (x < x0 || x > x1 || z < z0 || z > z1) {
-        if (cOK(x, z) == 1) {
+        if (cLit(x, z) == 1) {
           i = (mod(x, WS) * WS + mod(z, WS)) * WY + 1; y = 0;
           while (y <= ymax) {
             l = LT[i];
@@ -1101,7 +1117,7 @@ function relightRing(x0, x1, z0, z1, which, ymax) {
 // ---------------------------------------------------------------- chunks
 // stages: 1 columns, 2 caves, 3 ores, trees, the player's changes (the blocks are final),
 // 4 light, 5 sections (ready to draw)
-let pcxW = -99999, pczW = -99999, nChunks = 0;
+let pcxW = -99999, pczW = -99999, nChunks = 0, ckBurst = 0;
 let lastStage = 0;
 function chunkStage(s) {
   let cx = CKX[s], cz = CKZ[s], st = CKST[s];
@@ -1132,21 +1148,32 @@ function chunkStage(s) {
     CKST[s] = 3;
   } else { if (st == 3) {
     rlTop = 0;
+    // ((11-26) lit from here on: the light of the chunks round it comes in while its own is worked out)
+    CKST[s] = 4;
     relight(cx * 16, cx * 16 + 15, cz * 16, cz * 16 + 15);
     CKTOP[s] = rlTop;
-    CKST[s] = 4;
+    // ((11-26) lit: the sections of meshed neighbours whose side toward this chunk was left closed - it was after
+    // this chunk's own meshing; a side is open to a chunk that is lit, mesh.js)
+    nbRemesh(cx - 1, cz, cx * 16 - 8, cz * 16, 0, 8, 2); nbRemesh(cx + 1, cz, cx * 16 + 16, cz * 16, 0, 8, 1);
+    nbRemesh(cx, cz - 1, cx * 16, cz * 16 - 8, 8, 0, 8); nbRemesh(cx, cz + 1, cx * 16, cz * 16 + 16, 8, 0, 4);
+    // (its animals now, as before for every chunk round the player: its meshing may wait long)
+    chunkAnimals(cx, cz);
   } else { if (st == 4) {
     // its 2 x 2 x NSY sections, and the sections of ready neighbours that face it (their
     // faces against this chunk were left out while it was not made)
     // (a quarter of them a step)
     let k = CKSUB[s], a = idiv(k, 2), c = mod(k, 2), y = 0;
     // ((v3.5) the sections over the chunk's highest block are known to be empty: not looked through)
-    while (y < NSY) { if (y * 8 > CKTOP[s]) { meshAir = 1; } meshSectionAt(cx * 16 + a * 8, y * 8, cz * 16 + c * 8); meshAir = 0; y = y + 1; }
+    // ((11-26) and not handed to the mesher: what an empty section is, written here - most of a chunk's sections)
+    let x0 = cx * 16 + a * 8, z0 = cz * 16 + c * 8, sb = secOf(x0, 0, z0), top = idiv(CKTOP[s], 8), q = 0;
+    while (y < NSY) {
+      if (y > top) { q = sb + y; SOX[q] = x0; SOZ[q] = z0; SFN[q] = 0; SOK[q] = 1; SCL[q] = 0; SEMP[q] = 1; SVIS[q] = 68719476735; }
+      else { meshSectionAt(x0, y * 8, z0); }
+      y = y + 1;
+    }
+    meshVer = meshVer + 1;
     CKSUB[s] = k + 1;
-    if (k == 3) { CKSUB[s] = 0; CKST[s] = 5;
-    nbRemesh(cx - 1, cz, cx * 16 - 8, cz * 16, 0, 8, 2); nbRemesh(cx + 1, cz, cx * 16 + 16, cz * 16, 0, 8, 1);
-    nbRemesh(cx, cz - 1, cx * 16, cz * 16 - 8, 8, 0, 8); nbRemesh(cx, cz + 1, cx * 16, cz * 16 + 16, 8, 0, 4);
-    chunkAnimals(cx, cz); }
+    if (k == 3) { CKSUB[s] = 0; CKST[s] = 5; }
   } } } } }
 }
 // the two section columns (x, z), (x + dx, z + dz) of chunk (ncx, ncz), if it is ready: the
@@ -1167,12 +1194,61 @@ function chunkDrop(s) {
   let cx = CKX[s], cz = CKZ[s];
   CKST[s] = 0; CKSUB[s] = 0;
   let a = 0, c = 0, y = 0, k = 0;
-  while (a < 2) { c = 0; while (c < 2) { y = 0; while (y < NSY) { k = secOf(cx * 16 + a * 8, y * 8, cz * 16 + c * 8); SOK[k] = 0; SFN[k] = 0; SEMP[k] = 1; SVIS[k] = 0; y = y + 1; } c = c + 1; } a = a + 1; }
+  // ((11-26) and its places in the face pool given back: mesh.js poolFree)
+  while (a < 2) { c = 0; while (c < 2) { y = 0; while (y < NSY) { k = secOf(cx * 16 + a * 8, y * 8, cz * 16 + c * 8); SOK[k] = 0; SFN[k] = 0; SEMP[k] = 1; SVIS[k] = 0; if (SFC[k] > 0) { poolFree(k); } y = y + 1; } c = c + 1; } a = a + 1; }
+}
+// (v3.5, 11-26) A chunk was meshed as soon as it was lit, its sides toward chunks not made yet left closed, and
+// those sections meshed again when each such neighbour came: made nearest first, a chunk has two of its four
+// neighbours still to come, so two of its four section columns were meshed twice and one three times - of 36,000
+// meshings of sections that hold anything on a flight, 14,700 were such repeats, and meshing is half of what a
+// chunk costs. Now a chunk waits at stage 4 until its four neighbours are lit, and the work goes to them first
+// (mwS): every section is meshed once. A neighbour outside the circle of chunks to make (CR) is made - to its
+// light, no further - only when the waiting chunk is within the view (it stays within the circle chunks are
+// kept in, CR * CR + 6, so no slot is taken that two chunks would want); a chunk farther than the view waits
+// for the player to come nearer (mwGo 0). Were such a neighbour beyond even that, the side is left closed as before.
+// The four corner neighbours are waited for as well: the shade in a face's corners (aoOf) looks at the cells
+// beside the one the face looks into, and at a chunk's corner those are the corner neighbour's - read before it
+// was made, they were whatever the slot last held, and nothing meshed that section again.
+let mwS = 0, mwX = 0, mwZ = 0, mwGo = 0;
+function meshWait(cx, cz, pcx, pcz) {
+  mwS = 0; mwGo = 1;
+  let k = 0, ncx = 0, ncz = 0, s = 0, d = 0, out = 0, need = 0 - 1, ok = 0, dx = 0, dz = 0;
+  while (k < 8) {
+    ncx = cx; ncz = cz;
+    if (k == 0) { ncx = cx - 1; } if (k == 1) { ncx = cx + 1; } if (k == 2) { ncz = cz - 1; } if (k == 3) { ncz = cz + 1; }
+    if (k == 4) { ncx = cx - 1; ncz = cz - 1; } if (k == 5) { ncx = cx + 1; ncz = cz - 1; } if (k == 6) { ncx = cx - 1; ncz = cz + 1; } if (k == 7) { ncx = cx + 1; ncz = cz + 1; }
+    s = mod(ncx, NCH) * NCH + mod(ncz, NCH) + 1;
+    ok = 0;
+    if (CKST[s] >= 4) { if (CKX[s] == ncx) { if (CKZ[s] == ncz) { ok = 1; } } }
+    if (ok == 0) { if (mwS == 0) {
+      d = (ncx - pcx) * (ncx - pcx) + (ncz - pcz) * (ncz - pcz);
+      if (d <= CR * CR) { mwS = s; mwX = ncx; mwZ = ncz; }
+      else {
+        if (need < 0) {
+          // (is any of this chunk within the view)
+          dx = cx * 16 - Math.floor(px); if (dx < 0) { dx = Math.floor(px) - cx * 16 - 15; if (dx < 0) { dx = 0; } }
+          dz = cz * 16 - Math.floor(pz); if (dz < 0) { dz = Math.floor(pz) - cz * 16 - 15; if (dz < 0) { dz = 0; } }
+          need = 0; if (dx * dx + dz * dz <= viewR2) { need = 1; }
+        }
+        if (need == 1) { if (d <= CR * CR + 6) { mwS = s; mwX = ncx; mwZ = ncz; } } else { out = 1; }
+      }
+    } }
+    k = k + 1;
+  }
+  if (mwS == 0) { if (out == 1) { mwGo = 0; } }
 }
 // once a frame: drop what is too far, then make the nearest chunks a few stages on
+// ((11-26) `steps` is what the frame may spend, in units of about a millisecond of this computer's: a stage
+// costs what it was measured to on a flight (half the columns 4, the caves 3, ores and trees 5, the light 5, a quarter of
+// the sections 2: CKW). It was two stages a frame whatever they were - two halves of columns took 10 ms, two
+// quarters of sections 4. A stage dearer than what is left waits for the next frame, unless nothing was done yet.)
+let CKW = [4, 3, 5, 5, 2];
 function chunkWork(steps) {
-  let pcx = idiv(Math.floor(px), 16), pcz = idiv(Math.floor(pz), 16), s = 0, k = 1, cx = 0, cz = 0;
+  let pcx = idiv(Math.floor(px), 16), pcz = idiv(Math.floor(pz), 16), s = 0, k = 1, cx = 0, cz = 0, did = 0, w = 0;
   if (pcx != pcxW || pcz != pczW) {
+    // ((11-26) come from afar - a new world, another world, a teleport: main.js gives the chunks twice the work
+    // for the next second, the view being empty)
+    if (Math.abs(pcx - pcxW) > 1 || Math.abs(pcz - pczW) > 1) { ckBurst = 60; }
     pcxW = pcx; pczW = pcz;
     s = 1;
     while (s <= NCH * NCH) {
@@ -1188,8 +1264,20 @@ function chunkWork(steps) {
       if (steps > 0) {
         if (CKST[s] > 0) { if (CKX[s] != cx || CKZ[s] != cz) { chunkDrop(s); } }
         if (CKST[s] == 0) { CKX[s] = cx; CKZ[s] = cz; }
-        chunkStage(s);
-        steps = steps - 1;
+        // ((11-26) before its meshing begins: its neighbours lit)
+        mwS = 0; mwGo = 1;
+        if (CKST[s] == 4) { if (CKSUB[s] == 0) { meshWait(cx, cz, pcx, pcz); } }
+        if (mwS > 0) {
+          if (CKST[mwS] > 0) { if (CKX[mwS] != mwX || CKZ[mwS] != mwZ) { chunkDrop(mwS); } }
+          if (CKST[mwS] == 0) { CKX[mwS] = mwX; CKZ[mwS] = mwZ; }
+          w = CKW[CKST[mwS] + 1];
+          if (w <= steps || did == 0) { chunkStage(mwS); steps = steps - w; did = 1; } else { steps = 0; }
+        } else {
+          if (mwGo == 1) {
+            w = CKW[CKST[s] + 1];
+            if (w <= steps || did == 0) { chunkStage(s); steps = steps - w; did = 1; } else { steps = 0; }
+          } else { k = k + 1; }
+        }
       } else { k = k + 1; }
     }
   }
@@ -1240,7 +1328,7 @@ function genStart(s) {
 // the loading screen: the chunks near the start are made before play (the rest during it)
 function genStep() {
   genMsg = '지형·동굴·광물·나무·빛을 만드는 중';
-  chunkWork(40);
+  chunkWork(120);
   genN = nChunks / NSTART;
   if (nChunks >= NSTART) { genN = 1; genPhase = 7; }
 }

@@ -8,3 +8,4 @@ test/.nrun/
 test/*.txt
 test/*.png
 test/rec/
+test/dump_*.json

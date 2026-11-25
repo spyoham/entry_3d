@@ -589,7 +589,7 @@ function startTravel(nd, x, z, kind) {
   setView(viewWant);
 }
 function travelFrame() {
-  chunkWork(40);
+  chunkWork(120);
   genN = nChunks / NSTART;
   eraseAll();
   dirtBack(10);

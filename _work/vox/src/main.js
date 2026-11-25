@@ -4,7 +4,7 @@
 // time since the last one.
 let $TESSVM = 0, $M_LOCK = 0, $DELTA_X = 0, $DELTA_Y = 0, $SCROLL_Y = 0, $CURSOR = '', $MOUSE_BUTTONS = 0;
 let tickN = 0, lastFrameTick = 0, kStep = 1, frames = 0, fpsShow = 0, tpsShow = 0;
-let secNow = -1, secTicks = 0, secFrames = 0, kGood = 0, kBad = 0, secN = 0, kHoldTo = 0, kDecAt = -99, rtK = 1;
+let secNow = -1, secTicks = 0, secFrames = 0, kGood = 0, kBad = 0, secN = 0, kHoldTo = 0, kDecAt = -99, rtK = 1, kRun = 0;
 let mAccX = 0, mAccY = 0, wheelAcc = 0, clickLatch = 0, clickHeld = 0, mouseWas = 0, sens = 0.5, isTess = 0;
 let gState = 0, viewWant = 32, autoView = 1, slowSec = 0, fastSec = 0;
 let tday = 0.03, dayLen = 1200, skyStep = -1;
@@ -17,11 +17,18 @@ function paceSecond() {
   if (secTicks < 58) { if (secTicks > 20) { rtK = Math.min(2, 60 / secTicks); } }
   secN = secN + 1;
   // (only while playing: making the world has long ticks of its own)
-  if (gState != 2) { kStep = 1; kBad = 0; kGood = 0; }
+  if (gState != 2) { kStep = 1; kBad = 0; kGood = 0; kRun = 0; }
   else { if (secTicks < 55) {
     kBad = kBad + 1;
-    if (secTicks < 48 || kBad >= 3) { if (kStep < 4) { kStep = kStep + 1; kGood = 0; kBad = 0; if (secN - kDecAt < 4) { kHoldTo = secN + 10; } } }
+    // ((v3.5, 11-26) One short second, or two, after six full ones is the engine clearing its heap - about a second,
+    // every 15 to 20 (the wiki, page 05) - not a slow computer: the picture was then drawn every other tick for
+    // the next seconds, after every such pause. A slow computer's seconds stay short: the third counts.)
+    let pause = 0;
+    if (kRun >= 6) { if (kBad <= 2) { pause = 1; } }
+    if (pause == 0) { kRun = 0; if (secTicks < 48 || kBad >= 3) { if (kStep < 4) { kStep = kStep + 1; kGood = 0; kBad = 0; if (secN - kDecAt < 4) { kHoldTo = secN + 10; } } } }
   } else {
+    if (kBad > 0) { kRun = 0; }
+    kRun = kRun + 1;
     kBad = 0; kGood = kGood + 1;
     if (kGood >= 2) { if (kStep > 1) { if (secN >= kHoldTo) { kStep = kStep - 1; kGood = 0; kDecAt = secN; } } }
   } }
@@ -248,8 +255,10 @@ function playWorld(dt) {
   worldFlush();
   if (LRQ.length > 0) { lightRedoStep(); }
   // the world round the player: a few chunk stages and some sections a frame
-  let cw = 1;
-  if (kStep == 1) { cw = 2; }
+  // ((11-26) in units of a stage's cost: world.js chunkWork)
+  let cw = 4;
+  if (kStep == 1) { cw = 8; }
+  if (ckBurst > 0) { ckBurst = ckBurst - 1; cw = cw * 2; }
   chunkWork(cw); remeshSome(6);
   if (BENCH == 0) { if (grDay == 1) { tday = tday + dt / dayLen; } }
   if (tday >= 1) { tday = tday - 1; dayN = dayN + 1; }
@@ -293,6 +302,8 @@ function drawView() {
 }
 // the HUD and the screens over it
 function drawUI(dt) {
+  // ((11-26) hudLive: the HUD's bars are the object `bar`'s this frame - hud.js hudBars)
+  hudLive = 0;
   if (uiMode <= 6) { if (dead == 0) { drawHud(dt); } }
   // ((v2.6) the chat open: its history)
   if (uiMode == 9) { chatHud(dt); }
@@ -307,6 +318,7 @@ function drawUI(dt) {
   if (helpT > 0) { helpT = helpT - dt; helpText(); } else { if (uiMode == 0) { txOff(15); txOff(16); txOff(17); txOff(18); txOff(19); } }
   if (lkNow == 0) { if (uiMode == 0) { if (dead == 0) { tx(19, '화면을 클릭하면 마우스로 둘러봅니다', 0, -60, 9, '#ffffff', 0); } } }
   fillStop();
+  if (hudLive != hudOn) { hudOn = hudLive; if (hudOn == 1) { hudAsk = 1; } }
 }
 function helpText() {
   tx(15, 'WASD 이동 · 스페이스 점프(크리에이티브: 두 번 눌러 날기) · Shift 웅크리기 · W 두 번/R/Ctrl 달리기', 0, 104, 7, '#ffffff', 0);

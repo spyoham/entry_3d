@@ -35,10 +35,14 @@ function chunkOffsets(r) {
 }
 export const consts = {
     WS, NCH, CR, ...worldConsts(256), UH: 64, NSX: WS / 8, OFF: 32768,
-    NOFF: chunkOffsets(CR).length, CVN: 32, FORTY: 30, NSTART: chunkOffsets(2).length,
+    // ((v3.5, 11-26) NSTART: the chunks meshed before the game begins - the nine round the player (it was the
+    // thirteen within two chunks). A chunk is meshed after its eight neighbours are lit (world.js meshWait), so
+    // thirteen asked for 37 chunks' land and light where they had asked for 13; nine ask for 25. The rest of
+    // the view comes in the half second after (for a second after arriving the chunks get twice the work: ckBurst).)
+    NOFF: chunkOffsets(CR).length, CVN: 32, FORTY: 30, NSTART: 9,
     NEARZ: Math.round(0.05 * 256 * 16384), DEC2: 20, PLANT2: 225, MK: 160 * 1048576,
     NMOB: 96, NITM: 96, NARR: 24, NFUR: 32, NCHEST: 256, ANIMALS: 60, SMELTT: 10, NTX: 145, NTX0: 123,
-    GENV: 3, SPAWNC: 0, BENCH: 0, NOCAVE: 0, AUTOSEED: 0, AUTOMODE: 0, TESTRUN: 0, SIMRUN: 0, LEGACY: 0, SLIM: 1, SPLIT: 0, MESHFAST: 1,
+    GENV: 3, SPAWNC: 0, BENCH: 0, NOCAVE: 0, AUTOSEED: 0, AUTOMODE: 0, TESTRUN: 0, SIMRUN: 0, LEGACY: 0, SLIM: 1, SPLIT: 0, MESHFAST: 1, HUDL: 1,
 };
 
 // what F does on a block, how it is put down, what it must stand on, how it moves a body
@@ -75,6 +79,15 @@ export function makeData() {
         out.sort((a, b) => b.a - a.a);
         return out;
     };
+    // ((v3.5, 11-26) The rects of one colour next to each other. tessvm lays the shapes that follow each other in one
+    // colour into one path and fills it once (what a fill costs it is mostly a fill, not a point: about 2 KB of
+    // values made and thrown away for each); a texture's twenty-odd rects of three or four colours came biggest
+    // first, so nearly every rect was a fill of its own. They do not overlap, so their order is free: the
+    // `first` biggest (what a face farther off shows, TRF) stay first, and each part is put by colour.)
+    const byColour = (rs, first = rs.length) => {
+        const part = (a) => a.map((r, i) => ({ r, i })).sort((p, q) => (p.r.c - q.r.c) || (p.i - q.i)).map((x) => x.r);
+        return part(rs.slice(0, first)).concat(part(rs.slice(first)));
+    };
     const putRects = (rs) => { const r0 = R.RU0.length + 1; for (const r of rs) { R.RU0.push(r.u0); R.RV0.push(r.v0); R.RU1.push(r.u1); R.RV1.push(r.v1); R.RCOL.push(r.c); } return [r0, rs.length]; };
 
     // textures
@@ -93,7 +106,8 @@ export function makeData() {
         AVGC.push(col(snap(avg)));
         L.TAVG.push(clear ? -1 : col(snap(avg)));
         L.TBASE.push(base ? col(snap(p[base])) : -1);
-        const rs = rectsOf(g, (ch) => ch !== '.' && ch !== base, (ch) => col(snap(p[ch])));
+        const rs0 = rectsOf(g, (ch) => ch !== '.' && ch !== base, (ch) => col(snap(p[ch])));
+        const rs = byColour(rs0, Math.min(rs0.length, clear ? 4 : 5));
         const [r0, rn] = putRects(rs);
         L.TR0.push(r0); L.TRN.push(rn); L.TRF.push(Math.min(rn, clear ? 4 : 5));
     }
@@ -353,7 +367,7 @@ export function makeData() {
     // items
     const I = { ITKEY: [], ITNAME: [], ITK: [], ITST: [], ITFOOD: [], ITFUEL: [], ITTK: [], ITTT: [], ITDUR: [], ITDMG: [], ITISO: [], IC0: [], ICN: [], ITC1: [], ITC2: [], ITDEF: [], ITSLOT: [], ITTAG: [], ITPLB: [], ITSPAWN: [], ITTHROW: [], ITCAT: [], ITFP: [], ITREP: [], ITENC: [], ITECL: [] };
     const SMELTT = 10;
-    const iconOf = (grid, p) => putRects(rectsOf(grid, (ch) => ch !== '.', (ch) => col(snap(p[ch]))));
+    const iconOf = (grid, p) => putRects(byColour(rectsOf(grid, (ch) => ch !== '.', (ch) => col(snap(p[ch])))));
     const iconCol = (grid, p) => { const c = {}; for (const r of grid) for (const ch of r) if (ch !== '.') c[ch] = (c[ch] || 0) + 1; return col(snap(p[Object.entries(c).sort((a, b) => b[1] - a[1])[0][0]])); };
     const TORCH = { g: ['...yy...', '...yo...', '...bb...', '...bb...', '...bb...', '...bb...', '...bb...', '........'], p: { y: 'ffd040', o: 'f08020', b: '7a5a30' } };
     const itemById = new Map(ITEMS.map(x => [x.id, x]));
@@ -766,6 +780,8 @@ export function buildProject(out, { name = `${NAME} v${VERSION}`, more = {} } = 
     ];
     // SPLIT: the world and the screens drawn by objects of their own (in front of pen: hud, view)
     if (prog.objectScripts.view) objects.splice(1, 0, { id: 'hud', name: 'hud', pictures: [{ id: 'p2', name: 'dot', buf: DOT, w: 1, h: 1 }], script: prog.objectScripts.hud }, { id: 'view', name: 'view', pictures: [{ id: 'p3', name: 'dot', buf: DOT, w: 1, h: 1 }], script: prog.objectScripts.view });
+    // ((v3.5, 11-26) bar: the HUD's hotbar and hearts, in front of the world's picture - src/hud.js hudBars)
+    if (prog.objectScripts.bar) objects.splice(1, 0, { id: 'bar', name: 'bar', pictures: [{ id: 'p4', name: 'dot', buf: DOT, w: 1, h: 1 }], script: prog.objectScripts.bar });
     for (const k of Object.keys(prog.objectScripts)) if (!objects.some(o => o.id === k)) throw new Error('script for an unknown object: ' + k);
     const project = packEnt(out, { name, tmpDir: path.join(HERE, '.pack'), variables: prog.variables, functions: prog.functions, messages: prog.messages, objects, speed: 60 });
     const big = prog.variables.filter(v => v.variableType === 'list' && v.array.length > 5000).map(v => v.name + ':' + v.array.length);

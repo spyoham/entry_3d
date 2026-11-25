@@ -26,7 +26,7 @@ for (const [dx, dz] of [[320, 40], [-200, 260]]) {
   for (let x = tx - 60; x <= tx + 60; x++) for (let z = tz - 60; z <= tz + 60; z++) {
     if (A.as('pen', () => A.fn.cOK(x, z)) !== 1 || B.as('pen', () => B.fn.cOK(x, z)) !== 1) continue;
     const sa = A.peek('CKST')[A.as('pen', () => A.fn.slotOf(Math.floor(x / 16), Math.floor(z / 16))) - 1], sb = B.peek('CKST')[B.as('pen', () => B.fn.slotOf(Math.floor(x / 16), Math.floor(z / 16))) - 1];
-    if (sa !== 5 || sb !== 5) continue;
+    if (sa < 4 || sb < 4) continue;   // ((11-26) made and lit: a chunk is meshed only when its neighbours are)
     const ci = (((x % WS) + WS) % WS) * WS + (((z % WS) + WS) % WS), b0 = ci * WY; cols++;
     if (HA[ci] !== HB[ci] || BA[ci] !== BB[ci]) hd++;
     for (let y = 0; y < WY; y++) if (WA[b0 + y] !== WB[b0 + y] && !liq(WA[b0 + y]) && !liq(WB[b0 + y]) && !wet(WA, b0 + y) && !wet(WB, b0 + y)) { diff++; if (ex.length < 6) ex.push(`${x},${y},${z}:${WA[b0 + y]}/${WB[b0 + y]}`); }

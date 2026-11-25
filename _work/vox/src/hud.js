@@ -205,6 +205,52 @@ function specHud() {
 function drawHud2(dt) {
   // ((v3.3) the blow's charge, the other hand's slot, the shield: src/combat.js)
   combatHud();
+  // ((v3.5, 11-26) the hotbar, the bars, the hearts and the food: by the object `bar` while nothing is open - hudBars)
+  let y0 = -116;
+  if (HUDL == 1 && SPLIT == 0 && uiMode == 0) { hudLive = 1; hudSig(); } else { hudBars(); }
+  // the name of what was just taken in hand
+  if (INVI[hotSel] != lastHot) { lastHot = INVI[hotSel]; nameT = 2; }
+  nameT = nameT - dt;
+  if (nameT > 0) { if (INVI[hotSel] > 0) { tx(10, ITNAME[INVI[hotSel] + 1], 0, y0 + 40, 9, '#ffffff', 0); } else { txOff(10); } } else { txOff(10); }
+  // the warden's life across the top
+  // ((v3.0) and the king of the black bones', and a raid's waves)
+  let showB = 0, bf = 0, bc = '#c040ff';
+  if (dim == 2) { if (bossDead == 0) { if (bossE > 0) { if (ET[bossE] == 10) { showB = 1; bf = Math.max(0, EHP[bossE]) / MHP[10]; gS = `공허의 수호자 · 남은 수호 수정 ${nCrystal}`; } } } }
+  if (kingE > 0) { if (ET[kingE] == M_BONEKING) { showB = 1; bf = Math.max(0, EHP[kingE]) / 300; bc = '#8a8aff'; gS = MNAME[M_BONEKING]; } }
+  if (raidOn == 1) { showB = 1; bf = raidWave / Math.max(1, raidN); bc = '#c03030'; gS = `습격 · ${raidWave} / ${raidN}번째 물결 · 남은 약탈자 ${raidLeft}`; }
+  if (showB == 1) {
+    box(-101, 127, 101, 121, '#000000');
+    box(-100, 126, -100 + 200 * bf, 122, bc);
+    tx(93, gS, 0, 134, 7, '#f0e0ff', 0);
+  } else { txOff(93); }
+  if (winT > 0) { winT = winT - dt; tx(94, '승리!', 0, 70, 22, '#ffe880', 0); tx(95, '공허의 수호자를 쓰러뜨렸습니다 · 수호자의 심장을 주워 가세요', 0, 48, 8, '#ffffff', 0); }
+  else { txOff(94); txOff(95); }
+}
+// ---------------------------------------------------------------- (v3.5, 11-26) the hotbar and the hearts, drawn when they change
+// The picture is all erased and drawn again each frame, the HUD with it: in survival the twenty hearts and
+// twenty food icons alone were 400 of a frame's 2,000 filled shapes - and what a frame draws is what the engine
+// must throw away after it (about 1 KB a shape that outlives the frame: the heap of a page that holds this
+// world's 13 million cells grows 130 MB a second, and each clearing of it stops the game for a second). So
+// while no screen is open they are drawn by an object of their own, `bar`, in front of the world's, and only
+// when one of the values they show is another (HBV: what was drawn last); with a screen open, or in the SPLIT
+// build, they are drawn each frame under it as before.
+let HBV = [], hudAsk = 0, hudOn = 0, hudLive = 0, hudShown = 0;
+function M_hs(I, V) { if (HBV[I] != V) { HBV[I] = V; hudAsk = 1; } }
+function hudSig() {
+  if (HBV.length == 0) { let i = 0; while (i < 40) { HBV.push(0 - 1); i = i + 1; } }
+  let k = 1, v = 0;
+  while (k <= 9) { M_hs(k, INVI[k]); M_hs(k + 9, INVN[k]); M_hs(k + 18, INVD[k]); k = k + 1; }
+  M_hs(28, hotSel); M_hs(29, gameMode);
+  if (mod(gameMode, 2) == 0) {
+    M_hs(30, xpLevel);
+    v = Math.round(1820 * xpPts / xpNeed(xpLevel)); M_hs(31, v);
+    v = armorDef(); M_hs(32, v);
+    M_hs(33, absorb); M_hs(34, hp); M_hs(35, food);
+    v = 0 - 1; if (headWater == 1 || air < 300) { v = Math.ceil(air / 30); }
+    M_hs(36, v);
+  }
+}
+function hudBars() {
   // the hotbar
   let x0 = -91, y0 = -116, k = 1;
   box(x0 - 1, y0 + 12, x0 + 183, y0 - 12, '#000000');
@@ -261,24 +307,17 @@ function drawHud2(dt) {
       i = i + 1;
     }
   }
-  // the name of what was just taken in hand
-  if (INVI[hotSel] != lastHot) { lastHot = INVI[hotSel]; nameT = 2; }
-  nameT = nameT - dt;
-  if (nameT > 0) { if (INVI[hotSel] > 0) { tx(10, ITNAME[INVI[hotSel] + 1], 0, y0 + 40, 9, '#ffffff', 0); } else { txOff(10); } } else { txOff(10); }
-  // the warden's life across the top
-  // ((v3.0) and the king of the black bones', and a raid's waves)
-  let showB = 0, bf = 0, bc = '#c040ff';
-  if (dim == 2) { if (bossDead == 0) { if (bossE > 0) { if (ET[bossE] == 10) { showB = 1; bf = Math.max(0, EHP[bossE]) / MHP[10]; gS = `공허의 수호자 · 남은 수호 수정 ${nCrystal}`; } } } }
-  if (kingE > 0) { if (ET[kingE] == M_BONEKING) { showB = 1; bf = Math.max(0, EHP[kingE]) / 300; bc = '#8a8aff'; gS = MNAME[M_BONEKING]; } }
-  if (raidOn == 1) { showB = 1; bf = raidWave / Math.max(1, raidN); bc = '#c03030'; gS = `습격 · ${raidWave} / ${raidN}번째 물결 · 남은 약탈자 ${raidLeft}`; }
-  if (showB == 1) {
-    box(-101, 127, 101, 121, '#000000');
-    box(-100, 126, -100 + 200 * bf, 122, bc);
-    tx(93, gS, 0, 134, 7, '#f0e0ff', 0);
-  } else { txOff(93); }
-  if (winT > 0) { winT = winT - dt; tx(94, '승리!', 0, 70, 22, '#ffe880', 0); tx(95, '공허의 수호자를 쓰러뜨렸습니다 · 수호자의 심장을 주워 가세요', 0, 48, 8, '#ffffff', 0); }
-  else { txOff(94); txOff(95); }
 }
+on('start', 'bar', function () {
+  if ($TESSVM == 0 && SIMRUN == 0) { stopThread(); }
+  hide(); penUp();
+  for (;;) {
+    if (hudOn == 1 && gState == 2) {
+      // (asked for, or its picture was taken away meanwhile - a journey to another world, the title and back)
+      if (hudAsk == 1 || hudShown == 0) { hudAsk = 0; eraseAll(); hudBars(); fillStop(); hudShown = 1; }
+    } else { if (hudShown == 1) { eraseAll(); hudShown = 0; } }
+  }
+});
 let FACEKO = ['남(+Z)', '동(+X)', '북(-Z)', '서(-X)'];
 function debugHud() {
   if (showDbg == 1) {

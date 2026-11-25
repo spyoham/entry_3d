@@ -637,12 +637,15 @@ function genColumn2(x, z) {
     if (v0 > 0 && v1 > 0) { md = 1; } else { if (v0 <= 0 && v1 <= 0) { md = 0; } }
     if (md == 0 && y >= SEA + 7) {
       t = 0;
-      while (t <= t0) { W[i] = 0; LT[i] = 0; i = i - 1; t = t + 1; }
+      // ((v3.5, 11-26) no light written here: the light stage writes every cell of the column (world.js cLit); and a
+      // cell written only when it holds something else - the air and the deep stone of the slot's last chunk
+      // are mostly where this chunk's are, and each write makes a new value for the engine to throw away)
+      while (t <= t0) { if (W[i] != 0) { W[i] = 0; } i = i - 1; t = t + 1; }
       y = y - t0 - 1; run = 0 - 1;
       if (fill == 21) { fill = 8; }
     } else { if (md == 1 && run == 0 && y >= 12) {
       t = 0;
-      while (t < 8) { W[i] = 1; LT[i] = 0; i = i - 1; t = t + 1; }
+      while (t < 8) { if (W[i] != 1) { W[i] = 1; } i = i - 1; t = t + 1; }
       y = y - 8;
     } else {
       t = t0;
@@ -693,7 +696,7 @@ function genColumn2(x, z) {
         }
         // (the floor's rock: all of the lowest cell, less of each of the four above)
         if (y < 5) { if (rnd() < 1 - y * 0.2) { v = 6; } }
-        W[i] = v; LT[i] = 0;
+        if (W[i] != v) { W[i] = v; }
         y = y - 1; i = i - 1; t = t - 1;
       }
     } }

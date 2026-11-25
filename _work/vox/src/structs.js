@@ -806,7 +806,8 @@ function pendingMobs() {
   let k = PMT.length;
   while (k >= 1) {
     if (cOK(Math.floor(PMX[k]), Math.floor(PMZ[k])) == 1) {
-      if (CKST[slotOf(idiv(Math.floor(PMX[k]), 16), idiv(Math.floor(PMZ[k]), 16))] == 5) {
+      // ((v3.5, 11-26) lit: a chunk waits for its neighbours before it is meshed, world.js meshWait)
+      if (CKST[slotOf(idiv(Math.floor(PMX[k]), 16), idiv(Math.floor(PMZ[k]), 16))] >= 4) {
         // ((v3.0, 11-18) its number from its place: one in another player's line is not made again)
         let u = nmDetOf(PMX[k], PMY[k], PMZ[k]);
         // ((v3.2) one that is kept (no monster) is made once in a world, not every time it is opened)
