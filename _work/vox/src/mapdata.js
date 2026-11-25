@@ -127,6 +127,8 @@ function mapTake() {
       MPE = []; MPK = []; MPA = [];
       mapNums(SPL[6], 1); mapNums(SPL[10], 2); mapNums(SPL[11], 3);
       mpNE = idiv(MPE.length, 5);
+      // ((v3.5) a map of the world 128 high: moved up with the land (landup.js))
+      if (GENV >= 3 && mpGen < GENV) { mapUp(); }
       if (mpSeed >= 1) { r = 1; }
     }
   } }

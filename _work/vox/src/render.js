@@ -30,7 +30,7 @@ let skyHex = '#78a7ff', voidHex = '#101018';
 function renderInit() {
   let i = 0;
   HD = [];
-  while (i < 220) { HD.push(0); i = i + 1; }
+  while (i < WY + 92) { HD.push(0); i = i + 1; }
   BF = []; BN = []; BD2 = [];
   SVF = []; SIN = []; SQ = []; i = 0;
   VSL = [];

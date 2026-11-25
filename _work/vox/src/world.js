@@ -114,156 +114,145 @@ let TBAND = [I_terracotta, I_orangeTerracotta, I_terracotta, I_yellowTerracotta,
 // in between straight lines: GC* for the 5 x 5 corners of one chunk
 let GCC = [], GCM = [], GCT = [], GCH = [];
 let gridOn = 0, gridX = 0, gridZ = 0;
-function climateAt(x, z) {
-  clC = fbm4(x, z, 72);
-  clM = noise2(x - (0 - 2525), z - (0 - 2525), 50);
-  clT = fbm3(x - (0 - 10025), z - (0 - 175), 50) * 1.3;
-  clH = fbm3(x - (0 - 431), z - (0 - 13636), 46) * 1.3;
-}
 let clC = 0, clM = 0, clT = 0, clH = 0;
-function climateGrid(x0, z0) {
-  if (GCC.length == 0) { let i = 0; while (i < 25) { GCC.push(0); GCM.push(0); GCT.push(0); GCH.push(0); i = i + 1; } }
-  let a = 0, c = 0, k = 0;
-  while (a < 5) {
-    c = 0;
-    while (c < 5) { climateAt(x0 + a * 4, z0 + c * 4); k = a * 5 + c + 1; GCC[k] = clC; GCM[k] = clM; GCT[k] = clT; GCH[k] = clH; c = c + 1; }
-    a = a + 1;
-  }
-  gridOn = 1; gridX = x0; gridZ = z0;
-}
 // ((v3.4) a world made from v3.4 on has the land of terra.js (genVer 2): its top and biome from there)
 function columnShape(x, z) { if (genVer >= 2) { tPoint(x, z); } else { columnShape0(x, z); } }
-function columnShape0(x, z) {
-  let gx = x - gridX, gz = z - gridZ;
-  if (gridOn == 1 && gx >= 0 && gx < 16 && gz >= 0 && gz < 16) {
-    let ga = idiv(gx, 4), gc = idiv(gz, 4), fx = (gx - ga * 4) / 4, fz = (gz - gc * 4) / 4;
-    let k = ga * 5 + gc + 1, w00 = (1 - fx) * (1 - fz), w01 = (1 - fx) * fz, w10 = fx * (1 - fz), w11 = fx * fz;
-    clC = GCC[k] * w00 + GCC[k + 1] * w01 + GCC[k + 5] * w10 + GCC[k + 6] * w11;
-    clM = GCM[k] * w00 + GCM[k + 1] * w01 + GCM[k + 5] * w10 + GCM[k + 6] * w11;
-    clT = GCT[k] * w00 + GCT[k + 1] * w01 + GCT[k + 5] * w10 + GCT[k + 6] * w11;
-    clH = GCH[k] * w00 + GCH[k + 1] * w01 + GCH[k + 5] * w10 + GCH[k + 6] * w11;
-  } else { climateAt(x, z); }
-  let c = clC, m = clM, t = clT, hm = clH;
-  let e = fbm3(x - (0 - 2871), z - (0 - 214), 29);
-  let h = SEA + 2 + c * 16 + e * 4;
-  let mt = 0;
-  // mountains: a broad rise where the noise is high, with ridged crags on it
-  if (m > 0.05) {
-    mt = (m - 0.05) * (m - 0.05) * 200 * (0.65 + 0.35 * e);
-    let rg = 1 - Math.abs(noise2(x - (0 - 7417), z - (0 - 3191), 17));
-    mt = mt * (0.75 + 0.45 * rg * rg);
-    if (c < -0.1) { mt = mt * 0.3; }
-    h = h + mt;
-    // (the tops eased under the roof of the world)
-    if (h > 96) { h = 96 + (h - 96) * 0.35; }
-  }
-  // rivers: the land dips to the sea along a line of the noise
-  let rv = Math.abs(noise2(x - (0 - 16687), z - (0 - 21), 42));
-  if (rv < 0.06) { if (h > SEA - 3) { if (mt < 6) { h = SEA - 3 + (h - SEA + 3) * rv / 0.06; } } }
-  colH = Math.floor(h);
-  if (colH > WY - 6) { colH = WY - 6; }
-  if (colH < 6) { colH = 6; }
-  // biomes: 0 ocean, 1 beach, 2 plains, 3 forest, 4 desert, 5 taiga, 6 snowy, 7 mountains, 8 frozen ocean,
-  // 11 jungle, 12 savanna, 13 swamp, 14 red canyons, 15 ebony forest, 16 mushroom island, 17 birch forest,
-  // 18 flower forest, 19 ice spikes, 20 warm ocean, 21 deep ocean (9, 10: the other worlds)
-  let wv = noise2(x - (0 - 31337), z - (0 - 2718), 38);
-  let b = 2;
-  if (hm > 0.12) { b = 3; if (wv > 0.38) { b = 15; } if (wv < -0.4) { b = 17; } if (wv > 0.12 && wv < 0.24) { b = 18; } }
-  if (t < -0.12) { b = 5; }
-  if (t < -0.32) { b = 6; if (wv > 0.45) { b = 19; } }
-  if (t > 0.3) { if (hm < 0.05) { b = 4; if (wv > 0.3) { b = 14; } } }
-  if (t > 0.18) { if (hm >= 0.05 && hm < 0.2) { if (b == 2) { b = 12; } } }
-  if (t > 0.22) { if (hm > 0.28) { b = 11; } }
-  if (hm > 0.34) { if (t > -0.1 && t <= 0.22) { if (colH <= SEA + 4) { b = 13; } } }
-  if (colH >= SEA + 20) { if (b != 14) { b = 7; } }
-  if (colH <= SEA + 1) { if (b != 6 && b != 4 && b != 13 && b != 14) { b = 1; } }
-  if (colH < SEA - 1) { b = 0; }
-  colB = b;
-  if (b == 0) {
-    if (t < -0.3) { colB = 8; }
-    if (t > 0.3) { colB = 20; }
-    if (colH < SEA - 12) { colB = 21; }
-    // now and then an island of mushrooms far out at sea
-    if (c < -0.25) { if (wv > 0.55) { colB = 16; colH = SEA + 2 + Math.floor((wv - 0.55) * 30); } }
-  }
-  // the swamp sits low and wet
-  if (colB == 13) { if (colH > SEA) { colH = SEA + Math.floor((colH - SEA) * 0.4); } }
-}
 // the biome of a column without making it (for /locatebiome): bmAt
 let bmAt = 0;
 function biomeAt(x, z) {
   if (dim == 0) { if (flatOn == 1) { bmAt = 2; } else { if (genVer >= 2) { bmAt = TBM[tBiomeQ(idiv(x, 4), idiv(z, 4)) + 1]; } else { gridOn = 0; columnShape(x, z); bmAt = colB; } } }
   else { if (dim == 1) { ashBiome(x, z); bmAt = abm; } else { bmAt = 10; } }
 }
-function genColumn(x, z) {
-  columnShape0(x, z);
-  let h = colH, b = colB, ci = wcol(x, z);
-  HMAP[ci] = h; BIOM[ci] = b;
-  let top = 2, fill = 3, fd = 3 + rndI(0, 1);
-  if (b == 1 || b == 4) { top = 8; fill = 8; }
-  if (b == 6 || b == 19) { top = 20; }
-  if (b == 16) { top = I_mycelium; }
-  if (b == 5) { if (noise2(x, z, 7) > 0.35) { top = I_podzol; } }
-  if (b == 15) { if (noise2(x, z, 6) > 0.5) { top = I_coarseDirt; } }
-  if (b == 14) { top = I_redSand; fill = I_terracotta; fd = 12; }
-  if (b == 7) { if (h > SEA + 30) { top = 1; fill = 1; } if (h > SEA + 34) { top = 45; } }
-  if (b == 0 || b == 8) {
-    top = 8; fill = 8;
-    let fl = noise2(x - (0 - 94), z - (0 - 19), 12);
-    if (fl > 0.35) { top = 9; fill = 9; }
-    if (fl < -0.45) { top = 22; fill = 22; }
-  }
-  if (h < SEA - 1) { if (top == 2) { top = 3; } if (top == 20) { top = 3; } }
-  let y = 0, v = 0, i = (ci - 1) * WY + 1;
-  while (y < WY) {
-    v = 0;
-    if (y < h - fd) { v = 1; }
-    else { if (y < h) { v = fill; if (fill == 8) { if (y < h - 2) { v = 21; } } if (fill == I_terracotta) { v = TBAND[mod(y, 16) + 1]; } } else { if (y == h) { v = top; } } }
-    if (y > h) { if (y < SEA) { v = 7; if (y == SEA - 1) { if (b == 8 || b == 6) { v = 33; } } } }
-    if (y == 0) { v = 6; }
-    if (y > 0) { if (y < 4) { if (rnd() < 0.7 - y * 0.2) { v = 6; } } }
-    W[i] = v; LT[i] = 0;
-    y = y + 1; i = i + 1;
-  }
-}
 
 // ---------------------------------------------------------------- caves (worms), cut into one chunk
 // A worm starts in a chunk near (made from that chunk's own random numbers), so every chunk it
 // passes through cuts the same tunnel. Only cells inside the box gx0..gx1, gz0..gz1 are cut.
 let gx0 = 0, gx1 = 0, gz0 = 0, gz1 = 0;
-function carveBall(cx, cy, cz, r) {
-  let x0 = Math.max(gx0, Math.floor(cx - r)), x1 = Math.min(gx1, Math.floor(cx + r));
-  let z0 = Math.max(gz0, Math.floor(cz - r)), z1 = Math.min(gz1, Math.floor(cz + r));
+// The balls of a source chunk's worms are walked once and kept (WB*, a ring cache of CVN x CVN
+// source chunks); every chunk near reads them again instead of walking the worms again.
+let WBX = [], WBY = [], WBZ = [], WBR = [], CVX = [], CVZ = [], CV0 = [], CVC = [];
+// ((v3.5) a ball's reach up and down WBV, and for a ravine's the place of its table in RVS (WBK, 0 a cave's))
+let WBV = [], WBK = [], RVS = [], RVT = [], TQ = [];
+function cavesInit() {
+  WBX = []; WBY = []; WBZ = []; WBR = []; CVX = []; CVZ = []; CV0 = []; CVC = []; WBV = []; WBK = []; RVS = []; TQ = [];
+  if (RVT.length == 0) { let j = 0; while (j < WY) { RVT.push(0); j = j + 1; } }
+  let i = 0;
+  while (i < CVN * CVN) { CVX.push(999999); CVZ.push(0); CV0.push(0); CVC.push(0); i = i + 1; }
+}
+// ---------------------------------------------------------------- (v3.5) the genre's caves
+// A chunk in seven begins caves: a few starts (often none), each low more often than high; at a start one
+// tunnel, or a round room with up to four tunnels out of it. A tunnel runs up to 112 blocks, turning and
+// swelling toward its middle, and a wide one forks once into two narrow ones. A chunk in fifty begins a
+// ravine: a tunnel three times as high as wide, its walls stepped by the height. Walked once for the source
+// chunk and kept as balls (WB*), as the worms were.
+function ballPush(x, y, z, r, v, k) { WBX.push(x); WBY.push(y); WBZ.push(z); WBR.push(r); WBV.push(v); WBK.push(k); }
+function caveTunnel(x0, y0, z0, w, yaw0, pitch0, j0, len) {
+  let x = x0, y = y0, z = z0, yaw = yaw0, pitch = pitch0, j = j0;
+  let br = rndI(0, idiv(len, 2) - 1) + idiv(len, 4), steep = rndI(1, 6), f = 0, g = 0, d = 0, cp = 0;
+  while (j < len) {
+    d = 1.5 + sind(j * 180 / len) * w;
+    cp = cosd(pitch);
+    x = x + cosd(yaw) * cp; y = y + sind(pitch); z = z + sind(yaw) * cp;
+    if (steep == 1) { pitch = pitch * 0.92; } else { pitch = pitch * 0.7; }
+    pitch = pitch + g * 0.1; yaw = yaw + f * 0.1;
+    g = g * 0.9; f = f * 0.75;
+    g = g + (rnd() - rnd()) * rnd() * 114.6; f = f + (rnd() - rnd()) * rnd() * 229.2;
+    if (j == br && w > 1) {
+      // the fork: two narrow tunnels to either side, from here to the same end
+      TQ.push(x); TQ.push(y); TQ.push(z); TQ.push(rnd() * 0.5 + 0.5); TQ.push(yaw - 90); TQ.push(pitch / 3); TQ.push(j); TQ.push(len);
+      TQ.push(x); TQ.push(y); TQ.push(z); TQ.push(rnd() * 0.5 + 0.5); TQ.push(yaw + 90); TQ.push(pitch / 3); TQ.push(j); TQ.push(len);
+      j = len;
+    } else {
+      // (three steps in four are cut; of a wide tunnel every other one is enough - the balls overlap)
+      if (rndI(1, 4) != 1) { if (d < 2 || mod(j, 2) == 0) { ballPush(x, y, z, d, d, 0); } }
+    }
+    j = j + 1;
+  }
+}
+function cavesNew(a, c) {
+  if (rndI(1, 7) == 1) {
+    let n = rndI(0, 14);
+    n = rndI(0, n); n = rndI(0, n);
+    while (n > 0) {
+      let x = a * 16 + rndI(0, 15), yt = rndI(0, 119) + 7, z = c * 16 + rndI(0, 15), tun = 1;
+      let y = rndI(0, yt);
+      if (rndI(1, 4) == 1) {
+        let w0 = 2.5 + rnd() * 6;
+        ballPush(x + 1, y, z, w0, w0 * 0.5, 0);
+        tun = tun + rndI(0, 3);
+      }
+      while (tun > 0) {
+        let yaw = rnd() * 360, pitch = (rnd() - 0.5) * 14.3, w = rnd() * 2 + rnd();
+        if (rndI(1, 10) == 1) { w = w * (rnd() * rnd() * 3 + 1); }
+        let len = 112 - rndI(0, 27);
+        caveTunnel(x, y, z, w, yaw, pitch, 0, len);
+        tun = tun - 1;
+      }
+      let q = 1;
+      while (q < TQ.length) { caveTunnel(TQ[q], TQ[q + 1], TQ[q + 2], TQ[q + 3], TQ[q + 4], TQ[q + 5], TQ[q + 6], TQ[q + 7]); q = q + 8; }
+      TQ = [];
+      n = n - 1;
+    }
+  }
+}
+function ravineNew(a, c) {
+  let x = a * 16 + rndI(0, 15), yt = rndI(0, 39) + 7, z = c * 16 + rndI(0, 15);
+  let y = rndI(0, yt) + 20;
+  let yaw = rnd() * 360, pitch = (rnd() - 0.5) * 14.3, w = (rnd() * 2 + rnd()) * 2, len = 112 - rndI(0, 27);
+  // how much narrower the ravine is at each height (1 .. 4), in steps a few blocks high
+  let k = RVS.length + 1, i = 0, st = 1;
+  while (i < WY) { if (i == 0 || rndI(1, 3) == 1) { st = 1 + rnd() * rnd(); st = st * st; } RVS.push(st); i = i + 1; }
+  let f = 0, g = 0, d = 0, e = 0, cp = 0, j = 0;
+  while (j < len) {
+    d = 1.5 + sind(j * 180 / len) * w; e = d * 3;
+    d = d * (rnd() * 0.25 + 0.75); e = e * (rnd() * 0.25 + 0.75);
+    cp = cosd(pitch);
+    x = x + cosd(yaw) * cp; y = y + sind(pitch); z = z + sind(yaw) * cp;
+    pitch = pitch * 0.7 + g * 0.05; yaw = yaw + f * 0.05;
+    g = g * 0.8; f = f * 0.5;
+    g = g + (rnd() - rnd()) * rnd() * 114.6; f = f + (rnd() - rnd()) * rnd() * 229.2;
+    if (rndI(1, 4) != 1) { if (d < 2 || mod(j, 2) == 0) { ballPush(x, y, z, d, e, k); } }
+    j = j + 1;
+  }
+}
+// a ball cut out of the chunk: a cave's is round with a flat floor (0.7 of its reach under the middle), a
+// ravine's (k > 0) upright, as wide at each height as its table says
+function carveEll(cx, cy, cz, rh, rv, k) {
+  let x0 = Math.max(gx0, Math.floor(cx - rh)), x1 = Math.min(gx1, Math.floor(cx + rh));
+  let z0 = Math.max(gz0, Math.floor(cz - rh)), z1 = Math.min(gz1, Math.floor(cz + rh));
   if (x0 <= x1 && z0 <= z1) {
-    let r2 = r * r, x = x0, y = 0, z = 0, i = 0, b = 0, dx = 0, dz = 0, h = 0, ya = 0, yb = 0;
+    let x = x0, z = 0, y = 0, i = 0, j = 0, b = 0, ya = 0, yb = 0, q = 0, dx = 0, dz = 0, h = 0, lo = 0, qi = 0, yy = 0, tp = 0, cut = 0, dry = 0;
+    let ylo = Math.max(1, Math.ceil(cy - rv - 0.5)), yhi = Math.min(WY - 2, Math.floor(cy + rv - 0.5));
+    if (k > 0) {
+      // (how far out each height is cut, x 4096 of the reach squared: once for the ball)
+      y = ylo;
+      while (y <= yhi) { dz = (y + 0.5 - cy) / rv; RVT[y - ylo + 1] = Math.floor((1 - dz * dz / 6) / RVS[k + y] * 4096); y = y + 1; }
+    }
     while (x <= x1) {
-      dx = (x + 0.5 - cx) * (x + 0.5 - cx);
+      dx = (x + 0.5 - cx) / rh; dx = dx * dx;
       z = z0;
       while (z <= z1) {
-        dz = (z + 0.5 - cz) * (z + 0.5 - cz);
-        // the cells of this column inside the (flattened) ball, straight from its height there
-        if (dx + dz < r2) {
-          h = Math.sqrt(r2 - dx - dz) / 1.3;
-          ya = Math.max(1, Math.ceil(cy - h - 0.5)); yb = Math.min(WY - 2, Math.floor(cy + h - 0.5));
-          y = ya;
+        dz = (z + 0.5 - cz) / rh; q = dx + dz * dz;
+        if (q < 1) {
+          if (k == 0) {
+            h = Math.sqrt(1 - q) * rv; lo = Math.min(h, rv * 0.7);
+            ya = Math.max(1, Math.ceil(cy - lo - 0.5)); yb = Math.min(WY - 2, Math.floor(cy + h - 0.5));
+          } else { ya = ylo; yb = yhi; qi = Math.floor(q * 4096); }
           i = (mod(x, WS) * WS + mod(z, WS)) * WY + ya + 1;
-          // ((v3.4) the new land: three blocks of ground stay under water, where the ball reaches up to it)
-          if (genVer >= 2) {
-            let j = i, yy = ya, tp = Math.min(WY - 2, yb + 3);
-            while (yy <= tp) { if (W[j] == 7 || W[j] == 33) { yb = Math.min(yb, yy - 4); yy = tp; } yy = yy + 1; j = j + 1; }
-          }
+          // (three blocks of ground stay under water, where the ball reaches up to it)
+          j = i; yy = ya; tp = Math.min(WY - 2, yb + 3);
+          while (yy <= tp) { if (W[j] == 7 || W[j] == 33) { yb = Math.min(yb, yy - 4); yy = tp; } yy = yy + 1; j = j + 1; }
+          y = ya;
           while (y <= yb) {
             b = W[i];
             if (b != 0 && b != 6 && b != 7 && b != 33 && b != 35) {
-              // no hole under the sea (it would drain into the cave)
-              if (W[i + 1] != 7 && W[i + 1] != 33) {
-                // ((v3.4) the new land: nor beside water (in this chunk: what a chunk is made of may not hang on
-                // its neighbours being there) - it left dry pits by the rivers)
-                let dry = 1;
-                if (genVer >= 2) {
-                  if (x > gx0) { if (W[i - SXS] == 7) { dry = 0; } } if (x < gx1) { if (W[i + SXS] == 7) { dry = 0; } }
-                  if (z > gz0) { if (W[i - WY] == 7) { dry = 0; } } if (z < gz1) { if (W[i + WY] == 7) { dry = 0; } }
-                }
+              cut = 1;
+              if (k > 0) { if (qi >= RVT[y - ylo + 1]) { cut = 0; } }
+              if (cut == 1) {
+                // (nor beside water, in this chunk: what a chunk is made of may not hang on its neighbours)
+                dry = 1;
+                if (x > gx0) { if (W[i - SXS] == 7) { dry = 0; } } if (x < gx1) { if (W[i + SXS] == 7) { dry = 0; } }
+                if (z > gz0) { if (W[i - WY] == 7) { dry = 0; } } if (z < gz1) { if (W[i + WY] == 7) { dry = 0; } }
                 if (dry == 1) { if (y <= LAVAY) { W[i] = 35; } else { W[i] = 0; } }
               }
             }
@@ -276,39 +265,6 @@ function carveBall(cx, cy, cz, r) {
     }
   }
 }
-// The balls of a source chunk's worms are walked once and kept (WB*, a ring cache of CVN x CVN
-// source chunks); every chunk near reads them again instead of walking the worms again.
-let WBX = [], WBY = [], WBZ = [], WBR = [], CVX = [], CVZ = [], CV0 = [], CVC = [];
-function cavesInit() {
-  WBX = []; WBY = []; WBZ = []; WBR = []; CVX = []; CVZ = []; CV0 = []; CVC = [];
-  let i = 0;
-  while (i < CVN * CVN) { CVX.push(999999); CVZ.push(0); CV0.push(0); CVC.push(0); i = i + 1; }
-}
-function wormBalls(ccx, ccz) {
-  let x = ccx * 16 + rnd() * 16, z = ccz * 16 + rnd() * 16;
-  let rr = rnd();
-  // ((v3.4) the new land: a cave begins at a height of its own, more often low (the genre's), not by the land above)
-  let y = 0;
-  if (genVer >= 2) { y = 6 + rr * rnd() * 64; } else { columnShape(Math.floor(x), Math.floor(z)); y = 6 + rr * (colH - 4); }
-  let yaw = rnd() * 360, pitch = (rnd() - 0.5) * 40, dyaw = 0, dp = 0;
-  let n = rndI(40, 110), k = 0, r = 0;
-  let wide = 1;
-  if (rnd() < 0.12) { wide = 2.2; }
-  let sy = 0, cy = 0, sp = 0, cp = 0;
-  while (k < n) {
-    r = (1.3 + 1.2 * sind(k * 180 / n)) * wide;
-    if (rnd() < 0.08) { r = r * 1.5; }
-    // (every other step: the balls overlap enough)
-    if (mod(k, 2) == 0 || r > 2.5) { WBX.push(x); WBY.push(y); WBZ.push(z); WBR.push(r); }
-    sy = sind(yaw); cy = cosd(yaw); cp = cosd(pitch); sp = sind(pitch);
-    x = x + sy * cp; z = z + cy * cp; y = y + sp * 0.7;
-    dyaw = dyaw * 0.85 + (rnd() - 0.5) * 12;
-    dp = dp * 0.8 + (rnd() - 0.5) * 6;
-    yaw = yaw + dyaw; pitch = pitch * 0.9 + dp;
-    if (y < 3) { pitch = Math.abs(pitch); }
-    k = k + 1;
-  }
-}
 // the cached balls of source chunk (a, c): cvA (first), cvN (count)
 let cvA = 0, cvN = 0;
 function cavesOf(a, c) {
@@ -319,7 +275,8 @@ function cavesOf(a, c) {
     CVX[s] = a; CVZ[s] = c; CV0[s] = WBX.length + 1;
     chunkSeed(a, c, 1);
     let n = 0;
-    if (rnd() < 0.62) { n = 1; if (rnd() < 0.45) { n = 2; } }
+    if (genVer >= 3) { cavesNew(a, c); chunkSeed(a, c, 8); if (rndI(1, 50) == 1) { ravineNew(a, c); } }
+    else { if (rnd() < 0.62) { n = 1; if (rnd() < 0.45) { n = 2; } } }
     while (n > 0) { wormBalls(a, c); n = n - 1; }
     CVC[s] = WBX.length + 1 - CV0[s];
   }
@@ -327,15 +284,18 @@ function cavesOf(a, c) {
 }
 function genCaves(cx, cz) {
   gx0 = cx * 16; gx1 = gx0 + 15; gz0 = cz * 16; gz1 = gz0 + 15;
-  let a = cx - 4, c = 0, k = 0, ke = 0, r = 0, bx = 0, bz = 0;
-  while (a <= cx + 4) {
-    c = cz - 4;
-    while (c <= cz + 4) {
+  // ((v3.5) the genre's tunnels are up to 112 blocks long: the source chunks seven away each way)
+  let rg = 4;
+  if (genVer >= 3) { rg = 7; }
+  let a = cx - rg, c = 0, k = 0, ke = 0, r = 0, bx = 0, bz = 0;
+  while (a <= cx + rg) {
+    c = cz - rg;
+    while (c <= cz + rg) {
       cavesOf(a, c);
       k = cvA; ke = cvA + cvN;
       while (k < ke) {
         bx = WBX[k]; bz = WBZ[k]; r = WBR[k];
-        if (bx + r >= gx0) { if (bx - r <= gx1 + 1) { if (bz + r >= gz0) { if (bz - r <= gz1 + 1) { carveBall(bx, WBY[k], bz, r); } } } }
+        if (bx + r >= gx0) { if (bx - r <= gx1 + 1) { if (bz + r >= gz0) { if (bz - r <= gz1 + 1) { if (genVer >= 3) { carveEll(bx, WBY[k], bz, r, WBV[k], WBK[k]); } else { carveBall(bx, WBY[k], bz, r); } } } } }
         k = k + 1;
       }
       c = c + 1;
@@ -365,9 +325,11 @@ function genVein(b, n, ylo, yhi) {
 function veins(b, n, lo, hi, ylo, yhi) {
   let k = Math.floor(n);
   if (rnd() < n - k) { k = k + 1; }
-  while (k > 0) { genVein(b, rndI(lo, hi), ylo, yhi); k = k - 1; }
+  while (k > 0) { if (hi == 0) { genLump(b, ylo, yhi); } else { genVein(b, rndI(lo, hi), ylo, yhi); } k = k - 1; }
 }
 let treeClip = 0;
+// (a tree's own block: inside the chunk being made only, while the world makes it)
+function tput(x, y, z, b) { if (treeClip == 0 || (x >= gx0 && x <= gx1 && z >= gz0 && z <= gz1)) { wput(x, y, z, b); } }
 function setIfAir(x, y, z, b) {
   if (y >= 0 && y < WY) {
     let i = (mod(x, WS) * WS + mod(z, WS)) * WY + y + 1;
@@ -402,47 +364,47 @@ function leafBall(x, y, z, r, lv) {
 function bigOak(x, y, z) {
   let h = rndI(7, 10), k = 1;
   if (y + h + 4 < WY) {
-    while (k <= h) { wput(x, y + k, z, 13); k = k + 1; }
+    while (k <= h) { tput(x, y + k, z, 13); k = k + 1; }
     leafBall(x, y + h, z, 3, 14);
     let d = rndI(0, 3);
-    wput(x + dirX(d), y + h - 2, z + dirZ(d), 13); leafBall(x + dirX(d) * 2, y + h - 2, z + dirZ(d) * 2, 2, 14);
-    wput(x, y, z, 3);
+    tput(x + dirX(d), y + h - 2, z + dirZ(d), 13); leafBall(x + dirX(d) * 2, y + h - 2, z + dirZ(d) * 2, 2, 14);
+    tput(x, y, z, 3);
   }
 }
 function jungleTree(x, y, z) {
   let h = rndI(8, 13), k = 1, lg = I_mahoganyLog, lv = I_mahoganyLeaves;
   if (y + h + 3 < WY) {
-    while (k <= h) { wput(x, y + k, z, lg); k = k + 1; }
+    while (k <= h) { tput(x, y + k, z, lg); k = k + 1; }
     leafBall(x, y + h, z, 3, lv); leafBall(x, y + h + 2, z, 2, lv);
     // vines down the sides of the crown
     let a = 0 - 3;
     while (a <= 3) { if (rnd() < 0.35) { let yy = y + h - 1; while (yy > y + h - 5) { setIfAir(x + a, yy, z - 4, I_vines); setIfAir(x + a, yy, z + 4, I_vines); yy = yy - 1; } } a = a + 1; }
-    wput(x, y, z, 3);
+    tput(x, y, z, 3);
   }
 }
 function acaciaTree(x, y, z) {
   let h = rndI(4, 6), k = 1, lg = I_acaciaLog, lv = I_acaciaLeaves, d = rndI(0, 3), ax = x, az = z;
   if (y + h + 4 < WY) {
-    while (k <= h) { if (k > h - 2) { ax = x + dirX(d) * (k - h + 2); az = z + dirZ(d) * (k - h + 2); } wput(ax, y + k, az, lg); k = k + 1; }
+    while (k <= h) { if (k > h - 2) { ax = x + dirX(d) * (k - h + 2); az = z + dirZ(d) * (k - h + 2); } tput(ax, y + k, az, lg); k = k + 1; }
     let a = 0 - 3;
     while (a <= 3) { let c = 0 - 3; while (c <= 3) { if (Math.abs(a) + Math.abs(c) <= 4) { setIfAir(ax + a, y + h + 1, az + c, lv); } if (Math.abs(a) + Math.abs(c) <= 2) { setIfAir(ax + a, y + h + 2, az + c, lv); } c = c + 1; } a = a + 1; }
-    wput(x, y, z, 3);
+    tput(x, y, z, 3);
   }
 }
 function ebonyTree(x, y, z) {
   let h = rndI(6, 8), k = 1, lg = I_ebonyLog, lv = I_ebonyLeaves;
   if (y + h + 4 < WY) {
-    while (k <= h) { wput(x, y + k, z, lg); wput(x + 1, y + k, z, lg); wput(x, y + k, z + 1, lg); wput(x + 1, y + k, z + 1, lg); k = k + 1; }
+    while (k <= h) { tput(x, y + k, z, lg); tput(x + 1, y + k, z, lg); tput(x, y + k, z + 1, lg); tput(x + 1, y + k, z + 1, lg); k = k + 1; }
     let a = 0 - 3;
     while (a <= 4) { let c = 0 - 3; while (c <= 4) { if (Math.abs(a - 0.5) + Math.abs(c - 0.5) <= 5.5) { setIfAir(x + a, y + h, z + c, lv); setIfAir(x + a, y + h - 1, z + c, lv); } if (Math.abs(a - 0.5) + Math.abs(c - 0.5) <= 3.5) { setIfAir(x + a, y + h + 1, z + c, lv); } c = c + 1; } a = a + 1; }
-    wput(x, y, z, 3); wput(x + 1, y, z, 3); wput(x, y, z + 1, 3); wput(x + 1, y, z + 1, 3);
+    tput(x, y, z, 3); tput(x + 1, y, z, 3); tput(x, y, z + 1, 3); tput(x + 1, y, z + 1, 3);
   }
 }
 // the great fungi of the depths: a stem and a cap with lanterns under it
 function hugeFungus(x, y, z, st, cap) {
   let h = rndI(5, 9), k = 1;
   if (y + h + 3 < UH - 2) {
-    while (k <= h) { wput(x, y + k, z, st); k = k + 1; }
+    while (k <= h) { tput(x, y + k, z, st); k = k + 1; }
     let r = 2 + rndI(0, 1), a = 0 - r;
     while (a <= r) {
       let c = 0 - r;
@@ -464,7 +426,7 @@ function hugeMushroom(x, y, z, red) {
   let h = rndI(4, 7), k = 1, cap = I_mushBrownBlock, r = 3;
   if (red == 1) { cap = I_mushRedBlock; r = 2; }
   if (y + h + 2 < WY) {
-    while (k <= h) { wput(x, y + k, z, I_mushStem); k = k + 1; }
+    while (k <= h) { tput(x, y + k, z, I_mushStem); k = k + 1; }
     let a = 0 - r;
     while (a <= r) {
       let c = 0 - r;
@@ -529,8 +491,8 @@ function growTree(x, y, z, kind) {
       }
     }
     k = 1;
-    while (k <= h) { wput(x, y + k, z, lg); k = k + 1; }
-    wput(x, y, z, 3);
+    while (k <= h) { tput(x, y + k, z, lg); k = k + 1; }
+    tput(x, y, z, 3);
   }
 }
 // the top block of a column (scanning down from the sky)
@@ -587,7 +549,7 @@ function decorate(x, z, lx, lz) {
       if (bi == 15) { tc = 0.11; kind = 5; }
       if (bi == 17) { tc = 0.06; kind = 1; }
       if (bi == 18) { tc = 0.04; if (rnd() < 0.4) { kind = 1; } }
-      if (r < tc && inner == 1) {
+      if (r < tc && inner == 1 && genVer < 3) {
         let near = 0, a = x - 2;
         while (a <= x + 2) {
           let c = z - 2;
@@ -634,6 +596,63 @@ function decorate(x, z, lx, lz) {
     }
     // spikes of packed ice
     if (bi == 19) { if (r < 0.004 && inner == 1) { iceSpike(x, y, z); } }
+  }
+}
+// ---------------------------------------------------------------- (v3.5) the trees of the land
+// Where a tree stands is a matter of its column alone - a number made of the seed and (x, z), smaller than
+// the four beside it and under what the column's biome asks (TTHR, of 1048576: ten trees a chunk in a forest,
+// fifty in a jungle, one in twenty chunks on a plain - the genre's counts). So a chunk knows the trees of the
+// chunks round it without their being made, and puts the part of each that reaches into it: no tree is cut
+// at a border, and none is kept from the three columns by one (they stood only 3 .. 12 into a chunk). The
+// ground of a tree beside the chunk is the land's own top there (terra.js tPoint).
+let TTHR = [0, 0, 840, 45729, 0, 45729, 840, 4210, 0, 0, 0, 175553, 5270, 10700, 0, 118168, 0, 45729, 27630, 0, 0, 0, 0, 0, 0, 0, 0, 45729];
+let TRH = [];
+function treeHash(x, z) {
+  let r = mod((mod(x * 7919 + z * 104729 + 577, 46337) + 1) * (mod(x * 15485863 + z * 32452843 + lsd, 46349) + 1), 2147483646) + 1;
+  r = (r * 48271) % 2147483647;
+  return mod(idiv(r, 64), 1048576);
+}
+function treesO(cx, cz) {
+  if (TRH.length == 0) { let q = 0; while (q < 784) { TRH.push(0); q = q + 1; } }
+  let a = 0, c = 0, k = 1, h = 0, x = 0, z = 0, bi = 0, y0 = 0, ok = 0, ci = 0, kind = 0, rk = 0;
+  while (a < 28) { c = 0; while (c < 28) { TRH[k] = treeHash(gx0 + a - 6, gz0 + c - 6); k = k + 1; c = c + 1; } a = a + 1; }
+  a = 1;
+  while (a < 27) {
+    c = 1;
+    while (c < 27) {
+      k = a * 28 + c + 1; h = TRH[k];
+      if (h < 175553) { if (h < TRH[k - 28]) { if (h < TRH[k + 28]) { if (h < TRH[k - 1]) { if (h < TRH[k + 1]) {
+        x = gx0 + a - 6; z = gz0 + c - 6; ok = 0;
+        if (a >= 6 && a <= 21 && c >= 6 && c <= 21) {
+          ci = wcol(x, z); bi = BIOM[ci]; y0 = HMAP[ci];
+          if (h < TTHR[bi + 1]) {
+            // (in this chunk: only where the ground is still there - no cave, lake or sand took it)
+            let i = (ci - 1) * WY + y0 + 1, b = W[i];
+            if (b == 2 || b == 20 || b == I_podzol || b == I_coarseDirt || b == I_mycelium) { if (BSOL[W[i + 1] + 1] != 1 && BLQ[W[i + 1] + 1] == 0) { ok = 1; } }
+          }
+        } else {
+          let ncx = idiv(x, 16), ncz = idiv(z, 16);
+          tEntry(ncx, ncz); tBiomeCol(ncx, ncz, x, z); bi = TBM[tbI + 1];
+          if (h < TTHR[bi + 1]) { tPoint(x, z); y0 = colH; ok = 1; }
+        }
+        if (ok == 1) { if (y0 >= SEA && y0 < WY - 24) {
+          // (the tree's own random numbers: the same from whichever chunk it is put)
+          rs = mod(h * 2039 + x * 73856093 + z * 19349663 + seed, 2147483646) + 1;
+          rk = rnd(); rk = rnd();
+          kind = 0;
+          if (bi == 2 || bi == 3) { if (rk < 0.2) { kind = 1; } }
+          if (bi == 5 || bi == 6 || bi == 27) { kind = 2; }
+          if (bi == 7) { kind = 2; if (rk < 0.34) { kind = 0; } }
+          if (bi == 11) { kind = 3; } if (bi == 12) { kind = 4; } if (bi == 15) { kind = 5; } if (bi == 17) { kind = 1; }
+          if (bi == 18) { if (rk < 0.4) { kind = 1; } }
+          growTreeKind(x, y0, z, kind);
+          // swamp oaks carry vines
+          if (bi == 13) { let v = 0; while (v < 6) { let vx = x + rndI(-2, 2), vz = z + rndI(-2, 2); setIfAir(vx, y0 + 4, vz, I_vines); v = v + 1; } }
+        } }
+      } } } } }
+      c = c + 1;
+    }
+    a = a + 1;
   }
 }
 function flowerFor(bi) {
@@ -693,37 +712,73 @@ function genFeatures(cx, cz) {
   // what the player changed here before (only this chunk's entries: save.js)
   edReplay(cx, cz);
 }
+// ((v3.5) the ores at the genre's heights and in its numbers a chunk: coal to 127, iron to 63, gold to 31 (and
+// to 79 in the red canyons), spark ore and diamonds to 15, lapis about 16, jade one by one in the mountains;
+// earth, gravel and the three rocks in lumps)
+function oresNew(cx, cz) {
+  veins(3, 10, 0, 0, 0, WY - 1); veins(9, 8, 0, 0, 0, WY - 1);
+  veins(I_granite, 10, 0, 0, 0, 79); veins(I_limestone, 10, 0, 0, 0, 79); veins(I_slate, 10, 0, 0, 0, 79);
+  veins(12, 20, 22, 28, 1, 127);
+  veins(11, 20, 5, 8, 1, 63);
+  veins(10, 2, 5, 8, 1, 31);
+  veins(I_oreSpark, 8, 4, 7, 1, 15);
+  veins(16, 1, 5, 7, 1, 15);
+  let ly = rndI(0, 15) + rndI(0, 15);
+  veins(40, 1, 4, 6, ly, ly);
+  colB = BIOM[wcol(cx * 16 + 8, cz * 16 + 8)];
+  if (colB == 14) { veins(10, 20, 5, 8, 32, 79); }
+  if (colB == 7) { veins(I_oreJade, rndI(3, 8), 1, 1, 4, 31); }
+}
+// a lump of b in the stone: a flat ball of some fifty blocks (its three reaches squared into 4096, in whole numbers)
+function genLump(b, ylo, yhi) {
+  let x = gx0 + rndI(0, 15), z = gz0 + rndI(0, 15), y = rndI(ylo, yhi);
+  let ra = rndI(20, 35), rc = rndI(20, 35), re = rndI(12, 20);
+  if (y <= HMAP[wcol(x, z)] + 3) {
+    let qa = idiv(409600, ra * ra), qc = idiv(409600, rc * rc), qe = idiv(409600, re * re);
+    let a = Math.max(gx0, x - 3), a1 = Math.min(gx1, x + 3), c0 = Math.max(gz0, z - 3), c1 = Math.min(gz1, z + 3), e0 = Math.max(1, y - 2), e1 = Math.min(WY - 2, y + 2);
+    while (a <= a1) {
+      let c = c0, da = (a - x) * (a - x) * qa;
+      while (c <= c1) {
+        let dc = da - (0 - (c - z) * (c - z) * qc);
+        if (dc < 4096) {
+          let e = e0, i = (mod(a, WS) * WS + mod(c, WS)) * WY + e0 + 1;
+          while (e <= e1) { if (dc - (0 - (e - y) * (e - y) * qe) < 4096) { if (W[i] == 1) { W[i] = b; } } e = e + 1; i = i + 1; }
+        }
+        c = c + 1;
+      }
+      a = a + 1;
+    }
+  }
+}
 function featuresO(cx, cz) {
   chunkSeed(cx, cz, 2);
-  veins(12, 20, 6, 14, 5, WY - 10);
-  veins(11, 14, 4, 8, 2, 36);
-  veins(10, 2.5, 4, 8, 2, 18);
-  veins(16, 1.2, 3, 7, 2, 12);
-  veins(40, 1.2, 3, 7, 2, 18);
-  veins(3, 6, 10, 24, 5, WY - 8);
-  veins(9, 5, 10, 24, 5, WY - 8);
-  // v2.0: the rocks, spark ore deep down, jade in the mountains
-  veins(I_granite, 1.5, 20, 34, 5, 80); veins(I_limestone, 1.5, 20, 34, 5, 80); veins(I_slate, 1.5, 20, 34, 5, 80);
-  veins(I_oreSpark, 4, 4, 8, 2, 16);
-  if (genVer >= 2) { colB = BIOM[wcol(cx * 16 + 8, cz * 16 + 8)]; } else { columnShape(cx * 16 + 8, cz * 16 + 8); }
-  if (colB == 7) { veins(I_oreJade, 3, 1, 2, 4, 32); }
-  // ((v3.4) a lake in one chunk of four, dug into the ground where it holds water (terra.js), before the trees)
-  if (genVer >= 2) { chunkSeed(cx, cz, 7); if (rndI(1, 4) == 1) { tLake(7); } }
+  if (genVer >= 3) { oresNew(cx, cz); } else { oresOld(cx, cz); }
+  featuresO2(cx, cz);
+}
+function featuresO2(cx, cz) {
+  // ((v3.4) a lake in one chunk of four, dug into the ground where it holds water (terra.js), before the trees;
+  // (v3.5) and of lava in one of eight, nearly all of them under the ground)
+  if (genVer >= 2) {
+    chunkSeed(cx, cz, 7);
+    if (rndI(1, 4) == 1) { tLake(7, rndI(0, WY - 1)); }
+    if (rndI(1, 8) == 1) { let lt = rndI(0, 247) + 7, ly = rndI(0, lt); if (ly < SEA || rndI(1, 10) == 1) { tLake(35, ly); } }
+  }
   chunkSeed(cx, cz, 3);
   let lx = 0, lz = 0;
   while (lx < 16) {
     lz = 0;
     while (lz < 16) { decorate(gx0 + lx, gz0 + lz, lx, lz); lz = lz + 1; }
     lx = lx + 1;
-  }  // now and then a broken gate frame of obsidian on the ground (with what fell off lying by it)
+  }
+  if (genVer >= 3) { treesO(cx, cz); }
+  // now and then a broken gate frame of obsidian on the ground (with what fell off lying by it)
   chunkSeed(cx, cz, 4);
   if (rndI(1, 9) == 1) { ruinFrame(gx0 + rndI(4, 9), gz0 + rndI(5, 10)); }
   // (v2.3.2) springs in the cave walls, lava ones deep down, and a lava lake on the land now and then
   chunkSeed(cx, cz, 6);
-  springs(1, 14, 7, 10, 70); springs(1, 6, 35, 6, 30);
-  // ((v3.4) rarer in the new land, as the genre's)
-  let lk = 40; if (genVer >= 2) { lk = 120; }
-  if (rndI(1, lk) == 1) { lavaLake(gx0 + 8, gz0 + 8); }
+  // ((v3.5) the genre's numbers: fifty tries for water, twenty for lava, the low heights more often)
+  if (genVer >= 3) { springs(1, 50, 7, 0 - 1, 0); springs(1, 20, 35, 0 - 2, 0); }
+  else { springs(1, 14, 7, 10, 70); springs(1, 6, 35, 6, 30); if (rndI(1, 40) == 1) { lavaLake(gx0 + 8, gz0 + 8); } }
   // the old ruins with their gates
   featuresRuins();
   // the villages, temples, mines and the rest
@@ -799,9 +854,12 @@ function M_spread(N, LN, WH) {
 }
 // the sky straight down a column: 15 until the first block that stops it; skyFloor: the first
 // y with full sky
-let skyFloor = 0;
+// ((v3.5) skyTop: the highest cell that holds anything - the air over it is lit straight)
+let skyFloor = 0, skyTop = 0;
 function skyColumn(x, z) {
   let i = (mod(x, WS) * WS + mod(z, WS)) * WY + WY, y = WY - 1, open = 1, b = 0;
+  while (y >= 0) { if (W[i] != 0) { break; } LT[i] = 240; y = y - 1; i = i - 1; }
+  skyTop = y;
   while (y >= 0) {
     b = W[i];
     if (open == 1) { if (BLOP[b + 1] == 1 || BHC[b + 1] != 0) { open = 0; skyFloor = y + 1; } }
@@ -812,7 +870,7 @@ function skyColumn(x, z) {
 }
 // relight the world columns x0..x1, z0..z1 (all heights, chunks that are made only): sky
 // straight down, then spread from what is lit in the box and from the ring of cells round it
-let SFL = [];
+let SFL = [], STP = [], CKTOP = [], rlTop = 0;
 // (v2.6) the settings: light worked out (1) or not (0: every cell as under the open sky, nothing
 // lit again when blocks change - the dear part, 29 x 29 columns a change)
 let lightOn = 1;
@@ -824,7 +882,13 @@ function lightFlat(x0, x1, z0, z1) {
   while (x <= x1) {
     z = z0;
     while (z <= z1) {
-      if (cOK(x, z) == 1) { i = (mod(x, WS) * WS + mod(z, WS)) * WY + 1; y = 0; while (y < WY) { LT[i] = 240; y = y + 1; i = i + 1; } }
+      if (cOK(x, z) == 1) {
+        i = (mod(x, WS) * WS + mod(z, WS)) * WY + 1; y = 0; while (y < WY) { LT[i] = 240; y = y + 1; i = i + 1; }
+        // ((v3.5) and the column's highest block, as skyColumn finds it)
+        y = WY - 1; i = i - 1;
+        while (y >= 0) { if (W[i] != 0) { break; } y = y - 1; i = i - 1; }
+        STP[wcol(x, z)] = y; if (y > rlTop) { rlTop = y; }
+      }
       z = z + 1;
     }
     x = x + 1;
@@ -848,7 +912,7 @@ function lightRedoStep() {
     LRQ.removeAt(1); LRM.removeAt(1);
     if (CKST[s] == 5) {
       let cx = CKX[s], cz = CKZ[s];
-      if (m == 0) { let x = cx * 16; while (x < cx * 16 + 16) { let z = cz * 16; while (z < cz * 16 + 16) { skyColumn(x, z); SFL[wcol(x, z)] = skyFloor; z = z + 1; } x = x + 1; } n = n + 1; }
+      if (m == 0) { let x = cx * 16; while (x < cx * 16 + 16) { let z = cz * 16; while (z < cz * 16 + 16) { skyColumn(x, z); SFL[wcol(x, z)] = skyFloor; STP[wcol(x, z)] = skyTop; z = z + 1; } x = x + 1; } n = n + 1; }
       else {
         if (m == 1) { relight1(cx * 16, cx * 16 + 15, cz * 16, cz * 16 + 15); } else { lightFlat(cx * 16, cx * 16 + 15, cz * 16, cz * 16 + 15); }
         let a = 0;
@@ -967,10 +1031,11 @@ function lightCell(x, y, z) {
   }
 }
 function relight1(x0, x1, z0, z1) {
-  let x = x0, z = 0, y = 0, i = 0, f = 0, m = 0;
+  let x = x0, z = 0, y = 0, i = 0, f = 0, m = 0, mx = 0, k = 0;
+  rlTop = 0;
   while (x <= x1) {
     z = z0;
-    while (z <= z1) { if (cOK(x, z) == 1) { skyColumn(x, z); SFL[wcol(x, z)] = skyFloor; } z = z + 1; }
+    while (z <= z1) { if (cOK(x, z) == 1) { skyColumn(x, z); k = wcol(x, z); SFL[k] = skyFloor; STP[k] = skyTop; if (skyFloor > mx) { mx = skyFloor; } if (skyTop > rlTop) { rlTop = skyTop; } } z = z + 1; }
     x = x + 1;
   }
   // sky seeds: the lit cells of a column down from the lowest floor round it
@@ -992,7 +1057,8 @@ function relight1(x0, x1, z0, z1) {
     }
     x = x + 1;
   }
-  relightRing(x0, x1, z0, z1, 0);
+  // ((v3.5) of the ring only what is not above every floor of the box: the open sky over that lights nothing more)
+  relightRing(x0, x1, z0, z1, 0, Math.min(WY - 1, mx));
   lightSpread(0);
   // block light: every source in the box, and the ring
   x = x0;
@@ -1000,17 +1066,17 @@ function relight1(x0, x1, z0, z1) {
     z = z0;
     while (z <= z1) {
       if (cOK(x, z) == 1) {
-        i = (mod(x, WS) * WS + mod(z, WS)) * WY + 1; y = 0;
-        while (y < WY) { if (mod(LT[i], 16) > 1) { lqPush(i); } y = y + 1; i = i + 1; }
+        i = (mod(x, WS) * WS + mod(z, WS)) * WY + 1; y = 0; m = STP[wcol(x, z)];
+        while (y <= m) { if (mod(LT[i], 16) > 1) { lqPush(i); } y = y + 1; i = i + 1; }
       }
       z = z + 1;
     }
     x = x + 1;
   }
-  relightRing(x0, x1, z0, z1, 1);
+  relightRing(x0, x1, z0, z1, 1, WY - 1);
   lightSpread(1);
 }
-function relightRing(x0, x1, z0, z1, which) {
+function relightRing(x0, x1, z0, z1, which, ymax) {
   let x = x0 - 1, z = 0, y = 0, i = 0, l = 0;
   while (x <= x1 + 1) {
     z = z0 - 1;
@@ -1018,7 +1084,7 @@ function relightRing(x0, x1, z0, z1, which) {
       if (x < x0 || x > x1 || z < z0 || z > z1) {
         if (cOK(x, z) == 1) {
           i = (mod(x, WS) * WS + mod(z, WS)) * WY + 1; y = 0;
-          while (y < WY) {
+          while (y <= ymax) {
             l = LT[i];
             if (which == 0) { l = idiv(l, 16); } else { l = mod(l, 16); }
             if (l > 1) { lqPush(i); }
@@ -1045,7 +1111,7 @@ function chunkStage(s) {
     let k = CKSUB[s];
     chunkSeed(cx, cz, k);
     let ng = 0;
-    if (dim == 0 && flatOn == 0 && genVer >= 2) { ng = 1; tEntry(cx, cz); } else { climateGrid(cx * 16, cz * 16); }
+    if (dim == 0 && flatOn == 0) { if (genVer >= 2) { ng = 1; tEntry(cx, cz); } else { climateGrid(cx * 16, cz * 16); } }
     let a = k * 8, c = 0;
     while (a < k * 8 + 8) {
       c = 0;
@@ -1065,14 +1131,17 @@ function chunkStage(s) {
     genFeatures(cx, cz);
     CKST[s] = 3;
   } else { if (st == 3) {
+    rlTop = 0;
     relight(cx * 16, cx * 16 + 15, cz * 16, cz * 16 + 15);
+    CKTOP[s] = rlTop;
     CKST[s] = 4;
   } else { if (st == 4) {
     // its 2 x 2 x NSY sections, and the sections of ready neighbours that face it (their
     // faces against this chunk were left out while it was not made)
     // (a quarter of them a step)
     let k = CKSUB[s], a = idiv(k, 2), c = mod(k, 2), y = 0;
-    while (y < NSY) { meshSectionAt(cx * 16 + a * 8, y * 8, cz * 16 + c * 8); y = y + 1; }
+    // ((v3.5) the sections over the chunk's highest block are known to be empty: not looked through)
+    while (y < NSY) { if (y * 8 > CKTOP[s]) { meshAir = 1; } meshSectionAt(cx * 16 + a * 8, y * 8, cz * 16 + c * 8); meshAir = 0; y = y + 1; }
     CKSUB[s] = k + 1;
     if (k == 3) { CKSUB[s] = 0; CKST[s] = 5;
     nbRemesh(cx - 1, cz, cx * 16 - 8, cz * 16, 0, 8, 2); nbRemesh(cx + 1, cz, cx * 16 + 16, cz * 16, 0, 8, 1);
@@ -1131,9 +1200,9 @@ function worldInit() {
     let i = 0;
     while (i < WS * WS * WY) { W.push(0); LT.push(0); i = i + 1; }
     i = 0;
-    while (i < WS * WS) { HMAP.push(0); BIOM.push(0); SFL.push(0); i = i + 1; }
+    while (i < WS * WS) { HMAP.push(0); BIOM.push(0); SFL.push(0); STP.push(WY - 1); i = i + 1; }
     i = 0;
-    while (i < NCH * NCH) { CKX.push(0); CKZ.push(0); CKST.push(0); CKSUB.push(0); i = i + 1; }
+    while (i < NCH * NCH) { CKX.push(0); CKZ.push(0); CKST.push(0); CKSUB.push(0); CKTOP.push(WY - 1); i = i + 1; }
   }
 }
 

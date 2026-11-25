@@ -104,7 +104,11 @@ function spawnStep(dt) {
 // a button, a carpet) keeps them off. Up to three of a kind come together. (Before: 2 of 3 tries on the
 // top of a column, the rest somewhere under it, from 18 blocks, 10 monsters at most.)
 function spawnTry() {
-  let x = Math.floor(px) + rand(-44, 44), z = Math.floor(pz) + rand(-44, 44), y = rand(3, WY - 4);
+  // ((v3.5) a height from the floor of the world up to the column's highest block (the genre's), not up to the
+  // world's top: half the tries fell into the sky of a world 256 high)
+  let x = Math.floor(px) + rand(-44, 44), z = Math.floor(pz) + rand(-44, 44), yt = Math.min(WY - 4, STP[wcol(x, z)] + 3);
+  if (dim == 1) { yt = UH - 4; }
+  let y = rand(3, Math.max(4, yt));
   let dx = x + 0.5 - px, dy = 0, dz = z + 0.5 - pz, far = 0, i2 = 0;
   if (dx * dx + dz * dz <= 1936) { if (cOK(x, z) == 1) {
     // (a cell in the air comes down to the floor under it, 8 cells at most: a try is not lost on the air of a room)

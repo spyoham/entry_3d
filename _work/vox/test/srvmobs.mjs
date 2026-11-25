@@ -15,7 +15,7 @@ class Server {
 class Client {
   constructor(srv, nick, welcome = 0.5) {
     this.srv = srv; this.nick = nick; this.on = true; this.pend = new Map();
-    this.sim = createSim({ consts: { TESTRUN: 1, ANIMALS: 0, GENV: 2 } });
+    this.sim = createSim({ consts: { TESTRUN: 1, ANIMALS: 0, GENV: 3 } });
     this.sim.R.nick = nick;
     this.sim.R.syNet = this;
     this.sim.R.wallNow = () => WALL0 + srv.t * 1000;
@@ -95,7 +95,7 @@ A.call((fn) => fn.serverSave()); run(1.5);
 const K = find(A, '공장');
 ok(K > 0 && klines(K).length === inText, `the server is made, its settings hold ${klines(K).length} kept mobs`);
 ok(join(A, '공장'), 'alice in');
-cmd(A, '/gamerule doMobSpawning false'); cmd(A, '/tp @s 27.5 58 38.5'); run(8);
+cmd(A, '/gamerule doMobSpawning false'); cmd(A, '/tp @s 27.5 91 38.5'); run(8);
 { const v = mobs(A, 'villager'); ok(v.length === 10 && v.every((m) => m.mine), `alice has the ten villagers near her (the hall's eight, the breeders; the iron farm's three are 44 blocks off) (${v.length}), all hers`); }
 const jobs0 = jobs(A);
 ok(jobs0.split(',').length === 8, `eight of them with their professions: ${jobs0}`);
@@ -104,7 +104,7 @@ ok(mobs(A, 'chicken').length === 3 && mobs(A, 'cow').length === 2 && mobs(A, 'sh
 // ---------------------------------------------------------------- 2. a second player
 const B = open('bob');
 ok(join(B, '공장'), 'bob comes');
-cmd(A, '/tp bob 29.5 58 38.5'); run(8);
+cmd(A, '/tp bob 29.5 91 38.5'); run(8);
 { const v = mobs(B, 'villager'); ok(v.length === 10 && v.every((m) => !m.mine), `bob sees the same ten, none made twice (${v.length}, his own: ${v.filter((m) => m.mine).length})`); }
 ok(mobs(A, 'villager').length === 10, `alice still has ten (${mobs(A, 'villager').length})`);
 
@@ -132,19 +132,19 @@ const vk0 = kind(B, 'villager'), recV = () => klines(K).filter((x) => String(x).
 ok(recV() === 12 && klines(K).length >= inText - 3, `nobody on the server: its record holds ${klines(K).length} mobs, 12 villagers`);
 const A2 = open('alice');
 ok(join(A2, '공장'), 'alice again');
-cmd(A2, '/gamerule doMobSpawning false'); cmd(A2, '/tp @s 27.5 58 38.5'); run(9);
+cmd(A2, '/gamerule doMobSpawning false'); cmd(A2, '/tp @s 27.5 91 38.5'); run(9);
 { const v = mobs(A2, 'villager'); ok(v.length === 9 && v.some((m) => m.u === v1.u && m.v === v1.v + 256), `the nine are back, the one traded with as it was (${v.length})`); }
 
 // ---------------------------------------------------------------- 7. an animal made by a player; far away it sleeps
 const cowsB = new Set(mobs(A2, 'cow').map((m) => m.u));
-cmd(A2, '/summon cow 27.5 58 40.5'); run(3);
+cmd(A2, '/summon cow 27.5 91 40.5'); run(3);
 const cows0 = mobs(A2, 'cow').length;
 // (the one that was not there before: it walks off at once)
 const cu = mobs(A2, 'cow').find((m) => !cowsB.has(m.u));
 ok(!!cu && cu.u >= 2000000000 && klines(K).some((x) => String(x).startsWith(`K^${cu.u}^`)), `a cow summoned is in the record (number ${cu && cu.u})`);
-cmd(A2, '/tp @s 127.5 90 38.5'); A2.sim.poke('flying', 1); run(6);
+cmd(A2, '/tp @s 127.5 123 38.5'); A2.sim.poke('flying', 1); run(6);
 ok(mobs(A2, 'villager').length === 0 && mobs(A2, 'cow').every((m) => m.u !== cu.u) && recV() === 12 && klines(K).some((x) => String(x).startsWith(`K^${cu.u}^`)), `100 blocks away: none alive here, the 12 villagers and the cow in the record (${klines(K).length} mobs)`);
-cmd(A2, '/tp @s 27.5 58 38.5'); A2.sim.poke('flying', 0); run(9);
+cmd(A2, '/tp @s 27.5 91 38.5'); A2.sim.poke('flying', 0); run(9);
 ok(mobs(A2, 'villager').length === 9 && mobs(A2, 'cow').some((m) => m.u === cu.u) && mobs(A2, 'cow').length === cows0, `back: the nine villagers and the cow woke, none twice (${mobs(A2, 'villager').length}, cows ${mobs(A2, 'cow').length}/${cows0})`);
 
 // ---------------------------------------------------------------- 8. the tab closed without a word
@@ -152,7 +152,7 @@ A2.g('EVAR')[mobs(A2, 'villager').find((m) => m.u === v1.u).i] = v1.v + 512; run
 close(A2); run(12);
 const A3 = open('alice');
 ok(join(A3, '공장'), 'alice once more, after her tab closed');
-cmd(A3, '/gamerule doMobSpawning false'); cmd(A3, '/tp @s 27.5 58 38.5'); run(9);
+cmd(A3, '/gamerule doMobSpawning false'); cmd(A3, '/tp @s 27.5 91 38.5'); run(9);
 { const v = mobs(A3, 'villager'); ok(v.length === 9 && v.some((m) => m.u === v1.u && m.v === v1.v + 512) && mobs(A3, 'cow').some((m) => m.u === cu.u), `everything is there as it was a moment before (${v.length} villagers)`); }
 
 // ---------------------------------------------------------------- 9. the owner copies the server: its mobs are in the text

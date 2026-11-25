@@ -15,7 +15,7 @@ class Server {
 class Client {
   constructor(srv, nick, welcome = 0.5) {
     this.srv = srv; this.nick = nick; this.on = true; this.pend = new Map();
-    this.sim = createSim({ consts: { TESTRUN: 1, ANIMALS: 0, GENV: 2 } });
+    this.sim = createSim({ consts: { TESTRUN: 1, ANIMALS: 0, GENV: 3 } });
     this.sim.R.nick = nick;
     this.sim.R.syNet = this;
     this.sim.R.wallNow = () => WALL0 + srv.t * 1000;
@@ -97,31 +97,31 @@ const chest = (c, x, y, z) => { c.call((fn) => fn.chestFind(x, y, z)); const f =
 const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
 const stand = (c, x, y, z) => { c.sim.poke('px', x + 0.5); c.sim.poke('py', y); c.sim.poke('pz', z + 0.5); c.sim.poke('pvy', 0); c.sim.poke('fallTop', y); c.sim.poke('hp', 20); c.sim.poke('food', 20); };
 const wait = (c, x, y, z, secs) => { for (let i = 0; i < secs; i++) { stand(c, x, y, z); run(1); } };
-const tower = (c) => { const all = {}; for (let z = 42; z <= 47; z++) { const a = chest(c, 51, 58, z); for (const k in a) all[k] = (all[k] || 0) + a[k]; } return all; };
+const tower = (c) => { const all = {}; for (let z = 42; z <= 47; z++) { const a = chest(c, 51, 91, z); for (const k in a) all[k] = (all[k] || 0) + a[k]; } return all; };
 const zomb = (c) => mobs(c, 'zombie').filter((m) => +c.g('EOWN')[m.i] === 5);
 cmd(A, '/gamerule doDaylightCycle false'); cmd(A, '/time set day');
 // the iron farm
-wait(A, 68, 58, 25, 12);
+wait(A, 68, 91, 25, 12);
 { const z = zomb(A); ok(z.length === 1 && +A.g('EAIR')[z[0].i] >= 1000, `the zombie of the map woke and sits in its cart (${z.length}, seat ${z.length ? A.g('EAIR')[z[0].i] : '-'})`); }
-const i0 = sum(chest(A, 68, 58, 21));
-wait(A, 68, 58, 25, MIN * 60);
-{ const got = chest(A, 68, 58, 21); ok((got.iron_ingot || 0) >= 3 * MIN, `the iron farm, ${MIN} minutes: ${JSON.stringify(got)} - ${Math.round((sum(got) - i0) * 60 / MIN)} things an hour`); }
+const i0 = sum(chest(A, 68, 91, 21));
+wait(A, 68, 91, 25, MIN * 60);
+{ const got = chest(A, 68, 91, 21); ok((got.iron_ingot || 0) >= 3 * MIN, `the iron farm, ${MIN} minutes: ${JSON.stringify(got)} - ${Math.round((sum(got) - i0) * 60 / MIN)} things an hour`); }
 // the tower, in survival
 cmd(A, '/time set midnight'); A.sim.poke('difficulty', 2);
 const t0 = sum(tower(A));
-for (let i = 0; i < MIN * 60; i++) { stand(A, 52, 103, 16); run(1); if (process.env.DBG && i % 20 === 19) { const ET = A.g('ET'), MH = A.g('MHOST'), MKY = A.g('MKEY'); const r = []; ET.forEach((t, k) => { if (+t > 0 && +MH[+t - 1] === 1) r.push(MKY[+t - 1].slice(0, 3) + '@' + Math.round(+A.g('EX')[k]) + ',' + Math.round(+A.g('EY')[k]) + ',' + Math.round(+A.g('EZ')[k]) + (+A.g('ERK')[k] > 0 ? 'R' : '') + (+A.g('EOWN')[k] ? 'o' + A.g('EOWN')[k] : '')); }); console.log('   ', i + 1, 's hostile', A.g('nHostile'), 'grMobs', A.g('grMobs'), 'diff', A.g('difficulty'), 'mode', A.g('gameMode'), 'dark', A.g('dark'), r.join(' ')); } }
+for (let i = 0; i < MIN * 60; i++) { stand(A, 52, 136, 16); run(1); if (process.env.DBG && i % 20 === 19) { const ET = A.g('ET'), MH = A.g('MHOST'), MKY = A.g('MKEY'); const r = []; ET.forEach((t, k) => { if (+t > 0 && +MH[+t - 1] === 1) r.push(MKY[+t - 1].slice(0, 3) + '@' + Math.round(+A.g('EX')[k]) + ',' + Math.round(+A.g('EY')[k]) + ',' + Math.round(+A.g('EZ')[k]) + (+A.g('ERK')[k] > 0 ? 'R' : '') + (+A.g('EOWN')[k] ? 'o' + A.g('EOWN')[k] : '')); }); console.log('   ', i + 1, 's hostile', A.g('nHostile'), 'grMobs', A.g('grMobs'), 'diff', A.g('difficulty'), 'mode', A.g('gameMode'), 'dark', A.g('dark'), r.join(' ')); } }
 const t1 = sum(tower(A));
 ok(t1 - t0 >= 15 * MIN, `the tower, ${MIN} minutes in survival: ${t1 - t0} things (${Math.round((t1 - t0) * 60 / MIN)} an hour) ${JSON.stringify(tower(A))}`);
 // in creative: monsters come round one who builds too
 cmd(A, '/gamemode creative'); run(1);
-wait(A, 52, 103, 16, MIN * 60);
+wait(A, 52, 136, 16, MIN * 60);
 const t2 = sum(tower(A));
 ok(+A.g('gameMode') === 1 && t2 - t1 >= 15 * MIN, `and in creative (mode ${A.g('gameMode')}): ${t2 - t1} more (${Math.round((t2 - t1) * 60 / MIN)} an hour)`);
 // everybody leaves; the server played again: the zombie and its cart are there
 leave(A); run(3);
 const A2 = open('alice');
 ok(join(A2, '공장'), 'alice again');
-cmd(A2, '/gamerule doMobSpawning false'); wait(A2, 68, 58, 25, 14);
+cmd(A2, '/gamerule doMobSpawning false'); wait(A2, 68, 91, 25, 14);
 { const z = zomb(A2); ok(z.length === 1 && +A2.g('EAIR')[z[0].i] >= 1000 && mobs(A2, 'minecart').length === 1 && mobs(A2, 'villager').length >= 3, `the zombie is back in its cart, the three folk are there (${z.length}, carts ${mobs(A2, 'minecart').length}, villagers near ${mobs(A2, 'villager').length})`); }
 console.log(fails ? `FAILED ${fails}` : 'all ok');
 process.exit(fails ? 1 : 0);

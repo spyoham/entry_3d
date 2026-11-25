@@ -525,6 +525,8 @@ function netJoinCheck(k) {
       if (b > 0) { joinErr = banText(b); }
       if (onWhitelist(netNick) == 0) { joinErr = '화이트리스트에 없습니다'; }
       if (srvCount(k) >= shMax && netNick != SUPER) { joinErr = '서버가 가득 찼습니다'; }
+      // ((v3.5) a server of the world 128 high with somebody in it: they play the work of before - its heights are not these)
+      if (GENV >= 3 && shGen < GENV && srvCount(k) > 0) { joinErr = '이 서버에 옛 판(v3.4 이하) 작품으로 들어와 있는 사람이 있습니다. 모두 나간 뒤(또는 새 판으로 새로고침한 뒤) 들어오세요'; }
       let j = 1;
       // ((v3.0, 11-18) only a line that changed since I first saw it: one left by my closed tab does not)
       while (j <= NSLOT) { if (j != netMy) { if (NLIVE[j] == 1) { if (NSRVk[j] == k) { if (NNICK[j] == netNick) { if (NCHG[j] > 0) { joinErr = '같은 닉네임이 이미 접속해 있습니다'; } } } } } j = j + 1; }
@@ -543,11 +545,15 @@ function netJoin(k) {
   gameMode = shMode; defMode = shMode;
   thingsInit(); petsClear();
   let fbad = flatSet(shFlat);
+  // ((v3.5) a server made in the world 128 high: what it holds is moved up with the land, once, by the first
+  // of this version to come into it (alone: netJoinCheck) - landup.js)
+  let old = 0;
+  if (shGen < GENV) { old = 1; if (GENV >= 3) { if (srvCount(k) == 0) { serverUp(k); } } }
   genStart(shSeed);
   genPhase = 0;
   // ((v3.4) every server has the land of this version, whatever it was made with (the user: the old lands
   // are not kept); genOld: one made before, said once on arriving)
-  bossDead = shBoss; genVer = GENV; genOld = 0; if (shGen < GENV) { genOld = 1; } genOrigin();
+  bossDead = shBoss; genVer = GENV; genOld = old; genOrigin();
   storesInit(); invInit();
   let n = editLen(k), i = 1;
   while (i + 4 <= n) { edPushD(editItem(k, i), editItem(k, i + 1), editItem(k, i + 2), editItem(k, i + 3), editItem(k, i + 4)); i = i + 5; }
@@ -577,13 +583,16 @@ function netArrive() {
   netSt = 2; dead = 0; uiMode = 0; helpT = 0;
   netWrite();
   chatAdd(`${netNick} 님이 ${shName}에 들어왔습니다`);
-  if (genOld == 1) { genOld = 0; chatAdd('이 서버는 v3.4 전에 만든 것이라 땅이 새 방식으로 다시 만들어졌습니다 (전에 지은 것이 땅과 어긋날 수 있습니다)'); }
+  if (genOld == 1) { genOld = 0; chatAdd('이 서버는 v3.5 전에 만든 것입니다 - 세계가 256칸 높이가 되어 지은 것을 땅과 함께 33칸 위로 옮겼습니다'); }
   evAdd('c', `${netNick} 님이 들어왔습니다`);
   plugRun('join', ' ', netNick);
 }
 function netLeave() {
   if (netSrv > 0) {
     if (netSt == 2) {
+      // ((v3.5) the server's own header first: the sh* globals are whatever server was looked at last, and the
+      // host's last write puts them into this server's settings - with another's they made it that server)
+      srvHead(netSrv);
       // ((v3.4) my kept mobs as they are now, into the server's record)
       skLeave();
       // (the host keeps its own things and what is not written yet before it goes)
@@ -1107,6 +1116,9 @@ function hostWish(who, f) {
   let may = permOk(who, wc);
   if (w0 == 'set') { if (SPL.length >= 2) { if (SPL[2] == 'lava' || SPL[2] == 'tnt' || SPL[2] == 'we') { if (who != shOwner && who != SUPER) { may = 0; } } } }
   if (w0 == 'lava' || w0 == 'tnt') { may = 0; }
+  // ((v3.5) the host's own right to /gamemode before the change: taken away by it, the host too goes back to the
+  // server's mode - netOpLost was asked only where the settings came from another)
+  let op0 = permOk(netNick, 'gamemode');
   if (may == 1) {
     splitBy(f, '^');
     let a = SPL[1], b = ' ';
@@ -1126,6 +1138,7 @@ function hostWish(who, f) {
     if (a == 'preset') { MPC = []; MPL = []; MGN = []; MGC = []; }
     if (a == 'pon' || a == 'poff') { let i = 1; while (i <= PLN.length) { if (PLN[i] == b) { if (a == 'pon') { PLO[i] = 1; } else { PLO[i] = 0; } } i = i + 1; } }
     metaWrite(netSrv);
+    if (op0 == 1) { netOpLost(); }
   }
 }
 // a change to the server: done here when I am the host, else asked of the host

@@ -309,7 +309,7 @@ function drawUI(dt) {
   fillStop();
 }
 function helpText() {
-  tx(15, 'WASD 이동 · 스페이스 점프(크리에이티브: 두 번 눌러 날기) · Shift 웅크리기 · W 두 번/R 달리기', 0, 104, 7, '#ffffff', 0);
+  tx(15, 'WASD 이동 · 스페이스 점프(크리에이티브: 두 번 눌러 날기) · Shift 웅크리기 · W 두 번/R/Ctrl 달리기', 0, 104, 7, '#ffffff', 0);
   tx(16, '왼쪽 클릭(누르고 있기) 부수기·공격 · 오른쪽 클릭 놓기·쓰기(먹기, 활, 상자 열기) · Q 버리기', 0, 94, 7, '#ffffff', 0);
   tx(17, '1~9·휠 손에 들 것 · E 소지품·제작 · G 시야 거리 · T 또는 / 명령어 · F3 정보 · P 메뉴 · H 도움말', 0, 84, 7, '#ffffff', 0);
   tx(18, '/gamemode spectator 관전자 · /help 명령어 목록 · 크리에이티브 창 위의 탭과 검색', 0, 74, 7, '#c0ffc0', 0);
@@ -444,25 +444,23 @@ function loadFrame() {
 }
 
 // ---------------------------------------------------------------- start
+// ((v3.5) the first thing each object's start script asks: is this tessvm ($TESSVM is 1 there before any script
+// runs; plain Entry leaves it 0). When it is not, pen draws a backdrop once, the text object writes the notice
+// once (hud.js noTessText), both scripts end - no list is unpacked, no clone made, no loop left running.)
 function plainNotice() {
   hide(); penUp();
-  for (;;) {
-    eraseAll();
-    box(-245, 140, 245, -140, '#1b1410');
-    box(-245, 100, 245, 98, '#6b8a3a');
-    fillStop();
-    tx(1, '블록 월드', 0, 60, 19, '#ffffff', 0);
-    tx(2, 'tessvm 확장 프로그램에서 실행하세요', 0, 10, 13, '#ffcc66', 0);
-    tx(3, '순정 엔트리는 너무 느려서 이 작품을 실행할 수 없습니다', 0, -20, 9, '#b8c0c8', 0);
-    tx(4, '크롬에 tessvm 확장을 설치하고 켠 뒤 이 페이지를 다시 여세요', 0, -40, 9, '#b8c0c8', 0);
-  }
+  eraseAll();
+  box(-245, 140, 245, -140, '#1b1410');
+  box(-245, 44, 245, 42, '#6b8a3a');
+  box(-245, -42, 245, -44, '#6b8a3a');
+  fillStop();
 }
 on('start', 'pen', function () {
+  if ($TESSVM == 0 && SIMRUN == 0) { plainNotice(); stopThread(); }
   // the text slots come from the text object's own start script
   waitUntil(TXS.length >= NTX);
   bigInit();
   gamerulesInit();
-  if ($TESSVM == 0) { if (SIMRUN == 0) { plainNotice(); } }
   hide(); penUp();
   isTess = $TESSVM;
   let i = 0;

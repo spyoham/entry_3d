@@ -81,7 +81,13 @@ function lqPut(x, y, z, b, logged) {
   let o = blockAt(x, y, z);
   // ((v2.7) lava burns what it takes: nothing drops)
   if (BLQ[o + 1] == 0 && o != 0) { if (worldDrops() == 1 && BLQ[b + 1] != 35) { blockDrops(o, x, y, z); } }
-  lqLog = logged;
+  // ((v3.5) what a liquid makes far from the player (24 blocks) is not written down: the springs of the caves run
+  // onto the lava of the depths by themselves and made some 200 changed blocks in the first half minute of a
+  // new world, and as many round every place one came to - a server's record grew with nobody touching
+  // anything. They are made again the same when the place is made again. What one does oneself is near.)
+  let lg = logged;
+  if (lg == 1) { if (BLQ[b + 1] == 0) { let ddx = x + 0.5 - px, ddy = y - py, ddz = z + 0.5 - pz; if (ddx * ddx + ddy * ddy + ddz * ddz > 576) { lg = 0; } } }
+  lqLog = lg;
   setBlock(x, y, z, b);
   lqLog = 1;
 }
@@ -260,8 +266,11 @@ let spOpen = 0, spRock = 0;
 function springs(rock, tries, liq, y0, y1) {
   let k = 0;
   while (k < tries) {
-    let x = gx0 + rndI(1, 14), z = gz0 + rndI(1, 14), y = rndI(y0, y1), i = wi(x, y, z);
-    if (W[i] == rock && BSOL[W[i + 1] + 1] == 1) {
+    let x = gx0 + rndI(1, 14), z = gz0 + rndI(1, 14), y = 0;
+    // ((v3.5) y0 -1: water's heights in the genre (any up to 255, the low ones more often), -2: lava's (lower yet))
+    if (y0 >= 0) { y = rndI(y0, y1); } else { y = rndI(0, 247) + 7; if (y0 == 0 - 2) { y = rndI(0, y - 8) + 7; } y = rndI(1, Math.max(1, y)); }
+    let i = wi(x, y, z);
+    if (y < WY - 2 && W[i] == rock && BSOL[W[i + 1] + 1] == 1) {
       spOpen = 0; spRock = 0;
       M_sp(i + SXS); M_sp(i - SXS); M_sp(i + WY); M_sp(i - WY); M_sp(i - 1);
       if (spOpen == 1 && spRock == 4) { W[i] = liq; fluidAt(x, y, z, 2 + rnd()); }
@@ -272,30 +281,4 @@ function springs(rock, tries, liq, y0, y1) {
 function M_sp(I) {
   let sb = W[I];
   if (sb == 0) { spOpen = spOpen + 1; } else { if (BSOL[sb + 1] == 1) { spRock = spRock + 1; } }
-}
-function lavaLake(x0, z0) {
-  findTop(x0, z0);
-  let s = topY, tb = W[wi(x0, s, z0)];
-  if (s > SEA + 1 && s < WY - 8 && BLQ[tb + 1] == 0 && tb != 8) {
-    let r = rndI(2, 4), dx = 0 - r - 1;
-    while (dx <= r + 1) {
-      let dz = 0 - r - 1;
-      while (dz <= r + 1) {
-        let x = x0 + dx, z = z0 + dz, d = dx * dx + dz * dz, y = 0;
-        if (d <= r * r + 1) {
-          // lava two deep under the land's top, air over it, stone under it
-          y = s - 2; while (y <= s - 1) { W[wi(x, y, z)] = 35; y = y + 1; }
-          y = s; while (y <= s + 4) { W[wi(x, y, z)] = 0; y = y + 1; }
-          if (BSOL[W[wi(x, s - 3, z)] + 1] != 1) { W[wi(x, s - 3, z)] = 1; }
-        } else {
-          if (d <= (r + 1) * (r + 1) + 1) {
-            // the rim: what is not solid by the lava turns to stone
-            y = s - 3; while (y <= s - 1) { if (BSOL[W[wi(x, y, z)] + 1] != 1) { W[wi(x, y, z)] = 1; } y = y + 1; }
-          }
-        }
-        dz = dz + 1;
-      }
-      dx = dx + 1;
-    }
-  }
 }

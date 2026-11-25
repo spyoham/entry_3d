@@ -74,6 +74,7 @@ function aoOf(n, d) {
   return c * 8;
 }
 
+let meshAir = 0;
 function meshSectionAt(x0, y0, z0) {
   let s = secOf(x0, y0, z0);
   SOX[s] = x0; SOZ[s] = z0;
@@ -100,6 +101,7 @@ function meshSection(sec) {
   // of nothing but air has no faces; one of nothing but whole blocks (most of what lies under the ground:
   // it was the dearest kind, 3072 looks at neighbours for no face at all) has faces only on its six sides,
   // toward what is outside it - 384 looks.
+  if (meshAir == 1) { ax = 8; }
   while (ax < 8) {
     az = 0;
     while (az < 8) {

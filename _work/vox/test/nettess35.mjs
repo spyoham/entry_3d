@@ -1,7 +1,7 @@
 // (v3.4) the example map pasted into a new server, in the REAL tessvm page (the _work/tessvm harness: node ../tessvm/tsrv.mjs,
 // port 3100, with the real Entry Sync page script; this script is the room server as in nettess.mjs): the game goes on
 // (no page error, the frames count up) while the kept mobs wake, and a second player sees them.
-// usage: node test/nettess34.mjs
+// usage: node test/nettess35.mjs
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -11,7 +11,7 @@ const require = createRequire(new URL('../../../entry-vibe-coding/package.json',
 const { chromium } = require('@playwright/test');
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const LAT = +(process.argv[2] || 80);
-const file = path.join(HERE, 'nettess34.ent');
+const file = path.join(HERE, 'nettess35.ent');
 buildProject(file, { name: 'nettess', more: { TESTRUN: 1 } });
 const inject = fs.readFileSync(new URL('../../entrysync/inject-latest.js', import.meta.url), 'utf8');
 let fails = 0;
@@ -88,14 +88,14 @@ for (const pitch of [0, 25, -20]) for (let yaw = 0; yaw < 360; yaw += 45) { awai
 { const f = +(await V(A, 'frames')); console.log('   looked round from the start: frames', f, errors.slice(-1)[0] || ''); if (f === last) stuck++; last = f; }
 // round the works: each place looked at from four sides while its mobs wake
 const pose = async (p, x, y, z, yaw, pitch) => { await set(p, 'flying', 1); await set(p, 'tX', x + 0.5); await set(p, 'tY', y); await set(p, 'tZ', z + 0.5); await set(p, 'tYaw', yaw); await set(p, 'tPitch', pitch); await set(p, 'testCmd', 1); };
-for (const [name, x, y, z] of [['hall', 27, 60, 39], ['pens', 38, 60, 41], ['breeder', 23, 60, 47], ['egg farm', 26, 61, 23], ['iron farm', 60, 70, 26], ['tower', 52, 60, 38], ['east', 70, 60, 43], ['tower top', 52, 100, 45]]) {
+for (const [name, x, y, z] of [['hall', 27, 93, 39], ['pens', 38, 93, 41], ['breeder', 23, 93, 47], ['egg farm', 26, 94, 23], ['iron farm', 60, 103, 26], ['tower', 52, 93, 38], ['east', 70, 93, 43], ['tower top', 52, 100, 45]]) {
   for (const yaw of [0, 90, 180, 270]) { await pose(A, x, y, z, yaw, -15); await sleep(1800); }
   const f = +(await V(A, 'frames'));
   console.log('   at the', name, 'frames', f, 'mobs', ((await Lst(A, 'ET')) || []).filter((v) => +v > 0).length, 'villagers', await count(A, 'villager'), errors.slice(-1)[0] || '');
   if (f === last) stuck++;
   last = f;
 }
-await shot(A, 'nettess34_alice.png');
+await shot(A, 'nettess35_alice.png');
 ok(stuck === 0, 'the game went on for 40 s after joining (frames ' + last + ')');
 ok((await count(A, 'villager')) >= 8, 'the villagers of the map are there: ' + (await count(A, 'villager')));
 const B = await player('bob'); P.push(B); await welcome(B);
@@ -104,7 +104,7 @@ await cmd(B, 12, '공장섭');
 ok(await until(async () => +(await V(B, 'gState')) === 2, 90000), 'bob joined');
 let lastB = +(await V(B, 'frames')), stuckB = 0;
 for (let i = 0; i < 10; i++) { await sleep(2000); const f = +(await V(B, 'frames')), fa = +(await V(A, 'frames')); if (f === lastB || fa === last) stuckB++; lastB = f; last = fa; }
-await shot(B, 'nettess34_bob.png');
+await shot(B, 'nettess35_bob.png');
 ok(stuckB === 0, 'both games go on with two in the server');
 ok((await count(B, 'villager')) >= 8 && (await count(A, 'villager')) <= 13, 'bob sees the villagers, alice has no more than before: ' + (await count(B, 'villager')) + ' / ' + (await count(A, 'villager')));
 ok(errors.length === 0, 'page errors: ' + (errors.length ? errors.slice(0, 3).join(' | ') : 'none'));

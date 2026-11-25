@@ -735,7 +735,7 @@ function keptOnce(key) {
 //   EVAR = 2 x (profession 0..13 + 16 x (level 1..5 + 8 x (traded 0/1 + 2 x (cures 0..3 + 4 x (xp 0..250
 //          + 256 x seed 1..4095))))) - what its offers are;
 //   ETG  = how often each of its ten offers was used (a hex digit each) + VFD x its food (0..24);
-//   ECNV = its job block ((x + 500000) x 1048576 + z + 500000) x 128 + y, 0 none;
+//   ECNV = its job block ((x + 500000) x 1048576 + z + 500000) x 256 + y, 0 none;
 //   EAGE (grown: above 0) = the game tick from which it may fill its offers again; ELOVE below 0: resting.
 let JOBK = [], vP = 0, vL = 1, vK = 0, vD = 0, vX = 0, vS = 0, jbX = 0, jbY = 0, jbZ = 0, jbK = 0, VFD = 1099511627776;
 // once every n game ticks (20 a second) for mob e, whatever the frames are
@@ -758,8 +758,9 @@ function villGet(v) {
   if (vL < 1) { vL = 1; } if (vL > 5) { vL = 5; } if (vP > VJOB.length) { vP = 0; }
 }
 function villPack() { return 2 * (vP + 16 * (vL + 8 * (vK + 2 * (vD + 4 * (vX + 256 * vS))))); }
-function jobPack(x, y, z) { return ((x + 500000) * 1048576 + z + 500000) * 128 + y; }
-function jobAt(p) { jbY = mod(p, 128); let q = idiv(p, 128); jbZ = mod(q, 1048576) - 500000; jbX = idiv(q, 1048576) - 500000; }
+// ((v3.5) x 256 for the height: the world is 256 high (it was x 128 - landup.js jobUp packs an old one anew))
+function jobPack(x, y, z) { return ((x + 500000) * 1048576 + z + 500000) * 256 + y; }
+function jobAt(p) { jbY = mod(p, 256); let q = idiv(p, 256); jbZ = mod(q, 1048576) - 500000; jbX = idiv(q, 1048576) - 500000; }
 // is that job block (as ECNV has it) nobody's but e's
 function jobFree(p, e) {
   let r = 1, g = 1;

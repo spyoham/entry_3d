@@ -1,6 +1,6 @@
 // (v3.4, 11-21) a far mob the eye cannot see is not drawn (mobs.js bucketThings, mobSeen): node test/mobsee.mjs
 import { createSim } from '../sim.mjs';
-const s = createSim({ consts: { AUTOSEED: 777, TESTRUN: 1, AUTOMODE: 1, ANIMALS: 0, GENV: 2 } });
+const s = createSim({ consts: { AUTOSEED: 777, TESTRUN: 1, AUTOMODE: 1, ANIMALS: 0, GENV: 3 } });
 let n = 0; while (s.peek('gState') !== 2 && n < 6000) { s.frame(); n++; }
 let fails = 0;
 const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fails++; };

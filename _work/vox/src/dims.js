@@ -134,7 +134,9 @@ function genColumnU1(x, z) {
   while (y <= e) { W[i] = roof; LT[i] = 0; i = i + 1; y = y + 1; }
   if (rnd() < 0.5) { W[i] = 6; } else { W[i] = roof; }
   LT[i] = 0; i = i + 1; y = y + 1;
-  while (y < WY) { W[i] = 6; LT[i] = 0; i = i + 1; y = y + 1; }
+  // ((v3.5) over the roof nothing: it was the floor's rock all the way up - 192 cells a column to light and mesh now)
+  W[i] = 6; LT[i] = 0; i = i + 1; y = y + 1;
+  while (y < WY) { W[i] = 0; LT[i] = 0; i = i + 1; y = y + 1; }
 }
 // what grows and lies in a chunk of the cavern world
 function featuresU1(cx, cz) {
@@ -231,36 +233,6 @@ function roomOver(i, n) {
   return r;
 }
 // (genVer 0: the land as it was before v3.2)
-function genColumnU0(x, z) {
-  let f = 14 + Math.floor(fbm3(x - (0 - 911), z - (0 - 377), 32) * 7);
-  let c = 47 + Math.floor(fbm3(x - (0 - 5531), z - (0 - 2711), 28) * 7);
-  // pillars from floor to ceiling, and wider walls of the caverns
-  let pl = noise2(x - (0 - 1777), z - (0 - 913), 11);
-  let wall = fbm3(x - (0 - 3313), z - (0 - 7177), 40);
-  if (pl > 0.62 || wall > 0.42) { f = c; }
-  let sand = noise2(x - (0 - 333), z - (0 - 6667), 14);
-  let bas = noise2(x - (0 - 4441), z - (0 - 1123), 9);
-  let ci = wcol(x, z);
-  ashBiome(x, z);
-  HMAP[ci] = f; BIOM[ci] = abm;
-  // the ground of each part of the depths: moss of the two forests, the wailing sand of the
-  // valleys, basalt and black rock of the deltas
-  let top = 48, under = 48;
-  if (abm == 22) { top = I_emberMoss; } if (abm == 23) { top = I_indigoMoss; }
-  if (abm == 24) { top = I_wailSand; under = I_wailSoil; if (sand > 0) { top = I_wailSoil; } }
-  if (abm == 25) { top = 53; under = I_blackrock; if (bas > 0.2) { top = I_blackrock; } if (sand > 0.45) { top = I_magma; } }
-  let y = 0, v = 0, i = (ci - 1) * WY + 1;
-  while (y < WY) {
-    v = 0;
-    if (y <= f) { v = 48; if (y >= f - 3) { v = under; } if (y == f) { v = top; if (abm == 9) { if (sand > 0.3) { v = 49; } } } if (bas > 0.6) { v = 53; } }
-    if (y >= c) { v = 48; if (bas > 0.6) { v = 53; } if (abm == 25) { if (bas > 0) { v = I_blackrock; } } }
-    if (v == 0) { if (y <= 12) { v = 35; } }
-    if (y == 0 || y >= UH - 1) { v = 6; }
-    if (y == 1 || y == UH - 2) { if (rnd() < 0.5) { v = 6; } }
-    W[i] = v; LT[i] = 0;
-    y = y + 1; i = i + 1;
-  }
-}
 // a fort bridge runs along a line every 80 blocks (x lines and z lines), where the noise says a
 // fort stands; where two meet there is a room with chests
 function fortX(z) {
@@ -281,69 +253,6 @@ function ashBiome(x, z) {
   abm = 9;
   if (a > 0.25) { abm = 22; if (b > 0.2) { abm = 23; } }
   if (a < -0.3) { abm = 24; if (b > 0.25) { abm = 25; } }
-}
-function featuresU0(cx, cz) {
-  // (v2.3.2) lava falls from the walls and the roof of the depths
-  chunkSeed(cx, cz, 6);
-  springs(48, 12, 35, 12, 60);
-  chunkSeed(cx, cz, 2);
-  veins(51, 6, 3, 7, 14, 50);
-  veins(I_oreQuartz, 8, 4, 10, 10, 54); veins(I_oreAshGold, 5, 4, 10, 10, 54);
-  veins(I_blackrock, 2, 20, 40, 10, 50);
-  // the forests, the valleys and the deltas: what grows and lies on their floor
-  let lx = 0;
-  while (lx < 16) {
-    let lz = 0;
-    while (lz < 16) {
-      let x = gx0 + lx, z = gz0 + lz, ci = wcol(x, z), y = HMAP[ci], bi = BIOM[ci], i = wi(x, y, z), r = rnd();
-      if (y > 13 && y < UH - 6) { if (W[i + 1] == 0) {
-        if (bi == 22 || bi == 23) {
-          let inner = 0;
-          if (lx >= 3 && lx <= 12 && lz >= 3 && lz <= 12) { inner = 1; }
-          if (r < 0.03 && inner == 1) { growTreeKind(x, y, z, 6 + bi - 22); }
-          else {
-            if (r < 0.2) { if (bi == 22) { W[i + 1] = I_emberRoots; } else { W[i + 1] = I_indigoRoots; } }
-            else { if (r < 0.24) { W[i + 1] = I_emberSapling + (bi - 22) * 0; if (bi == 23) { W[i + 1] = I_indigoSapling; } } else { if (r < 0.3) { if (bi == 23) { W[i + 1] = I_ashSprouts; } } } }
-          }
-        }
-        if (bi == 24) {
-          if (r < 0.006) { fossilAsh(x, y + 1, z); }
-          else { if (r < 0.02) { W[i + 1] = I_wailFire; } }
-        }
-        if (bi == 25) { if (r < 0.05) { let h = rndI(1, 4), k = 1; while (k <= h) { W[i + k] = 53; k = k + 1; } } }
-      } }
-      // vines hanging from the ceiling of the forests
-      if (bi == 22 || bi == 23) {
-        if (rnd() < 0.03) {
-          let yy = UH - 3;
-          while (yy > y + 4 && W[wi(x, yy, z)] != 0) { yy = yy - 1; }
-          if (yy > y + 4) { let n = rndI(2, 7), vb = I_emberVines; if (bi == 23) { vb = I_indigoVines; } while (n > 0 && yy > y + 2) { W[wi(x, yy, z)] = vb; yy = yy - 1; n = n - 1; } }
-        }
-      }
-      lz = lz + 1;
-    }
-    lx = lx + 1;
-  }
-  featuresBastion(cx, cz);
-  chunkSeed(cx, cz, 5);
-  // the ashen debris, deep and rare (whatever is round it)
-  veins(59, 1.6, 1, 3, 8, 22);
-  veins(49, 3, 10, 20, 12, 30);
-  // glowing crystals hanging from the ceiling
-  let k = rndI(1, 3);
-  while (k > 0) {
-    let x = gx0 + rndI(2, 13), z = gz0 + rndI(2, 13), y = UH - 3;
-    while (y > 20 && W[wi(x, y, z)] != 0) { y = y - 1; }
-    if (y > 20) { if (W[wi(x, y + 1, z)] == 48) { genBlob(x, y, z, 50, rndI(5, 14), 0 - 1); } }
-    k = k - 1;
-  }
-  // the fort lines that cross this chunk
-  let a = 0;
-  while (a < 16) {
-    if (fortX(gz0 + a) == 1) { fortRun(gx0, gz0 + a, 1, 0); }
-    if (fortZ(gx0 + a) == 1) { fortRun(gx0 + a, gz0, 0, 1); }
-    a = a + 1;
-  }
 }
 // a crystal blob grows down (dir -1) from where it hangs
 function genBlob(x, y, z, b, n, dir) {
@@ -467,25 +376,6 @@ function voidIsland1(x, z) {
       }
     }
   } }
-}
-function voidIsland0(x, z) {
-  vTop = 0 - 1; vBot = 0;
-  let d = Math.sqrt(x * x + z * z);
-  let e = fbm3(x - (0 - 6011), z - (0 - 913), 20);
-  if (d < 62 + e * 10) {
-    let k = d / (62 + e * 10);
-    vTop = 40 + Math.floor(e * 2);
-    vBot = Math.floor(40 - (1 - k * k) * 26 - e * 3);
-  } else {
-    if (d > 380) {
-      let n = fbm3(x - (0 - 911), z - (0 - 3001), 56);
-      if (n > 0.18) {
-        let h = (n - 0.18) * 60;
-        vTop = 36 + Math.floor(e * 4);
-        vBot = Math.floor(vTop - h);
-      }
-    }
-  }
 }
 function genColumnV(x, z) {
   voidIsland(x, z);

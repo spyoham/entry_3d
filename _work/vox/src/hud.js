@@ -36,7 +36,16 @@ function txClear() {
   let i = 1;
   while (i <= NTX) { txOff(i); i = i + 1; }
 }
+// ((v3.5) not on tessvm: the notice, written once by the text object itself - no slots, no clones (main.js plainNotice))
+function noTessText() {
+  textColorHex('#ffcc66');
+  setSize(11 * TXSZ);
+  goto(-232 + TXW / 2 * 11 / TXF, 6);
+  write('블록 월드는 tessvm 확장 프로그램에서만 실행됩니다\n크롬에 tessvm을 설치하고 켠 뒤 이 페이지를 다시 여세요');
+  show();
+}
 on('start', 'txt', function () {
+  if ($TESSVM == 0 && SIMRUN == 0) { noTessText(); stopThread(); }
   hide();
   let k = 1;
   while (k <= NTX) {

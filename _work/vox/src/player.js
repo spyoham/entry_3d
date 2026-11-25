@@ -229,7 +229,7 @@ function playerMove2(dt) {
   if (uiMode != 0) { fw = 0; st = 0; }
   wTapT = wTapT + dt;
   if (key(87)) { if (wWas == 0) { if (wTapT < 0.3) { sprinting = 1; } wTapT = 0; } wWas = 1; } else { wWas = 0; }
-  if (key(82)) { if (fw > 0) { sprinting = 1; } }
+  if (key(82) || key(17)) { if (fw > 0) { sprinting = 1; } }
   if (fw <= 0) { sprinting = 0; }
   if (mod(gameMode, 2) == 0) { if (food <= 6) { sprinting = 0; } }
   if (EFT[25] > 0) { sprinting = 0; }
@@ -841,6 +841,8 @@ function setBlock(x, y, z, b) {
   if (y >= 0 && y < WY && cOK(x, z) == 1) {
     let old = W[wi(x, y, z)];
     logOn = lqLog; wput(x, y, z, b); logOn = 0;
+    // ((v3.5) the column's highest block, for where monsters are tried (mobs.js spawnTry))
+    if (b != 0) { if (y > STP[wcol(x, z)]) { STP[wcol(x, z)] = y; } }
     if (old == 34) { if (b != 34) { veilN = 0; veilBreak(x + 1, y, z); veilBreak(x - 1, y, z); veilBreak(x, y + 1, z); veilBreak(x, y - 1, z); veilBreak(x, y, z + 1); veilBreak(x, y, z - 1); } }
     markDirty(x, y, z);
     // (liquid flowing over air and back is not lit again - the dear part, 29 x 29 columns: flowing

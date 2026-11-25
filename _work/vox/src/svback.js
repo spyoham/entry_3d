@@ -10,6 +10,13 @@
 // Entry Sync was on. When the room's values came later than that (a slow start), the copy - older
 // than the room - was written over it, and what was done since (an /op) was gone. Now only when
 // every server place is empty, 20 s on, and never over a server that is there.
+// (v3.5) Asked of the real room server (test/syncsave.mjs): a save from the editor in which a list is EMPTY takes
+// that list out of the room; one in which it is missing leaves it. So clearing the work and bringing its code
+// back from the locker with Entry Sync on empties every server - and the first player to come put back the
+// servers THEY had been on, after which no place was empty and nobody else's copies went back: a server only
+// others had played stayed lost. Now a copy goes back whenever its server is in no place (20 s on, not over one
+// that is there, not one deleted on purpose); of two places with one server the one with the older settings
+// is cleared (it was the later place - which could be the room's own, were a copy put back before it came).
 // @서버백업: sections SB, id, name, owner, rev, nm, nm settings lines, ne, ne block numbers.
 let AT_서버백업 = [];
 let SY_gone = [];
@@ -96,7 +103,7 @@ function bkCheck() {
           if (BKID[k] != '-') { if (BKID[k] == id) { if (at == 0) { at = k; } } } else { if (free == 0) { free = k; } }
           k = k + 1;
         }
-        if (at == 0 && any == 0) {
+        if (at == 0) {
           if (free > 0) { bkWrite(p, free); BKID[free] = id; bkPut = bkPut + 1; netMsg = `사라진 서버 '${name}'을(를) 이 컴퓨터에 남은 기록에서 되살렸습니다`; }
         }
         let nm = AT_서버백업[p + 5] * 1, ne = AT_서버백업[p + 6 + nm] * 1;
@@ -109,7 +116,17 @@ function bkCheck() {
   while (a <= NSRV) {
     if (BKID[a] != '-') {
       let b = a + 1;
-      while (b <= NSRV) { if (BKID[b] == BKID[a]) { if (srvCount(b) == 0 && b != netSrv) { srvWipe(b); BKID[b] = '-'; } } b = b + 1; }
+      while (b <= NSRV) {
+        if (BKID[b] == BKID[a]) {
+          // (the one with the older settings goes; nobody may be in it)
+          let ra = 0, rb = 0, g = b;
+          if (srvHas(a) == 1) { ra = shRev; } if (srvHas(b) == 1) { rb = shRev; }
+          if (ra < rb) { g = a; }
+          if (srvCount(g) > 0 || g == netSrv) { if (g == a) { g = b; } else { g = a; } }
+          if (srvCount(g) == 0 && g != netSrv) { srvWipe(g); BKID[g] = '-'; if (g == a) { b = NSRV; } }
+        }
+        b = b + 1;
+      }
     }
     a = a + 1;
   }

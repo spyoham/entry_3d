@@ -11,25 +11,34 @@ import { TEX, CRACK, BLOCKS, NBLOCK, ITEMS, TIERS, KINDS, SMITH, toolId, NITEM, 
 import { MODELS, ARMS, ARMCOL, pottedModel } from './models.mjs';
 import { makeSounds } from './sounds.mjs';
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-export const VERSION = '3.4';
+export const VERSION = '3.5';
 // how many servers Entry Sync holds (each one two ?! lists; the slot line carries the number in two digits)
 export const NSRV = 99;
 export const NAME = '블록 월드';
 
 // the ring window of loaded chunks: NCH x NCH slots of 16 x 16 columns; chunks are made within
 // CR chunks of the player (2 CR + 1 < NCH keeps a free row of slots between the two ends)
-const NCH = 10, WS = NCH * 16, WY = 128, CR = 4;
+const NCH = 10, WS = NCH * 16, CR = 4;
+// ((v3.5) the world's height and what hangs on it: 256 high with the sea's top at 63, the genre's own numbers.
+// The simulator's older tests are written on the world as it was - 128 high, its sea at 30, the land of before
+// v3.4 - and get that one: GENV below 2 (allConsts).)
+export function worldConsts(WY) {
+    const tall = WY >= 256;
+    return { WY, SEA: tall ? 63 : 30, LAVAY: tall ? 10 : 5, CLOUDY: tall ? 128 : 110, NSY: WY / 8, NSEC: (WS / 8) * (WS / 8) * (WY / 8), SXS: WS * WY, TKN: WY / 8 + 1, TCS: 180 + 25 * (WY / 8 + 1),
+        // (the old ruins' floor, the dungeons' highest, the fossils' and the mines' heights)
+        RUY: tall ? 28 : 16, DUNY: tall ? 58 : 46, FOSY: tall ? 30 : 14, MSY: tall ? 20 : 18, MSYN: tall ? 24 : 16 };
+}
 function chunkOffsets(r) {
     const o = [];
     for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) if (dx * dx + dz * dz <= r * r) o.push([dx, dz]);
     return o.sort((a, b) => (a[0] ** 2 + a[1] ** 2) - (b[0] ** 2 + b[1] ** 2));
 }
 export const consts = {
-    WS, NCH, CR, WY, UH: 64, SEA: 30, LAVAY: 5, NSX: WS / 8, NSY: WY / 8, NSEC: (WS / 8) * (WS / 8) * (WY / 8), SXS: WS * WY, OFF: 32768,
-    NOFF: chunkOffsets(CR).length, CVN: 24, FORTY: 30, NSTART: chunkOffsets(2).length,
-    NEARZ: Math.round(0.05 * 256 * 16384), DEC2: 20, PLANT2: 225, CLOUDY: 110, MK: 160 * 1048576,
+    WS, NCH, CR, ...worldConsts(256), UH: 64, NSX: WS / 8, OFF: 32768,
+    NOFF: chunkOffsets(CR).length, CVN: 32, FORTY: 30, NSTART: chunkOffsets(2).length,
+    NEARZ: Math.round(0.05 * 256 * 16384), DEC2: 20, PLANT2: 225, MK: 160 * 1048576,
     NMOB: 96, NITM: 96, NARR: 24, NFUR: 32, NCHEST: 256, ANIMALS: 60, SMELTT: 10, NTX: 145, NTX0: 123,
-    GENV: 2, SPAWNC: 0, BENCH: 0, NOCAVE: 0, AUTOSEED: 0, AUTOMODE: 0, TESTRUN: 0, SIMRUN: 0, LEGACY: 0, SLIM: 1, SPLIT: 0, MESHFAST: 1,
+    GENV: 3, SPAWNC: 0, BENCH: 0, NOCAVE: 0, AUTOSEED: 0, AUTOMODE: 0, TESTRUN: 0, SIMRUN: 0, LEGACY: 0, SLIM: 1, SPLIT: 0, MESHFAST: 1,
 };
 
 // what F does on a block, how it is put down, what it must stand on, how it moves a body
@@ -649,19 +658,25 @@ export function makeData() {
 }
 
 // ------------------------------------------------------------------ sources
-export const FILES = ['world.js', 'flat.js', 'fluid.js', 'dims.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'rails.js', 'save.js', 'net.js', 'netmob.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'fauna.js', 'items.js', 'hud.js', 'extra.js', 'ench.js', 'cmds.js', 'wedit.js', 'keyin.js', 'swear.js', 'je.js', 'mapdata.js', 'combat.js', 'plants.js', 'brew.js', 'world33.js', 'netkeep.js', 'terra.js', 'main.js', 'test.js'];
+export const FILES = ['world.js', 'flat.js', 'fluid.js', 'dims.js', 'oldland.js', 'structs.js', 'mesh.js', 'render.js', 'model.js', 'player.js', 'blocks.js', 'power.js', 'rails.js', 'save.js', 'net.js', 'netmob.js', 'netcmd.js', 'cmdaim.js', 'svback.js', 'menu.js', 'mobs.js', 'fauna.js', 'items.js', 'hud.js', 'extra.js', 'ench.js', 'cmds.js', 'wedit.js', 'keyin.js', 'swear.js', 'je.js', 'mapdata.js', 'landup.js', 'combat.js', 'plants.js', 'brew.js', 'world33.js', 'netkeep.js', 'terra.js', 'main.js', 'test.js'];
 export function allConsts(more = {}) {
     const { C } = makeData();
-    return { ...consts, ...C, ...more };
+    const all = { ...consts, ...C, ...more };
+    if (more.WY === undefined && all.GENV < 2) Object.assign(all, worldConsts(128));
+    else if (more.WY !== undefined) Object.assign(all, worldConsts(more.WY), more);
+    return all;
 }
 // a list past 5000 items is kept as parts of 5000 (Entry drops the rest when it opens a work) and
 // put together once at the start (bigInit)
 const PART = 5000;
+const OLDSTUB = '\nfunction climateGrid(x0, z0) { }\nfunction columnShape0(x, z) { }\nfunction genColumn(x, z) { }\nfunction carveBall(cx, cy, cz, r) { }\nfunction wormBalls(ccx, ccz) { }\nfunction oresOld(cx, cz) { }\nfunction lavaLake(x0, z0) { }\nfunction genColumnU0(x, z) { }\nfunction featuresU0(cx, cz) { }\nfunction voidIsland0(x, z) { }\n';
 export function sources(C) {
     const { L } = makeData();
     let files = C.TESTRUN || C.SIMRUN ? FILES : FILES.filter(f => f !== 'test.js');
     if (C.SPLIT) files = files.concat(['split.js']);
-    const stub = files.includes('test.js') ? '' : '\nfunction testStep() { }\n';
+    let stub = files.includes('test.js') ? '' : '\nfunction testStep() { }\n';
+    // ((v3.5) the lands of before: only for the simulator's tests of the old world)
+    if (!((C.TESTRUN || C.SIMRUN) && C.GENV < 2)) { files = files.filter(f => f !== 'oldland.js'); stub += OLDSTUB; }
     const lit = (v) => typeof v === 'string' ? JSON.stringify(v) : (Number.isFinite(v) ? String(v) : (() => { throw new Error('bad ' + v); })());
     const parts = [], init = [];
     // (v2.4.1) a data list of whole numbers (64 items or more) is kept packed: each item as w digits

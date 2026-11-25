@@ -61,7 +61,7 @@ function structIn(t, rx, rz) {
           if (t == 9) { if (b == 0 || b == 21 || b == 20 || b == 8 || b == 1) { ok = 1; } }
           if (t == 10) { if (b == 0 || b == 20 || b == 8) { ok = 1; } }
           if (t == 11) { if (b == 1) { ok = 1; } }
-          if (t == 14) { ok = 1; stY = 18 + mod(stV * 7, 16); }
+          if (t == 14) { ok = 1; stY = MSY + mod(stV * 7, MSYN); }
           if (genVer >= 2) { if (ok == 1 && t != 14) { tPoint(stX, stZ); stY = colH; } }
           // the ground must be flat enough for the buildings that stand on it
           if (ok == 1) { if (t <= 7) { if (stY < SEA) { ok = 0; } if (stY > SEA + 40) { ok = 0; } } }
@@ -227,9 +227,9 @@ function featuresStructs(cx, cz) {
   }
   // small things kept inside the chunk: dungeons, wells, fossils
   chunkSeed(cx, cz, 7);
-  if (rnd() < 0.22) { dungeon(x0 + rndI(4, 11), rndI(10, 46), z0 + rndI(4, 11)); }
+  if (rnd() < 0.22) { dungeon(x0 + rndI(4, 11), rndI(10, DUNY), z0 + rndI(4, 11)); }
   if (rnd() < 0.01) { let wx = x0 + rndI(4, 11), wz = z0 + rndI(4, 11); findTop(wx, wz); if (W[wi(wx, topY, wz)] == 8) { if (BIOM[wcol(wx, wz)] == 4) { desertWell(wx, topY, wz); } } }
-  if (rnd() < 0.015) { fossil(x0 + rndI(3, 10), rndI(14, 34), z0 + rndI(3, 10)); }
+  if (rnd() < 0.015) { fossil(x0 + rndI(3, 10), rndI(FOSY, FOSY + 20), z0 + rndI(3, 10)); }
 }
 function buildStruct(t) {
   stSeed(t, stX, stZ);

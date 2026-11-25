@@ -351,7 +351,8 @@ function loadGame(k) {
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'FLAT') { svP = svP + 2; let fbad = flatSet(rdN()); } }
   // ((v3.4) every world has the land of this version, whatever it was made with (the user: the old lands are
   // not kept); where it begins, for one who dies without a bed
-  genOld = 0; if (genVer < GENV) { genOld = 1; }
+  // ((v3.5) and one made in the world 128 high has what was built in it moved up with the land: landup.js)
+  genOld = 0; if (genVer < GENV) { genOld = 1; if (GENV >= 3) { worldUp(); } }
   genVer = GENV;
   genCentre();
   curI = 0; curN = 0; curD = 0;
@@ -370,5 +371,5 @@ function arriveKept() {
   petsRestore();
   if (dim == 2) { if (bossDead == 0) { bossSpawn(); } }
   msgShow('저장한 세계로 돌아왔습니다', 3);
-  if (genOld == 1) { genOld = 0; msgShow('v3.4 전에 만든 세계입니다 - 땅이 새 방식으로 다시 만들어졌습니다', 6); }
+  if (genOld == 1) { genOld = 0; msgShow('v3.5 전에 만든 세계입니다 - 세계가 256칸 높이가 되어 지은 것을 땅과 함께 33칸 위로 옮겼습니다', 8); }
 }

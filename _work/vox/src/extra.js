@@ -102,7 +102,6 @@ function shellBoxOpen(x, y, z) {
 
 // ---------------------------------------------------------------- the old ruins (three, round the world's middle)
 let ruX = 0, ruZ = 0;
-let RUY = 16;
 function ruinAt(k) {
   let a = mod(seed * 37, 360) + k * 120;
   let r = 560 + mod(seed * 13 + k * 71, 160);

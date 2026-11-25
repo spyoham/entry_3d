@@ -22,8 +22,10 @@
 // made before opens on new land (genVer is set to GENV when it is loaded, joined or pasted). The old makers
 // (world.js columnShape0 / genColumn, genVer 0 and 1) are left for the simulator's tests, which were written
 // on the old land and ask for it (GENV 1); the game never runs them.
-// The heights: the sea's top is SEA here and 63 there - from 6 blocks under it up a block is a block, below
-// that the genre's depths are two thirds as deep (the world is 128 high, its sea at 30).
+// (v3.5) The heights are the genre's own: the world 256 high, the sea's top at 63, a block for a block all the
+// way down (v3.4 had the world 128 high and its sea at 30, the depths under the sea squeezed to two thirds). The
+// densities are known at the heights 8 l + 1 (l 0..32) - where v3.4 knew them, so the land above the sea is
+// v3.4's own, 33 blocks higher: what was built on it is moved up with it (save.js yUp).
 
 // ---------------------------------------------------------------- the biomes of the layers
 // by the genre's numbers: TBD depth x 1000, TBS scale x 1000, TBM the game's biome (BIOM), TOC 1 a
@@ -461,28 +463,26 @@ function tNoise(x, y, z) {
 }
 
 // ---------------------------------------------------------------- a chunk's biomes and densities, kept
-// TC: 16 chunks at a time (the place by the chunk's number mod 4 each way), TCS cells each: 81 biomes (the
+// TC: 64 chunks at a time (the place by the chunk's number mod 8 each way; (v3.5) 16 before: the trees ask the
+// chunks round the one being made, and those are made soon after), TCS cells each: 81 biomes (the
 // 9 x 9 cells of 4 blocks from 2 before the chunk), 72 the points the columns pick their biome by, 25
-// marks (is that column of densities worked out) and 25 x 17 densities x 16 (every 4 blocks, every 8 up)
-const TCS = 640;
+// marks (is that column of densities worked out) and 25 x TKN densities x 16 (every 4 blocks, every 8 up)
 let TC = [], TCKX = [], TCKZ = [], tce = 0, TVD = [], TYM = [];
 function tcInit() {
-  if (TC.length == 0) { let i = 0; while (i < TCS * 16) { TC.push(0); i = i + 1; } i = 0; while (i < 16) { TCKX.push(999999); TCKZ.push(0); i = i + 1; } i = 0; while (i < 17) { TVD.push(0); TYM.push(0); i = i + 1; } }
+  if (TC.length == 0) { let i = 0; while (i < TCS * 64) { TC.push(0); i = i + 1; } i = 0; while (i < 64) { TCKX.push(999999); TCKZ.push(0); i = i + 1; } i = 0; while (i <= TKN) { TVD.push(0); TYM.push(0); i = i + 1; } }
   let k = 1;
-  while (k <= 16) { TCKX[k] = 999999; k = k + 1; }
+  while (k <= 64) { TCKX[k] = 999999; k = k + 1; }
   // (TW: the weights of the 5 x 5 cells round a column, 10 / root(d2 + 0.2), x 1000)
-  // the genre's height of each level of 8 blocks here: a block is a block from 24 up (the sea's top 30 is
-  // its 63), 1.5 of its blocks below (a river's bed lies between the levels 24 and 32: were the squeeze to begin
-  // at the sea, the straight line between them put the bed at the water's top and the rivers ran dry)
+  // the height of each level the densities are known at: 8 l + 1
   let l = 0;
-  while (l <= 16) { let y = l * 8, ym = y + 63 - SEA; if (y < 24) { ym = 57 - (24 - y) * 1.5; } TYM[l + 1] = Math.round(ym); l = l + 1; }
+  while (l < TKN) { TYM[l + 1] = l * 8 + 1; l = l + 1; }
   PTX = []; PTZ = []; PTH = []; PTB = []; BQX = []; BQZ = []; BQV = [];
   k = 0;
   while (k < 64) { PTX.push(999999); PTZ.push(0); PTH.push(0); PTB.push(0); BQX.push(999999); BQZ.push(0); BQV.push(0); k = k + 1; }
 }
 // the chunk's place in TC (tce: its first cell - 1), its biomes made when it is not there
 function tEntry(cx, cz) {
-  let s = mod(cx, 4) * 4 + mod(cz, 4) + 1;
+  let s = mod(cx, 8) * 8 + mod(cz, 8) + 1;
   tce = (s - 1) * TCS;
   if (TCKX[s] != cx || TCKZ[s] != cz) {
     TCKX[s] = cx; TCKZ[s] = cz;
@@ -528,8 +528,8 @@ function tDens(cx, cz, i, j) {
     }
     let dep = fd / fw / 1000 * 0.5 - 0.125, sc = fs / fw / 1000 * 0.9 + 0.1;
     let d0 = dep * 0.265625, d1 = 96 / sc;
-    let x = cx * 16 + i * 4, z = cz * 16 + j * 4, l = 0, o = tce + 180 + ck * 17;
-    while (l <= 16) {
+    let x = cx * 16 + i * 4, z = cz * 16 + j * 4, l = 0, o = tce + 180 + ck * TKN;
+    while (l < TKN) {
       let ym = TYM[l + 1], d8 = (1 - ym / 128 - 0.46875 + d0) * d1;
       if (d8 > 0) { d8 = d8 * 4; }
       let dn = Math.round(d8 * 16);
@@ -537,23 +537,23 @@ function tDens(cx, cz, i, j) {
       if (dn < 1200 && dn > -1200) { tNoise(x, ym, z); dn = dn - (0 - tnV); }
       if (dn > 4000) { dn = 4000; } if (dn < -4000) { dn = -4000; }
       // (under the world's top the land ends: eased to -10 over the last three levels)
-      if (l > 13) { dn = idiv((dn + 160) * (16 - l), 3) - 160; }
+      if (l > TKN - 4) { dn = idiv((dn + 160) * (TKN - 1 - l), 3) - 160; }
       TC[o + l] = dn;
       l = l + 1;
     }
   }
 }
-// the densities of the column (lx, lz) of the chunk (0..15) at the 17 levels: TVD (the four columns of
+// the densities of the column (lx, lz) of the chunk (0..15) at the TKN levels: TVD (the four columns of
 // densities round it worked out when they are not)
 function tProfile(cx, cz, lx, lz) {
   let i = idiv(lx, 4), j = idiv(lz, 4), fx = lx - i * 4, fz = lz - j * 4;
   tDens(cx, cz, i, j);
-  let o00 = tce + 179 + (i * 5 + j) * 17, l = 1;
-  if (fx == 0 && fz == 0) { while (l <= 17) { TVD[l] = TC[o00 + l] * 16; l = l + 1; } }
+  let o00 = tce + 179 + (i * 5 + j) * TKN, l = 1;
+  if (fx == 0 && fz == 0) { while (l <= TKN) { TVD[l] = TC[o00 + l] * 16; l = l + 1; } }
   else {
     tDens(cx, cz, i + 1, j); tDens(cx, cz, i, j + 1); tDens(cx, cz, i + 1, j + 1);
-    let w00 = (4 - fx) * (4 - fz), w10 = fx * (4 - fz), w01 = (4 - fx) * fz, w11 = fx * fz, o10 = o00 + 85, o01 = o00 + 17, o11 = o00 + 102;
-    while (l <= 17) { TVD[l] = TC[o00 + l] * w00 - (0 - TC[o10 + l] * w10) - (0 - TC[o01 + l] * w01) - (0 - TC[o11 + l] * w11); l = l + 1; }
+    let w00 = (4 - fx) * (4 - fz), w10 = fx * (4 - fz), w01 = (4 - fx) * fz, w11 = fx * fz, o10 = o00 + TKN * 5, o01 = o00 + TKN, o11 = o00 + TKN * 6;
+    while (l <= TKN) { TVD[l] = TC[o00 + l] * w00 - (0 - TC[o10 + l] * w10) - (0 - TC[o01 + l] * w01) - (0 - TC[o11 + l] * w11); l = l + 1; }
   }
 }
 // the biome (the genre's number) of column (x, z), by the nearest of the four cell points round it
@@ -579,11 +579,11 @@ function tPoint(x, z) {
     let cx = idiv(x, 16), cz = idiv(z, 16);
     tEntry(cx, cz);
     tProfile(cx, cz, x - cx * 16, z - cz * 16);
-    let l = 16, top = 0;
+    let l = TKN - 1, top = 0;
     while (l >= 1 && top == 0) {
       if (TVD[l] > 0 || TVD[l + 1] > 0) {
         let t = 7;
-        while (t >= 0 && top == 0) { if (TVD[l] * (8 - t) - (0 - TVD[l + 1] * t) > 0) { top = (l - 1) * 8 + t; } t = t - 1; }
+        while (t >= 0 && top == 0) { if (TVD[l] * (8 - t) - (0 - TVD[l + 1] * t) > 0) { top = (l - 1) * 8 + t + 1; } t = t - 1; }
       }
       l = l - 1;
     }
@@ -628,22 +628,24 @@ function genColumn2(x, z) {
   let fl = nI;
   // (a level of 8 cells at a time: where both its ends are air above the sea, or stone under a top long
   // laid, the cells are written straight - most of a column)
-  let y = WY - 1, i = (ci - 1) * WY + WY, l = 16, t = 7, v0 = 0, v1 = 0, run = 0 - 1, hm = 0, v = 0, md = 0, sol = 0;
+  // ((v3.5) between the levels 8 l + 1 and 8 l + 9 lie the cells 8 l + 1 .. 8 l + 8: the topmost run is of 7,
+  // 249..255, and cell 0 under the lowest is the world's floor)
+  let y = WY - 1, i = (ci - 1) * WY + WY, l = TKN - 1, t = 7, t0 = 6, v0 = 0, v1 = 0, run = 0 - 1, hm = 0, v = 0, md = 0, sol = 0;
   while (l >= 1) {
     v0 = TVD[l]; v1 = TVD[l + 1];
     md = 2;
     if (v0 > 0 && v1 > 0) { md = 1; } else { if (v0 <= 0 && v1 <= 0) { md = 0; } }
     if (md == 0 && y >= SEA + 7) {
       t = 0;
-      while (t < 8) { W[i] = 0; LT[i] = 0; i = i - 1; t = t + 1; }
-      y = y - 8; run = 0 - 1;
+      while (t <= t0) { W[i] = 0; LT[i] = 0; i = i - 1; t = t + 1; }
+      y = y - t0 - 1; run = 0 - 1;
       if (fill == 21) { fill = 8; }
-    } else { if (md == 1 && run == 0 && y >= 11) {
+    } else { if (md == 1 && run == 0 && y >= 12) {
       t = 0;
       while (t < 8) { W[i] = 1; LT[i] = 0; i = i - 1; t = t + 1; }
       y = y - 8;
     } else {
-      t = 7;
+      t = t0;
       while (t >= 0) {
         v = 0; sol = md;
         if (md == 2) { sol = 0; if (v0 * (8 - t) - (0 - v1 * t) > 0) { sol = 1; } }
@@ -663,7 +665,7 @@ function genColumn2(x, z) {
                 // (a swamp's ground at the water's height: a pool, where its noise says)
                 if (b == 13) { if (y == SEA - 1) { if (fl > 0) { v = 7; } } }
               } else {
-                if (y < SEA - 5 - sd) { v = uw; run = 0; if (uw != 9) { run = sd; } }
+                if (y < SEA - 7 - sd) { v = uw; run = 0; if (uw != 9) { run = sd; } }
                 else {
                   v = fill;
                   if (fl > 300) { v = 8; } if (fl < -520) { v = 22; }
@@ -689,13 +691,16 @@ function genColumn2(x, z) {
             if (y == SEA - 1) { if (cold == 1) { if (tb != 10 && tb != 50) { v = 33; } else { if (fl > -200) { v = 33; } } } }
           }
         }
-        if (y < 4) { if (y == 0) { v = 6; } else { if (rnd() < 0.7 - y * 0.2) { v = 6; } } }
+        // (the floor's rock: all of the lowest cell, less of each of the four above)
+        if (y < 5) { if (rnd() < 1 - y * 0.2) { v = 6; } }
         W[i] = v; LT[i] = 0;
         y = y - 1; i = i - 1; t = t - 1;
       }
     } }
+    t0 = 7;
     l = l - 1;
   }
+  W[i] = 6; LT[i] = 0;
   HMAP[ci] = Math.max(1, hm); BIOM[ci] = b;
 }
 
@@ -704,9 +709,9 @@ function genColumn2(x, z) {
 // never reaches into a chunk not made - air in its upper half, the liquid in its lower; only where no liquid
 // touches the upper half's rim and the lower half's rim is solid)
 let LKM = [], LKA = [], LKC = [], LKE = [];
-function tLake(liq) {
+function tLake(liq, yq) {
   if (LKM.length == 0) { let i = 0; while (i < 2048) { LKM.push(0); i = i + 1; } i = 0; while (i < 16) { LKA.push(0); LKC.push(0); LKE.push(0); i = i + 1; } }
-  let x0 = gx0, z0 = gz0, y = rndI(0, WY - 1), i = wi(x0 + 8, y, z0 + 8);
+  let x0 = gx0, z0 = gz0, y = yq, i = wi(x0 + 8, y, z0 + 8);
   while (y > 5 && W[i] == 0) { y = y - 1; i = i - 1; }
   if (y > 8 && y < WY - 12) {
     y = y - 4;

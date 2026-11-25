@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { createSim } from '../sim.mjs';
 const MIN = +(process.argv[2] || 10), WHICH = process.argv[3] || 'both';
 const text = fs.readFileSync(process.env.MAP || new URL('../../../example_map.txt', import.meta.url), 'utf8');
-const s = createSim({ consts: { TESTRUN: 1, ANIMALS: 0, GENV: 2 } });
+const s = createSim({ consts: { TESTRUN: 1, ANIMALS: 0, GENV: 3 } });
 const F = (k = 1) => { for (let i = 0; i < k; i++) s.frame(); };
 const call = (f) => s.as('pen', () => f(s.fn));
 const cmd = (c) => call((fn) => fn.runCommand(c));
@@ -25,20 +25,20 @@ const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
 if (WHICH !== 'tower') {
   // the iron farm: stood on the ground by its chest
   cmd('/gamerule doMobSpawning false'); s.poke('tday', 0.3); s.poke('gameMode', 0);
-  stand(68, 58, 25); F(600);
-  const c0 = sum(chest(68, 58, 21)); let golems = 0, was = count('golem'), tAlive = 0;
+  stand(68, 91, 25); F(600);
+  const c0 = sum(chest(68, 91, 21)); let golems = 0, was = count('golem'), tAlive = 0;
   for (let sec = 0; sec < MIN * 60; sec++) { F(60); keep(); const g = count('golem'); if (g > was) golems += g - was; was = g; if (g > 0) tAlive++; }
-  const got = chest(68, 58, 21);
+  const got = chest(68, 91, 21);
   console.log(`iron farm, ${MIN} min: keepers that came ${golems} (one alive ${Math.round(tAlive / (MIN * 60) * 100)} % of the time), in the chest ${JSON.stringify(got)} -> ${Math.round((sum(got) - c0) * 60 / MIN)} things an hour; villagers ${count('villager')}, zombies ${count('zombie')}`);
 }
 if (WHICH !== 'iron') {
   cmd('/gamerule doMobSpawning true'); s.poke('difficulty', 2); s.poke('tday', 0.75); s.poke('gameMode', 0);
-  stand(52, 103, 16); F(120);
-  const tch = () => { const all = {}; for (let z = 42; z <= 47; z++) { const a = chest(51, 58, z); for (const k in a) all[k] = (all[k] || 0) + a[k]; } return all; };
+  stand(52, 136, 16); F(120);
+  const tch = () => { const all = {}; for (let z = 42; z <= 47; z++) { const a = chest(51, 91, z); for (const k in a) all[k] = (all[k] || 0) + a[k]; } return all; };
   const c0 = sum(tch());
   let seen = 0, maxH = 0, sumH = 0, born = 0; const ids = new Set();
   for (let sec = 0; sec < MIN * 60; sec++) {
-    F(60); keep(); stand(52, 103, 16);
+    F(60); keep(); stand(52, 136, 16);
     const ET = s.peek('ET'), EU = s.peek('EUID'), MH = s.peek('MHOST'); let h = 0;
     ET.forEach((t, i) => { if (t > 0 && MH[t - 1] === 1) { h++; if (!ids.has(EU[i])) { ids.add(EU[i]); born++; } } });
     maxH = Math.max(maxH, h); sumH += h;

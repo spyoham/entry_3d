@@ -18,7 +18,8 @@ const OBJECTS = ['pen', 'view', 'hud', 'txt'];     // back to front (view, hud: 
 
 export function createSim({ consts = {}, listMax = 1e8 } = {}) {
     // ((v3.4) the tests were written on the land before v3.4 (their places are its places): the sim keeps
-    // it unless a test asks for the new one (GENV: 2) or the whole run does (the environment's GENV=2))
+    // it unless a test asks for the new one (GENV: 2 or more) or the whole run does (the environment's GENV).
+    // (v3.5) And with the old land its world: 128 high, the sea at 30 (build.mjs allConsts).)
     if (consts.GENV === undefined) { consts = { ...consts, GENV: process.env.GENV ? Number(process.env.GENV) : 1 }; }
     const C = allConsts({ SIMRUN: 1, ...consts });
     const { src } = sources(C);
