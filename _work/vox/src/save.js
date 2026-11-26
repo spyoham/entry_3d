@@ -118,7 +118,7 @@ function svPut(wait) {
 // A chunk made again puts back only its own entries: EDN[k] is the entry before k in the same
 // chunk, and the newest one of each chunk is found by a hash of the chunk (EKK key, EKV entry).
 // (Going through the whole log for every chunk was 20 ms a tick at 60000 entries, then 390.)
-let EDN = [], EKK = [], EKV = [], EKU = [], EKN = 8192, RPS = [], rpGen = 0, edNext = 20000;
+let EDN = [], EKK = [], EKV = [], EKU = [], EKN = 8192, RPS = [], rpGen = 0, edNext = 20000, rpParts = 0;
 function edKey(cx, cz) { return (cx + 50000) * 100000 + cz + 50000 + dim * 10000000000; }
 // the place of a chunk's newest entry in EKV (made when `make` is 1)
 let ekAt = 0;
@@ -137,22 +137,36 @@ function edLink(k) {
   dim = d0;
   if (ekAt > 0) { EDN[k] = EKV[ekAt]; EKV[ekAt] = k; } else { EDN[k] = 0; }
 }
+// (v3.5, 11-26) A cell's entry is found by the cell (ECK the cell's key, 0 a free place; ECV its newest entry;
+// ECN places, used while the log has fewer than ECMAX entries): a cell changed again takes its entry's place
+// whenever it was last changed. It was looked for among the last 48 entries of its chunk - enough for a clock
+// and a few lamps; in a machine of thousands of parts a chunk the next change of a cell was never among them, the
+// log grew by an entry for every switch and was made short again every few sums (a sixth of the time a
+// calculator of 58,000 blocks took to add).
+let ECK = [], ECV = [], ECN = 131072, ECMAX = 90000, ecOn = 0;
 function edPush(x, y, z, b) {
-  // (v2.4.3) a cell changed again soon (a spark clock, a lamp, a door): its newest entry, among the
-  // chunk's last few, takes the new block (a world with clocks logged every switch: 800 entries a
-  // second, the log made short every half minute with a hitch); replay takes each cell's newest
-  // entry anyway, so it reads the same
-  let k = 0, n = 0, f = 0;
-  edSlot(edKey(idiv(x, 16), idiv(z, 16)), 0);
-  if (ekAt > 0) { k = EKV[ekAt]; }
-  while (k > 0 && n < 48 && f == 0) {
-    if (EDX[k] == x && EDY[k] == y && EDZ[k] == z && EDD[k] == dim) { f = k; }
-    k = EDN[k]; n = n + 1;
+  let k = 0, n = 0, f = 0, key = hsKey(x, y, z) + dim * 4000000000000, h = mod(key, ECN) + 1, go = 1;
+  if (ecOn == 1) {
+    while (go == 1 && n < 64) {
+      if (ECK[h] == 0) { go = 0; }
+      else { if (ECK[h] == key) { f = ECV[h]; go = 0; } else { h = h + 1; if (h > ECN) { h = 1; } n = n + 1; } }
+    }
+  } else {
+    // (v2.4.3) a cell changed again soon (a spark clock, a lamp, a door): its newest entry, among the
+    // chunk's last few, takes the new block; replay takes each cell's newest entry anyway, so it reads the same
+    edSlot(edKey(idiv(x, 16), idiv(z, 16)), 0);
+    if (ekAt > 0) { k = EKV[ekAt]; }
+    while (k > 0 && n < 48 && f == 0) {
+      if (EDX[k] == x && EDY[k] == y && EDZ[k] == z && EDD[k] == dim) { f = k; }
+      k = EDN[k]; n = n + 1;
+    }
   }
   if (f > 0) { EDB[f] = b; }
   else {
     EDX.push(x); EDY.push(y); EDZ.push(z); EDB.push(b); EDD.push(dim); EDN.push(0);
     edLink(EDX.length);
+    // (its place among the cells: the free one the search ended at)
+    if (ecOn == 1) { if (go == 0) { ECK[h] = key; ECV[h] = EDX.length; } if (EDX.length >= ECMAX) { ecOn = 0; } }
   }
 }
 // the whole index again (a new world, the log made short, a kept world read)
@@ -162,12 +176,31 @@ function edIndex() {
   EDN = [];
   let k = 1;
   while (k <= EDX.length) { EDN.push(0); edLink(k); k = k + 1; }
+  // ((11-26) and each cell's newest entry by the cell)
+  if (ECK.length == 0) { let i = 0; while (i < ECN) { ECK.push(0); ECV.push(0); i = i + 1; } }
+  else { let i = 1; while (i <= ECN) { if (ECK[i] != 0) { ECK[i] = 0; } i = i + 1; } }
+  ecOn = 0;
+  if (EDX.length < ECMAX) {
+    ecOn = 1;
+    let d0 = dim;
+    k = 1;
+    while (k <= EDX.length) {
+      let key = hsKey(EDX[k], EDY[k], EDZ[k]) + EDD[k] * 4000000000000, h = mod(key, ECN) + 1, go = 1, n = 0;
+      while (go == 1 && n < 64) {
+        if (ECK[h] == 0) { ECK[h] = key; ECV[h] = k; go = 0; }
+        else { if (ECK[h] == key) { ECV[h] = k; go = 0; } else { h = h + 1; if (h > ECN) { h = 1; } n = n + 1; } }
+      }
+      k = k + 1;
+    }
+    dim = d0;
+  }
 }
 // a chunk just made gets its changes back: newest first, each cell once
 function edReplay(cx, cz) {
   if (EDN.length != EDX.length) { edIndex(); }
   if (RPS.length == 0) { let i = 0; while (i < 256 * WY) { RPS.push(0); i = i + 1; } }
   edSlot(edKey(cx, cz), 0);
+  rpParts = 0;
   if (ekAt > 0) {
     rpGen = rpGen + 1;
     let k = EKV[ekAt];
@@ -177,13 +210,31 @@ function edReplay(cx, cz) {
         RPS[c] = rpGen; W[(mod(EDX[k], WS) * WS + mod(EDZ[k], WS)) * WY + EDY[k] + 1] = EDB[k];
         // (v2.3.1) a spark part: looked at again once the world goes on - what was due later (a
         // clock's next switch) is not kept, and nothing asked the parts again, so a clock stood still
-        if (BRS[EDB[k] + 1] > 0) { rsNotify(EDX[k], EDY[k], EDZ[k], 4); }
+        // ((v3.5, 11-26) once the chunks round this one have come: world.js sparkReady, edReview)
+        if (BRS[EDB[k] + 1] > 0) { rpParts = 1; }
         // (v2.3.2) and the liquid by it flows again (what flows is not in the log)
         fluidReplay(EDX[k], EDY[k], EDZ[k]);
         // ((v3.4, 11-21) a hopper works by its store, made when it is put (je.js) - a hopper that came with a pasted
         // map or a server's record had none (an empty one is in no text), and stood dead: every machine of the
         // example map made from its text, and of any server once everybody had left)
         if (BKIND[EDB[k] + 1] == I_hopper) { if (EDD[k] == dim) { chestAt(EDX[k], EDY[k], EDZ[k]); } }
+      }
+      k = EDN[k];
+    }
+  }
+}
+
+// (v3.5, 11-26) the parts of a chunk put back, looked at (each cell of the log once; what is there now)
+function edReview(cx, cz) {
+  edSlot(edKey(cx, cz), 0);
+  if (ekAt > 0) {
+    rpGen = rpGen + 1;
+    let k = EKV[ekAt];
+    while (k > 0) {
+      let c = (mod(EDX[k], 16) * 16 + mod(EDZ[k], 16)) * WY + EDY[k] + 1;
+      if (RPS[c] != rpGen) {
+        RPS[c] = rpGen;
+        if (BRS[W[(mod(EDX[k], WS) * WS + mod(EDZ[k], WS)) * WY + EDY[k] + 1] + 1] > 0) { rsNotify(EDX[k], EDY[k], EDZ[k], 4); }
       }
       k = EDN[k];
     }
@@ -273,6 +324,10 @@ function svWrite() {
   svN('KEPT'); M_svL(KPG); M_svL(KPC); M_svL(CAK); svN(genVer);
   while (KPT.length > kn) { petsDel(KPT.length); }
   svN('CHEAT'); svN(cheatsOn);
+  // ((v3.5, 11-26) what a map brought over came with: the place its cells are hashed at, the chunks kept made)
+  // (before FLAT: the list of worlds looks for that one at the very end - worldHead)
+  svN('HASH'); svN(hoX); svN(hoY); svN(hoZ);
+  svN('KEEP'); M_svL(KCX); M_svL(KCZ);
   svN('FLAT'); svN(flatKept());
   worldPut(worldCur);
 }
@@ -340,6 +395,7 @@ function loadGame(k) {
     j = j + 1;
   }
   flatOn = 0; cheatsOn = 1; weSingle = 1;
+  keepClear(); hoX = 0; hoY = 0; hoZ = 0;
   KVX = []; KVY = []; KVZ = []; KVK = []; KVV = []; LPX = []; LPY = []; LPZ = [];
   petsClear();
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'JE27') { svP = svP + 2; M_rdL(KVX); M_rdL(KVY); M_rdL(KVZ); M_rdL(KVK); M_rdL(KVV); M_rdL(LPX); M_rdL(LPY); M_rdL(LPZ); svP = svP - 1; } }
@@ -348,7 +404,18 @@ function loadGame(k) {
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'KEPT') { svP = svP + 2; M_rdL(KPG); M_rdL(KPC); M_rdL(CAK); genVer = rdN(); svP = svP - 1; } }
   while (KPG.length < KPT.length) { KPG.push(0); } while (KPC.length < KPT.length) { KPC.push(0); }
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'CHEAT') { svP = svP + 2; cheatsOn = rdN(); svP = svP - 1; } }
-  if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'FLAT') { svP = svP + 2; let fbad = flatSet(rdN()); } }
+  if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'HASH') { svP = svP + 2; hoX = rdN(); hoY = rdN(); hoZ = rdN(); svP = svP - 1; } }
+  if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'KEEP') {
+    svP = svP + 2;
+    let kn = rdN(), kq = 0;
+    MPQ = [];
+    while (kq < kn) { MPQ.push(rdN()); kq = kq + 1; }
+    kn = rdN(); kq = 0;
+    while (kq < kn) { keepAdd(MPQ[kq + 1], rdN()); kq = kq + 1; }
+    MPQ = [];
+    svP = svP - 1;
+  } }
+  if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'FLAT') { svP = svP + 2; let fbad = flatSet(rdN()); svP = svP - 1; } }
   // ((v3.4) every world has the land of this version, whatever it was made with (the user: the old lands are
   // not kept); where it begins, for one who dies without a bed
   // ((v3.5) and one made in the world 128 high has what was built in it moved up with the land: landup.js)

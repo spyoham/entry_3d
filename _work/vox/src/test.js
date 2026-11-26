@@ -32,6 +32,9 @@ function testStep() {
   if (testCmd == 25) { testCmd = 0; tStage = SPL[SPL.length + 7]; }
   if (testCmd == 26) { testCmd = 0; let k = 1; while (k > 0) { k = k + 1; if (k > 100) { k = 1; } } }
   if (testCmd == 13) { testCmd = 0; netUserAct = 1; chatRun(tCmd); netUserAct = 0; }
+  // ((v3.5, 11-26) a button pressed, a lever thrown at (tX, tY, tZ): test/tesscalc35.mjs)
+  if (testCmd == 27) { testCmd = 0; buttonPress(tX, tY, tZ); }
+  if (testCmd == 28) { testCmd = 0; leverToggle(tX, tY, tZ, blockAt(tX, tY, tZ)); }
   // 9: the kept world again (as 이어하기 on the title)
   if (testCmd == 9) { testCmd = 0; txClear(); loadGame(tStage); }
   // 10: a new world in place tStage, seed tCmd (as 새 세계 만들기)

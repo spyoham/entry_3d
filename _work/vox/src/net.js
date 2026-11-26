@@ -789,7 +789,7 @@ function netEvent(k, t, f) {
   } } }
   if (t == 'h') { splitBy(f, '^'); if (SPL.length >= 4) { if (SPL[1] == netNick) { if (netSt == 2) { if (mod(gameMode, 2) == 0) { hurt(SPL[2] * 1, `${NNICK[k]} 님에게 당했습니다`); pvx = pvx + SPL[3] * 1; pvz = pvz + SPL[4] * 1; pvy = 4; } } } } }
   // (v2.4.4) a button pressed, TNT lit, a blast (an anchor, a bed, a creeper), a /fill or /clone: the same on every screen
-  if (t == 'p') { splitBy(f, '^'); if (SPL.length >= 4) { if (SPL[4] * 1 == dim) { let px0 = SPL[1] * 1, py0 = SPL[2] * 1, pz0 = SPL[3] * 1; if (cOK(px0, pz0) == 1) { if (BRS[blockAt(px0, py0, pz0) + 1] == RS_BUTTON) { pressAdd(px0, py0, pz0, BAUX[blockAt(px0, py0, pz0) + 1] / 10); } } } } }
+  if (t == 'p') { splitBy(f, '^'); if (SPL.length >= 4) { if (SPL[4] * 1 == dim) { let px0 = SPL[1] * 1, py0 = SPL[2] * 1, pz0 = SPL[3] * 1; if (cOK(px0, pz0) == 1) { if (BRS[blockAt(px0, py0, pz0) + 1] == RS_BUTTON) { if (pressLevel(px0, py0, pz0) == 0) { btnDown(px0, py0, pz0); } } } } } }
   if (t == 'n') { splitBy(f, '^'); if (SPL.length >= 4) { if (SPL[4] * 1 == dim) { tntLight(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, 0, 4); } } }
   if (t == 'e') { splitBy(f, '^'); if (SPL.length >= 5) { if (SPL[5] * 1 == dim) { exDrops = 0; explode(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, 1); exDrops = 1; } } }
   if (t == 'F') { splitBy(f, '^'); if (SPL.length >= 10) { if (SPL[10] * 1 == dim) { netQuiet = 1; fillBox(SPL[1] * 1, SPL[2] * 1, SPL[3] * 1, SPL[4] * 1, SPL[5] * 1, SPL[6] * 1, SPL[7] * 1, SPL[8], SPL[9] * 1, 0); netQuiet = 0; } } }

@@ -10,6 +10,17 @@
 // Per cell: W (block id), LT (light: sky * 16 + block). Per window column: HMAP, BIOM.
 let W = [], LT = [], HMAP = [], BIOM = [];
 let CKX = [], CKZ = [], CKST = [], CKSUB = [];          // a chunk slot: which chunk, how far made (0 none .. 5 ready)
+// (v3.5, 11-26) CKRD: may the spark parts of the chunk work - 0 not yet (a chunk beside it, or corner to corner,
+// is still to come: one of the circle round the player, or one the world keeps), 1 yes but a chunk beside it is
+// not made and will not be (the parts on that edge wait: power.js rsReady), 2 yes. CKRV: put back from the log
+// with parts in it that have not been looked at yet (sparkReady).
+// A part put back was looked at as soon as its own chunk and the cells beside it were there. A wire reads its
+// power from up to 15 cells off, and a chunk not made reads as stone: a net reaching into a chunk still to come
+// lost the source it had there, went dark, and the repeaters and latches behind it took that for a signal - a
+// machine laid over many chunks came back changed, by the order its chunks were made in. (The calculator brought
+// over from the genre: 124 cells other than saved, its sums wrong.)
+let CKRV = [], CKRD = [], ckVer = 0, rdVer = 0 - 1, rdPX = 0, rdPZ = 0, rdKeep = 0;
+let NB8X = [-1, 1, 0, 0, -1, 1, -1, 1], NB8Z = [0, 0, -1, 1, -1, -1, 1, 1];
 let EDX = [], EDY = [], EDZ = [], EDB = [], EDD = [];  // every change the player made, and in which world
 let logOn = 0;
 let seed = 1, rs = 1;
@@ -113,6 +124,7 @@ function blockAt(x, y, z) {
 // a block put by the world (generation) or the player (logOn: written down)
 function wput(x, y, z, b) {
   W[(mod(x, WS) * WS + mod(z, WS)) * WY + y + 1] = b;
+  rsVer = rsVer + 1;
   if (logOn == 1) { edPush(x, y, z, b); if (netSrv > 0) { netEdit(x, y, z, b); } }
 }
 
@@ -1146,6 +1158,8 @@ function chunkStage(s) {
   } else { if (st == 2) {
     genFeatures(cx, cz);
     CKST[s] = 3;
+    // ((11-26) its parts put back are looked at later: sparkReady)
+    CKRV[s] = rpParts; ckVer = ckVer + 1;
   } else { if (st == 3) {
     rlTop = 0;
     // ((11-26) lit from here on: the light of the chunks round it comes in while its own is worked out)
@@ -1192,7 +1206,7 @@ function nbRemesh(ncx, ncz, x, z, dx, dz, bit) {
 function chunkDrop(s) {
   meshVer = meshVer + 1;
   let cx = CKX[s], cz = CKZ[s];
-  CKST[s] = 0; CKSUB[s] = 0;
+  CKST[s] = 0; CKSUB[s] = 0; CKRV[s] = 0; CKRD[s] = 0; ckVer = ckVer + 1;
   let a = 0, c = 0, y = 0, k = 0;
   // ((11-26) and its places in the face pool given back: mesh.js poolFree)
   while (a < 2) { c = 0; while (c < 2) { y = 0; while (y < NSY) { k = secOf(cx * 16 + a * 8, y * 8, cz * 16 + c * 8); SOK[k] = 0; SFN[k] = 0; SEMP[k] = 1; SVIS[k] = 0; if (SFC[k] > 0) { poolFree(k); } y = y + 1; } c = c + 1; } a = a + 1; }
@@ -1209,6 +1223,41 @@ function chunkDrop(s) {
 // The four corner neighbours are waited for as well: the shade in a face's corners (aoOf) looks at the cells
 // beside the one the face looks into, and at a chunk's corner those are the corner neighbour's - read before it
 // was made, they were whatever the slot last held, and nothing meshed that section again.
+// (v3.5, 11-26) The chunks a world keeps: made (to their light - not meshed unless near) and held while the player
+// is in the box of them or a chunk outside it, whatever the circle round the player. A machine wider than the
+// circle works whole: the calculator brought over from the genre is 137 blocks by 106, and the parts of a chunk
+// not made stand still. They come with a map (mapdata.js keep=) and are kept with the world (save.js KEEP).
+// The window holds NCH x NCH chunks and a chunk's slot is its place mod NCH, so a kept chunk and a chunk of the
+// circle ten apart want one slot: the kept one has it (the nine chunks round the player always have theirs) -
+// ten chunks off is beyond the view, or at the far end of the machine one stands at the other end of.
+// Outside that box the world keeps nothing: the chunks go as the player leaves them, the machine stops.
+let KCX = [], KCZ = [], KSL = [], keepOn = 0, kbX0 = 0, kbX1 = 0, kbZ0 = 0, kbZ1 = 0;
+function keepClear() {
+  KCX = []; KCZ = []; keepOn = 0;
+  let i = 1;
+  while (i <= KSL.length) { KSL[i] = 0; i = i + 1; }
+}
+function keepAdd(cx, cz) {
+  if (KSL.length == 0) { let i = 0; while (i < NCH * NCH) { KSL.push(0); i = i + 1; } }
+  let s = slotOf(cx, cz);
+  if (KSL[s] == 0) {
+    if (KCX.length == 0) { kbX0 = cx; kbX1 = cx; kbZ0 = cz; kbZ1 = cz; }
+    KCX.push(cx); KCZ.push(cz); KSL[s] = KCX.length;
+    kbX0 = Math.min(kbX0, cx); kbX1 = Math.max(kbX1, cx); kbZ0 = Math.min(kbZ0, cz); kbZ1 = Math.max(kbZ1, cz);
+  }
+}
+// is slot s kept for another chunk than (cx, cz)
+function keepBars(s, cx, cz) {
+  let r = 0;
+  if (keepOn == 1) { let k = KSL[s]; if (k > 0) { if (KCX[k] != cx || KCZ[k] != cz) { r = 1; } } }
+  return r;
+}
+// is the chunk in slot s one the world is keeping now
+function keptAt(s) {
+  let r = 0;
+  if (keepOn == 1) { let k = KSL[s]; if (k > 0) { if (KCX[k] == CKX[s]) { if (KCZ[k] == CKZ[s]) { r = 1; } } } }
+  return r;
+}
 let mwS = 0, mwX = 0, mwZ = 0, mwGo = 0;
 function meshWait(cx, cz, pcx, pcz) {
   mwS = 0; mwGo = 1;
@@ -1245,6 +1294,9 @@ function meshWait(cx, cz, pcx, pcz) {
 let CKW = [4, 3, 5, 5, 2];
 function chunkWork(steps) {
   let pcx = idiv(Math.floor(px), 16), pcz = idiv(Math.floor(pz), 16), s = 0, k = 1, cx = 0, cz = 0, did = 0, w = 0;
+  // ((11-26) the chunks the world keeps: while the player is in their box or a chunk outside it)
+  keepOn = 0;
+  if (KCX.length > 0) { if (dim == 0) { if (pcx >= kbX0 - 1 && pcx <= kbX1 + 1 && pcz >= kbZ0 - 1 && pcz <= kbZ1 + 1) { keepOn = 1; } } }
   if (pcx != pcxW || pcz != pczW) {
     // ((11-26) come from afar - a new world, another world, a teleport: main.js gives the chunks twice the work
     // for the next second, the view being empty)
@@ -1252,7 +1304,7 @@ function chunkWork(steps) {
     pcxW = pcx; pczW = pcz;
     s = 1;
     while (s <= NCH * NCH) {
-      if (CKST[s] > 0) { if ((CKX[s] - pcx) * (CKX[s] - pcx) + (CKZ[s] - pcz) * (CKZ[s] - pcz) > CR * CR + 6) { chunkDrop(s); } }
+      if (CKST[s] > 0) { if ((CKX[s] - pcx) * (CKX[s] - pcx) + (CKZ[s] - pcz) * (CKZ[s] - pcz) > CR * CR + 6) { if (keptAt(s) == 0) { chunkDrop(s); } } }
       s = s + 1;
     }
   }
@@ -1262,23 +1314,90 @@ function chunkWork(steps) {
     if (CKST[s] == 5 && CKX[s] == cx && CKZ[s] == cz) { nChunks = nChunks + 1; k = k + 1; }
     else {
       if (steps > 0) {
-        if (CKST[s] > 0) { if (CKX[s] != cx || CKZ[s] != cz) { chunkDrop(s); } }
-        if (CKST[s] == 0) { CKX[s] = cx; CKZ[s] = cz; }
-        // ((11-26) before its meshing begins: its neighbours lit)
-        mwS = 0; mwGo = 1;
-        if (CKST[s] == 4) { if (CKSUB[s] == 0) { meshWait(cx, cz, pcx, pcz); } }
-        if (mwS > 0) {
-          if (CKST[mwS] > 0) { if (CKX[mwS] != mwX || CKZ[mwS] != mwZ) { chunkDrop(mwS); } }
-          if (CKST[mwS] == 0) { CKX[mwS] = mwX; CKZ[mwS] = mwZ; }
-          w = CKW[CKST[mwS] + 1];
-          if (w <= steps || did == 0) { chunkStage(mwS); steps = steps - w; did = 1; } else { steps = 0; }
-        } else {
-          if (mwGo == 1) {
-            w = CKW[CKST[s] + 1];
-            if (w <= steps || did == 0) { chunkStage(s); steps = steps - w; did = 1; } else { steps = 0; }
-          } else { k = k + 1; }
+        // ((11-26) its slot held by a chunk the world keeps: left to that one (not for the nine round the player))
+        let yld = 0;
+        if (k > 9) { yld = keepBars(s, cx, cz); }
+        if (yld == 0) { if (CKST[s] > 0) { if (CKX[s] != cx || CKZ[s] != cz) { chunkDrop(s); } } }
+        if (yld == 1) { k = k + 1; }
+        else {
+          if (CKST[s] == 0) { CKX[s] = cx; CKZ[s] = cz; }
+          // ((11-26) before its meshing begins: its neighbours lit)
+          mwS = 0; mwGo = 1;
+          if (CKST[s] == 4) { if (CKSUB[s] == 0) { meshWait(cx, cz, pcx, pcz); } }
+          // (a neighbour whose slot a kept chunk holds is not made: that side stays closed)
+          if (mwS > 0) { if (keepBars(mwS, mwX, mwZ) == 1) { mwS = 0; mwGo = 1; } }
+          if (mwS > 0) { if (CKST[mwS] > 0) { if (CKX[mwS] != mwX || CKZ[mwS] != mwZ) { chunkDrop(mwS); } } }
+          if (mwS > 0) {
+            if (CKST[mwS] == 0) { CKX[mwS] = mwX; CKZ[mwS] = mwZ; }
+            w = CKW[CKST[mwS] + 1];
+            if (w <= steps || did == 0) { chunkStage(mwS); steps = steps - w; did = 1; } else { steps = 0; }
+          } else {
+            if (mwGo == 1) {
+              w = CKW[CKST[s] + 1];
+              if (w <= steps || did == 0) { chunkStage(s); steps = steps - w; did = 1; } else { steps = 0; }
+            } else { k = k + 1; }
+          }
         }
       } else { k = k + 1; }
+    }
+  }
+  chunkKeep(steps, did, pcx, pcz);
+  sparkReady(pcx, pcz);
+}
+// (v3.5, 11-26) which chunks' spark parts may work (CKRD), worked out again when a chunk came or went or the
+// player changed chunk; and the chunks put back from the log that may work now have their parts looked at
+function sparkReady(pcx, pcz) {
+  let s = 1, n = 0;
+  if (ckVer != rdVer || pcx != rdPX || pcz != rdPZ || keepOn != rdKeep) {
+    rdVer = ckVer; rdPX = pcx; rdPZ = pcz; rdKeep = keepOn;
+    while (s <= NCH * NCH) {
+      let r = 0;
+      if (CKST[s] >= 3) {
+        let cx = CKX[s], cz = CKZ[s], k = 0;
+        r = 2;
+        while (k < 8) {
+          let ncx = cx + NB8X[k + 1], ncz = cz + NB8Z[k + 1], t = mod(ncx, NCH) * NCH + mod(ncz, NCH) + 1, ok = 0;
+          if (CKST[t] >= 3) { if (CKX[t] == ncx) { if (CKZ[t] == ncz) { ok = 1; } } }
+          if (ok == 0) {
+            // (is it to come: the chunk the world keeps in that slot, or - the slot kept for no other - one of the circle)
+            let come = 0, kk = 0;
+            if (keepOn == 1) { kk = KSL[t]; }
+            if (kk > 0) { if (KCX[kk] == ncx) { if (KCZ[kk] == ncz) { come = 1; } } }
+            if (come == 0) { if ((ncx - pcx) * (ncx - pcx) + (ncz - pcz) * (ncz - pcz) <= CR * CR) { if (kk == 0 || (Math.abs(ncx - pcx) <= 1 && Math.abs(ncz - pcz) <= 1)) { come = 1; } } }
+            if (come == 1) { r = 0; } else { if (r == 2) { if (k < 4) { r = 1; } } }
+          }
+          k = k + 1;
+        }
+      }
+      CKRD[s] = r;
+      s = s + 1;
+    }
+  }
+  s = 1;
+  while (s <= NCH * NCH && n < 2) {
+    if (CKRV[s] == 1) { if (CKRD[s] > 0) { CKRV[s] = 0; edReview(CKX[s], CKZ[s]); n = n + 1; } }
+    s = s + 1;
+  }
+}
+function chunkKeep(steps, did, pcx, pcz) {
+  let k = 1, cx = 0, cz = 0, s = 0, w = 0, skip = 0;
+  // ((11-26) then the chunks the world keeps, to their light)
+  if (keepOn == 1) {
+    k = 1;
+    while (k <= KCX.length && steps > 0) {
+      cx = KCX[k]; cz = KCZ[k]; s = mod(cx, NCH) * NCH + mod(cz, NCH) + 1;
+      // (but the slot of one of the nine chunks round the player is theirs)
+      skip = 0;
+      if (mod(cx - pcx + 1, NCH) <= 2 && mod(cz - pcz + 1, NCH) <= 2) { if (Math.abs(cx - pcx) > 1 || Math.abs(cz - pcz) > 1) { skip = 1; } }
+      if (skip == 1) { k = k + 1; }
+      else {
+        if (CKST[s] > 0) { if (CKX[s] != cx || CKZ[s] != cz) { chunkDrop(s); } }
+        if (CKST[s] == 0) { CKX[s] = cx; CKZ[s] = cz; }
+        if (CKST[s] < 4) {
+          w = CKW[CKST[s] + 1];
+          if (w <= steps || did == 0) { chunkStage(s); steps = steps - w; did = 1; } else { steps = 0; }
+        } else { k = k + 1; }
+      }
     }
   }
 }
@@ -1290,7 +1409,7 @@ function worldInit() {
     i = 0;
     while (i < WS * WS) { HMAP.push(0); BIOM.push(0); SFL.push(0); STP.push(WY - 1); i = i + 1; }
     i = 0;
-    while (i < NCH * NCH) { CKX.push(0); CKZ.push(0); CKST.push(0); CKSUB.push(0); CKTOP.push(WY - 1); i = i + 1; }
+    while (i < NCH * NCH) { CKX.push(0); CKZ.push(0); CKST.push(0); CKSUB.push(0); CKTOP.push(WY - 1); CKRV.push(0); CKRD.push(0); i = i + 1; }
   }
 }
 
@@ -1319,6 +1438,8 @@ function genStart(s) {
   let i = 1;
   while (i <= NCH * NCH) { if (CKST[i] > 0) { chunkDrop(i); } i = i + 1; }
   EDX = []; EDY = []; EDZ = []; EDB = []; EDD = []; edIndex();
+  // ((11-26) nothing kept, the cells hashed where they are)
+  keepClear(); hoX = 0; hoY = 0; hoZ = 0;
   logOn = 0; dim = 0; bossDead = 0; bossWake = 0; bossHP = 0; bossE = 0;
   worldExtraInit();
   cavesInit();

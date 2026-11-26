@@ -55,10 +55,14 @@ put(X + 13, Y + 1, Z, 'air'); settle(); wait(0.3);
 ok(on(X + 12, Y, Z) === 1, 'the spark block gone: still out (it did not notice)');
 put(X + 11, Y, Z, 'air'); settle(); wait(0.3);
 ok(on(X + 12, Y, Z) === 0, 'a change by it: back');
-// a lever by the cell over it (two steps, as the genre's levers tell): at once
+// a lever by the cell over it, on a block two cells from the piston: ((v3.5, 11-26) as the genre's - a lever tells the
+// cells round it and round the block it is on, and the piston is by neither: it does not notice until something
+// by it changes. It was told two steps out all round, and pushed at once.)
 piston(X + 16, Y, Z); put(X + 16, Y + 1, Z, 'glass'); put(X + 18, Y + 1, Z, 'stone'); put(X + 17, Y + 1, Z, 'lever[face=wall,facing=west]'); F(2);
 useAt(X + 17, Y + 1, Z); settle(); wait(0.3);
-ok(on(X + 16, Y, Z) === 1, 'a lever by the cell over it (on glass): the piston pushes');
+ok(on(X + 16, Y, Z) === 0, 'a lever by the cell over it (on glass): the piston does not notice');
+put(X + 15, Y, Z, 'stone'); settle(); wait(0.3);
+ok(on(X + 16, Y, Z) === 1, 'a block put by it: now it pushes');
 
 // 4 a dropper powered over it
 put(X + 20, Y, Z, 'dropper[facing=north]'); F(2);
@@ -67,7 +71,9 @@ put(X + 20, Y + 1, Z, 'glass'); put(X + 22, Y + 1, Z, 'stone'); put(X + 21, Y + 
 const items = () => s.peek('IID').filter((q) => q > 0).length;
 const i0 = items();
 useAt(X + 21, Y + 1, Z); settle(); wait(0.3);
-ok(items() === i0 + 1, `a dropper powered over it drops (${items() - i0})`);
+ok(items() === i0, `a dropper powered over it does not notice either (${items() - i0})`);
+put(X + 19, Y, Z, 'stone'); settle(); wait(0.3);
+ok(items() === i0 + 1, `a block put by it: it drops (${items() - i0})`);
 
 // 5 an item lying where the planks go is pushed; a jelly block pushed up throws the player
 piston(X - 4, Y, Z); put(X - 4, Y, Z - 1, 'oak_planks'); put(X - 3, Y, Z, 'lever'); F(2);

@@ -206,11 +206,29 @@ function sensorStep(dt) {
   }
 }
 
-// ---------------------------------------------------------------- the wire's power
-// the cells of a wire net (NW*, up to 2048; v2.5, it was 512), found by a hash of (x, y, z) -> its place in NW*
-let NWX = [], NWY = [], NWZ = [], NWL = [], NWA = [], NWC = [], nwN = 0;
-let HSK = [], HSG = [], HSV = [], hsGen = 0, HSN = 8192;
-let solveChg = 0 - 1, rsChg = 0;
+// ---------------------------------------------------------------- the wire's power, as the genre works it out
+// (v3.5, 11-26) A wire told of a change by it takes the power of the parts and strongly powered blocks round it,
+// or one less than the strongest wire it joins; when that is another power than it has, it takes it and tells
+// the six cells round each of seven cells - its own and the six by it - and a wire among those does the same
+// at once, before the rest are told. The seven are told in the order the genre's hash set holds them (a set of
+// 16 places: a cell's place is the low four bits of h ^ (h >>> 16), h = (y + 31 z) 31 + x; the cells of one
+// place in the order put: the wire's own, below, above, north, south, west, east), the six round each west,
+// east, below, above, north, south. So a line going dark does it two steps at a time from its source, over and
+// over, and the parts along it see it dark from the far end first; a line lit, from the near end first.
+// Machines made in the genre lean on that order: a counter of locked repeaters shifts or does not by which
+// repeater was asked first. (It was: the whole net worked out at once, then every wire that changed told in
+// the order the net was walked - nearest first, lit or going dark. A calculator brought over from the genre
+// subtracted with the sign of the sum before, and its multiplier's counter never ran out.)
+// What is by a wire does not change while its net settles (a part only asks for a tick, a piston for an
+// event, a lamp lit tells nobody), so what each wire gets from outside (NWE), the wires it reads (NWP) and the
+// cells it tells (TG*) are found once for each wire a settling touches.
+let NWX = [], NWY = [], NWZ = [], NWL = [], NW0 = [], NWE = [], NWP = [], NWQ = [], NWS = [], NWN = [], nwN = 0;
+let TGK = [], TGX = [], TGY = [], TGZ = [], tgN = 0, STW = [], STK = [], wcOn = 0, wcSp = 0;
+let HSK = [], HSG = [], HSV = [], hsGen = 0, HSN = 16384;
+// (the cells are hashed as they were where a map brought over was made: mapdata.js)
+let hoX = 0, hoY = 0, hoZ = 0;
+let XOR4 = [], HOB = [0, 0, 0, 0, 0, 0, 0], HOI = [0, 0, 0, 0, 0, 0, 0];
+let OX7 = [0, 0, 0, 0, 0, -1, 1], OY7 = [0, -1, 1, 0, 0, 0, 0], OZ7 = [0, 0, 0, -1, 1, 0, 0];
 // ((v3.3) x 256 for the height: it was x 64 from when the world was 64 high - at 128 the cell (x, y + 64, z)
 // had the key of (x, y, z + 1), and making the log of changes short took one of the two for the other: a
 // block changed above 64 could be back as it was after the world was kept and opened again)
@@ -233,83 +251,197 @@ function hsPut(k, v) {
 function hsInit() {
   let i = 1;
   while (i <= HSN) { HSK.push(0); HSG.push(0); HSV.push(0); i = i + 1; }
+  i = 1;
+  while (i <= EVN) { EVK.push(0); EVV.push(0); i = i + 1; }
+  // (a ^ c of two numbers below 16)
+  let a = 0;
+  while (a < 16) {
+    let c = 0;
+    while (c < 16) {
+      let v = 0, bit = 1, k = 0;
+      while (k < 4) { if (mod(idiv(a, bit), 2) != mod(idiv(c, bit), 2)) { v = v + bit; } bit = bit * 2; k = k + 1; }
+      XOR4.push(v);
+      c = c + 1;
+    }
+    a = a + 1;
+  }
 }
-// a wire into the net (its place, or the one it has)
+// the place of a cell in the genre's set of 16
+function hashPlace(x, y, z) {
+  let h = (y + hoY + (z + hoZ) * 31) * 31 + x + hoX;
+  if (h < 0) { h = h + 4294967296; }
+  return XOR4[mod(h, 16) * 16 + mod(idiv(h, 65536), 16) + 1];
+}
+// a wire's place among those the settling has touched (made when new; 0: no more room)
 function nwAdd(x, y, z) {
   let k = hsKey(x, y, z), r = hsFind(k);
   if (r == 0) {
-    if (nwN < 2048) {
-      nwN = nwN + 1;
-      if (nwN > NWX.length) { NWX.push(x); NWY.push(y); NWZ.push(z); NWL.push(0); NWC.push(0); let q = 0; while (q < 8) { NWA.push(0); q = q + 1; } }
-      else { NWX[nwN] = x; NWY[nwN] = y; NWZ[nwN] = z; NWL[nwN] = 0; NWC[nwN] = 0; }
-      hsPut(k, nwN); r = nwN;
+    if (nwN < 6000) {
+      nwN = nwN + 1; r = nwN;
+      let l = BAUX[blockAt(x, y, z) + 1];
+      if (r > NWX.length) { NWX.push(x); NWY.push(y); NWZ.push(z); NWL.push(l); NW0.push(l); NWE.push(0 - 1); NWQ.push(0); NWS.push(0); NWN.push(0 - 1); let q = 0; while (q < 8) { NWP.push(0); q = q + 1; } }
+      else { NWX[r] = x; NWY[r] = y; NWZ[r] = z; NWL[r] = l; NW0[r] = l; NWE[r] = 0 - 1; NWQ[r] = 0; NWN[r] = 0 - 1; }
+      hsPut(k, r);
     }
   }
   return r;
 }
-function nwLink(i, x, y, z) {
-  let j = nwAdd(x, y, z);
-  if (j > 0) { if (NWC[i] < 8) { NWC[i] = NWC[i] + 1; NWA[(i - 1) * 8 + NWC[i]] = j; } }
+// what wire i gets from what is not wire, and the wires it reads: beside it, and a step up (over a block that
+// carries power, nothing such over the wire itself) or a step down (the cell beside it carrying none)
+function wireKnow(i) {
+  let x = NWX[i], y = NWY[i], z = NWZ[i], s = 0, n = 0, base = (i - 1) * 8, upCut = BCOND[blockAt(x, y + 1, z) + 1];
+  NWE[i] = wireExt(x, y, z);
+  // (a wire where the parts may not work yet keeps the power it has: 99)
+  if (rsReady(x, z) == 0) { NWE[i] = 99; }
+  while (s < 4) {
+    let d = F2D[s + 1], nx = x + DX6[d + 1], nz = z + DZ6[d + 1], nb = blockAt(nx, y, nz), j = 0;
+    if (BRS[nb + 1] == RS_WIRE) { j = nwAdd(nx, y, nz); if (j > 0) { n = n + 1; NWP[base + n] = j; } }
+    if (BCOND[nb + 1] == 1) { if (upCut == 0) { if (BRS[blockAt(nx, y + 1, nz) + 1] == RS_WIRE) { j = nwAdd(nx, y + 1, nz); if (j > 0) { n = n + 1; NWP[base + n] = j; } } } }
+    else { if (BRS[blockAt(nx, y - 1, nz) + 1] == RS_WIRE) { j = nwAdd(nx, y - 1, nz); if (j > 0) { n = n + 1; NWP[base + n] = j; } } }
+    s = s + 1;
+  }
+  NWQ[i] = n;
 }
-// the wire at (x, y, z) has the power it should (its own look only)
-function wireCheck(x, y, z, b) {
-  let go = 1;
-  // (just solved with nothing else changed since: this net is right)
-  if (solveChg == rsChg) { if (hsFind(hsKey(x, y, z)) > 0) { go = 0; } }
-  if (go == 1) {
-    let want = wireExt(x, y, z), s = 0, upCut = BCOND[blockAt(x, y + 1, z) + 1];
-    while (s < 4) {
-      let d = F2D[s + 1], nx = x + DX6[d + 1], nz = z + DZ6[d + 1], nb = blockAt(nx, y, nz), l = 0 - 1;
-      if (BRS[nb + 1] == RS_WIRE) { l = BAUX[nb + 1]; }
-      else {
-        if (BCOND[nb + 1] == 0) { let q = blockAt(nx, y - 1, nz); if (BRS[q + 1] == RS_WIRE) { l = BAUX[q + 1]; } }
-        if (upCut == 0 && BCOND[nb + 1] == 1) { let q = blockAt(nx, y + 1, nz); if (BRS[q + 1] == RS_WIRE) { if (BAUX[q + 1] > l) { l = BAUX[q + 1]; } } }
+// the power wire i should have
+function wirePow(i) {
+  if (NWE[i] < 0) { wireKnow(i); }
+  let r = NWE[i];
+  if (r == 99) { r = NWL[i]; }
+  else { if (r < 15) {
+    let q = 1, n = NWQ[i], base = (i - 1) * 8, m = 0;
+    while (q <= n) { let l = NWL[NWP[base + q]]; if (l > m) { m = l; } q = q + 1; }
+    if (m - 1 > r) { r = m - 1; }
+  } }
+  return r;
+}
+// the cells wire i tells when it changes, in the genre's order: the wires among them (their places) and the parts
+function wireTells(i) {
+  let x = NWX[i], y = NWY[i], z = NWZ[i], k = 0;
+  // (the seven cells by their places in the set of 16; those of one place in the order put)
+  while (k < 7) {
+    let hb = hashPlace(x + OX7[k + 1], y + OY7[k + 1], z + OZ7[k + 1]), q = k, go = 1;
+    while (go == 1) { if (q > 0) { if (HOB[q] > hb) { HOB[q + 1] = HOB[q]; HOI[q + 1] = HOI[q]; q = q - 1; } else { go = 0; } } else { go = 0; } }
+    HOB[q + 1] = hb; HOI[q + 1] = k;
+    k = k + 1;
+  }
+  NWS[i] = tgN;
+  let n = 0;
+  k = 1;
+  while (k <= 7) {
+    let p = HOI[k], cx = x + OX7[p + 1], cy = y + OY7[p + 1], cz = z + OZ7[p + 1], d = 0;
+    while (d < 6) {
+      let tx = cx + DX6[d + 1], ty = cy + DY6[d + 1], tz = cz + DZ6[d + 1];
+      if (ty >= 0 && ty < WY) {
+        let rl = BRS[blockAt(tx, ty, tz) + 1];
+        if (rl > 0) {
+          let j = 0;
+          if (rl == RS_WIRE) { j = nwAdd(tx, ty, tz); }
+          if (rl != RS_WIRE || j > 0) {
+            tgN = tgN + 1; n = n + 1;
+            if (tgN > TGK.length) { TGK.push(j); TGX.push(tx); TGY.push(ty); TGZ.push(tz); } else { TGK[tgN] = j; TGX[tgN] = tx; TGY[tgN] = ty; TGZ[tgN] = tz; }
+          }
+        }
       }
-      if (l - 1 > want) { want = l - 1; }
-      s = s + 1;
+      d = d + 1;
     }
-    if (want != BAUX[b + 1]) { wireSolve(x, y, z); }
+    k = k + 1;
+  }
+  NWN[i] = n;
+}
+// wire i takes the power v: written (the cell alone - the log, the mesh and the others' screens get what it ends
+// with: wireEnd), and its telling begins
+function wireTake(i, v) {
+  NWL[i] = v; rsVer = rsVer + 1;
+  let wk = (mod(NWX[i], WS) * WS + mod(NWZ[i], WS)) * WY + NWY[i] + 1;
+  W[wk] = BKIND[W[wk] + 1] + v;
+  wcSp = wcSp + 1;
+  if (wcSp > STW.length) { STW.push(i); STK.push(0); } else { STW[wcSp] = i; STK[wcSp] = 0; }
+}
+// the tellings waiting, the last begun first (each is: a wire, and how many of its cells were told)
+function wireRun() {
+  while (wcSp > 0) {
+    let i = STW[wcSp], k = STK[wcSp];
+    if (NWN[i] < 0) { wireTells(i); }
+    if (k >= NWN[i]) { wcSp = wcSp - 1; }
+    else {
+      STK[wcSp] = k + 1;
+      let t = NWS[i] + k + 1, j = TGK[t];
+      if (j > 0) { let v = wirePow(j); if (v != NWL[j]) { wireTake(j, v); } }
+      else { rsEvalAt(TGX[t], TGY[t], TGZ[t]); }
+    }
   }
 }
-// the whole net from (x, y, z): each wire's power from the sources, then down the net
-function wireSolve(x, y, z) {
-  hsGen = hsGen + 1; nwN = 0;
-  let first = nwAdd(x, y, z);
-  let h = 1;
-  while (h <= nwN) {
-    let a = NWX[h], yy = NWY[h], c = NWZ[h], s = 0, upCut = BCOND[blockAt(a, yy + 1, c) + 1];
-    while (s < 4) {
-      let d = F2D[s + 1], nx = a + DX6[d + 1], nz = c + DZ6[d + 1], nb = blockAt(nx, yy, nz);
-      if (BRS[nb + 1] == RS_WIRE) { nwLink(h, nx, yy, nz); }
-      else {
-        if (BCOND[nb + 1] == 0) { if (BRS[blockAt(nx, yy - 1, nz) + 1] == RS_WIRE) { if (BCOND[blockAt(a, yy - 1, c) + 1] == 1) { nwLink(h, nx, yy - 1, nz); } } }
-        if (upCut == 0) { if (BRS[blockAt(nx, yy + 1, nz) + 1] == RS_WIRE) { nwLink(h, nx, yy + 1, nz); } }
-      }
-      s = s + 1;
-    }
-    NWL[h] = wireExt(a, yy, c);
-    h = h + 1;
-  }
-  // down from 15: each wire gives its neighbours one less
-  let lv = 15;
-  while (lv > 1) {
-    let i = 1;
-    while (i <= nwN) {
-      if (NWL[i] == lv) {
-        let q = 1;
-        while (q <= NWC[i]) { let j = NWA[(i - 1) * 8 + q]; if (NWL[j] < lv - 1) { NWL[j] = lv - 1; } q = q + 1; }
-      }
-      i = i + 1;
-    }
-    lv = lv - 1;
-  }
+// the settling is over: each wire that ends with another power than it began with is written down
+function wireEnd() {
   let i = 1;
   while (i <= nwN) {
-    let wb = blockAt(NWX[i], NWY[i], NWZ[i]);
-    if (BRS[wb + 1] == RS_WIRE) { if (BAUX[wb + 1] != NWL[i]) { setBlock(NWX[i], NWY[i], NWZ[i], BKIND[wb + 1] + NWL[i]); } }
+    if (NWL[i] != NW0[i]) { wireDone(NWX[i], NWY[i], NWZ[i]); }
     i = i + 1;
   }
-  solveChg = rsChg;
+}
+// a wire told of a change by it: a settling begins here (or, in the middle of one, goes on with this wire first)
+function wireNu(x, y, z) {
+  let top = 0;
+  if (wcOn == 0) { wcOn = 1; top = 1; hsGen = hsGen + 1; nwN = 0; tgN = 0; wcSp = 0; }
+  let i = nwAdd(x, y, z);
+  if (i > 0) { let v = wirePow(i); if (v != NWL[i]) { wireTake(i, v); } }
+  if (top == 1) { wireRun(); wireEnd(); wcOn = 0; }
+}
+// the six cells round (x, y, z) told, in the genre's order: west, east, below, above, north, south
+function nuAll(x, y, z) {
+  rsEvalAt(x - 1, y, z); rsEvalAt(x + 1, y, z); rsEvalAt(x, y - 1, z); rsEvalAt(x, y + 1, z); rsEvalAt(x, y, z - 1); rsEvalAt(x, y, z + 1);
+}
+// a part's own state changed in a tick: written without the telling every change gets (rsNotify), for the part
+// tells as the genre has it tell - gateTell, torchTell, hungTell
+// (v3.5, 11-26) rsVer goes up with every change a part could see (a block written, a wire's power, a comparator's
+// output, a button, anything told from outside, a tick done); EVK/EVV: the cell a part was last asked at, and
+// the rsVer then. A part asked again while rsVer is what it was then would decide what it decided: it is not
+// asked (the genre tells a torch's neighbours three times over, a wire's seven cells tell the same repeater from
+// two or three sides).
+let rsVer = 1, EVK = [], EVV = [], EVN = 8192;
+let rsQuiet = 0;
+function rsSet(x, y, z, b) {
+  let q = rsQuiet;
+  rsQuiet = 1; setBlock(x, y, z, b); rsQuiet = q;
+  obsTell(x, y, z);
+}
+// observers looking at a cell that changed
+function obsTell(x, y, z) {
+  let d = 0;
+  while (d < 6) {
+    let nx = x + DX6[d + 1], ny = y + DY6[d + 1], nz = z + DZ6[d + 1], ob = blockAt(nx, ny, nz);
+    if (BRS[ob + 1] == RS_OBSERVER) { if (BFAC[ob + 1] == OP6[d + 1]) { if (BON[ob + 1] == 0) { rsSchedule(nx, ny, nz, 0.1, 1); } } }
+    d = d + 1;
+  }
+}
+// a repeater or comparator pointing the way f changed: the cell before it, then the cells round that one but itself
+function gateTell(x, y, z, f) {
+  let fx = x + DX6[f + 1], fz = z + DZ6[f + 1], bk = OP6[f + 1], d = 0;
+  rsEvalAt(fx, y, fz);
+  while (d < 6) { if (d != bk) { rsEvalAt(fx + DX6[d + 1], y + DY6[d + 1], fz + DZ6[d + 1]); } d = d + 1; }
+}
+// a torch lit or out: the cells round each of the six by it (below, above, north, south, west, east), twice over
+// (the genre tells for the torch that was and for the torch that is), then the six by it
+function torchTell(x, y, z) {
+  let r = 0;
+  while (r < 2) { nuAll(x, y - 1, z); nuAll(x, y + 1, z); nuAll(x, y, z - 1); nuAll(x, y, z + 1); nuAll(x - 1, y, z); nuAll(x + 1, y, z); r = r + 1; }
+  nuAll(x, y, z);
+}
+// a lever thrown, a button down or up: the cells round it, twice, then the cells round the block it is on
+function hungTell(x, y, z, a) {
+  rsVer = rsVer + 1;
+  nuAll(x, y, z); nuAll(x, y, z);
+  if (a >= 0) { nuAll(x + DX6[a + 1], y + DY6[a + 1], z + DZ6[a + 1]); }
+}
+// (v3.5, 11-26) a button, as the genre's: down at once, up by a tick 20 game ticks on (a wooden one 30) - it was
+// a second counted in frames, a tick more or less by where the frame fell, and let go between two ticks
+function btnDown(x, y, z) {
+  let b = blockAt(x, y, z);
+  pressFind(x, y, z);
+  // (99 s: should its tick be lost - the world kept and opened again - it comes up in the end)
+  PRT[prF] = 99; PRL[prF] = 15;
+  if (rsReady(x, z) == 1) { hungTell(x, y, z, BATT[b + 1]); } else { powerAround(x, y, z); }
+  rsSchedule(x, y, z, BAUX[b + 1] / 10, 2);
 }
 
 // ---------------------------------------------------------------- comparators: their output kept
@@ -323,6 +455,7 @@ function cmpLevel(x, y, z) {
   return r;
 }
 function cmpSet(x, y, z, l) {
+  rsVer = rsVer + 1;
   let i = 1, f = 0;
   while (i <= CMX.length) { if (CMX[i] == x && CMY[i] == y && CMZ[i] == z && CMD[i] == dim) { f = i; } i = i + 1; }
   if (f == 0) { CMX.push(x); CMY.push(y); CMZ.push(z); CMD.push(dim); CML.push(l); } else { CML[f] = l; }
@@ -447,6 +580,7 @@ function rsMergeW(a, b) {
   return r;
 }
 function rsNotify(x, y, z, w) {
+  rsVer = rsVer + 1;
   let k = nqN, dup = 0;
   while (k >= nqH && k > nqN - 6) {
     if (NQX[k] == x && NQY[k] == y && NQZ[k] == z) { dup = 1; NQW[k] = rsMergeW(NQW[k], w); }
@@ -457,7 +591,6 @@ function rsNotify(x, y, z, w) {
     if (nqN > NQX.length) { NQX.push(x); NQY.push(y); NQZ.push(z); NQW.push(w); }
     else { NQX[nqN] = x; NQY[nqN] = y; NQZ[nqN] = z; NQW[nqN] = w; }
   }
-  if (mod(w, 2) == 0) { rsChg = rsChg + 1; } else { if (BRS[blockAt(x, y, z) + 1] != RS_WIRE) { rsChg = rsChg + 1; } }
 }
 // (the older names)
 function powerAround(x, y, z) { rsNotify(x, y, z, 3); }
@@ -511,33 +644,25 @@ function rsAround(x, y, z, w) {
     }
   }
   // observers looking at a cell that changed
-  if (w >= 2) {
-    while (d < 6) {
-      let nx = x + DX6[d + 1], ny = y + DY6[d + 1], nz = z + DZ6[d + 1], ob = blockAt(nx, ny, nz);
-      if (BRS[ob + 1] == RS_OBSERVER) { if (BFAC[ob + 1] == OP6[d + 1]) { if (BON[ob + 1] == 0) { rsSchedule(nx, ny, nz, 0.1, 1); } } }
-      d = d + 1;
-    }
-  }
+  if (w >= 2) { obsTell(x, y, z); }
+  // ((11-26) the cell, the six by it, and for a part come or gone the six round each of those - the genre's
+  // order for a part put down (below, above, north, south, west, east; each: W E D U N S))
   rsEvalAt(x, y, z);
-  d = 0;
-  while (d < 6) {
-    let nx = x + DX6[d + 1], ny = y + DY6[d + 1], nz = z + DZ6[d + 1];
-    rsEvalAt(nx, ny, nz);
-    if (mod(w, 2) == 1) {
-      // ((v2.6) each cell two steps out once: one corner to corner was asked from both sides; the
-      // genre's order, W E D U N S, kept - the first time it is met)
-      let e = d;
-      while (e < 6) { if (e != OP6[d + 1]) { rsEvalAt(nx + DX6[e + 1], ny + DY6[e + 1], nz + DZ6[e + 1]); } e = e + 1; }
-    }
-    d = d + 1;
-  }
+  nuAll(x, y, z);
+  if (mod(w, 2) == 1) { nuAll(x, y - 1, z); nuAll(x, y + 1, z); nuAll(x, y, z - 1); nuAll(x, y, z + 1); nuAll(x - 1, y, z); nuAll(x + 1, y, z); }
   rsReplay = 0;
 }
 // (v2.4.3) the cell's chunk and the four by it are made (blockAt reads a chunk not made as stone: an
 // opened piston on a chunk's edge took its arm for stone and broke, a wire read no power)
+// ((v3.5, 11-26) and the chunks round it that are to come have come (world.js CKRD): a wire's power comes from up
+// to 15 cells off, a part put back in a chunk whose neighbour was not there yet read that neighbour as stone)
 function rsReady(x, z) {
   let r = 0;
-  if (cOK(x, z) == 1) { if (cOK(x - 1, z) == 1 && cOK(x + 1, z) == 1 && cOK(x, z - 1) == 1 && cOK(x, z + 1) == 1) { r = 1; } }
+  if (cOK(x, z) == 1) {
+    let q = CKRD[mod(idiv(x, 16), NCH) * NCH + mod(idiv(z, 16), NCH) + 1];
+    if (q == 2) { r = 1; }
+    if (q == 1) { if (cOK(x - 1, z) == 1 && cOK(x + 1, z) == 1 && cOK(x, z - 1) == 1 && cOK(x, z + 1) == 1) { r = 1; } }
+  }
   return r;
 }
 function rsEvalAt(x, y, z) {
@@ -546,7 +671,11 @@ function rsEvalAt(x, y, z) {
     // chunk and the four by it made)
     let b = blockAt(x, y, z);
     if (BRS[b + 1] > 0) {
-      if (rsReady(x, z) == 1) { rsEval(x, y, z, b); }
+      if (rsReady(x, z) == 1) {
+        // ((11-26) asked already with nothing changed since: it would decide the same)
+        let k = hsKey(x, y, z), i = mod(k, EVN) + 1;
+        if (EVK[i] != k || EVV[i] != rsVer || rsReplay == 1) { EVK[i] = k; EVV[i] = rsVer; rsEval(x, y, z, b); }
+      }
       else { if (rsReplay == 1) { if (cOK(x, z) == 1) { rsLater(x, y, z); } } }
     }
   }
@@ -595,7 +724,7 @@ function rsHangs(x, y, z, b) {
 }
 function rsEval(x, y, z, b) {
   let rl = BRS[b + 1], on = BON[b + 1], f = BFAC[b + 1];
-  if (rl == RS_WIRE) { wireCheck(x, y, z, b); }
+  if (rl == RS_WIRE) { wireNu(x, y, z); }
   if (rl == RS_SENSOR) { sensorKeep(x, y, z); }
   if (rl == RS_LEVER || rl == RS_BUTTON || rl == RS_HOOK) { if (rsHangs(x, y, z, b) == 0) { rsDrop(x, y, z, b); } }
   // (v2.5) a hook on with nothing on its string any more (a world opened again): off
@@ -605,8 +734,12 @@ function rsEval(x, y, z, b) {
     else {
       let want = torchWant(x, y, z, b);
       // (burnt out: out at once, and looked at again in a while)
-      if (torchBurnt(x, y, z) == 1) { if (on == 1) { setBlock(x, y, z, b + 1); } rsSchedule(x, y, z, 8, 0 - 1); }
-      else { if (want != on) { rsSchedule(x, y, z, 0.1, want); } }
+      // ((11-26) asked only of a torch that would change: every torch told of anything went through the whole
+      // list of torches gone out)
+      if (want != on) {
+        if (torchBurnt(x, y, z) == 1) { if (on == 1) { setBlock(x, y, z, b + 1); } rsSchedule(x, y, z, 8, 0 - 1); }
+        else { rsSchedule(x, y, z, 0.1, want); }
+      }
     }
   }
   if (rl == RS_REPEATER) {
@@ -619,12 +752,14 @@ function rsEval(x, y, z, b) {
     } }
   }
   if (rl == RS_COMPARATOR) {
-    let out = cmpOut(x, y, z, b);
-    if (out != cmpLevel(x, y, z)) { let pr = 0; if (diodeFront(x, y, z, f) == 1) { pr = 0 - 1; } rsSchedP(x, y, z, 0.1, out, pr); }
+    // ((11-26) or lit without output, out with one - the genre asks both)
+    let out = cmpOut(x, y, z, b), lit = 0;
+    if (out > 0) { lit = 1; }
+    if (out != cmpLevel(x, y, z) || lit != on) { let pr = 0; if (diodeFront(x, y, z, f) == 1) { pr = 0 - 1; } rsSchedP(x, y, z, 0.1, out, pr); }
   }
   if (rl == RS_LAMP) {
     let p = powerIn(x, y, z, 0 - 1);
-    if (p > 0) { if (on == 0) { setBlock(x, y, z, b + 1); } }
+    if (p > 0) { if (on == 0) { rsSet(x, y, z, b + 1); } }
     else { if (on == 1) { rsSchedule(x, y, z, 0.2, 0); } }
   }
   if (rl == RS_PISTON) {
@@ -792,17 +927,23 @@ function hookOn(x, y, z) {
 }
 // a delay is over
 function rsApply(x, y, z, w) {
+  rsVer = rsVer + 1;
   let b = blockAt(x, y, z), rl = BRS[b + 1], on = BON[b + 1];
   if (rl == RS_REPEATER) {
-    // (locked: it keeps what it has; going off with its input back on: it stays on; going on, it
-    // goes on even if the input already went (a short pulse comes out as long as its delay))
+    // (locked: it keeps what it has; on, it goes off only with its input off now; off, it goes on whatever its
+    // input is now (a short pulse comes out as long as its delay) and, the input gone, asks to go off again)
+    // ((11-26) decided by what it is when its tick comes, as the genre's, not by what it was asked to become;
+    // and it tells the cell before it, then the cells round that one: gateTell)
     let f = BFAC[b + 1];
     if (repLocked(x, y, z, f) == 0) {
-      let ww = w;
-      if (ww == 0) { if (backIn(x, y, z, OP6[f + 1]) > 0) { ww = 1; } }
-      if (ww != on) { setBlock(x, y, z, b + ww - on); }
+      let pw = 0;
+      if (backIn(x, y, z, OP6[f + 1]) > 0) { pw = 1; }
+      if (on == 1) { if (pw == 0) { rsSet(x, y, z, b - 1); gateTell(x, y, z, f); } }
+      else { rsSet(x, y, z, b + 1); gateTell(x, y, z, f); if (pw == 0) { rsSchedP(x, y, z, BAUX[b + 1] * 0.1, 0, 0 - 2); } }
     }
   }
+  // ((11-26) a button comes up)
+  if (rl == RS_BUTTON) { if (w == 2) { pressFind(x, y, z); PRT[prF] = 0; PRL[prF] = 0; PRC[prF] = 0; hungTell(x, y, z, BATT[b + 1]); } }
   if (rl == RS_OBSERVER) { if (w != on) { setBlock(x, y, z, b + w - on); } }
   if (rl == RS_OBSERVER) { if (w == 1) { rsSchedule(x, y, z, 0.1, 0); } }
   if (rl == RS_TORCH) {
@@ -812,16 +953,21 @@ function rsApply(x, y, z, w) {
       // ((v2.7) as the genre only going out counts toward burning out (8 in 3 s), looked at again
       // 8 s on (it counted both ways and looked again after 3 s))
       if (ww == 1) { if (torchBurnt(x, y, z) == 1) { ww = 0; rsSchedule(x, y, z, 8, 0 - 1); } }
-      if (ww != on) { setBlock(x, y, z, b + on - ww); if (ww == 0) { torchToggled(x, y, z); } }
+      if (ww != on) { rsSet(x, y, z, b + on - ww); if (ww == 0) { torchToggled(x, y, z); } torchTell(x, y, z); }
     }
   }
   if (rl == RS_COMPARATOR) {
-    let lv = cmpOut(x, y, z, b);
+    // ((11-26) as the genre's: a new output (or a comparing one, always) is told to the cell before it and the
+    // cells round that one - twice when it also went on or off)
+    let lv = cmpOut(x, y, z, b), was = cmpLevel(x, y, z), f = BFAC[b + 1];
     cmpSet(x, y, z, lv);
-    let want = 0; if (lv > 0) { want = 1; }
-    if (want != on) { setBlock(x, y, z, b + want - on); } else { rsNotify(x, y, z, 1); }
+    if (lv != was || BAUX[b + 1] == 0) {
+      let want = 0; if (lv > 0) { want = 1; }
+      if (want != on) { rsSet(x, y, z, b + want - on); gateTell(x, y, z, f); }
+      gateTell(x, y, z, f);
+    }
   }
-  if (rl == RS_LAMP) { if (on == 1) { if (powerIn(x, y, z, 0 - 1) == 0) { setBlock(x, y, z, b - 1); } } }
+  if (rl == RS_LAMP) { if (on == 1) { if (powerIn(x, y, z, 0 - 1) == 0) { rsSet(x, y, z, b - 1); } } }
   if (rl == RS_COMMAND) { if (w == 1) { commandBlockRun(x, y, z); } }
   if (rl == RS_DISPENSER) { if (w == 1) { dispense(x, y, z, b); } }
 }
@@ -985,6 +1131,7 @@ function pistonBack(x, y, z, f) {
 }
 // a block event: the power asked again (not powered now: no push; powered again: no pull)
 function pistonEvent(x, y, z, t) {
+  rsVer = rsVer + 1;
   let b = blockAt(x, y, z);
   if (BRS[b + 1] == RS_PISTON) {
     let f = BFAC[b + 1], on = BON[b + 1], pw = pistonPowered(x, y, z, f);
@@ -1224,7 +1371,8 @@ function rsUse(x, y, z, b) {
   sndPlay(1);
 }
 function leverToggle(x, y, z, b) {
-  setBlock(x, y, z, b + 1 - 2 * BON[b + 1]);
+  // ((11-26) told as the genre tells a lever thrown)
+  if (rsReady(x, z) == 1) { rsSet(x, y, z, b + 1 - 2 * BON[b + 1]); hungTell(x, y, z, BATT[b + 1]); } else { setBlock(x, y, z, b + 1 - 2 * BON[b + 1]); }
   sndPlay(1);
 }
 // a block state of a part for the commands ([facing=..., powered=..., delay=..., mode=..., power=..., face=...])

@@ -242,6 +242,7 @@ function flatTyped(spec) {
   return r;
 }
 let menuErr = '', menuErrT = 0;
+const SRVMAP = 12000;
 function worldNew(k) {
   let ok = 1;
   if (mpOn == 1) { flatOn = 0; if (mpFlat != '-') { if (flatSet(mpFlat) == 1) { menuErr = flatErr; menuErrT = 240; ok = 0; } } }
@@ -418,7 +419,10 @@ function serverSave() {
     if (esFlat == 1) { if (flatParse(esFlatSpec) == 0) { fl = esFlatSpec; } }
     if (mpOn == 1) { s = mpSeed; fl = mpFlat; }
     let k = 0 - 1, g = gbanMine();
-    if (g > 0) { menuMsg('서버를 만들 수 없습니다', gbanText(g)); } else { k = srvCreate(esName, esMotd, s, esMode, fl); }
+    // ((v3.5, 11-26) a map of more blocks than a server's record takes (the host writes the record whole once it is
+    // over 6,000 blocks - every half second while anything in it changes): a single world is the place for it)
+    if (mpOn == 1 && mpNE > SRVMAP) { g = 0 - 1; menuErr = `맵이 너무 큽니다: 블록 ${mpNE}개 (서버에는 ${SRVMAP}개까지 · 혼자 하기의 새 세계에 붙여넣으세요)`; menuErrT = 360; }
+    if (g > 0) { menuMsg('서버를 만들 수 없습니다', gbanText(g)); } else { if (g == 0) { k = srvCreate(esName, esMotd, s, esMode, fl); } }
     if (k == 0) { menuMsg('서버를 만들 수 없습니다', `서버 자리 ${NSRV}개가 모두 찼습니다. 주인이 지우면 자리가 납니다`); }
     if (k > 0) { if (mpOn == 1) { mapToServer(k); } selS = k; menuGo(4); }
   } else { srvEdit(esEdit, esName, esMotd); menuGo(4); }

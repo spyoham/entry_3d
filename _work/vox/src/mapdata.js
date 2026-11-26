@@ -3,16 +3,22 @@
 // to the viewer's clipboard (tessvm's $CLIPBOARD: the work writes it, the viewer is asked to copy); on
 // the new-world and the new-server screens the viewer pastes such a text (Ctrl+V writes $CLIPBOARD) and
 // the world or server is made from it.
-//   BWMAP1|seed|flat|genVer|warden gone|blocks|chests|signs|command blocks|kept mobs|chunks' animals made
+//   BWMAP1|seed|flat|genVer|warden gone|blocks|chests|signs|command blocks|kept mobs|chunks' animals made|more
 //   blocks: x,y,z,block,world;...      chests: x,y,z,world^27 slots id.n.wear,...~...
 //   signs and command blocks: x,y,z,world^text~...      kept mobs: 11 numbers each;...      (an empty part: -)
+//   (v3.5, 11-26) more (a twelfth part, a map without it is read as before): name=numbers;name=numbers...
+//     hash=x,y,z   what is added to a cell before the wire's hashing (power.js hashPlace): a machine of the
+//                  genre moved from where it was made settles in the order it did there
+//     spawn=x,y,z,yaw   where the player begins        keep=cx,cz,cx,cz...   the chunks the world keeps made
+//     cmp=x,y,z,level,...   the outputs of the comparators that are on (they would read 15 till their first tick)
 // In a single game the player copies their world (with its kept animals and village folk); on a server
 // its owner copies the server's record (blocks, chests, signs and, (v3.4), the mobs it keeps:
 // netkeep.js). Pasted into a server the command blocks of the text are left out.
 let $CLIPBOARD = '';
 let mpOut = '', mpOn = 0, mpLate = 0, mpLen = 0, mpSeed = 0, mpFlat = '-', mpGen = 1, mpBoss = 0, mpC = '-', mpS = '-', mpB = '-', mpNE = 0;
-let MPE = [], MPK = [], MPA = [], MPN = [], MPI = [];
-function mpPush(w, v) { if (w == 1) { MPE.push(v); } if (w == 2) { MPK.push(v); } if (w == 3) { MPA.push(v); } }
+let mpX = '-', mpSpOn = 0, mpSpX = 0, mpSpY = 0, mpSpZ = 0, mpYaw = 0 - 1;
+let MPE = [], MPK = [], MPA = [], MPN = [], MPI = [], MPQ = [];
+function mpPush(w, v) { if (w == 1) { MPE.push(v); } if (w == 2) { MPK.push(v); } if (w == 3) { MPA.push(v); } if (w == 4) { MPQ.push(v); } }
 // a text of a sign or a command, safe between the separators (put back by netDec)
 function mapEnc(s) { return replace(replace(replace(`${s}`, '|', '｜'), '~', '∼'), '^', '＾'); }
 // the numbers of a part (between , and ;) into list w (1 MPE the blocks, 2 MPK the kept mobs, 3 MPA)
@@ -87,6 +93,44 @@ function mapOutWorld() {
   i = 1;
   if (CAK.length == 0) { mpOut = `${mpOut}-`; }
   while (i <= CAK.length) { mpOut = `${mpOut}${CAK[i]};`; i = i + 1; }
+  // ((11-26) what a map brought over came with, and the comparators' outputs)
+  mpOut = `${mpOut}|hash=${hoX},${hoY},${hoZ};spawn=${Math.round(spawnX * 10) / 10},${spawnY},${Math.round(spawnZ * 10) / 10},-1`;
+  if (KCX.length > 0) {
+    mpOut = `${mpOut};keep=`;
+    i = 1;
+    while (i <= KCX.length) { if (i > 1) { mpOut = `${mpOut},`; } mpOut = `${mpOut}${KCX[i]},${KCZ[i]}`; i = i + 1; }
+  }
+  let cany = 0;
+  i = 1;
+  while (i <= CMX.length) {
+    if (CMD[i] == 0 && CML[i] > 0) { if (cany == 0) { cany = 1; mpOut = `${mpOut};cmp=`; } else { mpOut = `${mpOut},`; } mpOut = `${mpOut}${CMX[i]},${CMY[i]},${CMZ[i]},${CML[i]}`; }
+    i = i + 1;
+  }
+}
+// (v3.5, 11-26) the twelfth part of a map: name=numbers;... (the numbers of one name into MPQ)
+function mapMore(at) {
+  mpSpOn = 0; mpYaw = 0 - 1;
+  if (mpX != '-') {
+    splitBy(mpX, ';');
+    MPN = [];
+    let i = 1;
+    while (i <= SPL.length) { MPN.push(SPL[i]); i = i + 1; }
+    i = 1;
+    while (i <= MPN.length) {
+      let t = MPN[i], eq = indexOf(t, '=');
+      if (eq > 1) {
+        let nm = substr(t, 1, eq - 1), q = 1;
+        MPQ = [];
+        if (eq < strlen(t)) { mapNums(substr(t, eq + 1, strlen(t)), 4); }
+        if (nm == 'hash') { if (MPQ.length >= 3) { hoX = MPQ[1]; hoY = MPQ[2]; hoZ = MPQ[3]; } }
+        if (nm == 'spawn') { if (MPQ.length >= 3) { mpSpOn = 1; mpSpX = MPQ[1]; mpSpY = MPQ[2]; mpSpZ = MPQ[3]; if (MPQ.length >= 4) { mpYaw = MPQ[4]; } } }
+        if (nm == 'keep') { while (q + 1 <= MPQ.length) { keepAdd(MPQ[q], MPQ[q + 1]); q = q + 2; } }
+        if (nm == 'cmp') { while (q + 3 <= MPQ.length) { CMX.push(MPQ[q]); CMY.push(MPQ[q + 1]); CMZ.push(MPQ[q + 2]); CMD.push(0); CML.push(MPQ[q + 3]); q = q + 4; } }
+      }
+      i = i + 1;
+    }
+    MPN = []; MPQ = [];
+  }
 }
 function mapOutServer() {
   // (the host: what it holds and has not written yet goes into the record first)
@@ -124,6 +168,7 @@ function mapTake() {
     if (SPL.length >= 11) {
       mpSeed = SPL[2] * 1; mpFlat = SPL[3]; mpGen = SPL[4] * 1; mpBoss = SPL[5] * 1;
       mpC = SPL[7]; mpS = SPL[8]; mpB = SPL[9];
+      mpX = '-'; if (SPL.length >= 12) { mpX = SPL[12]; }
       MPE = []; MPK = []; MPA = [];
       mapNums(SPL[6], 1); mapNums(SPL[10], 2); mapNums(SPL[11], 3);
       mpNE = idiv(MPE.length, 5);
@@ -183,11 +228,15 @@ function mapToWorld() {
   }
   i = 1;
   while (i <= MPA.length) { CAK.push(MPA[i]); i = i + 1; }
+  // ((11-26) and what else it came with)
+  mapMore(0);
   mpOn = 0; MPE = []; MPK = []; MPA = []; MPI = [];
 }
 function mapLate() {
   if (mpLate == 1) {
     mpLate = 0;
+    // ((11-26) where the map has the player begin)
+    if (mpSpOn == 1) { spawnX = mpSpX; spawnY = mpSpY; spawnZ = mpSpZ; }
     mapPairs(mpC);
     let i = 1;
     while (i + 1 <= MPI.length) { netChestLoad(MPI[i], MPI[i + 1]); i = i + 2; }

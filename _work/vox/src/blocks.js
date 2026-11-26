@@ -386,7 +386,7 @@ function pressedAt(x, y, z) { let r = 0; if (pressLevel(x, y, z) > 0) { r = 1; }
 function plateLevel(k, n) { let r = 15; if (k == 2) { r = Math.min(15, n); } if (k == 3) { r = Math.min(15, Math.ceil(n / 10)); } return r; }
 function buttonPress(x, y, z) {
   // (v2.4.4) pressed again while it is down: nothing (it kept it down longer); the others see it too
-  if (pressLevel(x, y, z) == 0) { pressAdd(x, y, z, BAUX[blockAt(x, y, z) + 1] / 10); sndPlay(1); netSay('p', `${x}^${y}^${z}^${dim}`); }
+  if (pressLevel(x, y, z) == 0) { btnDown(x, y, z); sndPlay(1); netSay('p', `${x}^${y}^${z}^${dim}`); }
 }
 // something on the cell (x, y, z): who 0 the player, a mob or another player, 1 an item (a stone
 // plate does not feel items)

@@ -102,7 +102,7 @@ const ev = S1.peek('ET').indexOf(vk), evar = S1.peek('EVAR')[ev];
 ok(Math.floor(evar / 2) % 16 > 0, `the villager has a job (EVAR ${evar})`);
 call1(S1, (fn) => fn.mapCopy());
 const text = String(S1.peek('$CLIPBOARD'));
-ok(text.startsWith('BWMAP1|777|-|1|0|') && text.split('|').length === 11, `the map as a text: ${text.length} letters, ${text.split('|').length} parts: ${text.slice(0, 40)}...`);
+ok(text.startsWith('BWMAP1|777|-|1|0|') && text.split('|').length === 12 && /^hash=0,0,0;spawn=/.test(text.split('|')[11]), `the map as a text: ${text.length} letters, ${text.split('|').length} parts: ${text.slice(0, 40)}...`);
 ok(S1.peek('KPT').length === 0 && S1.peek('ET').filter((t) => t === vk || t === ck).length === 2, 'the living mobs stay as they are after the copy');
 
 // ---------------------------------------------------------------- 2. pasted into a new world

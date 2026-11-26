@@ -64,3 +64,6 @@ _work/arch/test/steps.json
 _work/arch/test/funcs.json
 _work/arch/test/src_dump.js
 _work/arch/*.ent
+
+# 블록 월드: 다른 사람이 만든 맵을 옮긴 맵 데이터 (만든이의 것이라 올리지 않음 - _work/vox/mc2bw.mjs로 다시 만듦)
+calculator_map.txt

@@ -447,6 +447,8 @@ function loadFrame() {
     setView(viewWant);
     respawn();
     yaw = 45; pitch = -10; flying = 0; FOC = 210;
+    // ((11-26) a map that says where the player begins says which way they look)
+    if (mpSpOn == 1) { mpSpOn = 0; if (mpYaw >= 0) { yaw = mpYaw; pitch = 0; } }
     tday = 0.03; fogR = -99; ctPos = NCOL * 192;
     gState = 2; uiMode = 0; helpT = 12;
     lockReq();

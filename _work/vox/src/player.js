@@ -837,6 +837,13 @@ function oreXp(b) {
 // ---------------------------------------------------------------- changing the world
 let lbX0 = 9999, lbX1 = -1, lbZ0 = 9999, lbZ1 = -1, dirtyN = 0;
 let DIRTY = [], SDIRTY = [];
+// (v3.5, 11-26) a wire's power at the end of a settling (power.js wireEnd): the cell is written already; the log,
+// the server and the mesh get it now, and observers looking at it
+function wireDone(x, y, z) {
+  logOn = lqLog; wput(x, y, z, W[wi(x, y, z)]); logOn = 0;
+  markDirty(x, y, z);
+  obsTell(x, y, z);
+}
 function setBlock(x, y, z, b) {
   if (y >= 0 && y < WY && cOK(x, z) == 1) {
     let old = W[wi(x, y, z)];
@@ -888,7 +895,8 @@ function setBlock(x, y, z, b) {
     let two = 0;
     if (BRS[old + 1] > 0 && BRS[old + 1] != RS_BLOCK) { two = 1; }
     if (BRS[b + 1] > 0 && BRS[b + 1] != RS_BLOCK) { two = 1; }
-    if (two == 1) { rsNotify(x, y, z, 3); } else { rsNotify(x, y, z, 2); }
+    // ((11-26) but a part's own change in its tick: it tells as the genre has it tell (power.js rsSet))
+    if (rsQuiet == 0) { if (two == 1) { rsNotify(x, y, z, 3); } else { rsNotify(x, y, z, 2); } }
     // (v2.3.2) liquid by the change looks again: it runs into a hole, goes back when its source went
     fluidNotify(x, y, z);
     // ((v2.7) leaves, fire, sponges, cane and cactus by it)

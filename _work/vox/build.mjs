@@ -18,7 +18,9 @@ export const NAME = '블록 월드';
 
 // the ring window of loaded chunks: NCH x NCH slots of 16 x 16 columns; chunks are made within
 // CR chunks of the player (2 CR + 1 < NCH keeps a free row of slots between the two ends)
-const NCH = 10, WS = NCH * 16, CR = 4;
+// ((v3.5, 11-26) for trials only: BW_NCH and BW_CR in the environment give a wider window - a machine too wide for
+// the window of the game can be watched whole in the simulator; the work is always built with 10 and 4)
+const NCH = Number(process.env.BW_NCH || 10), WS = NCH * 16, CR = Number(process.env.BW_CR || 4);
 // ((v3.5) the world's height and what hangs on it: 256 high with the sea's top at 63, the genre's own numbers.
 // The simulator's older tests are written on the world as it was - 128 high, its sea at 30, the land of before
 // v3.4 - and get that one: GENV below 2 (allConsts).)
