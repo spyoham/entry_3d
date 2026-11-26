@@ -18,9 +18,18 @@ export const NAME = '블록 월드';
 
 // the ring window of loaded chunks: NCH x NCH slots of 16 x 16 columns; chunks are made within
 // CR chunks of the player (2 CR + 1 < NCH keeps a free row of slots between the two ends)
-// ((v3.5, 11-26) for trials only: BW_NCH and BW_CR in the environment give a wider window - a machine too wide for
-// the window of the game can be watched whole in the simulator; the work is always built with 10 and 4)
-const NCH = Number(process.env.BW_NCH || 10), WS = NCH * 16, CR = Number(process.env.BW_CR || 4);
+// ((v3.5, 11-26) the window 13 chunks a side (it was 10): the simulation distance (world.js simR) may reach six
+// chunks every way from the player's - 2 x 6 + 1 slots - which is what the calculator brought over from the genre
+// wants, a player at its keys having it six chunks to the west and to the south. CR, the circle of chunks meshed and
+// drawn, is as it was. BW_NCH and BW_CR in the environment give other sizes, for trials only.)
+const NCH = Number(process.env.BW_NCH || 13), WS = NCH * 16, CR = Number(process.env.BW_CR || 4);
+const SIMMAX = Math.min(6, (NCH - 1) >> 1);
+// the chunks of the square of the simulation distance that are not of the circle: nearest ring first
+function simOffsets(r, m) {
+    const o = [];
+    for (let dx = -m; dx <= m; dx++) for (let dz = -m; dz <= m; dz++) if (dx * dx + dz * dz > r * r) o.push([dx, dz, Math.max(Math.abs(dx), Math.abs(dz))]);
+    return o.sort((a, b) => a[2] - b[2] || (a[0] ** 2 + a[1] ** 2) - (b[0] ** 2 + b[1] ** 2));
+}
 // ((v3.5) the world's height and what hangs on it: 256 high with the sea's top at 63, the genre's own numbers.
 // The simulator's older tests are written on the world as it was - 128 high, its sea at 30, the land of before
 // v3.4 - and get that one: GENV below 2 (allConsts).)
@@ -41,7 +50,7 @@ export const consts = {
     // thirteen within two chunks). A chunk is meshed after its eight neighbours are lit (world.js meshWait), so
     // thirteen asked for 37 chunks' land and light where they had asked for 13; nine ask for 25. The rest of
     // the view comes in the half second after (for a second after arriving the chunks get twice the work: ckBurst).)
-    NOFF: chunkOffsets(CR).length, CVN: 32, FORTY: 30, NSTART: 9,
+    NOFF: chunkOffsets(CR).length, SIMMAX, NSOF: simOffsets(CR, SIMMAX).length, CVN: 32, FORTY: 30, NSTART: 9,
     NEARZ: Math.round(0.05 * 256 * 16384), DEC2: 20, PLANT2: 225, MK: 160 * 1048576,
     NMOB: 96, NITM: 96, NARR: 24, NFUR: 32, NCHEST: 256, ANIMALS: 60, SMELTT: 10, NTX: 145, NTX0: 123,
     GENV: 3, SPAWNC: 0, BENCH: 0, NOCAVE: 0, AUTOSEED: 0, AUTOMODE: 0, TESTRUN: 0, SIMRUN: 0, LEGACY: 0, SLIM: 1, SPLIT: 0, MESHFAST: 1, HUDL: 1,
@@ -629,6 +638,7 @@ export function makeData() {
     L.CLOUD = cl;
 
     L.OFFX = chunkOffsets(CR).map(o => o[0]); L.OFFZ = chunkOffsets(CR).map(o => o[1]);
+    { const so = simOffsets(CR, SIMMAX); L.SOFX = so.map(o => o[0]); L.SOFZ = so.map(o => o[1]); L.SOFD = so.map(o => o[2]); }
     L.KIT = [2, 3, 1, 4, 5, 13, 15, 27, 39].map(Number);
     L.BNAMES = ['바다', '해변', '평원', '숲', '사막', '타이가', '설원', '산', '얼어붙은 바다', '잿빛 심연', '공허의 섬',
         '밀림', '사바나', '늪', '붉은 협곡', '흑단 숲', '버섯 섬', '자작나무 숲', '꽃 숲', '얼음 가시 들판', '따뜻한 바다', '깊은 바다',
@@ -756,6 +766,16 @@ export function sources(C) {
     parts.push(`function editsClear(k) { if (k >= 1 && k <= NSRV) { ${tree(1, NSRV, (j) => `SY_e${j} = [];`)} } }`);
     parts.push(`function editsPush(k, v) { if (k >= 1 && k <= NSRV) { ${tree(1, NSRV, (j) => `SY_e${j}.push(v);`)} } }`);
     parts.push(`function editsPut(k) { editsClear(k); let q = 1; while (q <= NEW.length) { editsPush(k, NEW[q]); q = q + 1; } }`);
+    // ((v3.5, 11-26) SY_b1..NBASE: the maps the servers made from large maps began with (mapdata.js baseWrite), each
+    // written once by the server's maker. A pool of twelve, not one for each of the 99 places: 99 more lists and
+    // their branches were 260 KB of the work, which has 16 MB)
+    const NBASE = 12;
+    parts.push(`const NBASE = ${NBASE};`);
+    parts.push(`let ${Array.from({ length: NBASE }, (_, i) => `SY_b${i + 1} = []`).join(', ')};`);
+    parts.push(`function baseLen(k) { let n = 0; if (k >= 1 && k <= NBASE) { ${tree(1, NBASE, (i) => `n = SY_b${i}.length;`)} } return n; }`);
+    parts.push(`function baseItem(k, i) { let s = ''; if (i >= 1 && i <= baseLen(k)) { ${tree(1, NBASE, (j) => `s = SY_b${j}[i];`)} } return \`\${s}\`; }`);
+    parts.push(`function baseClear(k) { if (k >= 1 && k <= NBASE) { ${tree(1, NBASE, (j) => `SY_b${j} = [];`)} } }`);
+    parts.push(`function basePush(k, v) { if (k >= 1 && k <= NBASE) { ${tree(1, NBASE, (j) => `SY_b${j}.push(v);`)} } }`);
     parts.push(`function bigInit() {\n  let i = 0;\n${init.join('\n')}\n}`);
     const raw = parts.join('\n') + '\n' + files.map(f => fs.readFileSync(path.join(HERE, 'src', f), 'utf8')).join('\n') + stub;
     const { src, count } = expandMacros(raw);

@@ -518,9 +518,18 @@ function pauseScreen() {
   button(10, -12, 200, -30, `텍스처 거리: ${texName()}`, 32, 1); if (btnHot == 1) { menuSel = 11; }
   // ((v3.2) the whole map as a text to the clipboard (a server's: its owner only))
   button(10, -34, 200, -52, '맵 데이터 복사', 33, mapMay()); if (btnHot == 1) { menuSel = 12; }
+  // ((v3.5, 11-26) how far from the player the world is kept at work, apart from what is drawn (world.js simSet))
+  button(10, -56, 200, -74, simLabel(), 34, 1); if (btnHot == 1) { menuSel = 13; }
   tx(27, '시야·감도·텍스처는 버튼의 왼쪽 반·오른쪽 반을 눌러 줄이기·늘리기 · 5분마다 저절로 저장', 0, -82, 7, '#c0c0c0', 0);
 }
 function optOn(v, a, b) { let r = b; if (v == 1) { r = a; } return r; }
+function simLabel() {
+  gS2 = `시뮬레이션 거리: ${simWant} 청크`;
+  if (simWant <= CR) { gS2 = `시뮬레이션 거리: ${simWant} 청크 (그리는 만큼)`; }
+  return gS2;
+}
+// (a click: one chunk more, and from the most back to the least)
+function simNext() { if (simWant >= SIMMAX) { simSet(CR); } else { simSet(simWant + 1); } }
 function deathScreen() {
   penAlpha(30); box(-245, 140, 245, -140, '#a00000'); fillStop(); penAlpha(0);
   tx(20, '죽었습니다!', 0, 60, 18, '#ffffff', 0);

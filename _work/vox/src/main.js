@@ -403,6 +403,7 @@ function uiInput() {
       if (menuSel == 11) { if (mouseX() > 105) { texSet(texI + 1); } else { texSet(texI - 1); } }
       if (menuSel == 7) { if (netSrv == 0) { saveGame(1); } }
       if (menuSel == 12) { mapCopy(); }
+      if (menuSel == 13) { simNext(); }
       if (menuSel == 6) { if (netSrv > 0) { netLeave(); } else { if (canSave() == 1) { saveGame(1); } } uiMode = 0; gState = 0; txClear(); }
     }
   }

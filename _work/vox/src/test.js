@@ -24,7 +24,7 @@ function testStep() {
   if (testCmd == 21) { testCmd = 0; brewOpen(tX, tY, tZ); }
   if (testCmd == 22) { testCmd = 0; uiOpen(1); }
   // ((v3.3, 11-20) 23: the server named tCmd deleted, as the delete screen's button)
-  if (testCmd == 23) { testCmd = 0; netEnter(); if (netMy == 0) { netClaim(); } let k = 1, f = 0; while (k <= NSRV) { if (srvHas(k) == 1) { if (shName == tCmd) { f = k; } } k = k + 1; } if (f > 0) { svBackDrop(f); srvDelete(f); } else { tCmd = '없음'; } }
+  if (testCmd == 23) { testCmd = 0; netEnter(); if (netMy == 0) { netClaim(); } let k = 1, f = 0; while (k <= NSRV) { if (srvHas(k) == 1) { if (shName == tCmd) { f = k; } } k = k + 1; } if (f > 0) { srvDelete(f); } else { tCmd = '없음'; } }
   // ((v3.4) 24: a server named tCmd made from the map on the clipboard (as the add-server screen's paste), and joined)
   if (testCmd == 24) { testCmd = 0; netEnter(); if (netMy == 0) { netClaim(); } menuGo(5); let q = mapTake(); esName = tCmd; esMotd = ' '; esMode = 1; esEdit = 0; serverSave(); let k = 1, f = 0; while (k <= NSRV) { if (srvHas(k) == 1) { if (shName == tCmd) { f = k; } } k = k + 1; } if (f > 0) { serverJoin(f); } else { tCmd = '없음'; } }
   // ((v3.4) 25: a list read past its end, on purpose - what the page shows when the work stops on an error;

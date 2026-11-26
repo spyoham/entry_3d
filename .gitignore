@@ -67,3 +67,6 @@ _work/arch/*.ent
 
 # 블록 월드: 다른 사람이 만든 맵을 옮긴 맵 데이터 (만든이의 것이라 올리지 않음 - _work/vox/mc2bw.mjs로 다시 만듦)
 calculator_map.txt
+
+# 블록 월드: 실제 게임과 견줄 때 쓰는 것 (받은 맵 저장, 서버 파일, 기록 - 남의 것이라 올리지 않음: _work/vox/test/mcreal.mjs)
+_work/vox/.mc/

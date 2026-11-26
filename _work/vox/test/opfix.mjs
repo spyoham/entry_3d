@@ -153,7 +153,7 @@ A = open('alice');
 const kd = find(A, '권한 서버');
 const fileM = (srv.lists['SY_m' + kd] || []).slice(), fileE = (srv.lists['SY_e' + kd] || []).slice();
 ok(fileM.length > 0 && String(fileM[0]).startsWith('H^'), 'the server is in the room: ' + fileM.length + ' lines');
-A.call((fn) => { fn.svBackDrop(kd); fn.srvDelete(kd); });
+A.call((fn) => { fn.srvDelete(kd); });
 run(2);
 ok(!names(A).includes('권한 서버'), 'deleted: not in alice\'s list');
 ok((srv.lists['SY_m' + kd] || []).length === 1 && (srv.lists['SY_e' + kd] || []).length === 5, `its place in the room is not empty: ${JSON.stringify(srv.lists['SY_m' + kd])} ${JSON.stringify(srv.lists['SY_e' + kd])}`);

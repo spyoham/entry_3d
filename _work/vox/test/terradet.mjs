@@ -2,7 +2,7 @@
 // steps (its kept layers, chunks and points filled on the way), the other comes from the far side - every cell
 // of the chunks both have made is the same (what two players on a server must see): node test/terradet.mjs [seed]
 import { createSim } from '../sim.mjs';
-const WY = 256, WS = 160;
+const WY = 256, WS = 208;      // (the window: 13 chunks a side since 11-27)
 const seed = +(process.argv[2] || 777);
 let fails = 0;
 const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fails++; };

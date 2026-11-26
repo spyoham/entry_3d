@@ -1,7 +1,9 @@
 // (v3.5, 11-26) the calculator brought over from the genre in the REAL tessvm page (the _work/tessvm harness:
 // node ../tessvm/tsrv.mjs, port 3100): its map data pasted on the new-world screen, the world made, the player
 // on the platform by the keys; sums typed on the keys and read off the lamps; ticks and frames a second meanwhile.
-//   node test/tesscalc35.mjs <map.txt> [sums: 12+34,200-45]
+//   node test/tesscalc35.mjs <map.txt> [sums: 12+34,200-45,3*5,100/7]
+//   SIM=6: with the simulation distance at 6; KEEP=0: the map without its chunks to keep (the distance alone must
+//   hold the machine); PROF=<folder>: the page's CPU profile of each sum.
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -12,8 +14,8 @@ const { chromium } = require('@playwright/test');
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const file = path.join(HERE, 'tesscalc.ent');
 buildProject(file, { name: 'tesscalc', more: { TESTRUN: 1, ANIMALS: 0 } });
-const text = fs.readFileSync(process.argv[2], 'utf8');
-const sums = (process.argv[3] || '12+34,200-45').split(',');
+const text = process.env.KEEP === '0' ? fs.readFileSync(process.argv[2], 'utf8').replace(/;keep=[-\d,]*/, '') : fs.readFileSync(process.argv[2], 'utf8');
+const sums = (process.argv[3] || '12+34,200-45,3*5,100/7').split(',');
 // (how far the map was moved: its twelfth part says)
 const [hx, , hz] = /hash=(-?\d+),(-?\d+),(-?\d+)/.exec(text).slice(1).map(Number), DX = -hx, DZ = -hz;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -47,8 +49,12 @@ ok(await until(async () => +(await V('gState')) === 2, 180000), `a world made fr
 await cmd(8, '/gamemode creative');
 // the chunks the world keeps: all made
 t0 = Date.now();
-const keptMade = () => page.evaluate(() => { const L = (n) => window.__vm.variables.find((v) => v.name === n && v.isList).array.map((x) => +x.data); const KCX = L('KCX'), KCZ = L('KCZ'), CKX = L('CKX'), CKZ = L('CKZ'), CKST = L('CKST'), CKRD = L('CKRD'), CKRV = L('CKRV'); let n = 0; for (let i = 0; i < KCX.length; i++) { const s = (((KCX[i] % 10) + 10) % 10) * 10 + (((KCZ[i] % 10) + 10) % 10); if (CKX[s] === KCX[i] && CKZ[s] === KCZ[i] && CKST[s] >= 4 && CKRD[s] > 0 && CKRV[s] === 0) n++; } return [n, KCX.length]; });
-ok(await until(async () => { const [n, all] = await keptMade(); return all > 0 && n === all; }, 120000), `the chunks the world keeps are made and their parts looked at: ${(await keptMade()).join(' of ')} in ${Date.now() - t0} ms`);
+const keptMade = () => page.evaluate(() => { const L = (n) => window.__vm.variables.find((v) => v.name === n && v.isList).array.map((x) => +x.data); const KCX = L('KCX'), KCZ = L('KCZ'), CKX = L('CKX'), CKZ = L('CKZ'), CKST = L('CKST'), CKRD = L('CKRD'), CKRV = L('CKRV'); const NC = Math.round(Math.sqrt(CKX.length)); let n = 0; for (let i = 0; i < KCX.length; i++) { const s = (((KCX[i] % NC) + NC) % NC) * NC + (((KCZ[i] % NC) + NC) % NC); if (CKX[s] === KCX[i] && CKZ[s] === KCZ[i] && CKST[s] >= 4 && CKRD[s] > 0 && CKRV[s] === 0) n++; } return [n, KCX.length]; });
+const SIM = +(process.env.SIM || 0), made = () => page.evaluate(() => { const L = (n) => window.__vm.variables.find((v) => v.name === n && v.isList).array.map((x) => +x.data); const S = L('CKST'); return [S.filter((v) => v >= 4).length, S.filter((v) => v === 5).length]; });
+if (SIM) { await set('simWant', SIM); await set('simR', SIM > 4 ? SIM : 0); }
+if (process.env.KEEP === '0') { const want = SIM >= 6 ? 169 : 49; ok(await until(async () => (await made())[0] >= want, 180000), `with the simulation distance at ${SIM || 4} and no chunks kept by the map: ${(await made()).join(' chunks lit, ')} meshed, ${Date.now() - t0} ms after the world was made`); }
+else ok(await until(async () => { const [n, all] = await keptMade(); return all > 0 && n === all; }, 120000), `the chunks the world keeps are made and their parts looked at: ${(await keptMade()).join(' of ')} in ${Date.now() - t0} ms`);
+if (SIM) { await until(async () => (await made())[0] >= (SIM >= 6 ? 169 : 121), 180000); console.log(`simulation distance ${SIM}: ${(await made()).join(' chunks lit, ')} meshed, ${Date.now() - t0} ms after the world was made`); }
 await sleep(12000);
 console.log('at rest: ticks a second', await V('tpsShow'), 'frames', await V('fpsShow'), 'kStep', await V('kStep'), 'the player at', await V('px'), await V('py'), await V('pz'), 'yaw', await V('yaw'));
 await set('helpT', 0);
@@ -62,23 +68,46 @@ const row = async (y0, n) => { let r = ''; for (let k = n - 1; k >= 0; k--) r +=
 // (a key, then the machine left to come to rest - no tick waiting, no piston moving - as the signs by the keys ask;
 // how long that took is how fast the game works the machine: its own second is 20 game ticks)
 const waits = [];
-const rest = async (max = 60000) => { const t0 = Date.now(); let quiet = 0; while (Date.now() - t0 < max && quiet < 3) { await sleep(150); const busy = await page.evaluate(() => { const v = (n) => +window.__vm.variables.find((q) => q.name === n && !q.isList).value, l = (n) => window.__vm.variables.find((q) => q.name === n && q.isList).array.length; return v('scN') + l('BEX') + l('MVX'); }); quiet = busy === 0 ? quiet + 1 : 0; } return Date.now() - t0 - 450; };
+const rest = async (max = 60000) => { const t0 = Date.now(); let quiet = 0; while (Date.now() - t0 < max && quiet < 3) { await sleep(150); const busy = await page.evaluate(() => { const v = (n) => +window.__vm.variables.find((q) => q.name === n && !q.isList).value, l = (n) => window.__vm.variables.find((q) => q.name === n && q.isList).array.length; return v('scN') + l('BEX') + l('MVX'); }); quiet = busy === 0 ? quiet + 1 : 0; if (busy > 0 && Date.now() - t0 > 2500) { const f = +(await V('fpsShow')); if (f > 0 && f < lowF) lowF = f; } } return Date.now() - t0 - 450; };
+let lowF = 99;
 const press = async (y, z) => { const g0 = +(await V('gtNow')); await set('tX', 33 + DX); await set('tY', y); await set('tZ', z + DZ); await set('testCmd', 27); await sleep(300); const ms = await rest(); waits.push([ms, +(await V('gtNow')) - g0]); };
 const lever = async () => { await set('tX', 33 + DX); await set('tY', 85); await set('tZ', 2 + DZ); await set('testCmd', 28); await sleep(300); await rest(); };
 const NUM = { 1: [87, 6], 2: [87, 5], 3: [87, 4], 4: [86, 6], 5: [86, 5], 6: [86, 4], 7: [85, 6], 8: [85, 5], 9: [85, 4], 0: [84, 5] };
 const OPS = { '+': -1, '-': -2, '*': -3, '/': -4, c: 1 };
 for (const q of sums) {
-  const m = /^(\d+)([-+*\/])(\d+)$/.exec(q), want = m[2] === '+' ? +m[1] + +m[3] : m[2] === '-' ? +m[1] - +m[3] : m[2] === '*' ? +m[1] * +m[3] : NaN;
+  const m = /^(\d+)([-+*\/])(\d+)$/.exec(q), want = m[2] === '+' ? +m[1] + +m[3] : m[2] === '-' ? +m[1] - +m[3] : m[2] === '*' ? +m[1] * +m[3] : Math.floor(+m[1] * 100 / +m[3]);
   await press(85, OPS.c);
   for (const d of m[1]) await press(...NUM[d]);
   await lever();
   for (const d of m[3]) await press(...NUM[d]);
   const g0 = +(await V('gtNow')), w0 = Date.now();
+  lowF = 99;
+  // (PROF=<folder>: where the page's time goes while the sum is worked out - a .cpuprofile a sum)
+  let cdp = null;
+  if (process.env.PROF) { cdp = await page.context().newCDPSession(page); await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 500 }); await cdp.send('Profiler.start'); }
   await set('tX', 33 + DX); await set('tY', 85); await set('tZ', OPS[m[2]] + DZ); await set('testCmd', 27); await sleep(300);
   const ms = (await rest(120000)) + 300, gt = +(await V('gtNow')) - g0;
   const tps = await V('tpsShow'), fps = await V('fpsShow');
-  const got = (await row(71, 4)).trim().replace(/ +/g, '');
-  ok(got === String(want).replace('-', '-'), `${q} = ${got} (at rest after ${(ms / 1000).toFixed(1)} s = ${gt} game ticks: ${(gt / (ms / 1000)).toFixed(1)} a second of the genre's 20; the last second ${tps} ticks, ${fps} frames, kStep ${await V('kStep')})`);
+  if (cdp) {
+    const { profile } = await cdp.send('Profiler.stop');
+    fs.mkdirSync(process.env.PROF, { recursive: true });
+    fs.writeFileSync(path.join(process.env.PROF, q.replace(/[*\/]/g, 'x') + '.cpuprofile'), JSON.stringify(profile));
+    // (the lines of the compiled work the time went to, with their source: self time by line)
+    const self = new Map(), byId = new Map(profile.nodes.map((n) => [n.id, n]));
+    profile.samples.forEach((id, i) => { const n = byId.get(id), k = n.callFrame.scriptId + ':' + n.callFrame.lineNumber + ':' + n.callFrame.functionName; self.set(k, (self.get(k) || 0) + profile.timeDeltas[i]); });
+    await cdp.send('Debugger.enable');
+    const src = new Map(), out = [];
+    for (const [k, v] of [...self].sort((a, b) => b[1] - a[1]).slice(0, 60)) {
+      const [sid, line, fnName] = k.split(':');
+      let text = '';
+      if (+sid > 0) { if (!src.has(sid)) { try { src.set(sid, (await cdp.send('Debugger.getScriptSource', { scriptId: sid })).scriptSource.split('\n')); } catch (e) { src.set(sid, []); } } text = (src.get(sid)[+line] || '').trim().slice(0, 150); }
+      out.push((v / 1000).toFixed(0).padStart(7) + ' ms  ' + fnName + ' :' + line + '  ' + text);
+    }
+    fs.writeFileSync(path.join(process.env.PROF, q.replace(/[*\/]/g, 'x') + '.lines.txt'), out.join('\n') + '\n');
+    await cdp.detach();
+  }
+  const got = (await row(71, 5)).trim().replace(/ +/g, '');
+  ok(got === String(want).replace('-', '-'), `${q} = ${got} (at rest after ${(ms / 1000).toFixed(1)} s = ${gt} game ticks: ${(gt / (ms / 1000)).toFixed(1)} a second of the genre's 20; the last second ${tps} ticks, ${fps} frames, kStep ${await V('kStep')}; frames a second at the least while it worked: ${lowF === 99 ? '-' : lowF})`);
   await lever();
 }
 console.log('keys: ' + waits.map(([ms, gt]) => `${(ms / 1000).toFixed(1)} s for ${gt} game ticks`).join(', '));

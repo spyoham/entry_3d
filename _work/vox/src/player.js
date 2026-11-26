@@ -860,7 +860,9 @@ function setBlock(x, y, z, b) {
     // a light that changes (a lamp, a torch put, lit or out) is spread or taken back from its cell)
     if (relit == 1) { if (BLOP[old + 1] == BLOP[b + 1] && BHC[old + 1] == BHC[b + 1]) {
       relit = 0;
-      if (BLIT[old + 1] != BLIT[b + 1]) { if (lightOn == 1) { blockLightSet(x, y, z, BLIT[b + 1]); } }
+      // ((v3.5, 11-27) a spark part gone on or off (rsQuiet: written by the spark engine): its light a little later
+      // (power.js lightLater))
+      if (BLIT[old + 1] != BLIT[b + 1]) { if (lightOn == 1) { if (rsQuiet == 1) { lightLater(x, y, z); } else { blockLightSet(x, y, z, BLIT[b + 1]); } } }
     } }
     // ((v2.6) worked out from this cell alone: lightCell)
     if (relit == 1) { if (lightOn == 1) { lightCell(x, y, z); } }

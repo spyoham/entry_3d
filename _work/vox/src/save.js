@@ -143,9 +143,13 @@ function edLink(k) {
 // and a few lamps; in a machine of thousands of parts a chunk the next change of a cell was never among them, the
 // log grew by an entry for every switch and was made short again every few sums (a sixth of the time a
 // calculator of 58,000 blocks took to add).
+// ((11-26) a cell's place is not its key mod ECN: the key is 256 times the column's number plus the height, so every
+// cell of one height fell into 512 of the 131,072 places - a floor of 3,600 blocks, a map's slab, did not fit within
+// the 64 tries and each of its cells was written as a new entry at every change. The column's number plus a
+// multiple of the height spreads them.)
 let ECK = [], ECV = [], ECN = 131072, ECMAX = 90000, ecOn = 0;
 function edPush(x, y, z, b) {
-  let k = 0, n = 0, f = 0, key = hsKey(x, y, z) + dim * 4000000000000, h = mod(key, ECN) + 1, go = 1;
+  let k = 0, n = 0, f = 0, key = hsKey(x, y, z) + dim * 4000000000000, h = mod((x + 60000) * 120000 + z + 60000 + y * 2731 + dim * 7919, ECN) + 1, go = 1;
   if (ecOn == 1) {
     while (go == 1 && n < 64) {
       if (ECK[h] == 0) { go = 0; }
@@ -185,7 +189,7 @@ function edIndex() {
     let d0 = dim;
     k = 1;
     while (k <= EDX.length) {
-      let key = hsKey(EDX[k], EDY[k], EDZ[k]) + EDD[k] * 4000000000000, h = mod(key, ECN) + 1, go = 1, n = 0;
+      let key = hsKey(EDX[k], EDY[k], EDZ[k]) + EDD[k] * 4000000000000, h = mod((EDX[k] + 60000) * 120000 + EDZ[k] + 60000 + EDY[k] * 2731 + EDD[k] * 7919, ECN) + 1, go = 1, n = 0;
       while (go == 1 && n < 64) {
         if (ECK[h] == 0) { ECK[h] = key; ECV[h] = k; go = 0; }
         else { if (ECK[h] == key) { ECV[h] = k; go = 0; } else { h = h + 1; if (h > ECN) { h = 1; } n = n + 1; } }

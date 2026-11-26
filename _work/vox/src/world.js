@@ -19,7 +19,7 @@ let CKX = [], CKZ = [], CKST = [], CKSUB = [];          // a chunk slot: which c
 // lost the source it had there, went dark, and the repeaters and latches behind it took that for a signal - a
 // machine laid over many chunks came back changed, by the order its chunks were made in. (The calculator brought
 // over from the genre: 124 cells other than saved, its sums wrong.)
-let CKRV = [], CKRD = [], ckVer = 0, rdVer = 0 - 1, rdPX = 0, rdPZ = 0, rdKeep = 0;
+let CKRV = [], CKRD = [], ckVer = 0, rdVer = 0 - 1, rdPX = 0, rdPZ = 0, rdKeep = 0, rdSim = 0;
 let NB8X = [-1, 1, 0, 0, -1, 1, -1, 1], NB8Z = [0, 0, -1, 1, -1, -1, 1, 1];
 let EDX = [], EDY = [], EDZ = [], EDB = [], EDD = [];  // every change the player made, and in which world
 let logOn = 0;
@@ -1232,6 +1232,20 @@ function chunkDrop(s) {
 // ten chunks off is beyond the view, or at the far end of the machine one stands at the other end of.
 // Outside that box the world keeps nothing: the chunks go as the player leaves them, the machine stops.
 let KCX = [], KCZ = [], KSL = [], keepOn = 0, kbX0 = 0, kbX1 = 0, kbZ0 = 0, kbZ1 = 0;
+// (v3.5, 11-26) The simulation distance, apart from the chunks drawn (the user: "시뮬레이션 거리와 렌더링 청크를
+// 별개로"). The chunks drawn are the circle round the player (CR, and of it what the view reaches); the chunks at
+// work - spark parts, water, what grows - are every chunk made, and with a simulation distance above the circle's
+// the square of chunks within simR of the player's (2 simR + 1 a side) is made as well: to their light (stage 4),
+// never meshed unless of the circle. simWant is the player's choice, CR (the circle alone, as it always was) to
+// SIMMAX - six, the reach the calculator of the genre wants from its keys, and all the window holds: 13 slots a
+// side, a chunk's slot its place mod 13, so the chunks of the square never want one slot. The square's chunks are
+// made after the circle's and the kept ones', nearest ring first, and go when the player's chunk leaves them more
+// than simR behind.
+let simWant = 4, simR = 0, simWas = 0, ckLeft = 0, ckDid = 0;
+function simSet(v) {
+  simWant = Math.max(CR, Math.min(SIMMAX, v));
+  simR = 0; if (simWant > CR) { simR = simWant; }
+}
 function keepClear() {
   KCX = []; KCZ = []; keepOn = 0;
   let i = 1;
@@ -1297,14 +1311,15 @@ function chunkWork(steps) {
   // ((11-26) the chunks the world keeps: while the player is in their box or a chunk outside it)
   keepOn = 0;
   if (KCX.length > 0) { if (dim == 0) { if (pcx >= kbX0 - 1 && pcx <= kbX1 + 1 && pcz >= kbZ0 - 1 && pcz <= kbZ1 + 1) { keepOn = 1; } } }
-  if (pcx != pcxW || pcz != pczW) {
+  if (pcx != pcxW || pcz != pczW || simR != simWas) {
+    simWas = simR;
     // ((11-26) come from afar - a new world, another world, a teleport: main.js gives the chunks twice the work
     // for the next second, the view being empty)
     if (Math.abs(pcx - pcxW) > 1 || Math.abs(pcz - pczW) > 1) { ckBurst = 60; }
     pcxW = pcx; pczW = pcz;
     s = 1;
     while (s <= NCH * NCH) {
-      if (CKST[s] > 0) { if ((CKX[s] - pcx) * (CKX[s] - pcx) + (CKZ[s] - pcz) * (CKZ[s] - pcz) > CR * CR + 6) { if (keptAt(s) == 0) { chunkDrop(s); } } }
+      if (CKST[s] > 0) { if ((CKX[s] - pcx) * (CKX[s] - pcx) + (CKZ[s] - pcz) * (CKZ[s] - pcz) > CR * CR + 6) { if (keptAt(s) == 0) { if (Math.abs(CKX[s] - pcx) > simR || Math.abs(CKZ[s] - pcz) > simR) { chunkDrop(s); } } } }
       s = s + 1;
     }
   }
@@ -1341,15 +1356,17 @@ function chunkWork(steps) {
       } else { k = k + 1; }
     }
   }
-  chunkKeep(steps, did, pcx, pcz);
+  ckLeft = steps; ckDid = did;
+  chunkKeep(pcx, pcz);
+  chunkSim(pcx, pcz);
   sparkReady(pcx, pcz);
 }
 // (v3.5, 11-26) which chunks' spark parts may work (CKRD), worked out again when a chunk came or went or the
 // player changed chunk; and the chunks put back from the log that may work now have their parts looked at
 function sparkReady(pcx, pcz) {
   let s = 1, n = 0;
-  if (ckVer != rdVer || pcx != rdPX || pcz != rdPZ || keepOn != rdKeep) {
-    rdVer = ckVer; rdPX = pcx; rdPZ = pcz; rdKeep = keepOn;
+  if (ckVer != rdVer || pcx != rdPX || pcz != rdPZ || keepOn != rdKeep || simR != rdSim) {
+    rdVer = ckVer; rdPX = pcx; rdPZ = pcz; rdKeep = keepOn; rdSim = simR;
     while (s <= NCH * NCH) {
       let r = 0;
       if (CKST[s] >= 3) {
@@ -1364,6 +1381,8 @@ function sparkReady(pcx, pcz) {
             if (keepOn == 1) { kk = KSL[t]; }
             if (kk > 0) { if (KCX[kk] == ncx) { if (KCZ[kk] == ncz) { come = 1; } } }
             if (come == 0) { if ((ncx - pcx) * (ncx - pcx) + (ncz - pcz) * (ncz - pcz) <= CR * CR) { if (kk == 0 || (Math.abs(ncx - pcx) <= 1 && Math.abs(ncz - pcz) <= 1)) { come = 1; } } }
+            // ((11-26) or one of the square of the simulation distance)
+            if (come == 0) { if (simR > 0) { if (kk == 0) { if (Math.abs(ncx - pcx) <= simR) { if (Math.abs(ncz - pcz) <= simR) { come = 1; } } } } }
             if (come == 1) { r = 0; } else { if (r == 2) { if (k < 4) { r = 1; } } }
           }
           k = k + 1;
@@ -1379,8 +1398,8 @@ function sparkReady(pcx, pcz) {
     s = s + 1;
   }
 }
-function chunkKeep(steps, did, pcx, pcz) {
-  let k = 1, cx = 0, cz = 0, s = 0, w = 0, skip = 0;
+function chunkKeep(pcx, pcz) {
+  let k = 1, cx = 0, cz = 0, s = 0, w = 0, skip = 0, steps = ckLeft, did = ckDid;
   // ((11-26) then the chunks the world keeps, to their light)
   if (keepOn == 1) {
     k = 1;
@@ -1400,6 +1419,30 @@ function chunkKeep(steps, did, pcx, pcz) {
       }
     }
   }
+  ckLeft = steps; ckDid = did;
+}
+// ((11-26) then the chunks of the simulation distance's square that are not of the circle, to their light)
+function chunkSim(pcx, pcz) {
+  let k = 1, cx = 0, cz = 0, s = 0, w = 0, steps = ckLeft, did = ckDid, go = 1;
+  if (simR > 0) {
+    while (k <= NSOF && steps > 0 && go == 1) {
+      if (SOFD[k] > simR) { go = 0; }
+      else {
+        cx = pcx + SOFX[k]; cz = pcz + SOFZ[k]; s = mod(cx, NCH) * NCH + mod(cz, NCH) + 1;
+        // (a slot held for a chunk the world keeps is that one's)
+        if (keepBars(s, cx, cz) == 1) { k = k + 1; }
+        else {
+          if (CKST[s] > 0) { if (CKX[s] != cx || CKZ[s] != cz) { chunkDrop(s); } }
+          if (CKST[s] == 0) { CKX[s] = cx; CKZ[s] = cz; }
+          if (CKST[s] < 4) {
+            w = CKW[CKST[s] + 1];
+            if (w <= steps || did == 0) { chunkStage(s); steps = steps - w; did = 1; } else { steps = 0; }
+          } else { k = k + 1; }
+        }
+      }
+    }
+  }
+  ckLeft = steps; ckDid = did;
 }
 function worldInit() {
   effectsInit(); riding = 0; gliding = 0;
@@ -1440,6 +1483,11 @@ function genStart(s) {
   EDX = []; EDY = []; EDZ = []; EDB = []; EDD = []; edIndex();
   // ((11-26) nothing kept, the cells hashed where they are)
   keepClear(); hoX = 0; hoY = 0; hoZ = 0;
+  // (and no comparator's output of the world before)
+  CMX = []; CMY = []; CMZ = []; CMD = []; CML = [];
+  // (nor a torch's goings-out, nor a light waiting to be worked out)
+  tbClear();
+  llH = 1; llN = 0; { let q = 1; while (q <= LLF.length) { if (LLF[q] != 0) { LLF[q] = 0; } q = q + 1; } }
   logOn = 0; dim = 0; bossDead = 0; bossWake = 0; bossHP = 0; bossE = 0;
   worldExtraInit();
   cavesInit();

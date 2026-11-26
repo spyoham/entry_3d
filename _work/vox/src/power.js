@@ -234,7 +234,7 @@ let OX7 = [0, 0, 0, 0, 0, -1, 1], OY7 = [0, -1, 1, 0, 0, 0, 0], OZ7 = [0, 0, 0, 
 // block changed above 64 could be back as it was after the world was kept and opened again)
 function hsKey(x, y, z) { return ((x + 60000) * 120000 + z + 60000) * 256 + y; }
 function hsFind(k) {
-  let i = mod(k, HSN) + 1, r = 0, n = 0;
+  let i = mod(idiv(k, 256) + mod(k, 256) * 2731, HSN) + 1, r = 0, n = 0;
   while (n < HSN) {
     if (HSG[i] != hsGen) { n = HSN; }
     else { if (HSK[i] == k) { r = HSV[i]; n = HSN; } else { i = i + 1; if (i > HSN) { i = 1; } n = n + 1; } }
@@ -242,7 +242,7 @@ function hsFind(k) {
   return r;
 }
 function hsPut(k, v) {
-  let i = mod(k, HSN) + 1, n = 0;
+  let i = mod(idiv(k, 256) + mod(k, 256) * 2731, HSN) + 1, n = 0;
   while (n < HSN) {
     if (HSG[i] != hsGen) { HSG[i] = hsGen; HSK[i] = k; HSV[i] = v; n = HSN; }
     else { i = i + 1; if (i > HSN) { i = 1; } n = n + 1; }
@@ -507,42 +507,99 @@ function chestLevel(x, y, z) {
 // the order asked, SCR the kind of part it is for (one of another kind there then: dropped, as the
 // genre: a part moved away by a piston does not take its tick along); scN the active ones
 let SCX = [], SCY = [], SCZ = [], SCD = [], SCT = [], SCW = [], SCP = [], SCQ = [], SCR = [], scSeq = 0, scN = 0;
+// ((v3.5, 11-27) Asking for a tick went through every place of the list for one of the same cell, and taking the
+// ticks due went through the whole list once for EACH tick taken, asking of every one whether its chunk was ready:
+// with the calculator multiplying, 400 ticks due of a list of a thousand, that was most of a game tick's time on
+// the page. Now: SCK each place's cell (its key), SHK / SHV a table from the cell to its place (a tick taken leaves
+// its line there, known stale by the place no longer waiting for that cell, and written over by the next that comes
+// by), SCF the places free. The ticks due are gathered once, sorted by time, priority and the order asked (one
+// number: DKY), and taken in that order - none asked for meanwhile is due before the next game tick.)
+let SCK = [], SHK = [], SHV = [], SCF = [], scfN = 0, DUE = [], DKY = [];
+const SHN = 4096;
 function rsSchedule(x, y, z, t, w) { rsSchedP(x, y, z, t, w, 0); }
 function rsSchedP(x, y, z, t, w, p) {
-  let i = 1, f = 0, free = 0;
-  while (i <= SCX.length && f == 0) {
-    if (SCT[i] >= 0) { if (SCX[i] == x) { if (SCZ[i] == z && SCY[i] == y && SCD[i] == dim) { f = i; } } }
-    else { if (free == 0) { free = i; } }
-    i = i + 1;
+  if (SHK.length == 0) { let q = 0; while (q < SHN) { SHK.push(0); SHV.push(0); q = q + 1; } }
+  let key = hsKey(x, y, z) + dim * 4000000000000, h = mod(idiv(key, 256) + mod(key, 256) * 2731, SHN) + 1, n = 0, f = 0, spot = 0, go = 1, lost = 0;
+  while (go == 1) {
+    let k2 = SHK[h];
+    if (k2 == 0) { if (spot == 0) { spot = h; } go = 0; }
+    else {
+      let c = SHV[h], live = 0;
+      if (SCT[c] >= 0) { if (SCK[c] == k2) { live = 1; } }
+      if (live == 1) { if (k2 == key) { f = c; go = 0; } } else { if (spot == 0) { spot = h; } }
+      if (go == 1) { h = h + 1; if (h > SHN) { h = 1; } n = n + 1; if (n >= 48) { go = 0; lost = 1; } }
+    }
   }
+  // (48 places on, all another's: the list itself is gone through, as it always was)
+  if (lost == 1) { if (f == 0) {
+    let i = 1;
+    while (i <= SCX.length && f == 0) { if (SCT[i] >= 0) { if (SCK[i] == key) { f = i; } } i = i + 1; }
+  } }
   if (f == 0) {
-    if (free == 0) { SCX.push(0); SCY.push(0); SCZ.push(0); SCD.push(0); SCT.push(0); SCW.push(0); SCP.push(0); SCQ.push(0); SCR.push(0); free = SCX.length; }
+    let free = 0;
+    if (scfN > 0) { free = SCF[scfN]; scfN = scfN - 1; }
+    else { SCX.push(0); SCY.push(0); SCZ.push(0); SCD.push(0); SCT.push(0); SCW.push(0); SCP.push(0); SCQ.push(0); SCR.push(0); SCK.push(0); free = SCX.length; }
     scSeq = scSeq + 1; scN = scN + 1;
     SCX[free] = x; SCY[free] = y; SCZ[free] = z; SCD[free] = dim; SCT[free] = gtNow + Math.max(1, Math.round(t / 0.05)); SCW[free] = w; SCP[free] = p; SCQ[free] = scSeq; SCR[free] = BRS[blockAt(x, y, z) + 1];
+    SCK[free] = key;
+    if (spot > 0) { SHK[spot] = key; SHV[spot] = free; }
   }
 }
+function scFree(c) {
+  SCT[c] = 0 - 1; scN = scN - 1;
+  scfN = scfN + 1;
+  if (scfN > SCF.length) { SCF.push(c); } else { SCF[scfN] = c; }
+}
 // the ticks due now, in the genre's order, each with what it tells done at once
-function rsTickDue() {
-  let go = 1;
-  while (go == 1) {
-    let best = 0, i = 1;
-    while (i <= SCX.length) {
-      if (SCT[i] >= 0) { if (SCT[i] <= gtNow) {
-        if (SCD[i] != dim) { SCT[i] = 0 - 1; scN = scN - 1; }
-        else { if (rsReady(SCX[i], SCZ[i]) == 1) {
-          if (best == 0) { best = i; }
-          else { if (SCT[i] < SCT[best] || (SCT[i] == SCT[best] && (SCP[i] < SCP[best] || (SCP[i] == SCP[best] && SCQ[i] < SCQ[best])))) { best = i; } }
-        } }
+// ((11-27) in two: gathered and sorted (rsDueGather: dueN of them), then run (rsDueRun) - which stops when the
+// frame has written RSSLICE changes and goes on from there (dueJ) in the next frame, rsMid 1 meanwhile: the
+// calculator's heaviest ticks write 9,000 changes, most of a second on the page, and the picture stood for it.
+// The order within the tick is as it was; what the player does in between is seen a part of a tick early.)
+const RSSLICE = 1200;
+let dueN = 0, dueJ = 1, rsMid = 0, sliceV = 0;
+function rsDueGather() {
+  let i = 1, n = 0, gap = 0;
+  // (those due, of this world, their chunks ready)
+  while (i <= SCX.length) {
+    if (SCT[i] >= 0) { if (SCT[i] <= gtNow) {
+      if (SCD[i] != dim) { scFree(i); }
+      else { if (rsReady(SCX[i], SCZ[i]) == 1) {
+        n = n + 1;
+        let ky = ((SCT[i] - gtNow + 100000) * 8 + SCP[i] + 3) * 1000000000 + mod(SCQ[i], 1000000000);
+        if (n > DUE.length) { DUE.push(i); DKY.push(ky); } else { DUE[n] = i; DKY[n] = ky; }
       } }
+    } }
+    i = i + 1;
+  }
+  // (sorted: by gaps halving down to one)
+  gap = idiv(n, 2);
+  while (gap > 0) {
+    i = gap + 1;
+    while (i <= n) {
+      let kv = DKY[i], iv = DUE[i], q = i, go = 1;
+      while (go == 1) { if (q > gap) { if (DKY[q - gap] > kv) { DKY[q] = DKY[q - gap]; DUE[q] = DUE[q - gap]; q = q - gap; } else { go = 0; } } else { go = 0; } }
+      DKY[q] = kv; DUE[q] = iv;
       i = i + 1;
     }
-    if (best == 0) { go = 0; }
-    else {
-      SCT[best] = 0 - 1; scN = scN - 1;
-      let x = SCX[best], y = SCY[best], z = SCZ[best];
-      if (BRS[blockAt(x, y, z) + 1] == SCR[best]) { rsApply(x, y, z, SCW[best]); rsFlush(3000); }
-    }
+    gap = idiv(gap, 2);
   }
+  dueN = n; dueJ = 1;
+}
+function rsDueRun() {
+  let j = dueJ, n = dueN;
+  rsMid = 0;
+  while (j <= n) {
+    let c = DUE[j];
+    // (still waiting: every tick is taken here and nowhere else)
+    if (SCT[c] >= 0) { if (SCT[c] <= gtNow) {
+      let x = SCX[c], y = SCY[c], z = SCZ[c], w = SCW[c], r = SCR[c];
+      scFree(c);
+      if (BRS[blockAt(x, y, z) + 1] == r) { rsApply(x, y, z, w); rsFlush(3000); }
+    } }
+    j = j + 1;
+    if (rsVer - sliceV > RSSLICE) { if (j <= n) { rsMid = 1; n = 0; } }
+  }
+  dueJ = j;
 }
 // (v2.6) the pistons' block events: BET 0 push out, 1 pull back, 2 back without pulling (its block
 // still on its way: left there); one asked twice is done once
@@ -563,11 +620,16 @@ function bevRun() {
 }
 function rsTick() {
   rsPhase = 1;
-  if (scN > 0) { rsTickDue(); }
-  rsPhase = 2;
-  if (BEX.length > 0) { bevRun(); }
-  rsPhase = 3;
-  if (MVX.length > 0) { mvStep(); }
+  sliceV = rsVer;
+  // (a tick the last frame left unfinished goes on; else the ticks due are gathered)
+  if (rsMid == 0) { dueN = 0; dueJ = 1; if (scN > 0) { rsDueGather(); } }
+  rsDueRun();
+  if (rsMid == 0) {
+    rsPhase = 2;
+    if (BEX.length > 0) { bevRun(); }
+    rsPhase = 3;
+    if (MVX.length > 0) { mvStep(); }
+  }
   rsPhase = 0;
 }
 // the cells to look round (a changed one: w 1 two steps out (a part changed), + 2 a block changed there)
@@ -595,6 +657,34 @@ function rsNotify(x, y, z, w) {
 // (the older names)
 function powerAround(x, y, z) { rsNotify(x, y, z, 3); }
 function powerCheck(x, y, z) { rsNotify(x, y, z, 1); }
+const RSHEAVY = 500;
+// (v3.5, 11-27) The light of the torches and lamps the spark engine turns on and off is not worked out as they
+// turn: taking a torch's light back goes through the couple of hundred cells it lit, and the calculator's
+// multiplier turns thousands of torches a second, most of them back again before anyone has looked. The cell is
+// put in a line (LLX.., once while it waits: LLF, a table of the cells waiting by their place) and each frame the
+// light of some of them is set to what the cell holds then - LLMAX of them when the game tick was light, a few
+// when it was heavy. Nothing but the look hangs on it; at rest the light is what it would have been.
+const LLFN = 2048, LLMAX = 40;
+let LLX = [], LLY = [], LLZ = [], LLD = [], LLF = [], llH = 1, llN = 0;
+function lightLater(x, y, z) {
+  if (LLF.length == 0) { let q = 0; while (q < LLFN) { LLF.push(0); q = q + 1; } }
+  let k = hsKey(x, y, z) + dim * 4000000000000, h = mod(idiv(k, 256) + mod(k, 256) * 2731, LLFN) + 1;
+  if (LLF[h] != k) {
+    LLF[h] = k;
+    llN = llN + 1;
+    if (llN > LLX.length) { LLX.push(x); LLY.push(y); LLZ.push(z); LLD.push(dim); } else { LLX[llN] = x; LLY[llN] = y; LLZ[llN] = z; LLD[llN] = dim; }
+  }
+}
+function lightLaterStep(most) {
+  let n = 0;
+  while (llH <= llN && n < most) {
+    let x = LLX[llH], y = LLY[llH], z = LLZ[llH], k = hsKey(x, y, z) + LLD[llH] * 4000000000000, h = mod(idiv(k, 256) + mod(k, 256) * 2731, LLFN) + 1;
+    if (LLF[h] == k) { LLF[h] = 0; }
+    if (LLD[llH] == dim) { if (lightOn == 1) { if (cOK(x, z) == 1) { blockLightSet(x, y, z, BLIT[blockAt(x, y, z) + 1]); n = n + 1; } } }
+    llH = llH + 1;
+  }
+  if (llH > llN) { llH = 1; llN = 0; }
+}
 function rsStep(dt) {
   if (HSK.length == 0) { hsInit(); }
   rsTime = rsTime + dt;
@@ -602,8 +692,15 @@ function rsStep(dt) {
   rsPhase = 0;
   rsFlush(3000);
   // (v2.6) the game ticks due (a slow frame: up to four, the rest let go)
-  let k = 0;
-  while (rsTime >= gtT + 0.05 && k < 4) { gtT = gtT + 0.05; gtNow = gtNow + 1; rsTick(); k = k + 1; }
+  // ((v3.5, 11-27) but after a heavy one no more this frame: a machine that cannot keep the genre's 20 ticks a
+  // second - the calculator multiplying 255 by 255 writes 1,600 changes a tick, 9,000 at its worst - ran four ticks
+  // a frame all the same, each frame half a second long: it was no faster for it and the game stood still. Now it
+  // runs as slowly and the picture moves. Heavy: more than RSHEAVY changes written in the tick (rsVer).)
+  let k = 0, v0 = 0, heavy = 0;
+  // (the rest of a tick too heavy for one frame: the game's time waits for it)
+  if (rsMid == 1) { rsTick(); k = 4; heavy = 1; if (rsTime > gtT + 0.05) { gtT = rsTime - 0.05; } }
+  while (rsTime >= gtT + 0.05 && k < 4) { gtT = gtT + 0.05; gtNow = gtNow + 1; v0 = rsVer; rsTick(); k = k + 1; if (rsVer - v0 > RSHEAVY || rsMid == 1) { k = 4; heavy = 1; } }
+  if (llN > 0) { if (heavy == 1) { lightLaterStep(4); } else { lightLaterStep(LLMAX); } }
   if (rsTime > gtT + 0.05) { gtT = rsTime - 0.05; }
   if (RLX.length > 0) { rsLaterStep(); }
   sensorStep(dt);
@@ -661,7 +758,10 @@ function rsReady(x, z) {
   if (cOK(x, z) == 1) {
     let q = CKRD[mod(idiv(x, 16), NCH) * NCH + mod(idiv(z, 16), NCH) + 1];
     if (q == 2) { r = 1; }
-    if (q == 1) { if (cOK(x - 1, z) == 1 && cOK(x + 1, z) == 1 && cOK(x, z - 1) == 1 && cOK(x, z + 1) == 1) { r = 1; } }
+    // ((11-26) two cells from a chunk that is not there, not one: a wire takes power through a block from a part
+    // two cells off - with the simulation distance at 4 the calculator's wires one cell in from the edge of the
+    // made chunks lost two of their power, and kept the loss when the rest came)
+    if (q == 1) { if (cOK(x - 2, z) == 1 && cOK(x + 2, z) == 1 && cOK(x, z - 2) == 1 && cOK(x, z + 2) == 1) { if (cOK(x - 1, z - 1) == 1 && cOK(x + 1, z - 1) == 1 && cOK(x - 1, z + 1) == 1 && cOK(x + 1, z + 1) == 1) { r = 1; } } }
   }
   return r;
 }
@@ -673,7 +773,7 @@ function rsEvalAt(x, y, z) {
     if (BRS[b + 1] > 0) {
       if (rsReady(x, z) == 1) {
         // ((11-26) asked already with nothing changed since: it would decide the same)
-        let k = hsKey(x, y, z), i = mod(k, EVN) + 1;
+        let k = hsKey(x, y, z), i = mod((x + 60000) * 120000 + z + 60000 + y * 2731, EVN) + 1;
         if (EVK[i] != k || EVV[i] != rsVer || rsReplay == 1) { EVK[i] = k; EVV[i] = rsVer; rsEval(x, y, z, b); }
       }
       else { if (rsReplay == 1) { if (cOK(x, z) == 1) { rsLater(x, y, z); } } }
@@ -785,6 +885,11 @@ function rsEval(x, y, z, b) {
   if (rl == RS_HEAD) {
     let bb = blockAt(x - DX6[f + 1], y - DY6[f + 1], z - DZ6[f + 1]);
     if (BRS[bb + 1] != RS_PISTON || BON[bb + 1] != 1 || BFAC[bb + 1] != f) { setBlock(x, y, z, 0); }
+    // ((v3.5, 11-26) a head told of anything tells its piston, as the genre's does (PistonHeadBlock.neighborUpdate):
+    // power coming to the block over an arm pointing up reaches the piston two cells below by this alone. Found by
+    // the real game's record of the calculator, tick by tick: a piston kept out by such power never knew when it
+    // went, and the multiplier's clock never stopped)
+    else { rsEvalAt(x - DX6[f + 1], y - DY6[f + 1], z - DZ6[f + 1]); }
   }
   if (rl == RS_TNT) { if (rsReplay == 0) { if (powerIn(x, y, z, 0 - 1) > 0) { tntPrime(x, y, z); } } }
   if (rl == RS_DOOR || rl == RS_NOTE || rl == RS_COMMAND || rl == RS_DISPENSER || rl == RS_BELL) {
@@ -975,17 +1080,51 @@ function rsApply(x, y, z, w) {
 // genre. ((v2.7) counted in game ticks (gtNow): it was the seconds of the frame, and the 2 .. 4 ticks
 // tessvm runs in one frame all got that frame's time, so a going-out 61 .. 63 ticks old still
 // counted and a clock the genre keeps running (8 in 63 ticks) burnt out here and started again)
-let TBX = [], TBY = [], TBZ = [], TBT = [];
+// ((v3.5, 11-27) By the cell. The goings-out were one list, gone through whole at every going-out (for a place
+// to write) and by every torch about to light (to count its own): the calculator's multiplier has hundreds of
+// torches going out a tick, so the list was thousands long and gone through thousands of times a tick - 255 x 255
+// ran at 7 game ticks a second on the page. Now a table of TBN places found by the cell: its key (TBK), and the
+// times of its last eight goings-out in a ring (TBR, TBP the next place in it). Burnt out = all eight within 60
+// ticks. A place whose torch last went out more than 60 ticks ago is free for another.)
+const TBN = 4096;
+let TBK = [], TBP = [], TBR = [];
+function tbClear() {
+  let i = 1;
+  if (TBK.length == 0) { i = 0; while (i < TBN) { TBK.push(0); TBP.push(0); i = i + 1; } i = 0; while (i < TBN * 8) { TBR.push(0 - 999999); i = i + 1; } }
+  else { while (i <= TBN) { if (TBK[i] != 0) { TBK[i] = 0; } i = i + 1; } }
+}
+// the place of the cell with key k (0: it has none; with make 1 one is taken for it, 0 when none is free near)
+function tbSlot(k, make) {
+  if (TBK.length == 0) { tbClear(); }
+  let h = mod(idiv(k, 256) + mod(k, 256) * 2731, TBN) + 1, n = 0, r = 0, free = 0;
+  while (n < 24 && r == 0) {
+    if (TBK[h] == k) { r = h; }
+    else {
+      if (TBK[h] == 0) { if (free == 0) { free = h; } n = 24; }
+      else {
+        if (free == 0) { let ago = gtNow - TBR[(h - 1) * 8 + mod(TBP[h] + 7, 8) + 1]; if (ago > 60 || ago < 0) { free = h; } }
+        h = h + 1; if (h > TBN) { h = 1; }
+        n = n + 1;
+      }
+    }
+  }
+  if (r == 0) { if (make == 1) { if (free > 0) {
+    r = free; TBK[r] = k; TBP[r] = 0;
+    let j = 1; while (j <= 8) { TBR[(r - 1) * 8 + j] = 0 - 999999; j = j + 1; }
+  } } }
+  return r;
+}
 function torchToggled(x, y, z) {
-  let i = 1, f = 0;
-  while (i <= TBX.length) { if (f == 0) { if (gtNow - TBT[i] > 60) { f = i; } } i = i + 1; }
-  if (f == 0) { TBX.push(0); TBY.push(0); TBZ.push(0); TBT.push(0); f = TBX.length; }
-  TBX[f] = x; TBY[f] = y + dim * 1000; TBZ[f] = z; TBT[f] = gtNow;
+  let s = tbSlot(hsKey(x, y, z) + dim * 4000000000000, 1);
+  if (s > 0) { TBR[(s - 1) * 8 + TBP[s] + 1] = gtNow; TBP[s] = mod(TBP[s] + 1, 8); }
 }
 function torchBurnt(x, y, z) {
-  let i = 1, n = 0, r = 0, yd = y + dim * 1000;
-  while (i <= TBX.length) { if (gtNow - TBT[i] <= 60) { if (TBX[i] == x && TBY[i] == yd && TBZ[i] == z) { n = n + 1; } } i = i + 1; }
-  if (n >= 8) { r = 1; }
+  let s = tbSlot(hsKey(x, y, z) + dim * 4000000000000, 0), r = 0;
+  if (s > 0) {
+    let j = 1, n = 0;
+    while (j <= 8) { let ago = gtNow - TBR[(s - 1) * 8 + j]; if (ago <= 60) { if (ago >= 0) { n = n + 1; } } j = j + 1; }
+    if (n >= 8) { r = 1; }
+  }
   return r;
 }
 

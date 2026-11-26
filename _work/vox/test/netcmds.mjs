@@ -174,7 +174,7 @@ const K2 = back[0];
 // deleting asks first; then the copies go and it is not put back
 A.sim.poke('selS', K2); A.sim.poke('delS', K2); A.call((fn) => fn.menuGo(10)); run(0.3);
 ok(A.g('scr') === 10, 'delete asks first (screen 10)');
-A.call((fn) => { fn.svBackDrop(K2); fn.srvDelete(K2); fn.menuGo(4); });
+A.call((fn) => { fn.srvDelete(K2); fn.menuGo(4); });
 run(25);
 ok([1, 2, 3, 4, 5, 6, 7, 8].every(k => A.call((fn) => fn.srvHas(k)) === 0 || A.g('shName') !== '고친 이름'), 'deleted on purpose: not put back by anyone');
 ok(!B.g('AT_서버백업').includes('고친 이름'), "and bob's copy of it is dropped");

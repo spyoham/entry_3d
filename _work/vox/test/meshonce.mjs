@@ -5,12 +5,14 @@
 //    see-through sides it was given when it was made;
 //  - the light of a chunk worked out again is the light it has.
 import { createSim } from '../sim.mjs';
-const WY = 256, WS = 160, NSY = WY / 8, NCH = 10;
+const WY = 256, NSY = WY / 8;
+let NCH = 13, WS = NCH * 16;      // (the window's side: read from the game once it runs)
 const seed = +(process.argv[2] || 777);
 let fails = 0;
 const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fails++; };
 const s = createSim({ consts: { AUTOSEED: seed, TESTRUN: 1, AUTOMODE: 1, ANIMALS: 0, GENV: 3, BENCH: 1 } });
 let n = 0; while (s.peek('gState') !== 2 && n < 6000) { s.frame(); n++; }
+NCH = Math.round(Math.sqrt(s.peek('CKX').length)); WS = NCH * 16;
 s.poke('grTick', 0); s.poke('gameMode', 1); s.poke('flying', 1);
 const F = (f) => s.as('pen', f);
 const frames = (k) => { for (let i = 0; i < k; i++) { s.poke('py', 150); s.poke('pvy', 0); s.poke('fqN', 0); s.frame(); } };

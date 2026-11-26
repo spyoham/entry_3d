@@ -251,8 +251,17 @@ let shName = '', shOwner = '', shMotd = '', shSeed = 0, shMode = 0, shPvp = 1, s
 // ((v3.1) the 17th: who wrote the settings and their how-manieth write (sid 's' count). Two writers (a host
 // back from a still tab, the owner's edit in the menu) could write the same revision and nobody read again)
 let shStamp = '-', metaStamp = '-', metaWrites = 0, shGen = 0, shBoss = 0;
+// (v3.5, 11-26) A server deleted came back (the user: "서버 삭제가 안먹히는 버그"). A game that was on it - a tab
+// standing still, someone just coming in: nobody the one deleting could see - found it gone, left, and leaving as
+// its host wrote the settings once more: a header with no name and no owner in the place just cleared, a server
+// on everyone's list that nobody but SUPER could delete. And a host that had not heard yet wrote the whole
+// header back. So: nothing is written of a server that is gone (netLeave); a header with no owner, or with the
+// id of a server deleted on purpose (?!gone), is no server (shDead 1: not listed, not joined, its place free for
+// a new one) and is cleared by whoever has the list open (svback.js srvAgeCheck).
+let shDead = 0;
 function srvHas(k) {
   let h = metaItem(k, 1), r = 0;
+  shDead = 0;
   shName = ''; shOwner = ''; shMotd = ''; shSeed = 0; shMode = 0; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shFlat = '-'; shId = ''; shDay = 0; shLava = 1; shTnt = 1; shWe = 1; shStamp = '-'; shGen = 0; shBoss = 0;
   if (strlen(h) > 3) { if (charAt(h, 1) == 'H') {
     splitBy(h, '^');
@@ -270,6 +279,7 @@ function srvHas(k) {
       // ((v3.2) the kind of its other worlds (dims.js genVer), the warden of the void gone)
       if (SPL.length >= 19) { shGen = SPL[18] * 1; shBoss = SPL[19] * 1; }
       r = 1;
+      if (shOwner == ' ' || shOwner == '') { r = 0; shDead = 1; } else { if (bkGone(shId) == 1) { r = 0; shDead = 1; } }
     }
   } }
   return r;
@@ -453,8 +463,12 @@ function edsEmpty(k) {
 }
 // (the record of a place with nothing in it: one cell of world 9, which is nowhere)
 function edGone() { NEW.push(0); NEW.push(0); NEW.push(0); NEW.push(0); NEW.push(9); }
+// ((11-26) its id named in ?!gone here, once it is sure to go: it was named before the asking - a server that
+// could not be deleted after all was still named, and the copies of it dropped)
 function srvDelete(k) {
-  if (srvHas(k) == 1) { if (shOwner == netNick || netNick == SUPER) { if (srvCount(k) == 0) { srvWipe(k); } } }
+  let h = srvHas(k);
+  // (what is left of one named deleted already - its owner's, or SUPER's, to clear as well)
+  if (h == 1 || shDead == 1) { if (shOwner == netNick || netNick == SUPER) { if (srvCount(k) == 0) { if (h == 1) { svBackDrop(k); } srvWipe(k); } } }
 }
 
 // ---------------------------------------------------------------- each frame
@@ -555,8 +569,14 @@ function netJoin(k) {
   // are not kept); genOld: one made before, said once on arriving)
   bossDead = shBoss; genVer = GENV; genOld = old; genOrigin();
   storesInit(); invInit();
+  // ((11-26) the map the server was made from, if it has one (mapdata.js), then what was changed since)
+  srvHead(k);
+  let hasBase = baseLoad();
   let n = editLen(k), i = 1;
   while (i + 4 <= n) { edPushD(editItem(k, i), editItem(k, i + 1), editItem(k, i + 2), editItem(k, i + 3), editItem(k, i + 4)); i = i + 5; }
+  // (and what the map came with: the chunks to keep, the comparators, where one begins)
+  mpSpOn = 0;
+  if (hasBase == 1) { mapMore(0); }
   // ((v3.1) what the host writes in the next seconds (blocks changed just before I came, heard by nobody
   // here yet) is read too)
   netTailFrom = n + 1; netTailT = 3; netTailLen = n;
@@ -571,15 +591,22 @@ function netJoin(k) {
   while (i <= MUN.length) { if (MUN[i] == netNick) { u = i; } i = i + 1; }
   let tx0 = 0, tz0 = 0, td0 = 0;
   if (u > 0) { netUserLoad(MUD[u]); td0 = dim; tx0 = px; tz0 = pz; }
-  else { startKit(); spawnSet = 0; td0 = 0; tx0 = gsX + 0.5; tz0 = gsZ + 0.5; netFresh = 1; }
+  else { startKit(); spawnSet = 0; td0 = 0; tx0 = gsX + 0.5; tz0 = gsZ + 0.5; netFresh = 1; if (mpSpOn == 1) { tx0 = mpSpX; tz0 = mpSpZ; } }
   netWrite();
   startTravel(td0, tx0, tz0, 7);
 }
 let netFresh = 0, netArrX = 0, netArrY = 0, netArrZ = 0;
 // arrived (dims.js arrive, kind 7)
 function netArrive() {
-  if (netFresh == 1) { netFresh = 0; findSpawn(); px = spawnX; py = spawnY; pz = spawnZ; respawn0(); }
+  if (netFresh == 1) {
+    netFresh = 0; findSpawn();
+    // ((11-26) a server made from a map that says where one begins)
+    if (mpSpOn == 1) { spawnX = mpSpX; spawnY = mpSpY; spawnZ = mpSpZ; }
+    px = spawnX; py = spawnY; pz = spawnZ; respawn0();
+    if (mpSpOn == 1) { if (mpYaw >= 0) { yaw = mpYaw; pitch = 0; } }
+  }
   else { px = netArrX; py = netArrY; pz = netArrZ; let k = 0; solidBox(px - 0.3, px + 0.3, py, py + 1.8, pz - 0.3, pz + 0.3); while (solidHit == 1 && k < WY) { py = py + 1; k = k + 1; solidBox(px - 0.3, px + 0.3, py, py + 1.8, pz - 0.3, pz + 0.3); } }
+  mpSpOn = 0;
   netSt = 2; dead = 0; uiMode = 0; helpT = 0;
   netWrite();
   chatAdd(`${netNick} 님이 ${shName}에 들어왔습니다`);
@@ -592,12 +619,16 @@ function netLeave() {
     if (netSt == 2) {
       // ((v3.5) the server's own header first: the sh* globals are whatever server was looked at last, and the
       // host's last write puts them into this server's settings - with another's they made it that server)
-      srvHead(netSrv);
-      // ((v3.4) my kept mobs as they are now, into the server's record)
-      skLeave();
-      // (the host keeps its own things and what is not written yet before it goes)
-      if (netHost == 1) { hostKeepUser(netNick, netUserPack()); if (editDirty == 1) { editsWrite(); } metaWrite(netSrv); }
-      else { evUser(`${netSrv}^${netUserPack()}`); }
+      // ((11-26) of a server that is gone nothing is written: its host leaving wrote a header with no name into
+      // the place just cleared)
+      let alive = srvHas(netSrv);
+      if (alive == 1) {
+        // ((v3.4) my kept mobs as they are now, into the server's record)
+        skLeave();
+        // (the host keeps its own things and what is not written yet before it goes)
+        if (netHost == 1) { hostKeepUser(netNick, netUserPack()); if (editDirty == 1) { editsWrite(); } metaWrite(netSrv); }
+        else { evUser(`${netSrv}^${netUserPack()}`); }
+      }
       // ((v3.0, 11-18) my mobs to the others near them; the others' go from here)
       netMobsLeave();
       netWrite();

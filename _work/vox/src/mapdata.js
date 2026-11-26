@@ -138,7 +138,8 @@ function mapOutServer() {
   mpOut = `BWMAP1|${shSeed}|${shFlat}|${shGen}|${shBoss}|`;
   let n = editLen(netSrv), i = 1;
   // ((v3.3, 11-20) but the cell of no world an emptied record holds (net.js edGone))
-  let cells = 0;
+  let cells = 0, hb = baseOf();
+  if (hb > 0) { let p = 3, bn = baseLen(hb); bsN = 0; while (p <= bn) { baseCells(baseItem(hb, p), 1); p = p + 1; } cells = bsN; }
   while (i + 4 <= n) { if (editItem(netSrv, i + 4) * 1 < 9) { cells = cells + 1; mpOut = `${mpOut}${editItem(netSrv, i)},${editItem(netSrv, i + 1)},${editItem(netSrv, i + 2)},${editItem(netSrv, i + 3)},${editItem(netSrv, i + 4)};`; } i = i + 5; }
   if (cells == 0) { mpOut = `${mpOut}-`; }
   mpOut = `${mpOut}|`;
@@ -153,6 +154,8 @@ function mapOutServer() {
   mpOut = `${mpOut}|-|`;
   skToMap();
   mpOut = `${mpOut}|-`;
+  // (the twelfth part only when the map it was made from had one: a map of eleven parts stays one)
+  if (hb > 0) { if (baseItem(hb, 2) != '-') { mpOut = `${mpOut}|${baseItem(hb, 2)}`; } }
 }
 
 // ---------------------------------------------------------------- in
@@ -243,14 +246,111 @@ function mapLate() {
     MPI = [];
   }
 }
+// ---------------------------------------------------------------- (v3.5, 11-26) a server's map: its base
+// A server made from a map had the map's blocks in its record (SY_e: five numbers a block), and the host writes the
+// record whole - made short first - at every change once it is past 30,000 numbers: a map of 58,000 blocks could
+// not be a server (the user: "서버에도 불러올수 있게 바꿔줘"). Now a map of more than BASEMIN blocks goes into a list
+// of its own, one of the pool SY_b1..NBASE (build.mjs), written once by the one who makes the server and by nobody
+// after; the record holds what was changed since, as in any server. Whoever comes in reads the base, then the
+// record (net.js netEnter). A list of the pool is a server's by the id in its first item (baseOf); one whose id is
+// no server's any more is free (baseFree) - so NBASE servers at a time can have a base.
+//   item 1  B^<the server's id>^<blocks>      (a base left by another server in that place is not this one's)
+//   item 2  the map's twelfth part (hash, spawn, keep, cmp) or -      (a small map with such a part has these two)
+//   items 3..  BASEPC blocks each, ten letters a block in the 64 digits of PA (pack.mjs):
+//              x + 131072 (3), z + 131072 (3), y + 256 * world (2), block (2)
+// SRVMAP blocks at most: a base of about 900,000 letters (what the room server takes at once is not known; a list
+// goes whole in one message).
+const BASEMIN = 3000, BASEPC = 500;
+let bsN = 0, mpId = '-', mpBase = 0;
+function b64three(v) { gS = `${gS}${charAt(PA, idiv(v, 4096) + 1)}${charAt(PA, mod(idiv(v, 64), 64) + 1)}${charAt(PA, mod(v, 64) + 1)}`; }
+function b64two(v) { gS = `${gS}${charAt(PA, idiv(v, 64) + 1)}${charAt(PA, mod(v, 64) + 1)}`; }
+function baseWrite(k, big) {
+  baseClear(k);
+  basePush(k, `B^${mpId}^${mpNE}`);
+  basePush(k, mpX);
+  if (big == 1) {
+    let i = 1, n = 0;
+    gS = '';
+    while (i + 4 <= MPE.length) {
+      let x = MPE[i] + 131072, y = MPE[i + 1], z = MPE[i + 2] + 131072, b = MPE[i + 3], d = MPE[i + 4];
+      if (x >= 0 && x < 262144 && z >= 0 && z < 262144 && y >= 0 && y < 256 && d >= 0 && d < 9 && b >= 0 && b < 4096) {
+        b64three(x); b64three(z); b64two(y + d * 256); b64two(b);
+        n = n + 1;
+        if (n >= BASEPC) { basePush(k, gS); gS = ''; n = 0; }
+      }
+      i = i + 5;
+    }
+    if (n > 0) { basePush(k, gS); }
+    gS = '';
+  }
+}
+// (a list of the pool given up: one line that is no base - an empty list is not kept by the room)
+function baseGone(s) { if (s >= 1) { baseClear(s); basePush(s, 'X'); } }
+// the id of the server the list s of the pool is the base of ('-': of none)
+function baseId(s) {
+  gS2 = '-';
+  if (baseLen(s) >= 2) { splitBy(baseItem(s, 1), '^'); if (SPL.length >= 2) { if (SPL[1] == 'B') { gS2 = SPL[2]; } } }
+  return gS2;
+}
+// which list of the pool is the base of the server whose header is in sh* (0: it has none)
+function baseOf() {
+  let s = 1, r = 0, id = shId;
+  while (s <= NBASE) { if (r == 0) { if (baseId(s) == id) { r = s; } } s = s + 1; }
+  return r;
+}
+// a list of the pool no server has (0: none): empty, given up, or of a server that is no more
+let BFI = [];
+function baseFree() {
+  let s = 1, r = 0, k = 1;
+  BFI = [];
+  while (k <= NSRV) { if (srvHas(k) == 1) { BFI.push(shId); } k = k + 1; }
+  while (s <= NBASE) {
+    if (r == 0) {
+      let id = baseId(s), used = 0;
+      k = 1;
+      if (id != '-') { while (k <= BFI.length) { if (BFI[k] == id) { used = 1; } k = k + 1; } }
+      if (used == 0) { r = s; }
+    }
+    s = s + 1;
+  }
+  BFI = [];
+  return r;
+}
+// the blocks of one piece: into the log of changes (how 0), or as a map's text onto mpOut (how 1)
+function baseCells(s, how) {
+  let n = strlen(s), j = 1;
+  while (j + 9 <= n) {
+    let x = (indexOf(PA, charAt(s, j)) - 1) * 4096 + (indexOf(PA, charAt(s, j + 1)) - 1) * 64 + indexOf(PA, charAt(s, j + 2)) - 131073;
+    let z = (indexOf(PA, charAt(s, j + 3)) - 1) * 4096 + (indexOf(PA, charAt(s, j + 4)) - 1) * 64 + indexOf(PA, charAt(s, j + 5)) - 131073;
+    let yd = (indexOf(PA, charAt(s, j + 6)) - 1) * 64 + indexOf(PA, charAt(s, j + 7)) - 1;
+    let b = (indexOf(PA, charAt(s, j + 8)) - 1) * 64 + indexOf(PA, charAt(s, j + 9)) - 1;
+    let d = idiv(yd, 256), y = yd - d * 256;
+    if (how == 0) { edPushD(x, y, z, b, d); } else { mpOut = `${mpOut}${x},${y},${z},${b},${d};`; }
+    bsN = bsN + 1;
+    j = j + 10;
+  }
+}
+// coming into the server whose header is in sh*: its map into the log, and what the map came with (1: it has a base)
+function baseLoad() {
+  let k = baseOf(), r = 0, n = 0, p = 3;
+  mpX = '-'; bsN = 0;
+  if (k > 0) {
+    r = 1; n = baseLen(k);
+    mpX = baseItem(k, 2);
+    while (p <= n) { baseCells(baseItem(k, p), 0); p = p + 1; }
+  }
+  return r;
+}
 // a new server k from the map (menu.js serverSave, after srvCreate: its seed and kind were the map's)
 function mapToServer(k) {
   shGen = GENV; shBoss = mpBoss;
   NEW = [];
-  let i = 1;
-  while (i + 4 <= MPE.length) { NEW.push(MPE[i]); NEW.push(MPE[i + 1]); NEW.push(MPE[i + 2]); NEW.push(MPE[i + 3]); NEW.push(MPE[i + 4]); i = i + 5; }
+  let i = 1, big = 0;
+  if (mpNE > BASEMIN) { big = 1; }
+  if (big == 0) { while (i + 4 <= MPE.length) { NEW.push(MPE[i]); NEW.push(MPE[i + 1]); NEW.push(MPE[i + 2]); NEW.push(MPE[i + 3]); NEW.push(MPE[i + 4]); i = i + 5; } }
   if (NEW.length == 0) { edGone(); }
   editsPut(k);
+  if (big == 1 || mpX != '-') { if (mpBase > 0) { mpId = shId; baseWrite(mpBase, big); } }
   mapPairs(mpC);
   i = 1;
   while (i + 1 <= MPI.length) { MCK.push(MPI[i]); MCD.push(MPI[i + 1]); i = i + 2; }

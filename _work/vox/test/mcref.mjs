@@ -97,6 +97,8 @@ export class RefWorld {
     else if (n === 'redstone_torch' || n === 'redstone_wall_torch') { if ((s.lit === 'true') === this.torchShouldUnpower(x, y, z, s) && !this.isTicking(x, y, z, n)) this.schedule(x, y, z, n, 2, PRIO.NORMAL); }
     else if (n === 'redstone_lamp') { const lit = s.lit === 'true'; if (lit !== this.isReceivingPower(x, y, z)) { if (lit) this.schedule(x, y, z, n, 4, PRIO.NORMAL); else this.set(x, y, z, withP(s, { lit: 'true' }), 2); } }
     else if (isPiston(s)) this.pistonTryMove(x, y, z, s);
+    // (a piston's head tells its piston: PistonHeadBlock.neighborUpdate - found by the real game's record, 11-26)
+    else if (n === 'piston_head') { const v = VEC[OPP[s.facing]], bx = x + v[0], by = y + v[1], bz = z + v[2], bs = this.get(bx, by, bz); if (isPiston(bs) && bs.extended === 'true' && bs.facing === s.facing) this.neighborUpdate(bx, by, bz); }
   }
   // ---------------------------------------------------------------- power
   weak(s, x, y, z, dir) {       // dir: from the one asking toward (x, y, z)

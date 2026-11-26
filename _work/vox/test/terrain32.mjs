@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 const PICS = process.argv.includes('PICS=1');
 let okN = 0, badN = 0;
 const ok = (c, m) => { if (c) okN++; else badN++; console.log(c ? 'ok  ' : 'FAIL', m); };
-const WY = 128, UH = 64, WS = 160;
+const WY = 128, UH = 64, WS = 208;      // (the window: 13 chunks a side since 11-27)
 function world(genVer) {
   const s = createSim({ consts: { AUTOSEED: 1234, TESTRUN: 1, AUTOMODE: 1, ANIMALS: 0 } });
   let n = 0; while (s.peek('gState') !== 2 && n < 3000) { s.frame(); n++; }

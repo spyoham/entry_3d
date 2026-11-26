@@ -1,15 +1,15 @@
 // (v3.5, 11-26) A calculator of the genre, brought over as map data (mc2bw.mjs), works in a single world of the
-// game as it is played: the window of 10 x 10 chunks, the player on the platform by the keys.
+// game as it is played: the window of 13 x 13 chunks, the player on the platform by the keys.
 //   node test/calc35.mjs [map.txt]        (the map: node mc2bw.mjs <the save's folder> <map.txt>; see the manual)
 // The map is another's work and is not in this repository: without the file the test says so and passes.
 //  - the pasted map is taken with its twelfth part: where the player begins, the chunks kept, the comparators;
 //  - every chunk the machine is in is made and its parts may work, with the player standing at the keys;
 //  - nothing of the machine is other than it was saved once it has come to rest (the order its chunks were
 //    made in changes nothing);
-//  - sums typed on the keys come out on the lamps: adding, subtracting (below zero too), the largest numbers;
-//  - it is too large for a server and the game says so.
-// (Its multiplying and dividing come out wrong, here as in the plain reference of the genre's rules,
-// test/mcref.mjs - see the manual; they are not asked here.)
+//  - sums typed on the keys come out on the lamps: adding, subtracting (below zero too), multiplying, dividing;
+//  - pasted for a server it goes into the server's base (test/srvmap35.mjs has two players on such a server).
+// (Its multiplying and dividing came out wrong until the real game's record showed the rule that was missing - a
+// piston's head tells its piston: test/mcreal.mjs, the manual's 26.)
 import fs from 'node:fs';
 import { createSim } from '../sim.mjs';
 const file = process.argv[2] || process.env.MAP || new URL('../../../calculator_map.txt', import.meta.url);
@@ -33,7 +33,7 @@ const sp = /spawn=(-?[\d.]+),(-?[\d.]+),(-?[\d.]+),(-?\d+)/.exec(more).slice(1).
 ok(Math.abs(s.peek('px') - sp[0]) < 0.6 && Math.abs(s.peek('py') - sp[1]) < 1.1 && Math.abs(s.peek('pz') - sp[2]) < 0.6 && s.peek('yaw') === sp[3], `the player begins where the map says, looking its way: ${s.peek('px')}, ${s.peek('py')}, ${s.peek('pz')}, ${s.peek('yaw')}`);
 ok(s.peek('CMX').length >= 50 && s.peek('hoX') === hx && s.peek('KCX').length > 40, `it brought ${s.peek('CMX').length} comparators' outputs, ${s.peek('KCX').length} chunks to keep, the place its cells are hashed at (${s.peek('hoX')}, ${s.peek('hoZ')})`);
 // the chunks kept: made, their parts free to work
-const kept = () => { const KCX = s.peek('KCX'), KCZ = s.peek('KCZ'), CKX = s.peek('CKX'), CKZ = s.peek('CKZ'), CKST = s.peek('CKST'), CKRD = s.peek('CKRD'), CKRV = s.peek('CKRV'); let n = 0; for (let i = 0; i < KCX.length; i++) { const sl = (((KCX[i] % 10) + 10) % 10) * 10 + (((KCZ[i] % 10) + 10) % 10); if (CKX[sl] === KCX[i] && CKZ[sl] === KCZ[i] && CKST[sl] >= 4 && CKRD[sl] > 0 && CKRV[sl] === 0) n++; } return n; };
+const kept = () => { const KCX = s.peek('KCX'), KCZ = s.peek('KCZ'), CKX = s.peek('CKX'), CKZ = s.peek('CKZ'), CKST = s.peek('CKST'), CKRD = s.peek('CKRD'), CKRV = s.peek('CKRV'); const NC = Math.round(Math.sqrt(CKX.length)); let n = 0; for (let i = 0; i < KCX.length; i++) { const sl = (((KCX[i] % NC) + NC) % NC) * NC + (((KCZ[i] % NC) + NC) % NC); if (CKX[sl] === KCX[i] && CKZ[sl] === KCZ[i] && CKST[sl] >= 4 && CKRD[sl] > 0 && CKRV[sl] === 0) n++; } return n; };
 { let n = 0; while (kept() < s.peek('KCX').length && n < 3000) { F(); n++; } ok(kept() === s.peek('KCX').length, `the ${s.peek('KCX').length} chunks of the machine are made and at work after ${n} frames (the window holds ${s.peek('CKX').length})`); }
 F(200);
 // as it was saved
@@ -47,11 +47,12 @@ const lit = (x, y) => (B(x, y, 32) === lampOn ? 1 : 0);
 const digit = (k, y0) => { const x0 = 29 + 8 * k; const key = '' + lit(x0 + 2, y0 + 8) + lit(x0, y0 + 6) + lit(x0, y0 + 2) + lit(x0 + 2, y0) + lit(x0 + 4, y0 + 2) + lit(x0 + 4, y0 + 6) + lit(x0 + 2, y0 + 4); return key in SEG ? SEG[key] : '?'; };
 const row = (y0, n) => { let r = ''; for (let k = n - 1; k >= 0; k--) r += digit(k, y0); return r.replace(/ /g, ''); };
 const NUM = { 1: [87, 6], 2: [87, 5], 3: [87, 4], 4: [86, 6], 5: [86, 5], 6: [86, 4], 7: [85, 6], 8: [85, 5], 9: [85, 4], 0: [84, 5] };
-const OPS = { '+': -1, '-': -2, c: 1 };
-const rest = (max = 3000) => { let q = 0, n = 0; while (n < max && q < 60) { F(); n++; if (s.peek('scN') === 0 && s.peek('BEX').length === 0 && s.peek('MVX').length === 0) q++; else q = 0; } return n; };
+const OPS = { '+': -1, '-': -2, '*': -3, '/': -4, c: 1 };
+const rest = (max = 6000) => { let q = 0, n = 0; while (n < max && q < 60) { F(); n++; if (s.peek('scN') === 0 && s.peek('BEX').length === 0 && s.peek('MVX').length === 0) q++; else q = 0; } return n; };
 const press = (y, z) => { call((fn) => fn.buttonPress(33 + DX, y, z + DZ)); F(6); rest(); };
 const lever = () => { call((fn) => fn.leverToggle(33 + DX, 85, 2 + DZ, fn.blockAt(33 + DX, 85, 2 + DZ))); rest(); };
-for (const [a, op, b] of [[12, '+', 34], [7, '-', 9], [9, '-', 7], [200, '-', 45], [255, '+', 255], [0, '+', 0]]) {
+const SUMS = (process.env.SUMS || '12+34,7-9,9-7,200-45,255+255,0+0,3*5,16*16,255*255,0*9,84/7,100/7,9/3').split(',').map((q) => /^(\d+)([-+*\/])(\d+)$/.exec(q)).map((m) => [+m[1], m[2], +m[3]]);
+for (const [a, op, b] of SUMS) {
   press(85, OPS.c);
   for (const d of String(a)) press(...NUM[d]);
   lever();
@@ -59,7 +60,8 @@ for (const [a, op, b] of [[12, '+', 34], [7, '-', 9], [9, '-', 7], [200, '-', 45
   const typed = row(93, 3) + ' ' + row(83, 3);
   const g0 = s.peek('gtNow');
   call((fn) => fn.buttonPress(33 + DX, 85, OPS[op] + DZ)); F(6); rest();
-  const want = op === '+' ? a + b : a - b, got = row(71, 4);
+  // (a quotient is shown to two places, cut off: 100 / 7 = 14.28 on the lamps as 1428)
+  const want = op === '+' ? a + b : op === '-' ? a - b : op === '*' ? a * b : Math.floor(a * 100 / b), got = row(71, 5);
   ok(typed === `${a} ${b}` && got === String(want), `${a} ${op} ${b} = ${got} (typed ${typed}; ${s.peek('gtNow') - g0} game ticks)`);
   lever();
 }
@@ -68,6 +70,7 @@ s.poke('$CLIPBOARD', text);
 call((fn) => { fn.mapTake(); });
 s.poke('esName', '계산기'); s.poke('esEdit', 0);
 call((fn) => fn.serverSave());
-ok(s.peek('mpOn') === 1 && String(s.peek('menuErr')).includes('너무 큽니다'), 'pasted for a server it is refused: ' + s.peek('menuErr'));
+{ let b = [], e = []; for (let k = 1; k <= s.peek('NBASE'); k++) { const L = s.peek('SY_b' + k); if (L.length >= 3 && String(L[0]).startsWith('B^')) b = L; } for (let k = 1; k <= s.peek('NSRV'); k++) { const M = s.peek('SY_m' + k); if (M.length && String(M[0]).startsWith('H^계산기^')) e = s.peek('SY_e' + k); }
+  ok(s.peek('mpOn') === 0 && b.length >= 3 && +String(b[0]).split('^')[2] === cells.length && e.length === 5, `pasted for a server its blocks go into the server's base (${b.length} items, ${b.reduce((a, v) => a + String(v).length, 0)} letters), its record left empty (${e.length} numbers)${String(s.peek('menuErr')).length > 1 ? ' - ' + s.peek('menuErr') : ''}`); }
 console.log(fails ? fails + ' FAILED' : 'all ok');
 process.exit(0);

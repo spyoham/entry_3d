@@ -242,7 +242,7 @@ function flatTyped(spec) {
   return r;
 }
 let menuErr = '', menuErrT = 0;
-const SRVMAP = 12000;
+const SRVMAP = 90000;
 function worldNew(k) {
   let ok = 1;
   if (mpOn == 1) { flatOn = 0; if (mpFlat != '-') { if (flatSet(mpFlat) == 1) { menuErr = flatErr; menuErrT = 240; ok = 0; } } }
@@ -285,7 +285,7 @@ function scrDelServer() {
   tx(1, '이 서버를 정말 지울까요?', 0, 50, 11, '#ffffff', 0);
   tx(2, `'${shName}'의 세계와 기록, 플러그인이 모두 사라집니다! (되돌릴 수 없습니다)`, 0, 26, 8, '#c0c0c0', 0);
   if (h == 1) { if (srvCount(delS) > 0) { tx(3, '지금 접속한 사람이 있어서 지울 수 없습니다', 0, 6, 8, '#ff8080', 0); h = 0; } else { txOff(3); } }
-  button(-154, -60, -4, -80, '삭제', 4, h); if (btnHot == 1) { if (clickLatch == 1) { svBackDrop(delS); srvDelete(delS); selS = 0; delS = 0; menuGo(4); } }
+  button(-154, -60, -4, -80, '삭제', 4, h); if (btnHot == 1) { if (clickLatch == 1) { srvDelete(delS); selS = 0; delS = 0; menuGo(4); } }
   button(4, -60, 154, -80, '취소', 5, 1); if (btnHot == 1) { if (clickLatch == 1) { delS = 0; menuGo(4); } }
 }
 
@@ -419,9 +419,12 @@ function serverSave() {
     if (esFlat == 1) { if (flatParse(esFlatSpec) == 0) { fl = esFlatSpec; } }
     if (mpOn == 1) { s = mpSeed; fl = mpFlat; }
     let k = 0 - 1, g = gbanMine();
-    // ((v3.5, 11-26) a map of more blocks than a server's record takes (the host writes the record whole once it is
-    // over 6,000 blocks - every half second while anything in it changes): a single world is the place for it)
+    // ((v3.5, 11-26) a large map goes into the server's base, not its record (mapdata.js baseWrite); beyond SRVMAP
+    // blocks the base would be a list of a million letters, sent whole to everyone who comes)
     if (mpOn == 1 && mpNE > SRVMAP) { g = 0 - 1; menuErr = `맵이 너무 큽니다: 블록 ${mpNE}개 (서버에는 ${SRVMAP}개까지 · 혼자 하기의 새 세계에 붙여넣으세요)`; menuErrT = 360; }
+    // (a list of the pool for its base: found before the server is made)
+    mpBase = 0;
+    if (g == 0 && mpOn == 1) { if (mpNE > BASEMIN || mpX != '-') { mpBase = baseFree(); if (mpBase == 0 && mpNE > BASEMIN) { g = 0 - 1; menuErr = `큰 맵으로 만든 서버가 이미 ${NBASE}개 있습니다 (그중 하나를 지우면 만들 수 있습니다)`; menuErrT = 360; } } }
     if (g > 0) { menuMsg('서버를 만들 수 없습니다', gbanText(g)); } else { if (g == 0) { k = srvCreate(esName, esMotd, s, esMode, fl); } }
     if (k == 0) { menuMsg('서버를 만들 수 없습니다', `서버 자리 ${NSRV}개가 모두 찼습니다. 주인이 지우면 자리가 납니다`); }
     if (k > 0) { if (mpOn == 1) { mapToServer(k); } selS = k; menuGo(4); }
@@ -450,11 +453,13 @@ function scrOptions() {
   let so = '끔'; if (sndOn == 1) { so = '켬'; }
   button(-100, 18, 100, -2, `소리: ${so}`, 4, 1); if (btnHot == 1) { if (clickLatch == 1) { sndOn = 1 - sndOn; } }
   // ((v2.6) the render distance kept as chosen (not lowered when slow), fog, light)
-  button(-100, -6, 100, -26, `시야 거리 ${optOn(1 - autoView, '고정', '자동 조절')}`, 7, 1); if (btnHot == 1) { if (clickLatch == 1) { autoView = 1 - autoView; } }
+  button(-100, -6, -2, -26, `시야 ${optOn(1 - autoView, '고정', '자동 조절')}`, 7, 1); if (btnHot == 1) { if (clickLatch == 1) { autoView = 1 - autoView; } }
+  // ((v3.5, 11-26) the simulation distance, beside it)
+  button(2, -6, 100, -26, `시뮬레이션 ${simWant}청크`, 11, 1); if (btnHot == 1) { if (clickLatch == 1) { simNext(); } }
   button(-100, -30, 100, -50, `안개: ${optOn(fogOn, '켬', '끔')}`, 8, 1); if (btnHot == 1) { if (clickLatch == 1) { fogOn = 1 - fogOn; } }
   button(-100, -54, 100, -74, `빛 계산: ${optOn(lightOn, '켬', '끔(빠름)')}`, 9, 1); if (btnHot == 1) { if (clickLatch == 1) { lightOn = 1 - lightOn; } }
   button(-100, -78, 100, -98, `텍스처 거리: ${texName()}`, 10, 1); if (btnHot == 1) { if (clickLatch == 1) { if (mouseX() > 0) { texSet(texI + 1); } else { texSet(texI - 1); } } }
-  tx(5, '왼쪽 반을 누르면 줄이고 오른쪽 반을 누르면 늘립니다', 0, 84, 7, '#a0a0a0', 0);
+  tx(5, '왼쪽 반을 누르면 줄이고 오른쪽 반을 누르면 늘립니다 · 시뮬레이션 거리: 장치가 돌아가는 범위(4~6청크)', 0, 84, 7, '#a0a0a0', 0);
   button(-100, -102, 100, -122, '완료', 6, 1); if (btnHot == 1) { if (clickLatch == 1) { menuGo(0); } }
 }
 

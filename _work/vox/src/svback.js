@@ -24,6 +24,9 @@
 // that differ from their copy; all of them from the menu every 10 s, one a minute while playing).
 // @서버백업: sections SB, id, name, owner, rev, nm, nm settings lines, ne, ne block numbers.
 let AT_서버백업 = [];
+// ((v3.5, 11-26) @서버바탕: the bases of the servers made from large maps (mapdata.js), kept by SUPER's game alone -
+// they never change, so once each: sections BB, id, n, n items)
+let AT_서버바탕 = [];
 let SY_gone = [];
 let SBT = [], bkT = 0, bkChkT = 0, syOnT = 0 - 1, bkSrv = 0, bkPut = 0, bkTold = 0, bkAllT = 0, bkAllK = 0;
 
@@ -37,6 +40,49 @@ function bkFind(id) {
     } else { p = n + 1; }
   }
   return r;
+}
+function bbFind(id) {
+  let p = 1, r = 0, n = AT_서버바탕.length;
+  while (p <= n && r == 0) {
+    if (AT_서버바탕[p] == 'BB') { if (AT_서버바탕[p + 1] == id) { r = p; } else { p = p + 3 + AT_서버바탕[p + 2] * 1; } }
+    else { p = n + 1; }
+  }
+  return r;
+}
+function bbDrop(id) {
+  let p = bbFind(id);
+  if (p > 0) {
+    let e = p + 3 + AT_서버바탕[p + 2] * 1, i = 1;
+    SBT = [];
+    while (i < p) { SBT.push(AT_서버바탕[i]); i = i + 1; }
+    i = e;
+    while (i <= AT_서버바탕.length) { SBT.push(AT_서버바탕[i]); i = i + 1; }
+    AT_서버바탕 = [];
+    i = 1;
+    while (i <= SBT.length) { AT_서버바탕.push(SBT[i]); i = i + 1; }
+    SBT = [];
+  }
+}
+// the base of server k (sh* its header) kept, if it has one and it is not kept yet
+function bbKeep(k) {
+  let s = baseOf();
+  if (s > 0) { if (bbFind(shId) == 0) {
+    let n = baseLen(s), i = 1;
+    AT_서버바탕.push('BB'); AT_서버바탕.push(shId); AT_서버바탕.push(n);
+    while (i <= n) { AT_서버바탕.push(baseItem(s, i)); i = i + 1; }
+  } }
+}
+// the kept base of the server `id` into a free list of the pool (the server put back just now)
+function bbWrite(id) {
+  let p = bbFind(id);
+  if (p > 0) {
+    let s = baseFree();
+    if (s > 0) {
+      let n = AT_서버바탕[p + 2] * 1, i = 1;
+      baseClear(s);
+      while (i <= n) { basePush(s, AT_서버바탕[p + 2 + i]); i = i + 1; }
+    }
+  }
 }
 // the section at p taken out
 function bkDropAt(p) {
@@ -62,6 +108,7 @@ function bkKeep(k) {
     AT_서버백업.push(ne);
     i = 1;
     while (i <= ne) { AT_서버백업.push(editItem(k, i)); i = i + 1; }
+    if (iAmSuper() == 1) { bbKeep(k); }
   }
 }
 // the section at p into server place k of the shared lists
@@ -74,6 +121,7 @@ function bkWrite(p, k) {
   while (i <= ne) { NEW.push(AT_서버백업[p + 6 + nm + i]); i = i + 1; }
   metaPut(k); editsPut(k);
   NMW = []; NEW = [];
+  bbWrite(AT_서버백업[p + 1]);
 }
 function bkGone(id) {
   let r = 0, i = 1;
@@ -85,6 +133,9 @@ function svBackDrop(k) {
   if (srvHas(k) == 1) {
     let id = shId, p = bkFind(id);
     if (p > 0) { bkDropAt(p); }
+    bbDrop(id);
+    // (and the list of the pool its base was in is free again)
+    baseGone(baseOf());
     if (bkGone(id) == 0) { SY_gone.push(id); if (SY_gone.length > 64) { SY_gone.removeAt(1); } }
     if (svAuto() == 1) { svPut(0); }
   }
@@ -101,7 +152,7 @@ function bkCheck() {
     if (AT_서버백업[p] != 'SB') { p = n + 1; }
     else {
       let id = AT_서버백업[p + 1], rev = AT_서버백업[p + 4] * 1, name = AT_서버백업[p + 2];
-      if (bkGone(id) == 1) { bkDropAt(p); n = AT_서버백업.length; ch = 1; }
+      if (bkGone(id) == 1) { bkDropAt(p); bbDrop(id); n = AT_서버백업.length; ch = 1; }
       else {
         let k = 1, at = 0, free = 0;
         while (k <= NSRV) {
@@ -150,6 +201,8 @@ function bkStale(k) {
     let p = bkFind(shId), nm = metaLen(k), ne = editLen(k);
     if (p == 0) { r = 1; }
     else {
+      // ((11-26) or its base is not kept yet)
+      if (iAmSuper() == 1) { if (baseOf() > 0) { if (bbFind(shId) == 0) { r = 1; } } }
       let cm = AT_서버백업[p + 5] * 1, ce = 0 - 1;
       if (cm == nm) { ce = AT_서버백업[p + 6 + cm] * 1; }
       if (ce != ne) { r = 1; }
@@ -213,6 +266,9 @@ function srvAgeCheck() {
   while (k <= NSRV) { if (srvHas(k) == 1) { if (shDay > newest) { if (shDay <= today + 2) { newest = shDay; } } } k = k + 1; }
   k = 1;
   while (k <= NSRV) {
+    // ((11-26) what is left of a server deleted - a header with no owner, or one written again by a game that had
+    // not heard: cleared (net.js shDead))
+    if (srvHas(k) == 0) { if (shDead == 1) { if (srvCount(k) == 0 && k != netSrv) { srvWipe(k); } } }
     if (srvHas(k) == 1) { if (srvCount(k) == 0 && k != netSrv) {
       if (shDay <= 0) {
         // (a server from before v2.4.1: its day starts now)

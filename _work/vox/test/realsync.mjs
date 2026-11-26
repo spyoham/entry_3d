@@ -101,6 +101,8 @@ const SRV = '저장 시험';
 console.log('room', room);
 // (v3.4, 11-22) TWO=1: alice makes a server, bob joins it - each must count two on it ("접속자 0명" was reported).
 // MAP=1: the server is made from example_map.txt (its record is 110,000 letters in one list).
+// (v3.5, 11-27) MAPFILE=<map.txt> with MAP=1: from that map - a large one goes into the server's base (one list of
+// the pool ?!b1..12, written once: mapdata.js); bob must get it whole, and with AGAIN=1 it must come back.
 if (process.env.TWO) {
   const count = async (p, k) => { const L = await Lst(p, 'NLIVE'), S = await Lst(p, 'NSRVk'), T = await Lst(p, 'NSTT'); let n = 0; for (let j = 0; j < L.length; j++) if (+L[j] === 1 && +S[j] === k && +T[j] >= 1) n++; return n; };
   const slots = async (p) => { const r = []; for (let j = 1; j <= 16; j++) { const v = await V(p, '?!n' + j); if (v && String(v).length > 12) r.push(j + ':' + String(v).length); } return r.join(' '); };
@@ -115,8 +117,11 @@ if (process.env.TWO) {
     ok(await until(async () => +(await V(A, 'gState')) === 2 && +(await V(A, 'netSt')) === 2, 120000), 'alice made 공장 ' + i);
     await sleep(3000); await cmd(A, 15, ''); await sleep(1500);
   }
+  const baseOf = async (p) => { let best = { items: 0, letters: 0 }; for (let k = 1; k <= 12; k++) { const l = await Lst(p, '?!b' + k); if (l && l.length >= 2 && String(l[0]).startsWith('B^')) best = { items: l.length, letters: l.reduce((a, v) => a + String(v).length, 0), cells: +String(l[0]).split('^')[2] }; } return best; };
+  let mapCells = 0;
   if (process.env.MAP) {
-    const map = fs.readFileSync(new URL('../../../example_map.txt', import.meta.url), 'utf8').trim();
+    const map = fs.readFileSync(process.env.MAPFILE || new URL('../../../example_map.txt', import.meta.url), 'utf8').trim();
+    mapCells = map.split('|')[5].split(';').filter(Boolean).length;
     await set(A, '$CLIPBOARD', map);
     await cmd(A, 24, SRV);
   } else { await cmd(A, 11, SRV); }
@@ -129,6 +134,7 @@ if (process.env.TWO) {
   ok(+(await V(B, '?!')) === 1, 'bob: the line is up: ?! ' + (await V(B, '?!')));
   const kB = await placeOf(B, SRV);
   ok(kB === kA && kA > 0, `bob sees the server in the list (place ${kB}, alice's ${kA})`);
+  if (mapCells > 3000) { const a = await baseOf(A), b = await baseOf(B); ok(a.cells === mapCells && b.items === a.items && b.letters === a.letters, `the map's ${mapCells} blocks are the server's base and bob has it whole: alice ${a.items} items ${a.letters} letters, bob ${b.items} items ${b.letters} letters`); }
   // (the list screen: netEnter and a slot, as the 멀티플레이 button does - by the join hook with a name that is not there)
   await cmd(B, 12, '없는 서버'); await sleep(4000);
   console.log('   bob on the list: counts', await count(B, kB), 'slots', await slots(B), 'sent', B.sent, 'got', B.got, 'socket open', B.open);
@@ -158,6 +164,7 @@ if (process.env.TWO) {
     const k2 = await placeOf(A, SRV);
     const e2 = (await Lst(A, '?!e' + k2)) || [];
     ok(e2.length >= 5, 'again: its record came back: ' + e2.length);
+    if (mapCells > 3000) { const a = await baseOf(A); ok(a.cells === mapCells && a.letters > mapCells * 10, `again: its base came back whole: ${a.items} items, ${a.letters} letters`); }
     await cmd(A, 12, SRV);
     ok(await until(async () => +(await V(A, 'gState')) === 2 && +(await V(A, 'netSt')) === 2, 120000), 'again: alice is in: ' + (await V(A, 'joinErr')));
     B = await player('bob', 'tab_b'); await sleep(8000);
