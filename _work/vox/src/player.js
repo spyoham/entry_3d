@@ -835,14 +835,21 @@ function oreXp(b) {
   return r;
 }
 // ---------------------------------------------------------------- changing the world
-let lbX0 = 9999, lbX1 = -1, lbZ0 = 9999, lbZ1 = -1, dirtyN = 0;
+// ((v3.5, 11-28) mdFull: what is being marked is a block changed (1) or only a part's state - a wire's power, a
+// torch lit or out, a lamp (0): SDIRTY 2 or 1. A section of the second kind is meshed again without working out
+// what it lets one see through (that is as it was), and while the spark engine is behind (rsBusy) only MESHBUSY of
+// them a frame, the rest the next frames: a machine at work marks dozens of sections every frame, and meshing them
+// all took as long as working the machine.)
+const MESHBUSY = 3;
+let lbX0 = 9999, lbX1 = -1, lbZ0 = 9999, lbZ1 = -1, dirtyN = 0, mdFull = 1;
 let DIRTY = [], SDIRTY = [];
 // (v3.5, 11-26) a wire's power at the end of a settling (power.js wireEnd): the cell is written already; the log,
 // the server and the mesh get it now, and observers looking at it
-function wireDone(x, y, z) {
+// ((11-28) ob: an observer is by it - else none is looked for, six blocks read for every wire that changed)
+function wireDone(x, y, z, ob) {
   logOn = lqLog; wput(x, y, z, W[wi(x, y, z)]); logOn = 0;
-  markDirty(x, y, z);
-  obsTell(x, y, z);
+  mdFull = 0; markDirty(x, y, z); mdFull = 1;
+  if (ob == 1) { obsTell(x, y, z); }
 }
 function setBlock(x, y, z, b) {
   if (y >= 0 && y < WY && cOK(x, z) == 1) {
@@ -928,13 +935,23 @@ function markDirty(x, y, z) {
   if (lz == 7) { markSec(secOf(x, y, z + 1)); }
 }
 function markSec(s) {
-  if (SDIRTY[s] != 1) { SDIRTY[s] = 1; dirtyN = dirtyN + 1; if (dirtyN > DIRTY.length) { DIRTY.push(s); } else { DIRTY[dirtyN] = s; } }
+  let v = SDIRTY[s];
+  if (v == 1 || v == 2) { if (mdFull == 1) { if (v == 1) { SDIRTY[s] = 2; } } }
+  else { SDIRTY[s] = 1 + mdFull; dirtyN = dirtyN + 1; if (dirtyN > DIRTY.length) { DIRTY.push(s); } else { DIRTY[dirtyN] = s; } }
 }
 function worldFlush() {
   if (lbX1 >= 0) { if (lightOn == 1) { relight(lbX0, lbX1, lbZ0, lbZ1); } lbX0 = 9999; lbX1 = -1; lbZ0 = 9999; lbZ1 = -1; }
-  let i = 1;
-  while (i <= dirtyN) { if (SOK[DIRTY[i]] == 1) { meshSection(DIRTY[i]); } SDIRTY[DIRTY[i]] = 0; i = i + 1; }
-  dirtyN = 0;
+  let i = 1, n = dirtyN, w = 0, left = n;
+  if (rsBusy == 1) { left = MESHBUSY; }
+  while (i <= n) {
+    let s = DIRTY[i], v = SDIRTY[s];
+    if (v == 2 || left > 0) {
+      if (SOK[s] == 1) { if (v == 1) { meshKeepVis = 1; left = left - 1; } meshSection(s); meshKeepVis = 0; }
+      SDIRTY[s] = 0;
+    } else { w = w + 1; DIRTY[w] = s; }
+    i = i + 1;
+  }
+  dirtyN = w;
 }
 // sand, gravel, concrete powder, anvils drop to the first support
 function fallBlock(x, y, z) {

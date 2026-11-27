@@ -122,9 +122,12 @@ function blockAt(x, y, z) {
   return b;
 }
 // a block put by the world (generation) or the player (logOn: written down)
+// ((v3.5, 11-28) and the wires near it told: what they know of the cells round them is kept (power.js wnTouch))
 function wput(x, y, z, b) {
-  W[(mod(x, WS) * WS + mod(z, WS)) * WY + y + 1] = b;
+  let i = (mod(x, WS) * WS + mod(z, WS)) * WY + y + 1, old = W[i];
+  W[i] = b;
   rsVer = rsVer + 1;
+  if (old != b) { if (pnN > 0) { wnChanged(x, y, z, old, b); } }
   if (logOn == 1) { edPush(x, y, z, b); if (netSrv > 0) { netEdit(x, y, z, b); } }
 }
 
@@ -840,6 +843,11 @@ function lqPush(i) {
   lqTail = lqTail + 1;
   if (lqTail > LQ.length) { LQ.push(i); } else { LQ[lqTail] = i; }
 }
+// ((11-28) the same written out where the light spreads: a million calls a sum of the calculator's)
+function M_lq(N) {
+  lqTail = lqTail + 1;
+  if (lqTail > LQ.length) { LQ.push(N); } else { LQ[lqTail] = N; }
+}
 // ((11-26) across a chunk's border only into a chunk that is lit: cLit)
 function lightSpread(which) {
   let i = 0, l = 0, y = 0, col = 0, lz = 0, lx = 0, n = 0, ln = 0, t = 0;
@@ -871,8 +879,8 @@ function M_spread(N, LN, WH) {
     // straight fall (it was two: the sea floor was dark seven down)
     let ll = LN;
     let lt = LT[N], sk = idiv(lt, 16);
-    if (WH == 0) { if (sk < ll) { LT[N] = ll * 16 + lt - sk * 16; lqPush(N); } }
-    else { if (lt - sk * 16 < ll) { LT[N] = sk * 16 + ll; lqPush(N); } }
+    if (WH == 0) { if (sk < ll) { LT[N] = ll * 16 + lt - sk * 16; M_lq(N); } }
+    else { if (lt - sk * 16 < ll) { LT[N] = sk * 16 + ll; M_lq(N); } }
   }
 }
 // the sky straight down a column: 15 until the first block that stops it; skyFloor: the first
@@ -953,38 +961,55 @@ function lightRedoStep() {
 // (v2.6) a cell's own light became e: more spreads from it; less is taken back from what it lit (the
 // cells lit less than it, one step on from it) and those still lit by others spread again (the
 // genre's way). It was the whole 29 x 29 columns round it each time (a lamp's clock was slow)
-let RMX = [], RMY = [], RMZ = [], RML = [];
+// ((v3.5, 11-28) the taking back goes by the cells' places in W, as the spreading does (RMI the place, RMV the light
+// it had): it went by x, y, z and asked of each of the six cells round each cell its chunk and its place - two
+// function calls a cell, four thousand for one torch out, and the calculator's multiplier puts out thousands.)
+let RMX = [], RMY = [], RMZ = [], RML = [], RMI = [], RMV = [], rmN = 0;
+// the chunk of window column (tx, tz) is lit, and is the chunk next to that of (lx, lz) the way (dx, dz)
+function litNext(lx, lz, tx, tz, dx, dz) {
+  let sc = idiv(lx, 16) * NCH + idiv(lz, 16) + 1, sn = idiv(tx, 16) * NCH + idiv(tz, 16) + 1, r = 0;
+  if (CKST[sn] >= 4) { if (CKX[sn] == CKX[sc] + dx) { if (CKZ[sn] == CKZ[sc] + dz) { r = 1; } } }
+  return r;
+}
+// the cell at N, by one that lost the light L: lit less than that - by it: dark, and on from there (unlitTake);
+// lit as much or more - by another light: that spreads again. (Written out six times: only the look at the cell -
+// most cells looked at are dark already or were looked at before.)
+function M_unlit(N, L) {
+  let ub = mod(LT[N], 16);
+  if (ub > 0) { if (ub < L) { unlitTake(N, ub); } else { lqPush(N); } }
+}
+function unlitTake(n, ub) {
+  LT[n] = LT[n] - ub; rmN = rmN + 1;
+  if (rmN > RMI.length) { RMI.push(n); RMV.push(ub); } else { RMI[rmN] = n; RMV[rmN] = ub; }
+  // (a light of its own: back, and spread again)
+  let uo = BLIT[W[n] + 1];
+  if (uo > 0) { LT[n] = LT[n] + uo; lqPush(n); }
+}
 function blockLightSet(x, y, z, e) {
   if (y >= 0 && y < WY && cLit(x, z) == 1) {
     let i = wi(x, y, z), cur = mod(LT[i], 16), sk = LT[i] - cur;
     if (e > cur) { LT[i] = sk + e; lqPush(i); lightSpread(1); }
     if (e < cur) {
       LT[i] = sk;
-      RMX = []; RMY = []; RMZ = []; RML = [];
-      RMX.push(x); RMY.push(y); RMZ.push(z); RML.push(cur);
-      let h = 1;
-      while (h <= RMX.length && h < 6000) {
-        let cx = RMX[h], cy = RMY[h], cz = RMZ[h], l = RML[h], d = 0;
-        while (d < 6) {
-          let nx = cx + DX6[d + 1], ny = cy + DY6[d + 1], nz = cz + DZ6[d + 1];
-          if (ny >= 0 && ny < WY) { if (cLit(nx, nz) == 1) {
-            let j = wi(nx, ny, nz), bl = mod(LT[j], 16);
-            if (bl > 0) {
-              if (bl < l) {
-                LT[j] = LT[j] - bl; RMX.push(nx); RMY.push(ny); RMZ.push(nz); RML.push(bl);
-                // (a light of its own: back, and spread again)
-                let own = BLIT[W[j] + 1];
-                if (own > 0) { LT[j] = LT[j] + own; lqPush(j); }
-              } else { lqPush(j); }
-            }
-          } }
-          d = d + 1;
-        }
+      rmN = 1;
+      if (RMI.length == 0) { RMI.push(i); RMV.push(cur); } else { RMI[1] = i; RMV[1] = cur; }
+      let h = 1, n = 0, t = 0;
+      while (h <= rmN && h < 6000) {
+        let ci = RMI[h], l = RMV[h], yy = mod(ci - 1, WY), col = idiv(ci - 1, WY), lz = mod(col, WS), lx = idiv(col, WS);
+        if (yy > 0) { n = ci - 1; M_unlit(n, l); }
+        if (yy < WY - 1) { n = ci + 1; M_unlit(n, l); }
+        if (mod(lz, 16) != 0) { n = ci - WY; M_unlit(n, l); }
+        else { t = lz - 1; if (t < 0) { t = WS - 1; } if (litNext(lx, lz, lx, t, 0, 0 - 1) == 1) { n = (lx * WS + t) * WY + yy + 1; M_unlit(n, l); } }
+        if (mod(lz, 16) != 15) { n = ci + WY; M_unlit(n, l); }
+        else { t = lz + 1; if (t >= WS) { t = 0; } if (litNext(lx, lz, lx, t, 0, 1) == 1) { n = (lx * WS + t) * WY + yy + 1; M_unlit(n, l); } }
+        if (mod(lx, 16) != 0) { n = ci - SXS; M_unlit(n, l); }
+        else { t = lx - 1; if (t < 0) { t = WS - 1; } if (litNext(lx, lz, t, lz, 0 - 1, 0) == 1) { n = (t * WS + lz) * WY + yy + 1; M_unlit(n, l); } }
+        if (mod(lx, 16) != 15) { n = ci + SXS; M_unlit(n, l); }
+        else { t = lx + 1; if (t >= WS) { t = 0; } if (litNext(lx, lz, t, lz, 1, 0) == 1) { n = (t * WS + lz) * WY + yy + 1; M_unlit(n, l); } }
         h = h + 1;
       }
       if (e > 0) { LT[i] = sk + e; lqPush(i); }
       lightSpread(1);
-      RMX = []; RMY = []; RMZ = []; RML = [];
     }
   }
 }
@@ -1367,6 +1392,8 @@ function sparkReady(pcx, pcz) {
   let s = 1, n = 0;
   if (ckVer != rdVer || pcx != rdPX || pcz != rdPZ || keepOn != rdKeep || simR != rdSim) {
     rdVer = ckVer; rdPX = pcx; rdPZ = pcz; rdKeep = keepOn; rdSim = simR;
+    // ((11-28) what the wires knew of the cells round them is let go: chunks came or went, or may work now)
+    wnClear();
     while (s <= NCH * NCH) {
       let r = 0;
       if (CKST[s] >= 3) {
@@ -1482,7 +1509,7 @@ function genStart(s) {
   while (i <= NCH * NCH) { if (CKST[i] > 0) { chunkDrop(i); } i = i + 1; }
   EDX = []; EDY = []; EDZ = []; EDB = []; EDD = []; edIndex();
   // ((11-26) nothing kept, the cells hashed where they are)
-  keepClear(); hoX = 0; hoY = 0; hoZ = 0;
+  keepClear(); hashSet(0, 0, 0, 0);
   // (and no comparator's output of the world before)
   CMX = []; CMY = []; CMZ = []; CMD = []; CML = [];
   // (nor a torch's goings-out, nor a light waiting to be worked out)

@@ -16,14 +16,16 @@ export const SS = Number(process.env.SS || 2);                       // picture 
 export const W = 480 * SS, H = 270 * SS;
 const OBJECTS = ['pen', 'view', 'hud', 'bar', 'txt'];     // back to front (view, hud: the SPLIT build)
 
-export function createSim({ consts = {}, listMax = 1e8 } = {}) {
+export function createSim({ consts = {}, listMax = 1e8, hook = null } = {}) {
     // ((v3.4) the tests were written on the land before v3.4 (their places are its places): the sim keeps
     // it unless a test asks for the new one (GENV: 2 or more) or the whole run does (the environment's GENV).
     // (v3.5) And with the old land its world: 128 high, the sea at 30 (build.mjs allConsts).)
     if (consts.GENV === undefined) { consts = { ...consts, GENV: process.env.GENV ? Number(process.env.GENV) : 1 }; }
     const C = allConsts({ SIMRUN: 1, ...consts });
     const { src } = sources(C);
-    const js = Object.entries(C).map(([k, v]) => `const ${k}=${JSON.stringify(v)};`).join('\n') + '\n' + compileToJS([src]);
+    let js = Object.entries(C).map(([k, v]) => `const ${k}=${JSON.stringify(v)};`).join('\n') + '\n' + compileToJS([src]);
+    // (hook: the program's JS changed before it is run - a tool that counts calls puts its counters in)
+    if (hook) js = hook(js);
     const keys = new Set();
     const mouse = { x: 0, y: 0, down: false };
     const sounds = []; let soundRate = 1;

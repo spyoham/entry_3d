@@ -1,6 +1,6 @@
 // (v3.5, 11-26) A world save of the genre's Java edition (1.13 .. 1.16.5 and on: mcworld.mjs) into Block World's
 // map data, the text pasted on the new-world or new-server screen (src/mapdata.js):
-//   node mc2bw.mjs <world folder> <out.txt> [dx=..] [dy=0] [dz=..] [ymin=..] [flat=...] [box=x0,y0,z0,x1,y1,z1] [keep=0]
+//   node mc2bw.mjs <world folder> <out.txt> [dx=..] [dy=0] [dz=..] [ymin=..] [flat=...] [box=x0,y0,z0,x1,y1,z1] [keep=0] [mirror=0]
 // The save's flat layers are the map's (a flat world of the same layers), and every block over them goes into
 // the map at (x + dx, y + dy, z + dz) with the block of this world that is the same thing: the spark parts by
 // their state (power, facing, delay, mode, lit), slabs by their half, the rest by their name. What this world
@@ -11,12 +11,17 @@
 // keep made (keep=: a machine wider than the circle of chunks round the player works whole), and how far it
 // was moved (hash=: its wires settle in the order they did where it was made). Without dx and dz the map is
 // moved less than a chunk each way, to where the machine takes the fewest chunks (keep=0: no chunks kept).
+// (11-28) The map is put down MIRRORED, east for west: a cell (x, y, z) of the save at (dx - x, y + dy, z + dz), a
+// part facing east facing -x. Block World is the genre's world seen in a mirror (looking along +z, +x is to the
+// right here, east to the left there), so a map put down cell for cell showed its writing and its numbers
+// backwards. hash= then ends with a 1 and the game tells its parts in the mirrored order (power.js hashSet), so
+// the machine does what it did. mirror=0: cell for cell, as the maps made before were.
 import fs from 'node:fs';
 import { createSim } from './sim.mjs';
 import { readLevel, eachBlock, eachChunk } from './mcworld.mjs';
 
 // D6 of this world: 0 -x, 1 +x, 2 -y, 3 +y, 4 -z, 5 +z (power.js)
-const D6 = { west: 0, east: 1, down: 2, up: 3, north: 4, south: 5 }, OP = [1, 0, 3, 2, 5, 4];
+const D6N = { west: 0, east: 1, down: 2, up: 3, north: 4, south: 5 }, D6M = { west: 1, east: 0, down: 2, up: 3, north: 4, south: 5 }, OP = [1, 0, 3, 2, 5, 4];
 const RS = { wire: 1, repeater: 2, comparator: 3, torch: 4, lever: 5, button: 6, block: 8, piston: 11, head: 12, lamp: 13 };
 
 export function bwTables() {
@@ -31,7 +36,8 @@ export function bwTables() {
   return T;
 }
 // the block of this world for a block of the save: a number, or -1 (nothing here is it)
-export function makeMapper(T) {
+export function makeMapper(T, mirror = 0) {
+  const D6 = mirror ? D6M : D6N;
   const kindOf = (key) => { const k = T.byKey.get(key); if (k === undefined) throw new Error('no block ' + key); return k; };
   const find = (key, test) => { const k = kindOf(key); for (const b of T.kind.get(k)) if (test(b)) return b; throw new Error('no variant of ' + key); };
   const on = (p) => (p.powered === 'true' || p.lit === 'true' || p.extended === 'true' ? 1 : 0);
@@ -85,7 +91,9 @@ function chunksOf(cells, dx, dz) {
   const xs = list.map((c) => c[0]), zs = list.map((c) => c[1]);
   return { list, spanX: Math.max(...xs) - Math.min(...xs) + 1, spanZ: Math.max(...zs) - Math.min(...zs) + 1 };
 }
-export function convert(dir, { dx, dy = 0, dz, ymin, flat, box, signs: signWords, keep = 1 } = {}) {
+export function convert(dir, { dx, dy = 0, dz, ymin, flat, box, signs: signWords, keep = 1, mirror = 1 } = {}) {
+  // (a cell's x of the save, as the map has it before it is moved by dx)
+  const mx = (x) => (mirror ? -x : x);
   const L = readLevel(dir);
   // the flat layers of the save (1.13 .. 1.15: generatorOptions.layers; 1.16: WorldGenSettings)
   let layers = null;
@@ -94,7 +102,7 @@ export function convert(dir, { dx, dy = 0, dz, ymin, flat, box, signs: signWords
   const wg = L.WorldGenSettings && L.WorldGenSettings.dimensions && L.WorldGenSettings.dimensions['minecraft:overworld'];
   if (!layers && wg && wg.generator && wg.generator.settings && wg.generator.settings.layers) layers = wg.generator.settings.layers;
   if (!layers && !flat) throw new Error('the save is not a flat world: give flat=... and ymin=...');
-  const T = bwTables(), map = makeMapper(T);
+  const T = bwTables(), map = makeMapper(T, mirror);
   if (!flat) flat = layers.map((l) => { const n = String(l.block).replace(/^minecraft:/, ''); if (!T.byKey.has(n)) throw new Error('no block for the layer ' + n); return (l.height > 1 ? l.height + '*' : '') + n; }).join(',');
   if (ymin === undefined) ymin = layers ? layers.reduce((a, l) => a + Number(l.height), 0) : 0;
   const raw = [], skipped = {}, bb = [1e9, 1e9, 1e9, -1e9, -1e9, -1e9];
@@ -103,20 +111,30 @@ export function convert(dir, { dx, dy = 0, dz, ymin, flat, box, signs: signWords
     if (box && (x < box[0] || y < box[1] || z < box[2] || x > box[3] || y > box[4] || z > box[5])) return;
     const b = map(name, p);
     if (b < 0) { skipped[name] = (skipped[name] || 0) + 1; return; }
-    raw.push([x, y, z, PART.test(name) ? 1 : 0, b]);
+    raw.push([mx(x), y, z, PART.test(name) ? 1 : 0, b]);
   });
   // (not told where: moved less than a chunk each way, to where the machine is in the fewest chunks)
+  // ((11-28) and first of all to where none of its chunks is more than six from the chunk the player begins in:
+  // the game's simulation distance at its most holds the machine whole from there. The calculator was within
+  // that by a cell's luck where it was first put; mirrored it reached a chunk too far.)
+  const P0 = L.Player && L.Player.Pos ? L.Player.Pos : null;
   if (dx === undefined || dz === undefined) {
     let best = null;
     for (let a = 0; a < 16; a++) for (let c = 0; c < 16; c++) {
       if ((dx !== undefined && a !== ((dx % 16) + 16) % 16) || (dz !== undefined && c !== ((dz % 16) + 16) % 16)) continue;
-      const k = chunksOf(raw, a, c), cost = Math.max(k.spanX, k.spanZ) * 10000 + (k.spanX + k.spanZ) * 100 + k.list.length;
+      const k = chunksOf(raw, a, c);
+      let far = 0;
+      if (P0) { const sx = Math.floor((mirror ? a + 1 - P0[0] : P0[0] + a) / 16), sz = Math.floor((P0[2] + c) / 16); for (const [cx, cz] of k.list) if (Math.abs(cx - sx) > 6 || Math.abs(cz - sz) > 6) far++; }
+      const cost = far * 10000000 + Math.max(k.spanX, k.spanZ) * 10000 + (k.spanX + k.spanZ) * 100 + k.list.length;
       if (!best || cost < best.cost) best = { a, c, cost };
     }
     if (dx === undefined) dx = best.a;
     if (dz === undefined) dz = best.c;
   }
   const kept = chunksOf(raw, dx, dz);
+  // (how many of its chunks are more than six from the player's: the simulation distance alone does not hold those)
+  kept.far = 0;
+  if (P0) { const sx = Math.floor((mirror ? dx + 1 - P0[0] : P0[0] + dx) / 16), sz = Math.floor((P0[2] + dz) / 16); for (const [cx, cz] of kept.list) if (Math.abs(cx - sx) > 6 || Math.abs(cz - sz) > 6) kept.far++; }
   const out = [];
   for (const [x, y, z, , b] of raw) {
     const X = x + dx, Y = y + dy, Z = z + dz;
@@ -129,36 +147,37 @@ export function convert(dir, { dx, dy = 0, dz, ymin, flat, box, signs: signWords
   eachChunk(dir, (c) => { for (const t of c.blockEntities) if (t.id === 'minecraft:sign' && t.y >= ymin) {
     let w = signText(t);
     if (signWords && signWords[w] !== undefined) w = signWords[w];
-    if (w) signs.push(`${t.x + dx},${t.y + dy},${t.z + dz},0^${enc(w)}`);
+    if (w) signs.push(`${mx(t.x) + dx},${t.y + dy},${t.z + dz},0^${enc(w)}`);
   } });
   // the twelfth part: the place the cells are hashed at, where the player stood and looked, the chunks kept, the comparators
-  const more = [`hash=${-dx},${-dy},${-dz}`];
+  const more = [mirror ? `hash=${dx},${-dy},${-dz},1` : `hash=${-dx},${-dy},${-dz}`];
   const P = L.Player;
   let spawn = null;
   if (P && P.Pos) {
-    // (the genre's yaw: 0 south, 90 west; here 0 is +z and 90 +x)
-    const yaw = P.Rotation ? ((Math.round(360 - P.Rotation[0]) % 360) + 360) % 360 : -1;
-    spawn = [Math.round((P.Pos[0] + dx) * 10) / 10, Math.round(P.Pos[1] + dy), Math.round((P.Pos[2] + dz) * 10) / 10, yaw];
+    // (the genre's yaw: 0 south, 90 west; here 0 is +z and 90 +x - which is west in the mirror)
+    const yaw = P.Rotation ? ((Math.round(mirror ? P.Rotation[0] : 360 - P.Rotation[0]) % 360) + 360) % 360 : -1;
+    // (a point of the cell x .. x + 1 is in the mirror a point of dx - x .. dx - x + 1)
+    spawn = [Math.round((mirror ? dx + 1 - P.Pos[0] : P.Pos[0] + dx) * 10) / 10, Math.round(P.Pos[1] + dy), Math.round((P.Pos[2] + dz) * 10) / 10, yaw];
     more.push('spawn=' + spawn.join(','));
   }
   if (keep) more.push('keep=' + kept.list.map((c) => c.join(',')).join(','));
   const cmp = [];
-  eachChunk(dir, (c) => { for (const t of c.blockEntities) if (t.id === 'minecraft:comparator' && t.y >= ymin && t.OutputSignal > 0) cmp.push([t.x + dx, t.y + dy, t.z + dz, t.OutputSignal].join(',')); });
+  eachChunk(dir, (c) => { for (const t of c.blockEntities) if (t.id === 'minecraft:comparator' && t.y >= ymin && t.OutputSignal > 0) cmp.push([mx(t.x) + dx, t.y + dy, t.z + dz, t.OutputSignal].join(',')); });
   if (cmp.length) more.push('cmp=' + cmp.join(','));
   const text = `BWMAP1|1|${flat}|3|0|${out.length ? out.map((e) => e.join(',') + ',0').join(';') + ';' : '-'}|-|${signs.length ? signs.join('~') : '-'}|-|-|-|${more.join(';')}`;
-  return { text, blocks: out.length, signs: signs.length, skipped, box: bb, flat, cells: out, dx, dy, dz, kept, spawn, comparators: cmp.length };
+  return { text, blocks: out.length, signs: signs.length, skipped, box: bb, flat, cells: out, dx, dy, dz, kept, spawn, comparators: cmp.length, mirror: mirror ? 1 : 0 };
 }
 
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/').split('/').pop())) {
   const [dir, outFile, ...rest] = process.argv.slice(2);
-  if (!dir || !outFile) { console.log('node mc2bw.mjs <world folder> <out.txt> [dx=0] [dy=0] [dz=0] [ymin=n] [flat=layers] [box=x0,y0,z0,x1,y1,z1]'); process.exit(0); }
+  if (!dir || !outFile) { console.log('node mc2bw.mjs <world folder> <out.txt> [dx=0] [dy=0] [dz=0] [ymin=n] [flat=layers] [box=x0,y0,z0,x1,y1,z1] [keep=0] [mirror=0]'); process.exit(0); }
   const o = {};
   for (const a of rest) { const [k, v] = a.split('='); o[k] = k === 'flat' ? v : k === 'box' ? v.split(',').map(Number) : Number(v); }
   const r = convert(dir, o);
   fs.writeFileSync(outFile, r.text);
   console.log(`${r.blocks} blocks, ${r.signs} signs, ${r.text.length} letters -> ${outFile}`);
-  console.log(`layers ${r.flat} | moved by ${r.dx}, ${r.dy}, ${r.dz} | x ${r.box[0]}..${r.box[3]}, y ${r.box[1]}..${r.box[4]}, z ${r.box[2]}..${r.box[5]}`);
-  console.log(`chunks ${r.kept.list.length} (${r.kept.spanX} by ${r.kept.spanZ}${r.kept.spanX > 9 || r.kept.spanZ > 9 ? ' - wider than the window of chunks holds with the player by it' : ''}) | the player at ${r.spawn ? r.spawn.join(', ') : '-'} | comparators on ${r.comparators}`);
+  console.log(`layers ${r.flat} | ${r.mirror ? 'mirrored (east for west), then ' : ''}moved by ${r.dx}, ${r.dy}, ${r.dz} | x ${r.box[0]}..${r.box[3]}, y ${r.box[1]}..${r.box[4]}, z ${r.box[2]}..${r.box[5]}`);
+  console.log(`chunks ${r.kept.list.length} (${r.kept.spanX} by ${r.kept.spanZ}${r.kept.spanX > 9 || r.kept.spanZ > 9 ? ' - wider than the window of chunks holds with the player by it' : ''}${r.kept.far ? ' - ' + r.kept.far + ' of them more than six chunks from where the player begins: the simulation distance alone will not hold the machine' : ', all within six of the player\'s'}) | the player at ${r.spawn ? r.spawn.join(', ') : '-'} | comparators on ${r.comparators}`);
   const sk = Object.keys(r.skipped);
   if (sk.length) console.log('left out (no such block here): ' + sk.map((k) => k + ' ' + r.skipped[k]).join(', '));
 }

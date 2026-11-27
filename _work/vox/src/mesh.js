@@ -364,7 +364,7 @@ function remeshSome(n) {
 // (a spark wire: the sides it points to, power.js)
 function connOf(x, y, z, b) {
   let c = BCONN[b + 1], r = 0;
-  if (c == 4) { r = wireArms(x, y, z); }
+  if (c == 4) { r = wireArmsC(x, y, z); }
   else {
     if (connTo(blockAt(x, y, z + 1), c) == 1) { r = r + 1; }
     if (connTo(blockAt(x + 1, y, z), c) == 1) { r = r + 2; }

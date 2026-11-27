@@ -147,7 +147,10 @@ function edLink(k) {
 // cell of one height fell into 512 of the 131,072 places - a floor of 3,600 blocks, a map's slab, did not fit within
 // the 64 tries and each of its cells was written as a new entry at every change. The column's number plus a
 // multiple of the height spreads them.)
-let ECK = [], ECV = [], ECN = 131072, ECMAX = 90000, ecOn = 0;
+// ((11-28) edDup: an entry may have been written for a cell that has one already - only then is there anything to
+// make short. With the cells' table on no cell is written twice, and a world of 58,000 changed blocks was gone
+// through twice at every save, a save every two minutes: seconds each on the page.)
+let ECK = [], ECV = [], ECN = 131072, ECMAX = 90000, ecOn = 0, edDup = 1;
 function edPush(x, y, z, b) {
   let k = 0, n = 0, f = 0, key = hsKey(x, y, z) + dim * 4000000000000, h = mod((x + 60000) * 120000 + z + 60000 + y * 2731 + dim * 7919, ECN) + 1, go = 1;
   if (ecOn == 1) {
@@ -170,11 +173,14 @@ function edPush(x, y, z, b) {
     EDX.push(x); EDY.push(y); EDZ.push(z); EDB.push(b); EDD.push(dim); EDN.push(0);
     edLink(EDX.length);
     // (its place among the cells: the free one the search ended at)
-    if (ecOn == 1) { if (go == 0) { ECK[h] = key; ECV[h] = EDX.length; } if (EDX.length >= ECMAX) { ecOn = 0; } }
+    if (ecOn == 1) { if (go == 0) { ECK[h] = key; ECV[h] = EDX.length; } else { edDup = 1; } if (EDX.length >= ECMAX) { ecOn = 0; } }
+    else { edDup = 1; }
   }
 }
 // the whole index again (a new world, the log made short, a kept world read)
 function edIndex() {
+  // (whoever filled the log may have written a cell twice: edCompact, which has not, says so after)
+  edDup = 1;
   if (EKU.length == 0) { let i = 0; while (i < EKN) { EKK.push(0); EKV.push(0); EKU.push(0); i = i + 1; } }
   else { let i = 1; while (i <= EKN) { EKU[i] = 0; i = i + 1; } }
   EDN = [];
@@ -249,12 +255,19 @@ function edReview(cx, cz) {
 // (the last change of each cell is what counts; redstone and water write the same cells over and over)
 let EHK = [], EHG = [], EHV = [], ehGen = 0, EHN = 65536;
 function edCompact() {
-  if (EHK.length == 0) { let i = 0; while (i < EHN) { EHK.push(0); EHG.push(0); EHV.push(0); i = i + 1; } }
-  ehGen = ehGen + 1;
+  if (edDup == 1) { edCompactDo(); } else { edNext = Math.max(20000, EDX.length * 2); }
+}
+function edCompactDo() {
   let n = EDX.length, k = 1, used = 0;
+  // ((11-28) the table at least twice the log: it was 65,536 places whatever the log - a log of more cells than
+  // that found no place for the rest and DROPPED them (a map of 90,000 blocks kept as a world lost a third at its
+  // first save), and near that many it went round the table for every entry)
+  while (EHN < n * 2) { EHN = EHN * 2; }
+  while (EHK.length < EHN) { EHK.push(0); EHG.push(0); EHV.push(0); }
+  ehGen = ehGen + 1;
   // the last place of each cell
   while (k <= n) {
-    let key = hsKey(EDX[k], EDY[k], EDZ[k]) + EDD[k] * 4000000000000, h = mod(key, EHN) + 1, go = 1, t = 0;
+    let key = hsKey(EDX[k], EDY[k], EDZ[k]) + EDD[k] * 4000000000000, h = mod((EDX[k] + 60000) * 120000 + EDZ[k] + 60000 + EDY[k] * 2731 + EDD[k] * 7919, EHN) + 1, go = 1, t = 0;
     while (go == 1 && t < EHN) {
       if (EHG[h] != ehGen) { EHG[h] = ehGen; EHK[h] = key; EHV[h] = k; go = 0; used = used + 1; }
       else { if (EHK[h] == key) { EHV[h] = k; go = 0; } else { h = h + 1; if (h > EHN) { h = 1; } t = t + 1; } }
@@ -265,7 +278,7 @@ function edCompact() {
   let w = 0;
   k = 1;
   while (k <= n) {
-    let key = hsKey(EDX[k], EDY[k], EDZ[k]) + EDD[k] * 4000000000000, h = mod(key, EHN) + 1, go = 1, t = 0, last = 0;
+    let key = hsKey(EDX[k], EDY[k], EDZ[k]) + EDD[k] * 4000000000000, h = mod((EDX[k] + 60000) * 120000 + EDZ[k] + 60000 + EDY[k] * 2731 + EDD[k] * 7919, EHN) + 1, go = 1, t = 0, last = 0;
     while (go == 1 && t < EHN) {
       if (EHG[h] != ehGen) { go = 0; }
       else { if (EHK[h] == key) { last = EHV[h]; go = 0; } else { h = h + 1; if (h > EHN) { h = 1; } t = t + 1; } }
@@ -278,6 +291,7 @@ function edCompact() {
   }
   while (EDX.length > w) { EDX.removeAt(EDX.length); EDY.removeAt(EDY.length); EDZ.removeAt(EDZ.length); EDB.removeAt(EDB.length); EDD.removeAt(EDD.length); }
   edIndex();
+  edDup = 0;
   // (made short again when it has doubled: many cells really changed do not make it short)
   edNext = Math.max(20000, w * 2);
 }
@@ -331,6 +345,7 @@ function svWrite() {
   // ((v3.5, 11-26) what a map brought over came with: the place its cells are hashed at, the chunks kept made)
   // (before FLAT: the list of worlds looks for that one at the very end - worldHead)
   svN('HASH'); svN(hoX); svN(hoY); svN(hoZ);
+  svN('MIRX'); svN(hoM);
   svN('KEEP'); M_svL(KCX); M_svL(KCZ);
   svN('FLAT'); svN(flatKept());
   worldPut(worldCur);
@@ -399,7 +414,7 @@ function loadGame(k) {
     j = j + 1;
   }
   flatOn = 0; cheatsOn = 1; weSingle = 1;
-  keepClear(); hoX = 0; hoY = 0; hoZ = 0;
+  keepClear(); hashSet(0, 0, 0, 0);
   KVX = []; KVY = []; KVZ = []; KVK = []; KVV = []; LPX = []; LPY = []; LPZ = [];
   petsClear();
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'JE27') { svP = svP + 2; M_rdL(KVX); M_rdL(KVY); M_rdL(KVZ); M_rdL(KVK); M_rdL(KVV); M_rdL(LPX); M_rdL(LPY); M_rdL(LPZ); svP = svP - 1; } }
@@ -409,6 +424,8 @@ function loadGame(k) {
   while (KPG.length < KPT.length) { KPG.push(0); } while (KPC.length < KPT.length) { KPC.push(0); }
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'CHEAT') { svP = svP + 2; cheatsOn = rdN(); svP = svP - 1; } }
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'HASH') { svP = svP + 2; hoX = rdN(); hoY = rdN(); hoZ = rdN(); svP = svP - 1; } }
+  // ((11-28) the map was put down mirrored)
+  if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'MIRX') { svP = svP + 2; hashSet(hoX, hoY, hoZ, rdN()); svP = svP - 1; } }
   if (svP + 2 <= SVB.length) { if (SVB[svP + 1] == 'KEEP') {
     svP = svP + 2;
     let kn = rdN(), kq = 0;

@@ -7,8 +7,9 @@
 //   blocks: x,y,z,block,world;...      chests: x,y,z,world^27 slots id.n.wear,...~...
 //   signs and command blocks: x,y,z,world^text~...      kept mobs: 11 numbers each;...      (an empty part: -)
 //   (v3.5, 11-26) more (a twelfth part, a map without it is read as before): name=numbers;name=numbers...
-//     hash=x,y,z   what is added to a cell before the wire's hashing (power.js hashPlace): a machine of the
-//                  genre moved from where it was made settles in the order it did there
+//     hash=x,y,z[,1]   what is added to a cell before the wire's hashing (power.js hashPlace): a machine of the
+//                  genre moved from where it was made settles in the order it did there; (11-28) with the 1 the
+//                  map is the genre's mirrored, east for west (the genre's x is the first number less this x)
 //     spawn=x,y,z,yaw   where the player begins        keep=cx,cz,cx,cz...   the chunks the world keeps made
 //     cmp=x,y,z,level,...   the outputs of the comparators that are on (they would read 15 till their first tick)
 // In a single game the player copies their world (with its kept animals and village folk); on a server
@@ -94,7 +95,7 @@ function mapOutWorld() {
   if (CAK.length == 0) { mpOut = `${mpOut}-`; }
   while (i <= CAK.length) { mpOut = `${mpOut}${CAK[i]};`; i = i + 1; }
   // ((11-26) what a map brought over came with, and the comparators' outputs)
-  mpOut = `${mpOut}|hash=${hoX},${hoY},${hoZ};spawn=${Math.round(spawnX * 10) / 10},${spawnY},${Math.round(spawnZ * 10) / 10},-1`;
+  mpOut = `${mpOut}|hash=${hoX},${hoY},${hoZ},${hoM};spawn=${Math.round(spawnX * 10) / 10},${spawnY},${Math.round(spawnZ * 10) / 10},-1`;
   if (KCX.length > 0) {
     mpOut = `${mpOut};keep=`;
     i = 1;
@@ -122,7 +123,7 @@ function mapMore(at) {
         let nm = substr(t, 1, eq - 1), q = 1;
         MPQ = [];
         if (eq < strlen(t)) { mapNums(substr(t, eq + 1, strlen(t)), 4); }
-        if (nm == 'hash') { if (MPQ.length >= 3) { hoX = MPQ[1]; hoY = MPQ[2]; hoZ = MPQ[3]; } }
+        if (nm == 'hash') { if (MPQ.length >= 3) { let hm = 0; if (MPQ.length >= 4) { hm = MPQ[4]; } hashSet(MPQ[1], MPQ[2], MPQ[3], hm); } }
         if (nm == 'spawn') { if (MPQ.length >= 3) { mpSpOn = 1; mpSpX = MPQ[1]; mpSpY = MPQ[2]; mpSpZ = MPQ[3]; if (MPQ.length >= 4) { mpYaw = MPQ[4]; } } }
         if (nm == 'keep') { while (q + 1 <= MPQ.length) { keepAdd(MPQ[q], MPQ[q + 1]); q = q + 2; } }
         if (nm == 'cmp') { while (q + 3 <= MPQ.length) { CMX.push(MPQ[q]); CMY.push(MPQ[q + 1]); CMZ.push(MPQ[q + 2]); CMD.push(0); CML.push(MPQ[q + 3]); q = q + 4; } }

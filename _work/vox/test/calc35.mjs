@@ -16,7 +16,9 @@ const file = process.argv[2] || process.env.MAP || new URL('../../../calculator_
 if (!fs.existsSync(file)) { console.log('no map (' + (file.pathname || file) + '): node mc2bw.mjs <save folder> <map.txt> makes one - nothing tested'); console.log('all ok'); process.exit(0); }
 const text = fs.readFileSync(file, 'utf8');
 const more = text.split('|')[11] || '';
-const [hx, , hz] = /hash=(-?\d+),(-?\d+),(-?\d+)/.exec(more).slice(1).map(Number), DX = -hx, DZ = -hz;
+const [hx, , hz] = /hash=(-?\d+),(-?\d+),(-?\d+)/.exec(more).slice(1).map(Number), DZ = -hz;
+// ((11-28) a map put down mirrored - hash= ends with a 1 - has the save's x at hx - x)
+const GX = (x) => (/hash=-?\d+,-?\d+,-?\d+,1/.test(more) ? hx - x : x - hx);
 let fails = 0;
 const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) fails++; };
 const s = createSim({ consts: { TESTRUN: 1, ANIMALS: 0, GENV: 3 } });
@@ -40,7 +42,7 @@ F(200);
 const cells = text.split('|')[5].split(';').filter(Boolean).map((e) => e.split(',').map(Number));
 { const W = s.peek('W'), WS = Math.round(Math.sqrt(W.length / 256)), md = (a) => ((a % WS) + WS) % WS; let d = 0; for (const [x, y, z, b] of cells) if (W[(md(x) * WS + md(z)) * 256 + y] !== b) d++; ok(d === 0 && s.peek('scN') === 0, `at rest every one of its ${cells.length} blocks is as it was saved (${d} other)`); }
 // the keys and the lamps (the save's own coordinates)
-const B = (x, y, z) => call((fn) => fn.blockAt(x + DX, y, z + DZ));
+const B = (x, y, z) => call((fn) => fn.blockAt(GX(x), y, z + DZ));
 const lampOn = s.peek('ITKEY').indexOf('spark_lamp') + 1;
 const SEG = { '1111110': 0, '0110000': 1, '1101101': 2, '1111001': 3, '0110011': 4, '1011011': 5, '1011111': 6, '1110000': 7, '1111111': 8, '1111011': 9, '0000000': ' ', '0000001': '-', '1110011': 9, '0011111': 6, '1110010': 7 };
 const lit = (x, y) => (B(x, y, 32) === lampOn ? 1 : 0);
@@ -49,8 +51,8 @@ const row = (y0, n) => { let r = ''; for (let k = n - 1; k >= 0; k--) r += digit
 const NUM = { 1: [87, 6], 2: [87, 5], 3: [87, 4], 4: [86, 6], 5: [86, 5], 6: [86, 4], 7: [85, 6], 8: [85, 5], 9: [85, 4], 0: [84, 5] };
 const OPS = { '+': -1, '-': -2, '*': -3, '/': -4, c: 1 };
 const rest = (max = 6000) => { let q = 0, n = 0; while (n < max && q < 60) { F(); n++; if (s.peek('scN') === 0 && s.peek('BEX').length === 0 && s.peek('MVX').length === 0) q++; else q = 0; } return n; };
-const press = (y, z) => { call((fn) => fn.buttonPress(33 + DX, y, z + DZ)); F(6); rest(); };
-const lever = () => { call((fn) => fn.leverToggle(33 + DX, 85, 2 + DZ, fn.blockAt(33 + DX, 85, 2 + DZ))); rest(); };
+const press = (y, z) => { call((fn) => fn.buttonPress(GX(33), y, z + DZ)); F(6); rest(); };
+const lever = () => { call((fn) => fn.leverToggle(GX(33), 85, 2 + DZ, fn.blockAt(GX(33), 85, 2 + DZ))); rest(); };
 const SUMS = (process.env.SUMS || '12+34,7-9,9-7,200-45,255+255,0+0,3*5,16*16,255*255,0*9,84/7,100/7,9/3').split(',').map((q) => /^(\d+)([-+*\/])(\d+)$/.exec(q)).map((m) => [+m[1], m[2], +m[3]]);
 for (const [a, op, b] of SUMS) {
   press(85, OPS.c);
@@ -59,7 +61,7 @@ for (const [a, op, b] of SUMS) {
   for (const d of String(b)) press(...NUM[d]);
   const typed = row(93, 3) + ' ' + row(83, 3);
   const g0 = s.peek('gtNow');
-  call((fn) => fn.buttonPress(33 + DX, 85, OPS[op] + DZ)); F(6); rest();
+  call((fn) => fn.buttonPress(GX(33), 85, OPS[op] + DZ)); F(6); rest();
   // (a quotient is shown to two places, cut off: 100 / 7 = 14.28 on the lamps as 1428)
   const want = op === '+' ? a + b : op === '-' ? a - b : op === '*' ? a * b : Math.floor(a * 100 / b), got = row(71, 5);
   ok(typed === `${a} ${b}` && got === String(want), `${a} ${op} ${b} = ${got} (typed ${typed}; ${s.peek('gtNow') - g0} game ticks)`);

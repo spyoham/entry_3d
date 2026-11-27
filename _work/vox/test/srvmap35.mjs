@@ -144,17 +144,19 @@ ok(A.g('KCX').length === nk, `her game keeps the map's ${nk} chunks made`);
 ok(join(B, '계산기'), 'bob comes in');
 { let n = 0; while (n < 120 && (differ(B).made < cells.length || differ(B).other > 0)) { run(1); n++; } const d = differ(B); ok(d.made === cells.length && d.other === 0, `and in his (${d.made}, ${d.other} other; ${n} s)`); }
 if (calc) {
-  const [hx, , hz] = /hash=(-?\d+),(-?\d+),(-?\d+)/.exec(more).slice(1).map(Number), DX = -hx, DZ = -hz;
+  const [hx, , hz] = /hash=(-?\d+),(-?\d+),(-?\d+)/.exec(more).slice(1).map(Number), DZ = -hz;
+  // ((11-28) a map put down mirrored - hash= ends with a 1 - has the save's x at hx - x)
+  const GX = (x) => (/hash=-?\d+,-?\d+,-?\d+,1/.test(more) ? hx - x : x - hx);
   const lampOn = A.g('ITKEY').indexOf('spark_lamp') + 1;
   const SEG = { '1111110': 0, '0110000': 1, '1101101': 2, '1111001': 3, '0110011': 4, '1011011': 5, '1011111': 6, '1110000': 7, '1111111': 8, '1111011': 9, '0000000': ' ', '0000001': '-', '1110011': 9, '0011111': 6, '1110010': 7 };
-  const show = (c) => { const lit = (x, y) => (blockSeen(c, x + DX, y, 32 + DZ) === lampOn ? 1 : 0); const digit = (i, y0) => { const x0 = 29 + 8 * i; const key = '' + lit(x0 + 2, y0 + 8) + lit(x0, y0 + 6) + lit(x0, y0 + 2) + lit(x0 + 2, y0) + lit(x0 + 4, y0 + 2) + lit(x0 + 4, y0 + 6) + lit(x0 + 2, y0 + 4); return key in SEG ? SEG[key] : '?'; }; let r = ''; for (let i = 4; i >= 0; i--) r += digit(i, 71); return r.replace(/ /g, ''); };
+  const show = (c) => { const lit = (x, y) => (blockSeen(c, GX(x), y, 32 + DZ) === lampOn ? 1 : 0); const digit = (i, y0) => { const x0 = 29 + 8 * i; const key = '' + lit(x0 + 2, y0 + 8) + lit(x0, y0 + 6) + lit(x0, y0 + 2) + lit(x0 + 2, y0) + lit(x0 + 4, y0 + 2) + lit(x0 + 4, y0 + 6) + lit(x0 + 2, y0 + 4); return key in SEG ? SEG[key] : '?'; }; let r = ''; for (let i = 4; i >= 0; i--) r += digit(i, 71); return r.replace(/ /g, ''); };
   const NUM = { 1: [87, 6], 2: [87, 5], 3: [87, 4], 4: [86, 6], 5: [86, 5], 6: [86, 4], 7: [85, 6], 8: [85, 5], 9: [85, 4], 0: [84, 5] };
   const OPS = { '+': -1, '-': -2, '*': -3, '/': -4, c: 1 };
   const busy = (c) => c.g('scN') + c.g('BEX').length + c.g('MVX').length;
   const rest = () => { let q = 0, n = 0; while (n < 3000 && q < 90) { run(1 / 60); n++; if (busy(A) + busy(B) === 0) q++; else q = 0; } };
   // (a key pressed as a player does: the press goes to the others as an event)
-  const press = (c, y, z) => { c.call((fn) => { c.sim.poke('netUserAct', 1); fn.buttonPress(33 + DX, y, z + DZ); c.sim.poke('netUserAct', 0); }); run(0.3); rest(); };
-  const lever = (c) => { c.call((fn) => { c.sim.poke('netUserAct', 1); fn.leverToggle(33 + DX, 85, 2 + DZ, fn.blockAt(33 + DX, 85, 2 + DZ)); c.sim.poke('netUserAct', 0); }); run(0.3); rest(); };
+  const press = (c, y, z) => { c.call((fn) => { c.sim.poke('netUserAct', 1); fn.buttonPress(GX(33), y, z + DZ); c.sim.poke('netUserAct', 0); }); run(0.3); rest(); };
+  const lever = (c) => { c.call((fn) => { c.sim.poke('netUserAct', 1); fn.leverToggle(GX(33), 85, 2 + DZ, fn.blockAt(GX(33), 85, 2 + DZ)); c.sim.poke('netUserAct', 0); }); run(0.3); rest(); };
   rest();
   for (const [a, op, b, who] of [[12, '+', 34, A], [3, '*', 5, B], [100, '/', 7, A]]) {
     press(who, 85, OPS.c);

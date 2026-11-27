@@ -17,7 +17,9 @@ buildProject(file, { name: 'tesscalc', more: { TESTRUN: 1, ANIMALS: 0 } });
 const text = process.env.KEEP === '0' ? fs.readFileSync(process.argv[2], 'utf8').replace(/;keep=[-\d,]*/, '') : fs.readFileSync(process.argv[2], 'utf8');
 const sums = (process.argv[3] || '12+34,200-45,3*5,100/7').split(',');
 // (how far the map was moved: its twelfth part says)
-const [hx, , hz] = /hash=(-?\d+),(-?\d+),(-?\d+)/.exec(text).slice(1).map(Number), DX = -hx, DZ = -hz;
+const [hx, , hz] = /hash=(-?\d+),(-?\d+),(-?\d+)/.exec(text).slice(1).map(Number), DZ = -hz;
+// ((11-28) a map put down mirrored - hash= ends with a 1 - has the save's x at hx - x)
+const GX = (x) => (/hash=-?\d+,-?\d+,-?\d+,1/.test(text) ? hx - x : x - hx);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const PORT = 3100;
 await fetch(`http://localhost:${PORT}/load?file=${encodeURIComponent(file)}`).then((r) => r.text()).then((t) => { if (t !== 'ok') throw new Error(t); });
@@ -60,7 +62,7 @@ console.log('at rest: ticks a second', await V('tpsShow'), 'frames', await V('fp
 await set('helpT', 0);
 await shot('tesscalc_keys.png');
 const KEY = await Lst('ITKEY');
-const blockAt = async (x, y, z) => { await set('tX', x + DX); await set('tY', y); await set('tZ', z + DZ); await set('testCmd', 14); await sleep(120); return KEY[+(await V('tStage'))]; };
+const blockAt = async (x, y, z) => { await set('tX', GX(x)); await set('tY', y); await set('tZ', z + DZ); await set('testCmd', 14); await sleep(120); return KEY[+(await V('tStage'))]; };
 const SEG = { '1111110': 0, '0110000': 1, '1101101': 2, '1111001': 3, '0110011': 4, '1011011': 5, '1011111': 6, '1110000': 7, '1111111': 8, '1111011': 9, '0000000': ' ', '0000001': '-', '1110011': 9, '0011111': 6, '1110010': 7 };
 const lit = async (x, y) => ((await blockAt(x, y, 32)) === 'spark_lamp_on' ? 1 : 0);
 const digit = async (k, y0) => { const x0 = 29 + 8 * k; let key = ''; for (const [a, b] of [[2, 8], [0, 6], [0, 2], [2, 0], [4, 2], [4, 6], [2, 4]]) key += await lit(x0 + a, y0 + b); return key in SEG ? SEG[key] : '?'; };
@@ -70,8 +72,8 @@ const row = async (y0, n) => { let r = ''; for (let k = n - 1; k >= 0; k--) r +=
 const waits = [];
 const rest = async (max = 60000) => { const t0 = Date.now(); let quiet = 0; while (Date.now() - t0 < max && quiet < 3) { await sleep(150); const busy = await page.evaluate(() => { const v = (n) => +window.__vm.variables.find((q) => q.name === n && !q.isList).value, l = (n) => window.__vm.variables.find((q) => q.name === n && q.isList).array.length; return v('scN') + l('BEX') + l('MVX'); }); quiet = busy === 0 ? quiet + 1 : 0; if (busy > 0 && Date.now() - t0 > 2500) { const f = +(await V('fpsShow')); if (f > 0 && f < lowF) lowF = f; } } return Date.now() - t0 - 450; };
 let lowF = 99;
-const press = async (y, z) => { const g0 = +(await V('gtNow')); await set('tX', 33 + DX); await set('tY', y); await set('tZ', z + DZ); await set('testCmd', 27); await sleep(300); const ms = await rest(); waits.push([ms, +(await V('gtNow')) - g0]); };
-const lever = async () => { await set('tX', 33 + DX); await set('tY', 85); await set('tZ', 2 + DZ); await set('testCmd', 28); await sleep(300); await rest(); };
+const press = async (y, z) => { const g0 = +(await V('gtNow')); await set('tX', GX(33)); await set('tY', y); await set('tZ', z + DZ); await set('testCmd', 27); await sleep(300); const ms = await rest(); waits.push([ms, +(await V('gtNow')) - g0]); };
+const lever = async () => { await set('tX', GX(33)); await set('tY', 85); await set('tZ', 2 + DZ); await set('testCmd', 28); await sleep(300); await rest(); };
 const NUM = { 1: [87, 6], 2: [87, 5], 3: [87, 4], 4: [86, 6], 5: [86, 5], 6: [86, 4], 7: [85, 6], 8: [85, 5], 9: [85, 4], 0: [84, 5] };
 const OPS = { '+': -1, '-': -2, '*': -3, '/': -4, c: 1 };
 for (const q of sums) {
@@ -85,7 +87,7 @@ for (const q of sums) {
   // (PROF=<folder>: where the page's time goes while the sum is worked out - a .cpuprofile a sum)
   let cdp = null;
   if (process.env.PROF) { cdp = await page.context().newCDPSession(page); await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 500 }); await cdp.send('Profiler.start'); }
-  await set('tX', 33 + DX); await set('tY', 85); await set('tZ', OPS[m[2]] + DZ); await set('testCmd', 27); await sleep(300);
+  await set('tX', GX(33)); await set('tY', 85); await set('tZ', OPS[m[2]] + DZ); await set('testCmd', 27); await sleep(300);
   const ms = (await rest(120000)) + 300, gt = +(await V('gtNow')) - g0;
   const tps = await V('tpsShow'), fps = await V('fpsShow');
   if (cdp) {

@@ -710,12 +710,21 @@ export function sources(C) {
     // and unpacked by bigInit. The work's project.json went 16.7 -> about 12 MB (the site takes 16).
     const PA = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/';
     const PKS = [], unpack = [], packed = new Set();
-    for (const [k, v] of Object.entries(L)) {
-        if (C.NOPACK || v.length < 64 || !v.every(x => typeof x === 'number' && Number.isInteger(x))) continue;
+    // ((v3.5, 11-28) And the lists of numbers with decimals - a block's hardness, an item's damage: kept as whole
+    // numbers of tenths .. ten-thousandths (S) and divided as they are unpacked. An item of a list in the work's
+    // file is some thirty letters whatever it holds: the four such lists of the blocks and items were 230 KB, and
+    // the work was within 60 KB of what the site takes. Five digits of 64 now, for the largest of them.)
+    for (const [k, v0] of Object.entries(L)) {
+        if (C.NOPACK || v0.length < 64 || !v0.every(x => typeof x === 'number' && Number.isFinite(x))) continue;
+        let S = 1;
+        while (S <= 10000 && !v0.every(x => Math.abs(x * S - Math.round(x * S)) < 1e-9)) S *= 10;
+        if (S > 10000) continue;
+        const v = v0.map(x => Math.round(x * S));
+        if (!v.every((x, i) => x / S === v0[i])) throw new Error('packing ' + k + ': a value does not come back as it was');
         let mn = v[0], mx = v[0];
         for (const x of v) { if (x < mn) mn = x; if (x > mx) mx = x; }
         let w = 1; while (64 ** w <= mx - mn) w++;
-        if (w > 4) continue;
+        if (w > 5) continue;
         const per = Math.floor(7999 / w), a = PKS.length + 1;
         for (let s = 0; s < v.length; s += per) {
             let t = 'P';
@@ -723,7 +732,7 @@ export function sources(C) {
             PKS.push(t);
         }
         // ((v3.0) one decoder fills UPK, each list only copies it: the function was 540 KB)
-        unpack.push(`  unpk(${a}, ${PKS.length}, ${w}, ${mn}); i = 1; while (i <= UPK.length) { ${k}.push(UPK[i]); i = i + 1; }`);
+        unpack.push(`  unpk(${a}, ${PKS.length}, ${w}, ${mn}); i = 1; while (i <= UPK.length) { ${k}.push(${S === 1 ? 'UPK[i]' : 'UPK[i] / ' + S}); i = i + 1; }`);
         parts.push(`let ${k} = [];`);
         packed.add(k);
     }

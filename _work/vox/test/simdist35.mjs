@@ -59,7 +59,9 @@ if (!fs.existsSync(file)) { console.log('no map (' + (file.pathname || file) + '
 {
   const text = fs.readFileSync(file, 'utf8').replace(/;keep=[-\d,]*/, '');
   const more = text.split('|')[11] || '';
-  const [hx, , hz] = /hash=(-?\d+),(-?\d+),(-?\d+)/.exec(more).slice(1).map(Number), DX = -hx, DZ = -hz;
+  const [hx, , hz] = /hash=(-?\d+),(-?\d+),(-?\d+)/.exec(more).slice(1).map(Number), DZ = -hz;
+  // ((11-28) a map put down mirrored - hash= ends with a 1 - has the save's x at hx - x)
+  const GX = (x) => (/hash=-?\d+,-?\d+,-?\d+,1/.test(more) ? hx - x : x - hx);
   const s = createSim({ consts: { TESTRUN: 1, ANIMALS: 0, GENV: 3 } });
   const F = (k = 1) => { for (let i = 0; i < k; i++) s.frame(); };
   const call = (f) => s.as('pen', () => f(s.fn));
@@ -79,7 +81,7 @@ if (!fs.existsSync(file)) { console.log('no map (' + (file.pathname || file) + '
   call((fn) => fn.simSet(6));
   { let n = 0; while (n < 4000 && there() < cells.length) { F(20); n += 20; } ok(there() === cells.length && other === 0, `at 6 all ${cells.length} are, ${n} frames on, each as it was saved (${other} other)`); }
   F(300);
-  const B = (x, y, z) => call((fn) => fn.blockAt(x + DX, y, z + DZ));
+  const B = (x, y, z) => call((fn) => fn.blockAt(GX(x), y, z + DZ));
   const lampOn = s.peek('ITKEY').indexOf('spark_lamp') + 1;
   const SEG = { '1111110': 0, '0110000': 1, '1101101': 2, '1111001': 3, '0110011': 4, '1011011': 5, '1011111': 6, '1110000': 7, '1111111': 8, '1111011': 9, '0000000': ' ', '0000001': '-', '1110011': 9, '0011111': 6, '1110010': 7 };
   const lit = (x, y) => (B(x, y, 32) === lampOn ? 1 : 0);
@@ -88,14 +90,14 @@ if (!fs.existsSync(file)) { console.log('no map (' + (file.pathname || file) + '
   const NUM = { 1: [87, 6], 2: [87, 5], 3: [87, 4], 4: [86, 6], 5: [86, 5], 6: [86, 4], 7: [85, 6], 8: [85, 5], 9: [85, 4], 0: [84, 5] };
   const OPS = { '+': -1, '-': -2, '*': -3, '/': -4, c: 1 };
   const rest = (max = 6000) => { let q = 0, n = 0; while (n < max && q < 60) { F(); n++; if (s.peek('scN') === 0 && s.peek('BEX').length === 0 && s.peek('MVX').length === 0) q++; else q = 0; } return n; };
-  const press = (y, z) => { call((fn) => fn.buttonPress(33 + DX, y, z + DZ)); F(6); rest(); };
-  const lever = () => { call((fn) => fn.leverToggle(33 + DX, 85, 2 + DZ, fn.blockAt(33 + DX, 85, 2 + DZ))); rest(); };
+  const press = (y, z) => { call((fn) => fn.buttonPress(GX(33), y, z + DZ)); F(6); rest(); };
+  const lever = () => { call((fn) => fn.leverToggle(GX(33), 85, 2 + DZ, fn.blockAt(GX(33), 85, 2 + DZ))); rest(); };
   for (const [a, op, b] of [[12, '+', 34], [7, '-', 9], [12, '*', 12], [100, '/', 7]]) {
     press(85, OPS.c);
     for (const d of String(a)) press(...NUM[d]);
     lever();
     for (const d of String(b)) press(...NUM[d]);
-    call((fn) => fn.buttonPress(33 + DX, 85, OPS[op] + DZ)); F(6); rest();
+    call((fn) => fn.buttonPress(GX(33), 85, OPS[op] + DZ)); F(6); rest();
     const want = op === '+' ? a + b : op === '-' ? a - b : op === '*' ? a * b : Math.floor(a * 100 / b), got = row(71, 5);
     ok(got === String(want), `at 6, with no chunks kept by the map: ${a} ${op} ${b} = ${got}`);
     lever();

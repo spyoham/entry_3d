@@ -119,9 +119,12 @@ const items = () => { const I = s.peek('IID'); return I.filter((q) => q > 0).len
 {
   const x0 = X + 18, z0 = Z - 20;
   placeAs(x0, Y, z0, 'lever'); useAt(x0, Y, z0); settle();
-  const it0 = items();
+  // ((11-28) the items by the dispenser: the world's count went up whenever a monster burning in the sun dropped
+  // its bone within these frames - once in a few runs)
+  const by = () => { const I = s.peek('IID'), XX = s.peek('IXX'), YY = s.peek('IYY'), ZZ = s.peek('IZZ'); let n = 0; I.forEach((q, i) => { if (q > 0 && Math.abs(XX[i] - x0 - 1.5) <= 6 && Math.abs(YY[i] - Y) <= 6 && Math.abs(ZZ[i] - z0 - 0.5) <= 6) n++; }); return n; };
+  const it0 = by();
   placeAs(x0 + 1, Y, z0, 'dispenser', 3, 270); const c = chestOf(x0 + 1, Y, z0); putIn(c, 1, ID('cobblestone'), 3); settle(); F(20);
-  ok(items() === it0 && slots(c) === 'cobblestonex3', 'a dispenser put by a lever already on does not fire (' + slots(c) + ')');
+  ok(by() === it0 && slots(c) === 'cobblestonex3', 'a dispenser put by a lever already on does not fire (' + slots(c) + ')');
 }
 // 6 wire on a glass stair carries power up but not down
 {
