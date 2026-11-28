@@ -136,6 +136,8 @@ function svBackDrop(k) {
     bbDrop(id);
     // (and the list of the pool its base was in is free again)
     baseGone(baseOf());
+    // ((11-28) and the one its machines' state was in)
+    baseGone(stOf());
     if (bkGone(id) == 0) { SY_gone.push(id); if (SY_gone.length > 64) { SY_gone.removeAt(1); } }
     if (svAuto() == 1) { svPut(0); }
   }

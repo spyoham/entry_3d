@@ -151,6 +151,16 @@ function edLink(k) {
 // make short. With the cells' table on no cell is written twice, and a world of 58,000 changed blocks was gone
 // through twice at every save, a save every two minutes: seconds each on the page.)
 let ECK = [], ECV = [], ECN = 131072, ECMAX = 90000, ecOn = 0, edDup = 1;
+// (v3.5, 11-28) On a server the spark engine's own changes were in nobody's record (the circuits run on every
+// screen: net.js netEdit) - a machine was, for whoever came back to an empty server, as its map or its builder's
+// hands had left it: the number typed into a calculator gone, and with the pistons alone written down (the piston
+// log of v3.2) a machine left at work came back broken. EDO, by the log's entries while on a server: the block a
+// cell had before the engine first changed it (-1: it had no entry; -2: the engine has not changed it). A cell
+// written by anyone's hand, or read from the server's record, is nobody's but theirs again (-2). The host writes
+// the cells that are other than they were into the server's state when its machines stand still (net.js stKeep);
+// stWorld: what is written now is the engine's (power.js rsStep) or that state being read; stDirty: something of
+// it changed since it was last written.
+let EDO = [], stWorld = 0, stDirty = 0;
 function edPush(x, y, z, b) {
   let k = 0, n = 0, f = 0, key = hsKey(x, y, z) + dim * 4000000000000, h = mod((x + 60000) * 120000 + z + 60000 + y * 2731 + dim * 7919, ECN) + 1, go = 1;
   if (ecOn == 1) {
@@ -168,9 +178,16 @@ function edPush(x, y, z, b) {
       k = EDN[k]; n = n + 1;
     }
   }
-  if (f > 0) { EDB[f] = b; }
+  if (f > 0) {
+    if (netSrv > 0) {
+      if (stWorld == 1) { if (EDO[f] == 0 - 2) { EDO[f] = EDB[f]; } stDirty = 1; }
+      else { if (EDO[f] != 0 - 2) { EDO[f] = 0 - 2; stDirty = 1; } }
+    }
+    EDB[f] = b;
+  }
   else {
     EDX.push(x); EDY.push(y); EDZ.push(z); EDB.push(b); EDD.push(dim); EDN.push(0);
+    if (netSrv > 0) { if (stWorld == 1) { EDO.push(0 - 1); stDirty = 1; } else { EDO.push(0 - 2); } }
     edLink(EDX.length);
     // (its place among the cells: the free one the search ended at)
     if (ecOn == 1) { if (go == 0) { ECK[h] = key; ECV[h] = EDX.length; } else { edDup = 1; } if (EDX.length >= ECMAX) { ecOn = 0; } }
@@ -258,7 +275,9 @@ function edCompact() {
   if (edDup == 1) { edCompactDo(); } else { edNext = Math.max(20000, EDX.length * 2); }
 }
 function edCompactDo() {
-  let n = EDX.length, k = 1, used = 0;
+  let n = EDX.length, k = 1, used = 0, eo = 0;
+  // ((11-28) on a server: what the engine changed goes along with its entry)
+  if (EDO.length == n) { eo = 1; }
   // ((11-28) the table at least twice the log: it was 65,536 places whatever the log - a log of more cells than
   // that found no place for the rest and DROPPED them (a map of 90,000 blocks kept as a world lost a third at its
   // first save), and near that many it went round the table for every entry)
@@ -286,10 +305,12 @@ function edCompactDo() {
     if (last == k) {
       w = w + 1;
       EDX[w] = EDX[k]; EDY[w] = EDY[k]; EDZ[w] = EDZ[k]; EDB[w] = EDB[k]; EDD[w] = EDD[k];
+      if (eo == 1) { EDO[w] = EDO[k]; }
     }
     k = k + 1;
   }
   while (EDX.length > w) { EDX.removeAt(EDX.length); EDY.removeAt(EDY.length); EDZ.removeAt(EDZ.length); EDB.removeAt(EDB.length); EDD.removeAt(EDD.length); }
+  if (eo == 1) { while (EDO.length > w) { EDO.removeAt(EDO.length); } }
   edIndex();
   edDup = 0;
   // (made short again when it has doubled: many cells really changed do not make it short)
@@ -378,6 +399,9 @@ function loadGame(k) {
   gameMode = rdN(); defMode = rdN();
   thingsInit();
   genStart(s);
+  // ((11-28) what the spark engine had yet to do is this world's only if it is the one just left and kept: power.js rsWorldNew)
+  if (rsOwn != k) { rsWorldNew(); }
+  rsOwn = 0;
   genPhase = 0; genVer = 0;
   difficulty = rdN();
   svDim = rdN(); svX = rdN(); svY = rdN(); svZ = rdN(); svYaw = rdN(); svPitch = rdN(); flying = rdN();

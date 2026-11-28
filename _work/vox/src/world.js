@@ -1507,7 +1507,7 @@ function genStart(s) {
   worldInit();
   let i = 1;
   while (i <= NCH * NCH) { if (CKST[i] > 0) { chunkDrop(i); } i = i + 1; }
-  EDX = []; EDY = []; EDZ = []; EDB = []; EDD = []; edIndex();
+  EDX = []; EDY = []; EDZ = []; EDB = []; EDD = []; EDO = []; edIndex();
   // ((11-26) nothing kept, the cells hashed where they are)
   keepClear(); hashSet(0, 0, 0, 0);
   // (and no comparator's output of the world before)

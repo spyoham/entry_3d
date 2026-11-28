@@ -187,19 +187,30 @@ let A = await player('alice', 'tab_t1');
 await sleep(6000);
 ok(+(await V(A, '?!')) === 1, 'the line is up: ?! ' + (await V(A, '?!')));
 if (BOBHOST) await draw(A, 0.99);
-await cmd(A, 11, SRV);
+// ((11-28) MAP1=<map.txt>: the server of the visits is made from that map - a large one has a base (mapdata.js))
+if (process.env.MAP1) { await set(A, '$CLIPBOARD', fs.readFileSync(process.env.MAP1, 'utf8').trim()); await cmd(A, 24, SRV); } else { await cmd(A, 11, SRV); }
 await draw(A, -1);
 ok(await until(async () => +(await V(A, 'gState')) === 2 && +(await V(A, 'netSt')) === 2, 90000), 'alice made the server and is in');
 await sleep(1500);
 const X = Math.floor(+(await V(A, 'px'))), Y = Math.floor(+(await V(A, 'py'))) + 3, Z = Math.floor(+(await V(A, 'pz')));
 await cmd(A, 8, `/setblock ${X} ${Y} ${Z} gold_block`);
 await cmd(A, 8, '/give @s diamond 7');
-await sleep(1200);
+// ((11-28) a machine: lamps on blocks of spark - lit by the engine, which is in nobody's record: the server keeps its
+// machines' state (net.js stKeep). One lamp (a line of the settings); LAMPS=1: 225 of them (a list of the pool))
+const KEY0 = await Lst(A, 'ITKEY'), lampLit = KEY0.indexOf('spark_lamp') + 1, LAMPS = process.env.LAMPS ? 1 : 0;
+if (LAMPS) { await cmd(A, 8, `/fill ${X + 6} ${Y} ${Z + 2} ${X + 20} ${Y} ${Z + 16} spark_block`); await cmd(A, 8, `/fill ${X + 6} ${Y + 1} ${Z + 2} ${X + 20} ${Y + 1} ${Z + 16} spark_lamp`); }
+else { await cmd(A, 8, `/setblock ${X + 4} ${Y} ${Z} spark_block`); await cmd(A, 8, `/setblock ${X + 3} ${Y} ${Z} spark_lamp`); }
+const LX = LAMPS ? X + 20 : X + 3, LY = LAMPS ? Y + 1 : Y, LZ = LAMPS ? Z + 16 : Z;
+await sleep(4500);
+ok((await blockAt(A, LX, LY, LZ)) === lampLit, 'the lamp is lit by the block of spark by it');
 const gold = await blockAt(A, X, Y, Z);
 await cmd(A, 15, '');
 await sleep(300);
 const k1 = await placeOf(A, SRV);
 const e1 = await Lst(A, '?!e' + k1), m1 = await Lst(A, '?!m' + k1);
+{ const eh = (m1 || []).find((s) => String(s).startsWith('E^h^')) || ''; let st = null; for (let q = 1; q <= 24; q++) { const l = await Lst(A, '?!b' + q); if (l && l.length >= 2 && String(l[0]).startsWith('S^')) st = l; }
+  if (LAMPS) ok(st && +String(st[0]).split('^')[2] >= 225 && !eh, `the machines' state is in a list of the pool: ${st ? String(st[0]) + ', ' + st.length + ' items' : 'none'}`);
+  else ok(eh && +eh.split('^')[2] >= 1 && !st, `the machines' state is in the settings: ${eh.slice(0, 40)} (${(m1 || []).filter((s) => String(s).startsWith('E^')).length} lines)`); }
 log('at leaving: place', k1, 'record', e1 && e1.length, 'settings', m1 && m1.length);
 await reload(A);
 await sleep(1500);
@@ -215,6 +226,8 @@ await cmd(A, 12, SRV);
 ok(await until(async () => +(await V(A, 'gState')) === 2 && +(await V(A, 'netSt')) === 2, 90000), 'alice in again');
 await sleep(2500);
 ok((await blockAt(A, X, Y, Z)) === gold && gold > 0, 'the block of the short visit is there');
+ok((await blockAt(A, LX, LY, LZ)) === lampLit, 'and the lamp is lit as it was left');
+{ const er = await A.page.evaluate(() => (window.__vm.errors || []).map((e) => String(e && e.message ? e.message : e))); ok(er.length === 0, 'no script stopped on an error ' + er.slice(0, 3).join(' | ')); }
 let inv = (await Lst(A, 'INVI')) || [];
 const KEY = await Lst(A, 'ITKEY');
 ok(inv.some((v) => KEY[+v] === 'diamond'), 'the diamonds of the short visit are there');

@@ -40,11 +40,22 @@ let EVI = [], EVT = [], evN = 0;
 // frame (/give @a to 13, a burst of chest slots) pushed the first out before it was ever sent. Now an
 // event stays 2 s at least, 48 at most, and never fewer than the last 12)
 let EVC = [];
+// ((v3.5, 11-28) And while the host's line stands still an event waits for it: a host whose screen stood for a few
+// seconds - less than the NSTALE after which another takes over - came back to lines that held the last two
+// seconds of each player, and what was built before that was in nobody's record: gone when the server was next
+// empty (test/net31.mjs, the screen that stood still - when it happened to be the host's: 12 of 30 blocks). An
+// event goes once the host's line has changed a second after it was made (the host was running, and has read
+// it); 96 at most meanwhile.)
 function evTrim() {
-  let go = 1;
+  let go = 1, cap = 48, hq = 0 - 1;
+  if (netSrv > 0) { if (netHost == 0) { let h = srvHost(netSrv); if (h > 0) { hq = NST[h]; cap = 96; } } }
   while (go == 1) {
     go = 0;
-    if (EVI.length > 12) { if (EVI.length > 48 || netClock - EVC[1] > 2) { EVI.removeAt(1); EVT.removeAt(1); EVC.removeAt(1); go = 1; } }
+    if (EVI.length > 12) {
+      let old = 0;
+      if (netClock - EVC[1] > 2) { old = 1; if (hq >= 0) { if (hq < EVC[1] + 1) { old = 0; } } }
+      if (EVI.length > cap || old == 1) { EVI.removeAt(1); EVT.removeAt(1); EVC.removeAt(1); go = 1; }
+    }
   }
 }
 let SPL = [], SPL2 = [];
@@ -310,15 +321,20 @@ let MPC = [], MPL = [], MGN = [], MGC = [];
 // ((v3.4, 11-22) and who put TNT: the same lists, MLK the kind (0 lava - an L line, 1 TNT - a T line))
 let MLN = [], MLC = [], MLD = [], MLP = [], MLK = [];
 let NMW = [], NEW = [], metaRev = 0 - 1, metaDirty = 0, metaT = 0, editDirty = 0, editT = 0, plugT = 0, skDirty = 0, skDT = 0;
+// ((v3.5, 11-28) the machines' state: MEV its lines in the settings (E), the rest for stKeep and stHead - mapdata.js)
+let MEV = [], stQ = 0, stBusy = 0, stSince = 9, stSlot = 0, stL = 0, stCells = 0, stCmpS = '-', SMP = [];
+const STSMALL = 200, STMAX = 30000;
 function metaRead(k) {
   srvHead(k);
   metaRev = shRev; metaStamp = shStamp;
   MOP = []; MBAN = []; MBANR = []; MWL = []; PLN = []; PLO = []; PLE = []; PLC = []; PLT = []; PLX = []; MUN = []; MUD = []; MCK = []; MCD = []; MSK = []; MST = [];
-  MPC = []; MPL = []; MGN = []; MGC = []; MLN = []; MLC = []; MLD = []; MLP = []; MLK = [];
+  MPC = []; MPL = []; MGN = []; MGC = []; MLN = []; MLC = []; MLD = []; MLP = []; MLK = []; MEV = [];
   skClear();
   let i = 2, n = metaLen(k);
   while (i <= n) {
     let s = metaItem(k, i), t = charAt(s, 1);
+    // ((11-28) the machines' state: its lines as they are (a piece is 5,000 letters: not split))
+    if (t == 'E') { MEV.push(s); }
     if (t == 'O' || t == 'W' || t == 'B' || t == 'P' || t == 'U' || t == 'C' || t == 'S' || t == 'R' || t == 'G' || t == 'L' || t == 'K' || t == 'T') {
       splitBy(s, '^');
       if (t == 'O') { MOP.push(SPL[2]); }
@@ -356,6 +372,7 @@ function metaWrite(k) {
   i = 1; while (i <= MGN.length) { NMW.push(`G^${MGN[i]}^${MGC[i]}`); i = i + 1; }
   i = 1; while (i <= MLN.length) { let lt = 'L'; if (MLK[i] == 1) { lt = 'T'; } NMW.push(`${lt}^${MLN[i]}^${MLC[i]}^${MLD[i]}^${MLP[i]}`); i = i + 1; }
   i = 1; while (i <= MKU.length) { NMW.push(`K^${MKU[i]}^${MKW[i]}^${MKX[i]}^${MKZ[i]}^${MKR[i]}`); i = i + 1; }
+  i = 1; while (i <= MEV.length) { NMW.push(MEV[i]); i = i + 1; }
   metaPut(k);
   metaDirty = 0; metaT = 0; skDirty = 0;
 }
@@ -417,7 +434,7 @@ function srvCreate(name, motd, seedv, mode, flat) {
   if (r > 0) {
     shName = netClean(name); shOwner = netNick; shMotd = netClean(motd); shSeed = seedv; shMode = mode; shPvp = 1; shMax = 16; shWl = 0; shRev = 0; shLava = 1; shTnt = 1; shGen = GENV; shBoss = 0; shFlat = netClean(flat); shId = `${rand(100000, 999999)}${rand(100000, 999999)}`; shDay = dayNow();
     MOP = []; MBAN = []; MBANR = []; MWL = []; PLN = []; PLO = []; PLE = []; PLC = []; PLT = []; PLX = []; MUN = []; MUD = []; MCK = []; MCD = []; MSK = []; MST = [];
-    MPC = []; MPL = []; MGN = []; MGC = []; MLN = []; MLC = []; MLD = []; MLP = []; MLK = [];
+    MPC = []; MPL = []; MGN = []; MGC = []; MLN = []; MLC = []; MLD = []; MLP = []; MLK = []; MEV = [];
     skClear();
     // a plugin to start from: a greeting
     PLN.push('환영'); PLO.push(1); PLE.push('join'); PLC.push('*'); PLT.push('me'); PLX.push('/title @s title {server}');
@@ -564,6 +581,8 @@ function netJoin(k) {
   let old = 0;
   if (shGen < GENV) { old = 1; if (GENV >= 3) { if (srvCount(k) == 0) { serverUp(k); } } }
   genStart(shSeed);
+  // ((11-28) nothing the spark engine had yet to do in the world before is due here)
+  rsWorldNew();
   genPhase = 0;
   // ((v3.4) every server has the land of this version, whatever it was made with (the user: the old lands
   // are not kept); genOld: one made before, said once on arriving)
@@ -572,11 +591,19 @@ function netJoin(k) {
   // ((11-26) the map the server was made from, if it has one (mapdata.js), then what was changed since)
   srvHead(k);
   let hasBase = baseLoad();
-  let n = editLen(k), i = 1;
+  // ((11-28) and its machines as they last stood still (mapdata.js stHead): after the part of the record they were
+  // kept after, before what was changed since - a block put or broken later is not undone by them)
+  let n = editLen(k), i = 1, hasSt = stHead(), cut = 0;
+  cut = n;
+  if (hasSt == 1) { if (stL < n) { cut = stL; } }
+  while (i + 4 <= cut) { edPushD(editItem(k, i), editItem(k, i + 1), editItem(k, i + 2), editItem(k, i + 3), editItem(k, i + 4)); i = i + 5; }
+  if (hasSt == 1) { stApply(0); }
   while (i + 4 <= n) { edPushD(editItem(k, i), editItem(k, i + 1), editItem(k, i + 2), editItem(k, i + 3), editItem(k, i + 4)); i = i + 5; }
   // (and what the map came with: the chunks to keep, the comparators, where one begins)
   mpSpOn = 0;
   if (hasBase == 1) { mapMore(0); }
+  if (hasSt == 1) { stCmp(); }
+  stDirty = 0; stQ = 0; stBusy = 0;
   // ((v3.1) what the host writes in the next seconds (blocks changed just before I came, heard by nobody
   // here yet) is read too)
   netTailFrom = n + 1; netTailT = 3; netTailLen = n;
@@ -626,6 +653,8 @@ function netLeave() {
         // ((v3.4) my kept mobs as they are now, into the server's record)
         skLeave();
         // (the host keeps its own things and what is not written yet before it goes)
+        // ((11-28) and the machines, if they stand still: one left at work is kept as it last stood)
+        if (netHost == 1) { if (stDirty == 1) { if (scN == 0 && BEX.length == 0 && MVX.length == 0) { stKeep(); } } }
         if (netHost == 1) { hostKeepUser(netNick, netUserPack()); if (editDirty == 1) { editsWrite(); } metaWrite(netSrv); }
         else { evUser(`${netSrv}^${netUserPack()}`); }
       }
@@ -755,7 +784,7 @@ function netInServer(dt) {
   netHost = 0;
   if (h == netMy) { netHost = 1; }
   if (netSt == 2) { if (h == 0) { netHost = 1; } }
-  if (netHost == 1) { if (was == 0) { netEditsLoad(); metaRead(netSrv); srvHead(netSrv); editDirty = 0; metaDirty = 0; if (netSt == 2) { rgReplay(); } } }
+  if (netHost == 1) { if (was == 0) { netEditsLoad(); metaRead(netSrv); srvHead(netSrv); editDirty = 0; metaDirty = 0; if (netSt == 2) { rgReplay(); stAdopt(); } } }
   // the settings changed (the host wrote them): read again; banned now: out
   if (srvHas(netSrv) == 0) { if (netSt == 2) { netDisconnect('서버가 삭제되었습니다'); } }
   else {
@@ -900,8 +929,11 @@ function psNote(x, y, z, b) {
 function pnFlush() {
   if (PNX.length > 0) {
     if (netHost == 1) {
+      // ((11-28) the host's own are in the machines' state now (stKeep), with all else the machine is: written into
+      // the record as they moved they were all that was kept of a machine at work, and it came back with its pistons
+      // halfway and the rest as built. Only a log too long for the state (save.js ecOn 0) has them as before.)
       let i = 1;
-      while (i <= PNX.length) { hostKeepEdit(PNX[i], PNY[i], PNZ[i], PNB[i], pnDim); i = i + 1; }
+      if (ecOn == 0) { while (i <= PNX.length) { hostKeepEdit(PNX[i], PNY[i], PNZ[i], PNB[i], pnDim); i = i + 1; } }
       PNX = []; PNY = []; PNZ = []; PNB = [];
     } else {
       gS2 = `${pnDim}^`;
@@ -929,7 +961,8 @@ function netPistonLog(f, keep) {
       splitBy(NMR[i], ',');
       if (SPL.length >= 4) {
         let x = SPL[1] * 1, y = SPL[2] * 1, z = SPL[3] * 1, b = SPL[4] * 1;
-        if (keep == 1) { hostKeepEdit(x, y, z, b, d); }
+        // ((11-28) the host: only where its own screen does not run that machine)
+        if (keep == 1) { if (d != dim || cOK(x, z) == 0 || ecOn == 0) { hostKeepEdit(x, y, z, b, d); } }
         else { if (d != dim || cOK(x, z) == 0) { edPushD(x, y, z, b, d); } }
       }
       i = i + 1;
@@ -1042,7 +1075,8 @@ function editsWrite() {
   }
   // made short when long: the last of each cell (and written whole); else ((v3.0, 11-18)) the shared record is
   // NEW up to ewLen (just checked): only what came after it is pushed on
-  if (NEW.length > 30000) { hostEditsCompact(); editsPut(netSrv); }
+  // ((11-28) the record's places moved: the machines' state says anew which part of it came before - stKeep, at once)
+  if (NEW.length > 30000) { hostEditsCompact(); editsPut(netSrv); stDirty = 1; stQ = 99; }
   else { let q = ewLen + 1; while (q <= NEW.length) { editsPush(netSrv, NEW[q]); q = q + 1; } }
   editDirty = 0;
   ewLen = NEW.length; ewTail = editsTail();
@@ -1087,6 +1121,17 @@ function hostStep(dt) {
   if (editDirty == 1) { if (editT > 0.5) {
     editsWrite(); editT = 0;
   } }
+  // ((11-28) the machines' state: once they have stood still a second and a half (and four seconds after the last
+  // time: it goes whole to everyone in the room). Machines that never stand still - a clock, a farm - every twenty
+  // seconds, while little is due: a machine with much to do yet (a calculator multiplying, or left behind in a
+  // chunk let go) is not written in the middle - kept so and its ticks lost, it would never finish.)
+  stSince = stSince + dt;
+  if (stDirty == 1) {
+    stBusy = stBusy + dt;
+    if (scN == 0 && BEX.length == 0 && MVX.length == 0) { stQ = stQ + dt; } else { if (stQ < 90) { stQ = 0; } }
+    if (stQ > 90) { stKeep(); }
+    else { if (stSince > 4) { if (stQ > 1.5 || (stBusy > 20 && scN + MVX.length <= 12)) { stKeep(); } } }
+  }
   // ((v3.4, 11-22) the kept mobs that only moved: into the settings every 15 s at most (netkeep.js skPut))
   skDT = skDT + dt;
   if (skDirty == 1) { if (skDT > 15) { skDirty = 0; skDT = 0; metaDirty = 1; } }
@@ -1131,6 +1176,72 @@ function hostEditsCompact() {
   NEW = [];
   q = 1;
   while (q <= NMW.length) { NEW.push(NMW[q]); q = q + 1; }
+}
+// ---------------------------------------------------------------- (v3.5, 11-28) the machines of a server, kept
+// The host writes what the spark engine has changed on its screen (save.js EDO: the cells that are other than they
+// were before it) and the comparators' outputs: few cells into the settings, more into a list of the pool
+// (mapdata.js, where they are read). Whole each time - a machine is kept as it stood at one moment, never a part
+// of it. Not of a log too long for the cells' table (ecOn 0): then an empty state, so that an old one is not read.
+function stKeep() {
+  if (editDirty == 1) { editsWrite(); }
+  stDirty = 0; stQ = 0; stBusy = 0; stSince = 0;
+  let n = EDX.length, f = 1, c = 0, m = 0, L = editLen(netSrv);
+  SMP = []; gS = '';
+  if (ecOn == 1 && EDO.length == n) {
+    while (f <= n) {
+      let o = EDO[f];
+      if (o != 0 - 2) {
+        let b = EDB[f];
+        if (b != o) {
+          let x = EDX[f] + 131072, z = EDZ[f] + 131072, y = EDY[f], d = EDD[f];
+          if (x >= 0 && x < 262144 && z >= 0 && z < 262144 && y >= 0 && y < 256 && d >= 0 && d < 9 && b >= 0 && b < 4096) {
+            b64three(x); b64three(z); b64two(y + d * 256); b64two(b);
+            c = c + 1; m = m + 1;
+            if (m >= BASEPC) { SMP.push(gS); gS = ''; m = 0; }
+          }
+        }
+      }
+      f = f + 1;
+    }
+    if (m > 0) { SMP.push(gS); }
+  }
+  gS = '';
+  // (more than a server keeps: none of it)
+  if (c > STMAX) { SMP = []; c = 0; }
+  let ct = '-', i = 1;
+  // (begun with its first entry: an empty text in a function's own variable reads as 0)
+  if (ecOn == 1) { while (i <= CMX.length && i <= 400) { let e = `${CMX[i]},${CMY[i]},${CMZ[i]},${CMD[i]},${CML[i]};`; if (i == 1) { ct = e; } else { ct = `${ct}${e}`; } i = i + 1; } }
+  let s = stOf(), had = MEV.length;
+  if (c <= STSMALL) {
+    MEV = [];
+    if (c > 0 || ct != '-') { MEV.push(`E^h^${c}^${L}^${ct}`); i = 1; while (i <= SMP.length) { MEV.push(`E^p^${SMP[i]}`); i = i + 1; } }
+    if (s > 0) { baseGone(s); }
+    // (written now: the settings are read again from the list at any change of them, and MEV with them)
+    if (MEV.length > 0 || had > 0) { metaWrite(netSrv); }
+  } else {
+    if (s == 0) { s = bpFree(1); srvHead(netSrv); }
+    if (s > 0) {
+      baseClear(s);
+      basePush(s, `S^${shId}^${c}^${dayNow() * 86400 + dateHour() * 3600 + dateMin() * 60 + dateSec()}^${L}`);
+      basePush(s, ct);
+      i = 1; while (i <= SMP.length) { basePush(s, SMP[i]); i = i + 1; }
+    }
+    if (had > 0) { MEV = []; metaWrite(netSrv); }
+  }
+  SMP = [];
+}
+// I am the host now: what the host before me kept of the machines my screen has not made is mine to keep on -
+// first as they were built, then as that state has them (what my own screen runs is as my screen has it)
+function stAdopt() {
+  let d0 = stDirty, f = 1, n = EDX.length;
+  if (EDO.length == n) {
+    while (f <= n) {
+      if (EDO[f] >= 0) { if (EDD[f] != dim || cOK(EDX[f], EDZ[f]) == 0) { EDB[f] = EDO[f]; EDO[f] = 0 - 2; } }
+      f = f + 1;
+    }
+  }
+  if (stHead() == 1) { stApply(2); }
+  stDirty = d0;
 }
 // a wish to change the server from player `who` (they must be an op)
 function hostWish(who, f) {

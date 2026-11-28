@@ -135,12 +135,18 @@ function mapMore(at) {
 }
 function mapOutServer() {
   // (the host: what it holds and has not written yet goes into the record first)
-  if (netHost == 1) { if (editDirty == 1) { editsWrite(); } }
+  // ((11-28) and its machines as they are now)
+  if (netHost == 1) { if (editDirty == 1) { editsWrite(); } if (stDirty == 1) { stKeep(); } }
   mpOut = `BWMAP1|${shSeed}|${shFlat}|${shGen}|${shBoss}|`;
   let n = editLen(netSrv), i = 1;
   // ((v3.3, 11-20) but the cell of no world an emptied record holds (net.js edGone))
   let cells = 0, hb = baseOf();
   if (hb > 0) { let p = 3, bn = baseLen(hb); bsN = 0; while (p <= bn) { baseCells(baseItem(hb, p), 1); p = p + 1; } cells = bsN; }
+  // ((11-28) the machines' state after the part of the record it was kept after, as a game coming in reads them)
+  let hs = stHead(), cut = n;
+  if (hs == 1) { if (stL < n) { cut = stL; } }
+  while (i + 4 <= cut) { if (editItem(netSrv, i + 4) * 1 < 9) { cells = cells + 1; mpOut = `${mpOut}${editItem(netSrv, i)},${editItem(netSrv, i + 1)},${editItem(netSrv, i + 2)},${editItem(netSrv, i + 3)},${editItem(netSrv, i + 4)};`; } i = i + 5; }
+  if (hs == 1) { bsN = 0; stApply(1); cells = cells + bsN; }
   while (i + 4 <= n) { if (editItem(netSrv, i + 4) * 1 < 9) { cells = cells + 1; mpOut = `${mpOut}${editItem(netSrv, i)},${editItem(netSrv, i + 1)},${editItem(netSrv, i + 2)},${editItem(netSrv, i + 3)},${editItem(netSrv, i + 4)};`; } i = i + 5; }
   if (cells == 0) { mpOut = `${mpOut}-`; }
   mpOut = `${mpOut}|`;
@@ -300,23 +306,38 @@ function baseOf() {
   return r;
 }
 // a list of the pool no server has (0: none): empty, given up, or of a server that is no more
+// ((11-28) the pool holds the machines' states too (S^id^cells^when^L: net.js stKeep). When no list is free the
+// state written longest ago gives its up - never a base. top 1: looked for from the pool's end (for a state: the
+// work of before knows the first twelve lists only and takes a base's from the beginning))
 let BFI = [];
-function baseFree() {
-  let s = 1, r = 0, k = 1;
+function bpFree(top) {
+  let j = 1, r = 0, k = 1, old = 0, oldT = 0;
   BFI = [];
   while (k <= NSRV) { if (srvHas(k) == 1) { BFI.push(shId); } k = k + 1; }
-  while (s <= NBASE) {
+  while (j <= NBASE) {
+    let s = j;
+    if (top == 1) { s = NBASE + 1 - j; }
     if (r == 0) {
-      let id = baseId(s), used = 0;
-      k = 1;
-      if (id != '-') { while (k <= BFI.length) { if (BFI[k] == id) { used = 1; } k = k + 1; } }
+      let used = 0;
+      if (baseLen(s) >= 2) {
+        splitBy(baseItem(s, 1), '^');
+        if (SPL.length >= 2) { if (SPL[1] == 'B' || SPL[1] == 'S') {
+          let id = SPL[2], isSt = 0, t = 0;
+          if (SPL[1] == 'S') { isSt = 1; if (SPL.length >= 4) { t = SPL[4] * 1; } }
+          k = 1;
+          while (k <= BFI.length) { if (BFI[k] == id) { used = 1; } k = k + 1; }
+          if (used == 1) { if (isSt == 1) { if (old == 0 || t < oldT) { old = s; oldT = t; } } }
+        } }
+      }
       if (used == 0) { r = s; }
     }
-    s = s + 1;
+    j = j + 1;
   }
   BFI = [];
+  if (r == 0) { r = old; }
   return r;
 }
+function baseFree() { let r = bpFree(0); return r; }
 // the blocks of one piece: into the log of changes (how 0), or as a map's text onto mpOut (how 1)
 function baseCells(s, how) {
   let n = strlen(s), j = 1;
@@ -326,7 +347,10 @@ function baseCells(s, how) {
     let yd = (indexOf(PA, charAt(s, j + 6)) - 1) * 64 + indexOf(PA, charAt(s, j + 7)) - 1;
     let b = (indexOf(PA, charAt(s, j + 8)) - 1) * 64 + indexOf(PA, charAt(s, j + 9)) - 1;
     let d = idiv(yd, 256), y = yd - d * 256;
-    if (how == 0) { edPushD(x, y, z, b, d); } else { mpOut = `${mpOut}${x},${y},${z},${b},${d};`; }
+    // ((11-28) how 2: only where this screen has not the cell made - a machine's state taken over (net.js stAdopt))
+    if (how == 0) { edPushD(x, y, z, b, d); }
+    if (how == 1) { mpOut = `${mpOut}${x},${y},${z},${b},${d};`; }
+    if (how == 2) { if (d != dim || cOK(x, z) == 0) { edPushD(x, y, z, b, d); } }
     bsN = bsN + 1;
     j = j + 10;
   }
@@ -341,6 +365,52 @@ function baseLoad() {
     while (p <= n) { baseCells(baseItem(k, p), 0); p = p + 1; }
   }
   return r;
+}
+// ---------------------------------------------------------------- (v3.5, 11-28) a server's machines: their state
+// What the spark engine changed on the host's screen and is other than it was (save.js EDO), written by the host
+// when the machines stand still (net.js stKeep) and read by whoever comes in, after the base and the record:
+//   few cells (STSMALL)   lines of the settings   E^h^cells^L^comparators   E^p^piece ...
+//   more                  a list of the pool      S^id^cells^when^L, the comparators, the pieces
+// a piece: BASEPC cells of ten letters as a base's; the comparators: x,y,z,world,output;... (- none); L: how many
+// numbers the record held then - what the record got after is newer than the state and is read after it.
+// the list of the pool that is the state of the server whose header is in sh* (0: none)
+function stOf() {
+  let s = 1, r = 0, pre = `S^${shId}^`, n = 0;
+  n = strlen(pre);
+  while (s <= NBASE) { if (r == 0) { if (baseLen(s) >= 2) { if (substr(baseItem(s, 1), 1, n) == pre) { r = s; } } } s = s + 1; }
+  return r;
+}
+// where that state is (after metaRead of the server): stSlot the list of the pool or 0 (the settings' lines), stL,
+// stCells, stCmpS the comparators; 1 when there is one
+function stHead() {
+  let r = 0;
+  stSlot = stOf(); stL = 0; stCells = 0; stCmpS = '-';
+  if (stSlot > 0) {
+    splitBy(baseItem(stSlot, 1), '^');
+    if (SPL.length >= 5) { stCells = SPL[3] * 1; stL = SPL[5] * 1; stCmpS = baseItem(stSlot, 2); r = 1; } else { stSlot = 0; }
+  } else {
+    if (MEV.length > 0) { splitBy(MEV[1], '^'); if (SPL.length >= 5) { if (SPL[2] == 'h') { stCells = SPL[3] * 1; stL = SPL[4] * 1; stCmpS = SPL[5]; r = 1; } } }
+  }
+  return r;
+}
+// its cells (after stHead): into the log as the engine's own (how 0; 2: only where this screen has them not made),
+// or onto a map's text (1)
+function stApply(how) {
+  let p = 3, n = 0;
+  stWorld = 1;
+  if (stSlot > 0) { n = baseLen(stSlot); while (p <= n) { baseCells(baseItem(stSlot, p), how); p = p + 1; } }
+  else { p = 2; while (p <= MEV.length) { if (substr(MEV[p], 1, 4) == 'E^p^') { baseCells(substr(MEV[p], 5, strlen(MEV[p])), how); } p = p + 1; } }
+  stWorld = 0;
+}
+// its comparators' outputs in place of what the game holds (after the map's own: mapMore)
+function stCmp() {
+  if (stCmpS != '-') {
+    MPQ = []; mapNums(stCmpS, 4);
+    CMX = []; CMY = []; CMZ = []; CMD = []; CML = [];
+    let q = 1;
+    while (q + 4 <= MPQ.length) { CMX.push(MPQ[q]); CMY.push(MPQ[q + 1]); CMZ.push(MPQ[q + 2]); CMD.push(MPQ[q + 3]); CML.push(MPQ[q + 4]); q = q + 5; }
+    MPQ = [];
+  }
 }
 // a new server k from the map (menu.js serverSave, after srvCreate: its seed and kind were the map's)
 function mapToServer(k) {

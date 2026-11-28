@@ -111,7 +111,9 @@ const names = (c) => { const r = []; for (let k = 1; k <= c.g('NSRV'); k++) if (
 // the lists of the pool as a game has them: [{ s, id, items, letters }]
 const pool = (c) => { const r = []; for (let s = 1; s <= c.g('NBASE'); s++) { const L = c.g('SY_b' + s); if (L.length >= 2 && String(L[0]).startsWith('B^')) r.push({ s, id: String(L[0]).split('^')[1], items: L.length, letters: L.reduce((a, v) => a + String(v).length, 0) }); } return r; };
 let baseSends = 0;
-{ const f0 = Client.prototype.flush; Client.prototype.flush = function () { for (const n of this.pend.keys()) if (/^SY_b/.test(n)) baseSends++; return f0.call(this); }; }
+// ((11-28) the pool holds the machines' states too (S^...: written whenever the machines stand still) - a base begins with B^)
+let stateSends = 0;
+{ const f0 = Client.prototype.flush; Client.prototype.flush = function () { for (const [n, a] of this.pend) if (/^SY_b/.test(n)) { if (String(a[0]).startsWith('B^')) baseSends++; else stateSends++; } return f0.call(this); }; }
 const makeFromMap = (c, name) => {
   c.call((fn) => fn.menuGo(5)); run(0.2);
   c.sim.poke('$CLIPBOARD', text); run(0.2);
@@ -170,7 +172,7 @@ if (calc) {
   }
 }
 run(5);
-{ const e = A.g('SY_e' + k).length; ok(baseSends === sends0 && e < 30000, `nobody wrote the base again (${baseSends - sends0} times); the record is ${e} numbers`); }
+{ const e = A.g('SY_e' + k).length; ok(baseSends === sends0 && e < 30000, `nobody wrote the base again (${baseSends - sends0} times); the record is ${e} numbers; the machines' state was written ${stateSends} times`); }
 // the owner copies the server's map: the base, what was changed, what the map came with
 A.call((fn) => fn.mapCopy());
 { const out = String(A.g('mpOut')).split('|'); const n = out[5].split(';').filter(Boolean).length;

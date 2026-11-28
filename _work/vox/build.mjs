@@ -736,6 +736,25 @@ export function sources(C) {
         parts.push(`let ${k} = [];`);
         packed.add(k);
     }
+    // ((11-28) And the long lists of texts - the items' keys and their names, 2,172 each: every item joined, a | after
+    // it, in texts of up to 8000 (PKT, each led by a T), cut apart again by unpt. An item of a list costs the work's
+    // file its thirty letters; the machines' state kept by a server (net.js stKeep) had brought the work to 16.00 MB,
+    // above any size it had been saved at.)
+    const PKT = [];
+    for (const [k, v] of Object.entries(L)) {
+        if (C.NOPACK || packed.has(k) || v.length < 256 || !v.every(x => typeof x === 'string' && x.length > 0 && !x.includes('|'))) continue;
+        const a = PKT.length + 1;
+        let t = 'T';
+        for (const x of v) { if (t.length + x.length + 1 > 7999) { PKT.push(t); t = 'T'; } t += x + '|'; }
+        PKT.push(t);
+        unpack.push(`  unpt(${a}, ${PKT.length}); i = 1; while (i <= UPK.length) { ${k}.push(UPK[i]); i = i + 1; }`);
+        parts.push(`let ${k} = [];`);
+        packed.add(k);
+    }
+    parts.push(`let PKT = [${PKT.map(lit).join(', ')}];`);
+    // (a text is begun with its first letter, not with '' - an empty text put before a letter is a 0 before it;
+    // an empty item is a blank)
+    parts.push(`function unpt(a, b) {\n  UPK = []; let c = a, s = ' ', n = 0, j = 0, cur = ' ', ch = ' ', has = 0;\n  while (c <= b) { s = PKT[c]; n = strlen(s); j = 2; has = 0; while (j <= n) { ch = charAt(s, j); if (ch == '|') { if (has == 0) { cur = ' '; } UPK.push(cur); has = 0; } else { if (has == 0) { cur = ch; has = 1; } else { cur = \`\${cur}\${ch}\`; } } j = j + 1; } c = c + 1; }\n}`);
     parts.push(`let PA = ${JSON.stringify(PA)};`);
     parts.push(`let PKS = [${PKS.map(lit).join(', ')}];`);
     parts.push(`let UPK = [];`);
@@ -778,7 +797,9 @@ export function sources(C) {
     // ((v3.5, 11-26) SY_b1..NBASE: the maps the servers made from large maps began with (mapdata.js baseWrite), each
     // written once by the server's maker. A pool of twelve, not one for each of the 99 places: 99 more lists and
     // their branches were 260 KB of the work, which has 16 MB)
-    const NBASE = 12;
+    // ((11-28) twenty-four: the pool holds the machines' states of the servers too (mapdata.js stOf) - the ones
+    // of more than a few hundred cells)
+    const NBASE = 24;
     parts.push(`const NBASE = ${NBASE};`);
     parts.push(`let ${Array.from({ length: NBASE }, (_, i) => `SY_b${i + 1} = []`).join(', ')};`);
     parts.push(`function baseLen(k) { let n = 0; if (k >= 1 && k <= NBASE) { ${tree(1, NBASE, (i) => `n = SY_b${i}.length;`)} } return n; }`);

@@ -263,6 +263,8 @@ function worldMake(k) {
   txClear();
   thingsInit(); petsClear(); sleptDay = 0;
   genStart(s);
+  // ((11-28) nothing the spark engine had yet to do in the world before is due in a new one)
+  rsWorldNew();
   if (mpOn == 1) { mapToWorld(); }
   // ((v3.4) the start: by the land of the world's kind (a map brings its own))
   genOrigin();

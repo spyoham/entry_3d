@@ -596,6 +596,8 @@ function cmpLevel(x, y, z) {
 }
 function cmpSet(x, y, z, l) {
   rsVer = rsVer + 1; wnTouch(x, y, z, 0);
+  // ((11-28) a comparator's output is in no block: on a server it is kept with the machines' state)
+  if (netSrv > 0) { stDirty = 1; }
   let i = 1, f = 0;
   while (i <= CMX.length) { if (CMX[i] == x && CMY[i] == y && CMZ[i] == z && CMD[i] == dim) { f = i; } i = i + 1; }
   if (f == 0) { CMX.push(x); CMY.push(y); CMZ.push(z); CMD.push(dim); CML.push(l); } else { CML[f] = l; }
@@ -684,6 +686,26 @@ function rsSchedP(x, y, z, t, w, p) {
     SCK[free] = key;
     if (spot > 0) { SHK[spot] = key; SHV[spot] = free; }
   }
+}
+// (v3.5, 11-28) A world begun: nothing of the world before is due in it. The ticks asked for, the block events, the
+// blocks on the move and the cells waiting to be told all stayed when a world was left, and ran in the next one at
+// the same cells - a calculator left in the middle of a multiplication and come back to (a server left and joined
+// again, a kept world opened again without the page loaded anew) went on from the middle with its parts as they
+// had been kept, and was wrong from then on: 7 + 8 gave 1807.
+// Let go where a world is entered: a server joined (net.js netJoin), a world made (menu.js worldMake), a kept world
+// opened (save.js loadGame) - unless that world is the one just left with its saving (rsOwn its place, main.js):
+// it was kept as it stood at that moment, what was due then is due in it still, and a machine at work goes on as
+// it always did. The land behind the title (menu.js panoStep) runs nothing and lets nothing go.
+let rsOwn = 0;
+function rsWorldNew() {
+  SCX = []; SCY = []; SCZ = []; SCD = []; SCT = []; SCW = []; SCP = []; SCQ = []; SCR = []; SCK = []; SCF = []; scfN = 0; scN = 0;
+  let q = 1;
+  while (q <= SHK.length) { if (SHK[q] != 0) { SHK[q] = 0; } q = q + 1; }
+  BEX = []; BEY = []; BEZ = []; BET = []; BED = [];
+  MVX = []; MVY = []; MVZ = []; MVB = []; MVT = []; MVD = []; MVF = []; MVP = []; MVE = []; MVC = []; MVS = [];
+  RLX = []; RLY = []; RLZ = []; RLD = [];
+  nqH = 1; nqN = 0; rsMid = 0; dueN = 0; dueJ = 1;
+  rsOwn = 0;
 }
 function scFree(c) {
   SCT[c] = 0 - 1; scN = scN - 1;
@@ -832,6 +854,9 @@ function lightLaterStep(most) {
 function rsStep(dt) {
   if (EVK.length == 0) { hsInit(); }
   rsTime = rsTime + dt;
+  // ((11-28) what is written from here on is the machines' own doing: on a server the log marks those cells
+  // (save.js EDO), and the host keeps them when the machines stand still)
+  stWorld = 1;
   // (what the player did since: at once)
   rsPhase = 0;
   rsFlush(3000);
@@ -860,6 +885,7 @@ function rsStep(dt) {
   sensorStep(dt);
   prT = prT + dt; if (prT > 30) { prT = 0; rsPrune(); }
   rsFlush(3000);
+  stWorld = 0;
 }
 function rsFlush(n) {
   while (nqH <= nqN && n > 0) {

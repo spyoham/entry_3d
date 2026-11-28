@@ -404,7 +404,8 @@ function uiInput() {
       if (menuSel == 7) { if (netSrv == 0) { saveGame(1); } }
       if (menuSel == 12) { mapCopy(); }
       if (menuSel == 13) { simNext(); }
-      if (menuSel == 6) { if (netSrv > 0) { netLeave(); } else { if (canSave() == 1) { saveGame(1); } } uiMode = 0; gState = 0; txClear(); }
+      // ((11-28) rsOwn: the spark engine's waiting work is that of the world kept just now, should it be opened again)
+      if (menuSel == 6) { rsOwn = 0; if (netSrv > 0) { netLeave(); } else { if (canSave() == 1) { saveGame(1); if (dead == 0) { rsOwn = worldCur; } } } uiMode = 0; gState = 0; txClear(); }
     }
   }
   if (uiMode == 7) {
