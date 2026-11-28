@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>엔트리 이야기 1시간 뒤 삭제</title>
+<style>
+  body { margin: 0; padding: 14px 16px; width: 290px; font: 13px/1.55 sans-serif; color: #222; background: #fff; }
+  h1 { margin: 0 0 6px; font-size: 15px; }
+  p { margin: 0 0 10px; color: #555; }
+  label.sw { display: flex; align-items: center; gap: 8px; padding: 10px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; font-weight: 700; }
+  label.sw input { width: 18px; height: 18px; margin: 0; }
+  dl { margin: 12px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; }
+  dt { color: #777; white-space: nowrap; }
+  dd { margin: 0; white-space: pre-line; word-break: keep-all; overflow-wrap: anywhere; }
+  button { margin-top: 12px; width: 100%; padding: 8px; border: 0; border-radius: 6px; background: #4f80ff; color: #fff; font: 600 13px sans-serif; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  .warn { color: #c62828; }
+</style>
+</head>
+<body>
+  <h1>엔트리 이야기 1시간 뒤 삭제</h1>
+  <p>로그인한 계정이 쓴 엔트리 이야기 <b>글</b>을 쓴 지 1시간이 지나면 지웁니다. 댓글은 건드리지 않습니다.
+  <span class="warn">지운 글은 되돌릴 수 없습니다.</span></p>
+  <label class="sw"><input type="checkbox" id="on"> 자동 삭제 켜기</label>
+  <dl>
+    <dt>지금 상태</dt><dd id="now">…</dd>
+    <dt>마지막 확인</dt><dd id="last">…</dd>
+    <dt>지금까지</dt><dd id="total">…</dd>
+  </dl>
+  <button id="go">지금 확인</button>
+  <script src="popup.js"></script>
+</body>
+</html>

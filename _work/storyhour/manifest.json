@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "엔트리 이야기 1시간 뒤 삭제",
+  "version": "1.0.0",
+  "description": "내가 쓴 엔트리 이야기 글을 쓴 지 1시간이 지나면 자동으로 지웁니다. 댓글은 건드리지 않습니다.",
+  "minimum_chrome_version": "111",
+  "permissions": ["alarms", "storage"],
+  "host_permissions": ["https://playentry.org/*"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup.html", "default_title": "엔트리 이야기 1시간 뒤 삭제" },
+  "content_scripts": [
+    {
+      "matches": ["https://playentry.org/*"],
+      "js": ["core.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
