@@ -146,6 +146,8 @@ function svBackDrop(k) {
 let BKID = [];
 function bkCheck() {
   let p = 1, n = AT_서버백업.length, ch = 0, any = 0, q = 1;
+  // ((11-28) srvCount reads the slots' lists: on the title, before the multiplayer screen was ever opened, they were not made yet)
+  netInit();
   bkPut = 0;
   // (only when every place is empty; each place's id read once into BKID, '-' for an empty one)
   BKID = [];
@@ -265,6 +267,7 @@ function dayNow() {
 }
 function srvAgeCheck() {
   let today = dayNow(), newest = 0, k = 1, gone = 0;
+  netInit();
   while (k <= NSRV) { if (srvHas(k) == 1) { if (shDay > newest) { if (shDay <= today + 2) { newest = shDay; } } } k = k + 1; }
   k = 1;
   while (k <= NSRV) {

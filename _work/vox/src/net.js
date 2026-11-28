@@ -21,6 +21,58 @@ let SY_p9 = '', SY_p10 = '', SY_p11 = '', SY_p12 = '', SY_p13 = '', SY_p14 = '',
 let SY_gb = [];
 // (v2.7.4) its revision, one up with each change SUPER makes: the copies kept in tessvm (@전체차단, svback.js) go by it
 let SY_gbr = 0;
+// (v3.5, 11-28) SY_hb: the room kept AWAKE. The user: "서버 삭제하고 그자리에 새로운 서버를 넣고, 새로고침하면 서버가
+// 안바뀌어 있음". Asked of the real room server (plain sockets, rooms of their own): once nobody in a room has sent
+// anything for ten seconds (9 s: kept, 12 s: lost), what a page writes next is passed on to the others and kept
+// NOWHERE - whoever comes in is given the room as it was before the silence, and so is the writer after a reload.
+// It stays so until somebody new connects; a line from any page every few seconds prevents it. The game was silent
+// on the title screen (a slot's line is written only in the multiplayer list and on a server): a page alone in the
+// room for ten seconds, then a server deleted and another made - nothing of it was kept.
+// So every page that runs writes this variable every two or three seconds - unless another page has written it
+// since this one last looked: one page keeps the room awake for all, the next takes over within six seconds.
+// A game that itself stood still for nine seconds (paused, its tab frozen, one frame that long) wrote nothing
+// meanwhile: it looks three times without writing (hbGap 1..3) - a page that is running writes within three
+// seconds - and if nobody did, the room has been silent and may keep nothing of what is done next until somebody
+// connects: the player is told to reload (hbQuiet). A line that went down and came up again is a new connection,
+// which wakes the room: no word then. (The other players' slots are looked at as well - hbSlots: a page of the work
+// as it was writes no ?!hb, and its slot's line every second on a server keeps the room awake all the same.)
+let SY_hb = 0;
+let hbId = 0, hbN = 0, hbSeen = 0 - 1, hbWall = 0 - 1, hbPrev = 0 - 1, hbGap = 0, hbGapV = 0, hbGapS = '.';
+function hbSlots() {
+  let s = '.', k = 1;
+  while (k <= NSLOT) { if (k != netMy) { s = `${s}${nsGet(k)}`; } k = k + 1; }
+  return s;
+}
+function hbStep() {
+  if (SY_ == 1) {
+    let w = wallNow();
+    if (hbPrev >= 0) { if (wallDiff(w, hbPrev) >= 9) { hbGap = 1; hbGapV = SY_hb * 1; hbGapS = hbSlots(); hbWall = w; } }
+    hbPrev = w;
+    if (hbWall < 0 || wallDiff(w, hbWall) >= 2) {
+      hbWall = w;
+      let v = SY_hb * 1;
+      if (hbGap > 0) {
+        if (v != hbGapV) { hbGap = 0; }
+        if (hbGap > 0) { if (hbSlots() != hbGapS) { hbGap = 0; } }
+        if (hbGap > 0) { hbGap = hbGap + 1; if (hbGap > 3) { hbGap = 0; hbSeen = v; hbQuiet(); } }
+      }
+      if (hbGap == 0) {
+        if (v == hbSeen) {
+          if (hbId == 0) { hbId = rand(1000, 9999); }
+          hbN = mod(hbN + 1, 1000);
+          v = hbId * 1000 + hbN;
+          SY_hb = v;
+        }
+        hbSeen = v;
+      }
+    }
+  } else { hbWall = 0 - 1; hbSeen = 0 - 1; hbPrev = 0 - 1; hbGap = 0; }
+}
+function hbQuiet() {
+  let t = '게임이 오래 멈춰 있어 방 서버가 쉬고 있습니다 · 지금부터 바꾸는 것은 저장되지 않을 수 있으니 새로고침(F5)한 뒤 이어 하세요';
+  netMsg = t;
+  if (netSrv > 0) { if (netSt == 2) { chatAdd(`[알림] ${t}`); } }
+}
 const NSLOT = 16;
 const NSTALE = 8;
 const NHDR = 59;
@@ -491,6 +543,8 @@ function srvDelete(k) {
 // ---------------------------------------------------------------- each frame
 function netStep(dt) {
   netClock = netClock + dt;
+  // ((11-28) on every screen, the title's too: the room is not left silent)
+  hbStep();
   svBackStep(dt);
   if (netSrv > 0) { weStep(dt); }
   if (netOn == 1) {
